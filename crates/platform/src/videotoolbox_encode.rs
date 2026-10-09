@@ -49,6 +49,10 @@ use objc2_video_toolbox::{
 /// The value of `kVTCompressionPropertyKey_ConstantBitRate` (macOS 13+), used by name so the binary
 /// does not import the symbol and still starts on macOS 11 and 12 (#330).
 const CONSTANT_BIT_RATE_KEY: &str = "ConstantBitRate";
+/// `kVTCompressionPropertyKey_VariableBitRate` and `kVTCompressionPropertyKey_VBVMaxBitRate`
+/// (macOS 26+), by name for the same reason.
+const VARIABLE_BIT_RATE_KEY: &str = "VariableBitRate";
+const VBV_MAX_BIT_RATE_KEY: &str = "VBVMaxBitRate";
 
 /// The pixel format of the buffers we hand over: biplanar Y + interleaved CbCr, video range.
 const NV12_VIDEO: u32 = u32::from_be_bytes(*b"420v");
@@ -549,10 +553,20 @@ impl VtEncoder {
                 }
             }
             VtRate::Vbr { target_kbps, max_kbps } => {
-                require(set_value(session, avg_key, CFNumber::new_i32(bps(target_kbps)).as_ref()), "the bitrate")?;
-                let limits =
-                    CFArray::<CFType>::from_objects(&[CFNumber::new_i32(bps(max_kbps.max(target_kbps)) / 8).as_ref(), CFNumber::new_f64(1.0).as_ref()]);
-                let _ = set_value(session, limits_key, limits.as_ref());
+                // macOS 26+: real VBR rate control. AverageBitRate is a soft target the hardware
+                // encoder undershoots on clean pictures (4K test pattern at 40 Mbps: 29.9 Mbps; a
+                // pre-rendered 4K timeline: 6.1 Mbps, #371); VariableBitRate lands on it (39.9).
+                // It excludes AverageBitRate and DataRateLimits; VBVMaxBitRate is the ceiling.
+                let vbr_key = CFString::from_static_str(VARIABLE_BIT_RATE_KEY);
+                if set_value(session, &vbr_key, CFNumber::new_i32(bps(target_kbps)).as_ref()) == 0 {
+                    let vbv_key = CFString::from_static_str(VBV_MAX_BIT_RATE_KEY);
+                    let _ = set_value(session, &vbv_key, CFNumber::new_i32(bps(max_kbps.max(target_kbps))).as_ref());
+                } else {
+                    require(set_value(session, avg_key, CFNumber::new_i32(bps(target_kbps)).as_ref()), "the bitrate")?;
+                    let limits =
+                        CFArray::<CFType>::from_objects(&[CFNumber::new_i32(bps(max_kbps.max(target_kbps)) / 8).as_ref(), CFNumber::new_f64(1.0).as_ref()]);
+                    let _ = set_value(session, limits_key, limits.as_ref());
+                }
             }
         }
 
@@ -675,5 +689,23 @@ mod availability_tests {
         // SAFETY: reading an immutable framework constant (the test host runs macOS 13 or later).
         let framework: &CFString = unsafe { objc2_video_toolbox::kVTCompressionPropertyKey_ConstantBitRate };
         assert_eq!(framework.to_string(), CONSTANT_BIT_RATE_KEY);
+    }
+
+    /// Same for the macOS 26 VBR keys (skipped on older test hosts).
+    #[test]
+    fn variable_bit_rate_keys_match_the_framework_constants() {
+        let v = std::process::Command::new("sw_vers")
+            .arg("-productVersion")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default();
+        if v.split('.').next().and_then(|m| m.parse::<u32>().ok()).unwrap_or(0) < 26 {
+            return;
+        }
+        // SAFETY: reading immutable framework constants (the host runs macOS 26 or later).
+        let (vbr, vbv): (&CFString, &CFString) =
+            unsafe { (objc2_video_toolbox::kVTCompressionPropertyKey_VariableBitRate, objc2_video_toolbox::kVTCompressionPropertyKey_VBVMaxBitRate) };
+        assert_eq!(vbr.to_string(), super::VARIABLE_BIT_RATE_KEY);
+        assert_eq!(vbv.to_string(), super::VBV_MAX_BIT_RATE_KEY);
     }
 }
