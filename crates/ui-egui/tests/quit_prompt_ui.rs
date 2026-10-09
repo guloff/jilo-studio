@@ -5,6 +5,7 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use filmcraft_engine::Session;
 use filmcraft_ui_egui::control::ControlRequest;
 use filmcraft_ui_egui::{Dialog, FilmcraftApp};
@@ -105,6 +106,9 @@ fn closing_with_unsaved_changes_asks_and_cancel_stays() {
     assert!(d.sent(&egui::ViewportCommand::CancelClose), "the close must be held back: {:?}", d.commands);
     assert_eq!(d.harness.state().dialog, Some(Dialog::QuitConfirm));
     assert!(d.has("quit.save") && d.has("quit.dontSave") && d.has("quit.cancel"));
+    // the demo has no file yet: the prompt names the project as the title bar does, not "Untitled"
+    let name = d.harness.state().session.project.name.clone();
+    assert!(d.harness.query_by_label_contains(&format!("Save changes to '{name}' before quitting?")).is_some(), "prompt names '{name}'");
 
     d.commands.clear();
     d.click("quit.cancel");

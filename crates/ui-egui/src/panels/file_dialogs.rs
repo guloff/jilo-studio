@@ -137,8 +137,10 @@ pub fn show_revert(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
 /// Don't Save (quit and drop the recovery journal) or Cancel (stay), like Premiere (#266).
 pub fn show_quit(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
     let t = app.tokens;
+    // the file, else the project's name as the title bar shows it (a project not saved yet)
     let name = app.session.path.as_deref().and_then(|p| std::path::Path::new(p).file_name()).map(|n| n.to_string_lossy().into_owned());
-    let name = name.unwrap_or_else(|| tl!("Untitled").to_string());
+    let project = app.session.project.name.trim();
+    let name = name.or_else(|| (!project.is_empty()).then(|| project.to_string())).unwrap_or_else(|| tl!("Untitled").to_string());
     let mut open = true;
     let mut quit = false;
     let r = egui::Modal::new(egui::Id::new("quit-modal")).frame(modal_frame(&t)).show(ctx, |ui| {
