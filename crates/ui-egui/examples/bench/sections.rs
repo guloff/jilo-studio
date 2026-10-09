@@ -248,15 +248,19 @@ pub fn playback(o: &Opts) -> Vec<Value> {
 pub fn scrub(o: &Opts) -> Vec<Value> {
     let (seeks, drags) = if o.quick { (8, 3) } else { (24, 8) };
     let mut rows = Vec::new();
-    for scenario in ["h264-1080", "h264-2160", "hevc-2160"].into_iter().filter(|s| o.wants(s)) {
+    // many-2160: 24 distinct 4K clips (#55); its seeks land in a different clip almost every time
+    for scenario in ["h264-1080", "h264-2160", "hevc-2160", "many-2160"].into_iter().filter(|s| o.wants(s)) {
         let Some((s, seq)) = playback::scenario_session(scenario) else {
             eprintln!("scrub {scenario}: skipped (fixtures unavailable)");
             continue;
         };
+        let (seeks, drags) = if scenario == "many-2160" { (seeks * 2, drags) } else { (seeks, drags) };
         for _ in 0..o.repeat {
             let bench = new_bench(&s, 0.0);
             let mut display = Display::new(o.gpu);
+            let hw0 = filmcraft_codecs::hw::hw_stats();
             let r = bench.scrub(&s, seq, &mut display, 1.0, seeks, drags, 24, Duration::from_secs(8));
+            let hw = filmcraft_codecs::hw::hw_stats();
             let positions = (seeks + drags) as f64;
             let row = json!({
                 "scenario": scenario,
@@ -265,6 +269,10 @@ pub fn scrub(o: &Opts) -> Vec<Value> {
                 "drag_shown_pct": 100.0 * r.drag_shown as f64 / r.drag_steps.max(1) as f64,
                 "timeouts": r.timeouts, "gop_seeks": r.gop.seeks, "decoded": r.gop.decoded, "skipped": r.gop.skipped,
                 "decoded_per_seek": r.gop.decoded as f64 / positions, "process_cpu_ms": r.process_cpu_ms, "load": r.load,
+                // afterwards: sources open, decoders alive (capped by the codecs' pool) and their cached
+                // frames; OS decoder sessions created meanwhile
+                "open_sources": s.media.open_sources(), "live_decoders": filmcraft_codecs::gop::live_decoders(),
+                "cached_mb": filmcraft_codecs::gop::cached_bytes() as f64 / 1048576.0, "hw_sessions": hw.sessions - hw0.sessions,
             });
             eprintln!("scrub {scenario}: seek p50 {:.0} ms p95 {:.0} ms (load {})", pct(&r.seek_ms, 0.5), pct(&r.seek_ms, 0.95), r.load);
             rows.push(row);

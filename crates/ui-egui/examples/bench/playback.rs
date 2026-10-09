@@ -734,6 +734,23 @@ pub fn scenario_session(name: &str) -> Option<(Session, ItemId)> {
             let a = import(&mut s, &fixture("av12160.mp4")?);
             build_sequence(&mut s, 3840, 2160, &[(a, 100.0, None, 0.0, 100.0)], &[], 10.0)
         }
+        "many-2160" => {
+            // 24 distinct 4K clips back to back on V1, 2 s each (#55: navigating many sources)
+            let clips: Vec<ItemId> = crate::fixtures::many_2160(24)?.iter().map(|f| import(&mut s, f)).collect();
+            let rate = FrameRate::FPS_23_976;
+            s.edit("bench sequence", |p: &mut Project, _| {
+                let settings = SequenceSettings { width: 3840, height: 2160, frame_rate: rate, ..SequenceSettings::default() };
+                let seq = p.new_sequence("Bench", settings, 1, 1, None);
+                let len = rate.snap(Tick::from_seconds_f64(2.0));
+                for (k, item) in clips.iter().enumerate() {
+                    let at = Tick(len.0.saturating_mul(k as i64));
+                    let v = p.make_track_item(*item, TrackKind::Video, at, TimeRange::new(Tick::ZERO, len), rate).expect("track item");
+                    p.sequence_mut(seq).expect("seq").video_tracks[0].items.push(v);
+                }
+                Ok(seq)
+            })
+            .ok()?
+        }
         "after-preview" => {
             let a = import(&mut s, &fixture("a1080.mp4")?);
             let seq = build_sequence(&mut s, 1920, 1080, &[(a, 100.0, None, 0.0, 100.0)], &["lumetri", "sharpen", "levels", "tint"], 20.0);

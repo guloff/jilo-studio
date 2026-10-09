@@ -120,3 +120,34 @@ pub fn fixture(name: &str) -> Option<PathBuf> {
     std::fs::rename(&tmp, &path).ok()?;
     Some(path)
 }
+
+/// `n` distinct 2-second 2160p H.264 clips (`m2160_00.mp4`…; the test picture hue-rotated per
+/// clip, so each is a file of its own to the importer), for navigating many 4K sources (#55).
+pub fn many_2160(n: usize) -> Option<Vec<PathBuf>> {
+    let dir = fixtures_dir();
+    std::fs::create_dir_all(&dir).ok()?;
+    let ff = ffmpeg()?;
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let path = dir.join(format!("m2160_{i:02}.mp4"));
+        if !path.exists() {
+            eprintln!("generating {}", path.display());
+            let tmp = dir.join(format!(".m2160_{i:02}.{}.tmp.mp4", std::process::id()));
+            let src = format!("testsrc2=s=3840x2160:r=24000/1001:d=2,hue=h={}", i * 360 / n.max(1));
+            let ok = Command::new(&ff)
+                .args(["-v", "error", "-y", "-f", "lavfi", "-i", &src, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-pix_fmt", "yuv420p"])
+                .args(["-movflags", "+faststart"])
+                .arg(&tmp)
+                .status()
+                .ok()?
+                .success();
+            if !ok {
+                let _ = std::fs::remove_file(&tmp);
+                return None;
+            }
+            std::fs::rename(&tmp, &path).ok()?;
+        }
+        out.push(path);
+    }
+    Some(out)
+}
