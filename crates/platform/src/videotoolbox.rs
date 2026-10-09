@@ -1,4 +1,4 @@
-//! VideoToolbox (macOS) hardware H.264 / HEVC / ProRes 422 decoding.
+//! VideoToolbox (macOS) hardware H.264 / HEVC / ProRes decoding.
 //!
 //! The only module of the workspace with `unsafe` code besides the other FFI modules of this crate
 //! (docs/adr/0001-platform-ffi.md). Rules: every `unsafe` block has a `// SAFETY:` comment; no
@@ -15,11 +15,11 @@
 //! stream's own depth (`max_num_reorder_frames` / `sps_max_num_reorder_pics`) puts them in
 //! presentation order, as the software decoders do.
 //!
-//! ProRes 422 (`apco` / `apcs` / `apcn` / `apch`, [`VtProResDecoder`]) has no parameter sets and
-//! no references: the session is made from the sample entry's codec and size, every sample is
-//! decoded synchronously into 10-bit 4:2:2 (`x422`), and its size and colour are checked against
-//! the frame header the way our own decoder reads them. ProRes 4444 (alpha, 4:4:4) stays with our
-//! decoder.
+//! ProRes ([`VtProResDecoder`]) has no parameter sets and no references: the session is made from
+//! the sample entry's codec and size, every sample is decoded synchronously — 422 (`apco` /
+//! `apcs` / `apcn` / `apch`) into 10-bit 4:2:2 (`x422`), 4444 (`ap4h` / `ap4x`) into packed 16-bit
+//! A Y'CbCr (`y416`) shifted to our decoder's 12 bits with its alpha plane — and its size, chroma
+//! format, alpha and colour follow the frame header the way our own decoder reads it.
 
 use std::ffi::c_void;
 use std::panic::AssertUnwindSafe;
@@ -35,9 +35,9 @@ use objc2_core_media::{
     CMVideoFormatDescriptionCreateFromH264ParameterSets, CMVideoFormatDescriptionCreateFromHEVCParameterSets, kCMBlockBufferAssureMemoryNowFlag,
 };
 use objc2_core_video::{
-    CVImageBuffer, CVPixelBufferGetBaseAddressOfPlane, CVPixelBufferGetBytesPerRowOfPlane, CVPixelBufferGetHeight, CVPixelBufferGetHeightOfPlane,
-    CVPixelBufferGetPixelFormatType, CVPixelBufferGetPlaneCount, CVPixelBufferGetWidth, CVPixelBufferGetWidthOfPlane, CVPixelBufferLockBaseAddress,
-    CVPixelBufferLockFlags, CVPixelBufferUnlockBaseAddress, kCVPixelBufferPixelFormatTypeKey,
+    CVImageBuffer, CVPixelBufferGetBaseAddress, CVPixelBufferGetBaseAddressOfPlane, CVPixelBufferGetBytesPerRow, CVPixelBufferGetBytesPerRowOfPlane,
+    CVPixelBufferGetHeight, CVPixelBufferGetHeightOfPlane, CVPixelBufferGetPixelFormatType, CVPixelBufferGetPlaneCount, CVPixelBufferGetWidth,
+    CVPixelBufferGetWidthOfPlane, CVPixelBufferLockBaseAddress, CVPixelBufferLockFlags, CVPixelBufferUnlockBaseAddress, kCVPixelBufferPixelFormatTypeKey,
 };
 use objc2_video_toolbox::{
     VTDecodeFrameFlags, VTDecodeInfoFlags, VTDecompressionOutputCallbackRecord, VTDecompressionSession,
@@ -54,6 +54,8 @@ const NV16_VIDEO: u32 = u32::from_be_bytes(*b"422v");
 const NV16_FULL: u32 = u32::from_be_bytes(*b"422f");
 const P210_VIDEO: u32 = u32::from_be_bytes(*b"x422");
 const P210_FULL: u32 = u32::from_be_bytes(*b"xf22");
+/// Packed 4:4:4:4 A Y'CbCr, 16 bits each, little-endian (ProRes 4444).
+const Y416: u32 = u32::from_be_bytes(*b"y416");
 
 /// How decoded buffers are laid out and what each output picture carries.
 #[derive(Clone, Debug)]
@@ -190,9 +192,65 @@ fn plane<'l>(pb: &CVImageBuffer, _lock: &'l Locked<'_>, i: usize) -> std::result
     Ok(PlaneView { data, stride, width, height })
 }
 
+/// Copy a decoded packed `y416` buffer (ProRes 4444) into planar 4:4:4 with an alpha plane, every
+/// sample shifted down from 16 bits to the layout's (our ProRes decoder's 12).
+fn copy_out_y416(pb: &CVImageBuffer, l: &Layout) -> std::result::Result<VideoFrame, String> {
+    let fmt = CVPixelBufferGetPixelFormatType(pb);
+    if fmt != Y416 || CVPixelBufferGetPlaneCount(pb) != 0 {
+        return Err(format!("unexpected decoded pixel format {fmt:#x}"));
+    }
+    let (_, _, w, h) = l.crop;
+    if (CVPixelBufferGetWidth(pb) as u32, CVPixelBufferGetHeight(pb) as u32) != (w, h) {
+        return Err(format!("decoded picture is not {w}x{h}"));
+    }
+    let (w, h) = (w as usize, h as usize);
+    let stride = CVPixelBufferGetBytesPerRow(pb);
+    let row_len = w.checked_mul(8).ok_or("picture width overflows")?;
+    if stride < row_len {
+        return Err("decoded picture rows are shorter than the picture".into());
+    }
+    // SAFETY: `pb` is a valid pixel buffer for the duration of this call (see the callback).
+    if unsafe { CVPixelBufferLockBaseAddress(pb, CVPixelBufferLockFlags::ReadOnly) } != 0 {
+        return Err("cannot lock the decoded picture".into());
+    }
+    let lock = Locked(pb);
+    let base = CVPixelBufferGetBaseAddress(pb) as *const u8;
+    if base.is_null() {
+        return Err("decoded picture is not mapped".into());
+    }
+    let len = stride.checked_mul(h).ok_or("picture size overflows")?;
+    // SAFETY: the base address is locked until `lock` drops, after the last use of `data`;
+    // CoreVideo maps `bytes_per_row * height` bytes from it for a non-planar buffer.
+    let data = unsafe { std::slice::from_raw_parts(base, len) };
+    let shift = 16u32.saturating_sub(l.bits);
+    // colour rounds to the nearest code (VideoToolbox keeps the IDCT's extra precision); alpha is
+    // coded losslessly and replicated into the low bits, so it truncates to its exact value
+    let half = (1u32 << shift) >> 1;
+    let max = (1u32 << l.bits) - 1;
+    let round = |v: u16| ((u32::from(v) + half) >> shift).min(max) as u16;
+    let n = w * h;
+    let (mut a, mut yp, mut cb, mut cr) = (pool::take_u16(n), pool::take_u16(n), pool::take_u16(n), pool::take_u16(n));
+    for row in 0..h {
+        let start = row * stride;
+        let src = data.get(start..start + row_len).ok_or("plane row out of range")?;
+        for q in src.as_chunks::<8>().0 {
+            a.push(u16::from_le_bytes([q[0], q[1]]) >> shift);
+            yp.push(round(u16::from_le_bytes([q[2], q[3]])));
+            cb.push(round(u16::from_le_bytes([q[4], q[5]])));
+            cr.push(round(u16::from_le_bytes([q[6], q[7]])));
+        }
+    }
+    drop(lock);
+    let data = PixelData::Yuv16 { planes: [Arc::new(yp), Arc::new(cb), Arc::new(cr)], chroma: l.chroma, bits: l.bits, alpha: Some(Arc::new(a)) };
+    Ok(VideoFrame { width: w as u32, height: h as u32, data, color: l.color, par: l.par, pts: filmcraft_time::Tick::ZERO })
+}
+
 /// Copy a decoded biplanar buffer into a planar frame (deinterleaving chroma, cropping to the
 /// output rectangle, shifting 10-bit samples down from the high bits).
 fn copy_out(pb: &CVImageBuffer, l: &Layout) -> std::result::Result<VideoFrame, String> {
+    if l.pixel_format == Y416 {
+        return copy_out_y416(pb, l);
+    }
     let fmt = CVPixelBufferGetPixelFormatType(pb);
     if fmt != l.pixel_format || CVPixelBufferGetPlaneCount(pb) != 2 {
         return Err(format!("unexpected decoded pixel format {fmt:#x}"));
@@ -623,10 +681,12 @@ impl VideoDecoder for VtDecoder {
     }
 }
 
-/// The ProRes 422 flavours VideoToolbox decodes here (4444 has alpha and 4:4:4: our decoder).
+/// ProRes 422 flavours (10-bit 4:2:2, biplanar `x422`) and 4444 flavours (12-bit 4:4:4 with
+/// alpha, packed `y416`).
 const PRORES_422: [[u8; 4]; 4] = [*b"apco", *b"apcs", *b"apcn", *b"apch"];
+const PRORES_4444: [[u8; 4]; 2] = [*b"ap4h", *b"ap4x"];
 
-/// The VideoToolbox decoder for one ProRes 422 stream. Every sample decodes on its own and
+/// The VideoToolbox decoder for one ProRes stream. Every sample decodes on its own and
 /// synchronously, so each `decode` returns its picture as our ProRes decoder does (the frame cache
 /// runs intra-only decoders as parallel instances).
 pub struct VtProResDecoder {
@@ -641,11 +701,16 @@ pub struct VtProResDecoder {
 
 impl VtProResDecoder {
     /// A decoder for `fourcc` pictures of `width`×`height` (the sample entry's), or why
-    /// VideoToolbox does not take the stream (4444, odd size, no hardware ProRes decoder).
+    /// VideoToolbox does not take the stream (not ProRes, odd size, no hardware ProRes decoder).
     pub fn new(fourcc: [u8; 4], width: u32, height: u32) -> std::result::Result<Self, String> {
-        if !PRORES_422.contains(&fourcc) {
-            return Err(format!("ProRes {} (4:4:4, alpha) is decoded by FilmCraft", String::from_utf8_lossy(&fourcc)));
-        }
+        // our decoder's output: 10-bit 4:2:2, or 12-bit 4:4:4 (+ alpha)
+        let (pixel_format, chroma, bits) = if PRORES_422.contains(&fourcc) {
+            (P210_VIDEO, Chroma::C422, 10)
+        } else if PRORES_4444.contains(&fourcc) {
+            (Y416, Chroma::C444, 12)
+        } else {
+            return Err(format!("{} is not ProRes", String::from_utf8_lossy(&fourcc)));
+        };
         if width == 0 || height == 0 || width > 8192 || height > 8192 {
             return Err(format!("picture size {width}x{height}"));
         }
@@ -653,15 +718,8 @@ impl VtProResDecoder {
         if !unsafe { objc2_video_toolbox::VTIsHardwareDecodeSupported(u32::from_be_bytes(fourcc)) } {
             return Err("no hardware ProRes decoder".into());
         }
-        let layout = Layout {
-            pixel_format: P210_VIDEO,
-            coded: (width, height),
-            crop: (0, 0, width, height),
-            chroma: Chroma::C422,
-            bits: 10,
-            color: filmcraft_color::ColorInfo::REC709,
-            par: (1, 1),
-        };
+        let layout =
+            Layout { pixel_format, coded: (width, height), crop: (0, 0, width, height), chroma, bits, color: filmcraft_color::ColorInfo::REC709, par: (1, 1) };
         let session = Session::new(prores_format_description(fourcc, width, height)?, layout.clone(), true)?;
         Ok(Self { fourcc, layout, session: Some(session), fail_after: None, fed: 0 })
     }
@@ -678,14 +736,14 @@ impl VideoDecoder for VtProResDecoder {
         if self.fail_after.is_some_and(|n| self.fed > n) {
             return Err(CodecError::Decode("VideoToolbox session failed (test hook)".into()));
         }
-        // what our decoder would report for this frame: a frame it would not decode the same way
-        // (another size, 4:4:4, alpha) is an error, and the hybrid decoder hands it to ours
+        // what our decoder would report for this frame: a frame of another size or chroma format
+        // than the session's is an error, and the hybrid decoder hands it to ours
         let info = filmcraft_codecs::video::prores_frame_info(sample)?;
         let (_, _, w, h) = self.layout.crop;
-        if (info.width, info.height) != (w, h) || info.chroma != Chroma::C422 || info.alpha {
+        if (info.width, info.height) != (w, h) || info.chroma != self.layout.chroma {
             return Err(CodecError::Decode(format!(
-                "ProRes frame is {}x{} {:?} (alpha: {}), the session {w}x{h} 4:2:2",
-                info.width, info.height, info.chroma, info.alpha
+                "ProRes frame is {}x{} {:?}, the session {w}x{h} {:?}",
+                info.width, info.height, info.chroma, self.layout.chroma
             )));
         }
         if self.session.is_none() {
@@ -704,6 +762,12 @@ impl VideoDecoder for VtProResDecoder {
             Ok(outputs) => outputs.into_iter().find_map(|o| match o {
                 Output::Frame(mut f) => {
                     f.frame.color = info.color;
+                    // `y416` always has alpha; our decoder gives an alpha plane only when coded
+                    if !info.alpha
+                        && let PixelData::Yuv16 { alpha, .. } = &mut f.frame.data
+                    {
+                        *alpha = None;
+                    }
                     frames.push(f);
                     None
                 }

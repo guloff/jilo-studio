@@ -3,8 +3,8 @@
 //!
 //! [`register`] puts the platform's hardware decoder factory in front of FilmCraft's own decoders
 //! (`filmcraft_codecs::register_video_decoder`). Today that is VideoToolbox on macOS for H.264
-//! (`avcC`) and HEVC (`hvcC`) streams, 8- and 10-bit, 4:2:0 and 4:2:2, and ProRes 422 (Proxy, LT,
-//! 422, HQ); Media Foundation / DXVA on
+//! (`avcC`) and HEVC (`hvcC`) streams, 8- and 10-bit, 4:2:0 and 4:2:2, and ProRes (422 Proxy, LT,
+//! 422, HQ, 4444, 4444 XQ); Media Foundation / DXVA on
 //! Windows; VA-API on Linux for H.264 ([`vaapi`]); on other systems (and on Linux without a VA-API
 //! driver) registration does nothing and reports [`Availability::Unavailable`]. It also registers a
 //! hardware H.264 encoder factory (`filmcraft_export::register_encoder`) that only acts when an
@@ -175,7 +175,7 @@ pub fn hardware_decoder_for(entry: &filmcraft_isobmff::SampleEntry) -> bool {
 }
 
 /// The VideoToolbox factory: a [`HybridDecoder`] around [`videotoolbox::VtDecoder`] for `avcC` /
-/// `hvcC` streams, or around [`videotoolbox::VtProResDecoder`] for ProRes 422, that VideoToolbox
+/// `hvcC` streams, or around [`videotoolbox::VtProResDecoder`] for ProRes, that VideoToolbox
 /// can decode in hardware, `None` otherwise.
 #[cfg(target_os = "macos")]
 pub fn videotoolbox_factory(entry: &filmcraft_isobmff::SampleEntry) -> Option<filmcraft_codecs::Result<Box<dyn filmcraft_codecs::VideoDecoder>>> {

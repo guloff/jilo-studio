@@ -56,6 +56,7 @@ const DECODE: &[(&str, &str, &str)] = &[
     ("dec_av1_2160.mp4", "AV1", "2160p"),
     ("dec_prores_1080.mov", "ProRes 422 HQ", "1080p"),
     ("dec_prores_2160.mov", "ProRes 422 HQ", "2160p"),
+    ("dec_prores4444_2160.mov", "ProRes 4444 + alpha", "2160p"),
 ];
 
 /// Sequential decode of every frame through the media stack (container source, GOP cache,

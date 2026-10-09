@@ -16,12 +16,27 @@ use filmcraft_platform::videotoolbox::VtProResDecoder;
 
 /// (file, ffmpeg arguments): 12 frames each.
 const PRORES: &[(&str, &[&str])] = &[
-    ("prores_proxy.mov", &["-f", "lavfi", "-i", "testsrc2=s=1280x720:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "0"]),
-    ("prores_lt.mov", &["-f", "lavfi", "-i", "testsrc2=s=1280x720:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "1"]),
-    ("prores_422.mov", &["-f", "lavfi", "-i", "testsrc2=s=1920x1080:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "2"]),
-    ("prores_hq.mov", &["-f", "lavfi", "-i", "testsrc2=s=1920x1080:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "3"]),
+    (
+        "prores_proxy.mov",
+        &["-f", "lavfi", "-i", "testsrc2=s=1280x720:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "0", "-pix_fmt", "yuv422p10le"],
+    ),
+    (
+        "prores_lt.mov",
+        &["-f", "lavfi", "-i", "testsrc2=s=1280x720:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "1", "-pix_fmt", "yuv422p10le"],
+    ),
+    (
+        "prores_422.mov",
+        &["-f", "lavfi", "-i", "testsrc2=s=1920x1080:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "2", "-pix_fmt", "yuv422p10le"],
+    ),
+    (
+        "prores_hq.mov",
+        &["-f", "lavfi", "-i", "testsrc2=s=1920x1080:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le"],
+    ),
     // a size that is not a multiple of the 16-pixel macroblock
-    ("prores_odd.mov", &["-f", "lavfi", "-i", "testsrc2=s=1278x718:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "3"]),
+    (
+        "prores_odd.mov",
+        &["-f", "lavfi", "-i", "testsrc2=s=1278x718:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le"],
+    ),
     (
         "prores_interlaced.mov",
         &[
@@ -37,20 +52,62 @@ const PRORES: &[(&str, &[&str])] = &[
             "prores_ks",
             "-profile:v",
             "3",
+            "-pix_fmt",
+            "yuv422p10le",
         ],
+    ),
+    // 4444: 16-bit alpha (a moving ramp), no alpha, 8-bit alpha, 4444 XQ
+    (
+        "prores_4444_alpha.mov",
+        &[
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=s=1280x720:r=24:d=0.5,noise=alls=10:allf=t,format=yuva444p10le,geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)':a='mod(X+N*20,1024)'",
+            "-c:v",
+            "prores_ks",
+            "-profile:v",
+            "4",
+            "-pix_fmt",
+            "yuva444p10le",
+        ],
+    ),
+    (
+        "prores_4444_opaque.mov",
+        &["-f", "lavfi", "-i", "testsrc2=s=1280x720:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuv444p10le"],
+    ),
+    (
+        "prores_4444_alpha8.mov",
+        &[
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=s=1278x718:r=24:d=0.5,format=yuva444p10le,geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)':a='mod(Y*4+N*30,1024)'",
+            "-c:v",
+            "prores_ks",
+            "-profile:v",
+            "4",
+            "-alpha_bits",
+            "8",
+            "-pix_fmt",
+            "yuva444p10le",
+        ],
+    ),
+    (
+        "prores_4444xq.mov",
+        &["-f", "lavfi", "-i", "testsrc2=s=1920x1080:r=24:d=0.5,noise=alls=10:allf=t", "-c:v", "prores_ks", "-profile:v", "5", "-pix_fmt", "yuv444p10le"],
     ),
 ];
 
-/// Largest difference between the two decoders, in 10-bit codes, any sample (the IDCTs round
-/// differently; measured: 4), and the largest mean difference (measured: under 0.05).
+/// Largest difference between the two decoders, in 10-bit codes (scaled for 12-bit 4444), any
+/// sample (the IDCTs round differently; measured: 4), and the largest mean difference (measured:
+/// under 0.05).
 const MAX_CODE_DIFF: u16 = 6;
 const MAX_MEAN_DIFF: f64 = 0.1;
 
 fn stream(ff: &std::path::Path, name: &str) -> Option<Stream> {
     let (_, args) = PRORES.iter().find(|f| f.0 == name)?;
-    let mut args = args.to_vec();
-    args.extend_from_slice(&["-pix_fmt", "yuv422p10le"]);
-    Some(read_stream(&fixture(ff, name, &args)?))
+    Some(read_stream(&fixture(ff, name, args)?))
 }
 
 /// The hardware decoder for a stream, or `None` (skip) when this Mac has none for ProRes.
@@ -71,7 +128,7 @@ fn hardware(s: &Stream) -> Option<Box<dyn VideoDecoder>> {
 /// Same pictures: pts, size, format, colour, aspect; samples within [`MAX_CODE_DIFF`].
 fn assert_close(what: &str, a: &[DecodedFrame], b: &[DecodedFrame]) -> u16 {
     assert_eq!(a.iter().map(|f| f.pts).collect::<Vec<_>>(), b.iter().map(|f| f.pts).collect::<Vec<_>>(), "{what}: pts sequence");
-    let (mut worst, mut sum, mut n) = (0u16, 0u64, 0usize);
+    let (mut worst, mut sum, mut n) = (0u16, 0f64, 0usize);
     for (x, y) in a.iter().zip(b) {
         let (fx, fy) = (&x.frame, &y.frame);
         assert_eq!((fx.width, fx.height, fx.par, fx.color), (fy.width, fy.height, fy.par, fy.color), "{what}: pts {} geometry / colour", x.pts);
@@ -81,17 +138,23 @@ fn assert_close(what: &str, a: &[DecodedFrame], b: &[DecodedFrame]) -> u16 {
             panic!("{what}: pts {}: not 16-bit planar", x.pts)
         };
         assert_eq!((c, bx, ax.is_some()), (d, by, ay.is_some()), "{what}: chroma / bits / alpha");
+        // in 10-bit codes
+        let scale = 1u16 << bx.saturating_sub(10);
         for i in 0..3 {
             assert_eq!(p[i].len(), q[i].len(), "{what}: plane {i} size");
             for (u, v) in p[i].iter().zip(q[i].iter()) {
                 let d = u.abs_diff(*v);
-                worst = worst.max(d);
-                sum += u64::from(d);
+                worst = worst.max(d.div_ceil(scale));
+                sum += f64::from(d) / f64::from(scale);
             }
             n += p[i].len();
         }
+        // alpha is coded losslessly: the same values
+        if let (Some(u), Some(v)) = (ax, ay) {
+            assert!(u == v, "{what}: pts {} alpha differs (max {})", x.pts, u.iter().zip(v.iter()).map(|(a, b)| a.abs_diff(*b)).max().unwrap_or(0));
+        }
     }
-    let mean = sum as f64 / n.max(1) as f64;
+    let mean = sum / n.max(1) as f64;
     assert!(worst <= MAX_CODE_DIFF && mean <= MAX_MEAN_DIFF, "{what}: samples differ by up to {worst} codes, {mean:.4} on average");
     worst
 }
@@ -121,13 +184,10 @@ fn prores_422_matches_our_decoder() {
 }
 
 #[test]
-fn prores_4444_stays_with_our_decoder() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
-    let args = ["-f", "lavfi", "-i", "testsrc2=s=640x360:r=24:d=0.2", "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le"];
-    let Some(path) = fixture(&ff, "prores_4444.mov", &args) else { return };
-    let s = read_stream(&path);
-    assert!(filmcraft_platform::videotoolbox_factory(&s.entry).is_none(), "4444 is not taken");
-    assert!(VtProResDecoder::new(*b"ap4h", 640, 360).is_err());
+fn non_prores_and_odd_sizes_are_declined() {
+    assert!(VtProResDecoder::new(*b"avc1", 640, 360).is_err());
+    assert!(VtProResDecoder::new(*b"apch", 0, 360).is_err());
+    assert!(VtProResDecoder::new(*b"ap4h", 9000, 360).is_err());
 }
 
 #[test]
@@ -183,10 +243,10 @@ fn damaged_samples_never_crash_or_hang() {
 }
 
 #[test]
-#[ignore = "diagnostic: distance of both decoders from ffmpeg's ProRes decoder"]
+#[ignore = "diagnostic: distance of both decoders from ffmpeg's ProRes decoder (422)"]
 fn distance_from_ffmpeg() {
     let ff = filmcraft_testkit::require_ffmpeg!();
-    for (name, _) in PRORES {
+    for (name, _) in PRORES.iter().filter(|f| !f.0.contains("4444")) {
         let Some(s) = stream(&ff, name) else { continue };
         let Some(mut hw) = hardware(&s) else { return };
         let mut sw = filmcraft_codecs::software_video_decoder(&s.entry).unwrap();
@@ -215,6 +275,27 @@ fn distance_from_ffmpeg() {
                 diff += usize::from(d > 0);
             }
             eprintln!("{name} {who}: vs ffmpeg max {max}, mean {:.4}, differing {:.2}%", sum as f64 / n as f64, 100.0 * diff as f64 / n as f64);
+        }
+    }
+}
+
+#[test]
+#[ignore = "diagnostic: signed difference from our decoder per plane (a rounding bias shows here)"]
+fn rounding_bias() {
+    let ff = filmcraft_testkit::require_ffmpeg!();
+    for name in ["prores_hq.mov", "prores_422.mov", "prores_4444_opaque.mov", "prores_4444_alpha.mov"] {
+        let Some(s) = stream(&ff, name) else { continue };
+        let Some(mut hw) = hardware(&s) else { return };
+        let mut sw = filmcraft_codecs::software_video_decoder(&s.entry).unwrap();
+        let a = decode_all(hw.as_mut(), &s.samples[..1]);
+        let b = decode_all(sw.as_mut(), &s.samples[..1]);
+        let (PixelData::Yuv16 { planes: p, .. }, PixelData::Yuv16 { planes: q, .. }) = (&a[0].frame.data, &b[0].frame.data) else { panic!() };
+        for i in 0..3 {
+            let n = p[i].len() as f64;
+            let signed: f64 = p[i].iter().zip(q[i].iter()).map(|(u, v)| f64::from(*u) - f64::from(*v)).sum::<f64>() / n;
+            let max = p[i].iter().zip(q[i].iter()).map(|(u, v)| u.abs_diff(*v)).max().unwrap_or(0);
+            let differ = p[i].iter().zip(q[i].iter()).filter(|(u, v)| u != v).count() as f64 / n;
+            eprintln!("{name} plane {i}: signed mean {signed:+.4}, max {max}, differing {:.1}%", differ * 100.0);
         }
     }
 }

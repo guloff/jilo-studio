@@ -53,6 +53,7 @@ const X265_MAIN10: &[&str] = &[
 /// AV1 where ffmpeg has libaom but not SVT-AV1 (the Windows builds): slower to encode, same role.
 const AV1_AOM: &[&str] = &["-c:v", "libaom-av1", "-crf", "35", "-b:v", "0", "-cpu-used", "8", "-row-mt", "1", "-g", "48", "-pix_fmt", "yuv420p"];
 const PRORES: &[&str] = &["-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le", "-vendor", "apl0"];
+const PRORES_4444: &[&str] = &["-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-vendor", "apl0"];
 
 const SPECS: &[Spec] = &[
     // Playback scenarios (also used by `bench_playback`).
@@ -76,6 +77,7 @@ const SPECS: &[Spec] = &[
     Spec { name: "dec_av1_2160.mp4", src: "testsrc2=s=3840x2160:r=24000/1001:d=3,noise=alls=6:allf=t", secs: 3, audio: false, codec: AV1 },
     Spec { name: "dec_prores_1080.mov", src: "testsrc2=s=1920x1080:r=24000/1001:d=2,noise=alls=6:allf=t", secs: 2, audio: false, codec: PRORES },
     Spec { name: "dec_prores_2160.mov", src: "testsrc2=s=3840x2160:r=24000/1001:d=1,noise=alls=6:allf=t", secs: 1, audio: false, codec: PRORES },
+    Spec { name: "dec_prores4444_2160.mov", src: "testsrc2=s=3840x2160:r=24000/1001:d=1,noise=alls=6:allf=t", secs: 1, audio: false, codec: PRORES_4444 },
     // Small clip media for the 1000-clip timeline / project benchmarks (video + audio).
     Spec { name: "clip360.mp4", src: "testsrc2=s=640x360:r=24000/1001:d=20", secs: 20, audio: true, codec: X264 },
 ];
