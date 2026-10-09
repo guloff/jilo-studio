@@ -522,6 +522,14 @@ impl Session {
         }
     }
 
+    /// Quit after the user chose "Don't Save": the unsaved changes are dropped on purpose, so the
+    /// journal goes too and the next launch offers nothing to recover (#266).
+    pub fn discard_unsaved_on_exit(&mut self) {
+        self.saved_revision = self.revision;
+        // `Clean` reaches the worker before `close`'s flush, so the snapshot is deleted first.
+        self.shutdown();
+    }
+
     pub fn recovery_candidates(&self) -> &[autosave::RecoveryCandidate] {
         self.persistence.as_ref().map(|p| p.candidates.as_slice()).unwrap_or(&[])
     }

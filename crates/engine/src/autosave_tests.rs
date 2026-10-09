@@ -136,6 +136,21 @@ fn quitting_with_unsaved_changes_keeps_them_for_next_launch() {
 }
 
 #[test]
+fn quitting_without_saving_leaves_nothing_to_recover() {
+    let d = temp_dir("quitdiscard");
+    let mut a = demo();
+    start(&mut a, &d);
+    a.execute("sequence.addEdit", json!({"seconds": 1.0})).unwrap();
+    wait_for("the edit in the journal", || journaled(&mut a) > 0);
+    a.discard_unsaved_on_exit();
+    let mut b = Session::default();
+    start(&mut b, &d);
+    assert!(b.recovery_candidates().is_empty(), "Don't Save must not come back as a recovery offer");
+    b.shutdown();
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+#[test]
 fn auto_save_ring_rotates_and_can_save_the_project() {
     let d = temp_dir("ring");
     let proj = d.join("ring.fcproj").to_string_lossy().to_string();

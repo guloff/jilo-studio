@@ -18,7 +18,7 @@
 //! - `ui.timeline.locate {clip, edge?}`: screen point of a clip body/edge (for drags)
 //! - `ui.playback {action: play|stop|toggle, speed?}`
 //! - `ui.screenshot {path?, panel?}`: PNG of the window (or one panel)
-//! - `ui.resize {width, height}` / `ui.focus` / `app.quit`
+//! - `ui.resize {width, height}` / `ui.focus` / `app.quit {save?, discard?}` (never prompts)
 
 use std::sync::mpsc::Sender;
 
@@ -399,6 +399,19 @@ pub fn handle(app: &mut FilmcraftApp, ctx: &egui::Context, req: &ControlRequest)
             ok(Value::Null)
         }
         "app.quit" => {
+            // Agents are never stopped by the unsaved-changes prompt. `save: true` saves first
+            // (the project needs a file); `discard: true` also drops the recovery journal; with
+            // neither, unsaved changes stay in the journal for the next launch.
+            if p.get("save").and_then(Value::as_bool) == Some(true) && app.session.is_dirty() {
+                if app.session.path.is_none() {
+                    return err("the project has no file yet: run file.saveAs with a path first");
+                }
+                if let Err(e) = app.session.execute("file.save", json!({})) {
+                    return err(e);
+                }
+            }
+            app.discard_on_exit = p.get("discard").and_then(Value::as_bool) == Some(true);
+            app.quit_confirmed = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             ok(Value::Null)
         }

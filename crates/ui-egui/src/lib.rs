@@ -162,6 +162,8 @@ pub enum Dialog {
     AddTracks,
     /// Sequence ▸ Sequence Settings….
     SequenceSettings,
+    /// "Save changes before quitting?" (closing the window or Quit with unsaved changes, #266).
+    QuitConfirm,
 }
 
 #[derive(Default)]
@@ -278,6 +280,11 @@ pub struct FilmcraftApp {
     pub tl: panels::timeline::TlState,
     /// Commands from outside the UI (native menu bar), invoked on the UI thread.
     pub command_inbox: Option<Receiver<String>>,
+    /// The next window close goes through without the unsaved-changes prompt (the user answered
+    /// it, or an agent quit with `app.quit`).
+    pub quit_confirmed: bool,
+    /// The user chose "Don't Save": drop the recovery journal on exit too.
+    pub discard_on_exit: bool,
     /// GPU compositor (when running on wgpu): device state + compositor + the egui texture it feeds.
     pub gpu: Option<GpuState>,
     /// Preview render job being watched (job id, where to start playing when it completes).
@@ -462,6 +469,8 @@ impl FilmcraftApp {
             toast: None,
             tl: Default::default(),
             command_inbox: None,
+            quit_confirmed: false,
+            discard_on_exit: false,
             gpu: None,
             watched_render: None,
             applied_prefs: None,
@@ -1631,6 +1640,13 @@ impl eframe::App for FilmcraftApp {
             self.playback.hidden = true;
         }
         self.timeline_still = if self.ui.timeline.animating() { 0 } else { self.timeline_still.saturating_add(1) };
+        // Closing with unsaved changes asks first (#266). Checked here, not in `ui`, because this
+        // pass also runs while the window is occluded or minimised.
+        if ctx.input(|i| i.viewport().close_requested()) && !self.quit_confirmed && self.session.is_dirty() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.dialog = Some(Dialog::QuitConfirm);
+            ctx.request_repaint();
+        }
         let had_synthetic = !self.synthetic.is_empty();
         self.drain_control(ctx);
         if !self.synthetic.is_empty() && !had_synthetic {
@@ -1651,9 +1667,15 @@ impl eframe::App for FilmcraftApp {
     }
 
     fn on_exit(&mut self) {
-        // Flush the recovery journal and stop the auto-save worker; a session with nothing unsaved
-        // removes its journal, one with unsaved changes keeps it for the next launch.
-        self.session.shutdown();
+        if self.discard_on_exit {
+            // "Don't Save": nothing to offer on the next launch.
+            self.session.discard_unsaved_on_exit();
+        } else {
+            // Flush the recovery journal and stop the auto-save worker; a session with nothing
+            // unsaved removes its journal, one with unsaved changes (an agent's quit, the Dock's
+            // Quit, logout) keeps it for the next launch.
+            self.session.shutdown();
+        }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {

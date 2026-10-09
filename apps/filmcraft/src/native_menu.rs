@@ -37,6 +37,9 @@ pub fn install(app: &FilmcraftApp, ctx: egui::Context) -> (Receiver<String>, Sho
         native.push((it.id.clone(), mi.clone()));
         let _ = settings.append(&mi);
     }
+    let quit_key = items.iter().find(|i| i.id == "app.quit").and_then(|i| i.shortcut.clone()).unwrap_or_else(|| "Cmd+Q".into());
+    let quit = MenuItem::with_id("app.quit", "Quit FilmCraft", true, accel(&quit_key));
+    native.push(("app.quit".into(), quit.clone()));
     let _ = app_menu.append_items(&[
         &MenuItem::with_id("app.about", "About FilmCraft", true, None),
         &MenuItem::with_id("help.discord", "Join the ArtCraft Discord…", true, None),
@@ -46,7 +49,10 @@ pub fn install(app: &FilmcraftApp, ctx: egui::Context) -> (Receiver<String>, Sho
         &PredefinedMenuItem::hide(None),
         &PredefinedMenuItem::hide_others(None),
         &PredefinedMenuItem::separator(),
-        &PredefinedMenuItem::quit(None),
+        // Our own item, not the predefined `terminate:`: it closes the window through egui, so
+        // the unsaved-changes prompt can stop it (#266). The Dock's Quit and logout still
+        // terminate directly; their unsaved changes stay in the recovery journal.
+        &quit,
     ]);
     let _ = bar.append(&app_menu);
     for top in MENUS {

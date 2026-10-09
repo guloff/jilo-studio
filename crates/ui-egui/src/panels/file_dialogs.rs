@@ -2,7 +2,7 @@
 //! `panels::settings`).
 //!
 //! Automation ids: `recovery.item.<n>`, `recovery.recover`, `recovery.discard`, `recovery.later`;
-//! `revert.yes`, `revert.no`.
+//! `revert.yes`, `revert.no`; `quit.save`, `quit.dontSave`, `quit.cancel`.
 
 use egui::{Color32, CornerRadius, Frame, Margin, RichText, Stroke, Ui, vec2};
 use serde_json::json;
@@ -133,12 +133,61 @@ pub fn show_revert(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
     open && !r.should_close()
 }
 
+/// "Save changes to '<project>' before quitting?" Save (Save As when the project has no file yet),
+/// Don't Save (quit and drop the recovery journal) or Cancel (stay), like Premiere (#266).
+pub fn show_quit(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+    let t = app.tokens;
+    let name = app.session.path.as_deref().and_then(|p| std::path::Path::new(p).file_name()).map(|n| n.to_string_lossy().into_owned());
+    let name = name.unwrap_or_else(|| tl!("Untitled").to_string());
+    let mut open = true;
+    let mut quit = false;
+    let r = egui::Modal::new(egui::Id::new("quit-modal")).frame(modal_frame(&t)).show(ctx, |ui| {
+        ui.set_width(480.0);
+        Frame::new().inner_margin(Margin { left: 28, right: 28, top: 24, bottom: 20 }).show(ui, |ui| {
+            ui.label(RichText::new(tl!("Save Project")).size(18.0).strong().color(t.text));
+            ui.add_space(6.0);
+            ui.separator();
+            ui.add_space(6.0);
+            ui.label(RichText::new(tlf!("Save changes to '{name}' before quitting?", name)).size(13.5).color(t.text));
+            ui.add_space(18.0);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if button(app, ui, "quit.save", tl!("Save"), true) {
+                    // `file.save` on an untitled project opens the Save As dialog.
+                    match crate::menus::invoke(app, ctx, "file.save", json!({})) {
+                        Ok(_) if !app.session.is_dirty() => quit = true,
+                        // the Save As dialog was cancelled: stay open
+                        Ok(_) => open = false,
+                        Err(e) => {
+                            app.ui.status = e;
+                            open = false;
+                        }
+                    }
+                }
+                if button(app, ui, "quit.dontSave", tl!("Don't Save"), false) {
+                    app.discard_on_exit = true;
+                    quit = true;
+                }
+                if button(app, ui, "quit.cancel", tl!("Cancel"), false) {
+                    open = false;
+                }
+            });
+        });
+    });
+    if quit {
+        app.quit_confirmed = true;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        return false;
+    }
+    open && !r.should_close()
+}
+
 /// Draw the dialog if it is one of ours; returns Some(still open).
 pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context, d: Dialog) -> Option<bool> {
     match d {
         Dialog::Preferences => Some(crate::panels::settings::show(app, ctx)),
         Dialog::Recovery => Some(show_recovery(app, ctx)),
         Dialog::RevertConfirm => Some(show_revert(app, ctx)),
+        Dialog::QuitConfirm => Some(show_quit(app, ctx)),
         _ => None,
     }
 }
