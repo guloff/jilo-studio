@@ -495,9 +495,16 @@ fn media_dir(tag: &str) -> std::path::PathBuf {
 #[test]
 fn file_dialog_import_uses_shown_bin_unless_explicit() {
     let dir = media_dir("import-bin");
-    let path = dir.join("a-interview.wav").to_string_lossy().into_owned();
+    let src = dir.join("a-interview.wav");
     let mut app = FilmcraftApp::new(Session::default());
-    app.hooks.pick_files = Some(Box::new(move |_| vec![path.clone()]));
+    // A new file for every pick: importing the same file again adds nothing (#356).
+    let (copies, mut n) = (dir.clone(), 0);
+    app.hooks.pick_files = Some(Box::new(move |_| {
+        n += 1;
+        let copy = copies.join(format!("take-{n}.wav"));
+        std::fs::copy(&src, &copy).unwrap();
+        vec![copy.to_string_lossy().into_owned()]
+    }));
     let parent = app.session.execute("file.newBin", json!({"name": "Footage"})).unwrap()["bin"].as_u64().unwrap();
     let child = app.session.execute("file.newBin", json!({"name": "Selects", "parent": parent})).unwrap()["bin"].as_u64().unwrap();
     let root = app.session.project.root.id.0;
