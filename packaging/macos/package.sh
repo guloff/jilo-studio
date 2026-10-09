@@ -17,7 +17,8 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/../env.sh"
 HERE="$ROOT/packaging/macos"
 
-ARCH=universal
+# Our build: Apple silicon only (2026-10-09); `--arch universal` still builds Intel too.
+ARCH=aarch64
 SKIP_BUILD=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -35,7 +36,7 @@ case "$ARCH" in
 esac
 
 # Keep in sync with LSMinimumSystemVersion in Info.plist.in.
-export MACOSX_DEPLOYMENT_TARGET=11.0
+export MACOSX_DEPLOYMENT_TARGET=15.0
 IDENTITY="${MACOS_SIGN_IDENTITY:--}"
 SHORT_VERSION="${VERSION%%-*}"
 WORK="$CARGO_TARGET_DIR/macos-package"

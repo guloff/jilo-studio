@@ -1,2 +1,7 @@
 [alias]
 xtask = "run --quiet --package xtask --"
+
+# macOS deployment target for every build (dev, tests, release): Apple silicon, macOS 15 and later.
+# Keep in line with packaging/macos/package.sh and Info.plist.in.
+[env]
+MACOSX_DEPLOYMENT_TARGET = { value = "15.0", force = false }
