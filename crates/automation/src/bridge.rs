@@ -17,6 +17,8 @@ type Conn = (BufReader<tokio::net::tcp::OwnedReadHalf>, tokio::net::tcp::OwnedWr
 
 pub struct BridgeClient {
     addr: String,
+    /// Where the app's control token file is looked up (`None`: the default data directory).
+    data_dir: Option<std::path::PathBuf>,
     conn: Mutex<Option<Conn>>,
     next_id: AtomicU64,
 }
@@ -24,12 +26,17 @@ pub struct BridgeClient {
 impl BridgeClient {
     /// `addr` such as `127.0.0.1:9876` (loopback only).
     pub fn new(addr: impl Into<String>) -> Result<Self, AutomationError> {
+        Self::with_data_dir(addr, None)
+    }
+
+    /// Like [`Self::new`], with the app's data directory (`--data-dir`) for its control token.
+    pub fn with_data_dir(addr: impl Into<String>, data_dir: Option<std::path::PathBuf>) -> Result<Self, AutomationError> {
         let addr = addr.into();
         let host = addr.rsplit_once(':').map(|(h, _)| h).unwrap_or(&addr);
         if !matches!(host, "127.0.0.1" | "localhost" | "[::1]" | "::1") {
             return Err(AutomationError::BadRequest(format!("bridge address must be loopback, got `{addr}`")));
         }
-        Ok(Self { addr, conn: Mutex::new(None), next_id: AtomicU64::new(1) })
+        Ok(Self { addr, data_dir, conn: Mutex::new(None), next_id: AtomicU64::new(1) })
     }
 
     /// Run engine command `id` in the app. A blocking export (`file.exportMedia` with
@@ -66,6 +73,27 @@ impl BridgeClient {
         Ok(start)
     }
 
+    /// Present the app's control token on a new connection (#163). Read on every connect, so a
+    /// restarted app's new token is picked up. Without one (an app started with
+    /// `FILMCRAFT_CONTROL_NO_AUTH=1`, or an older app) nothing is sent.
+    async fn authenticate(&self, conn: &mut Conn) -> Result<(), AutomationError> {
+        let port = self.addr.rsplit_once(':').and_then(|(_, p)| p.parse::<u16>().ok()).unwrap_or(0);
+        let Some(token) = filmcraft_engine::control_token::for_client(port, self.data_dir.as_deref()) else { return Ok(()) };
+        let line = format!("{}\n", json!({"id": 0, "method": "auth", "params": {"token": token}}));
+        conn.1.write_all(line.as_bytes()).await.map_err(|e| AutomationError::Bridge(e.to_string()))?;
+        let mut buf = String::new();
+        tokio::time::timeout(Duration::from_secs(10), conn.0.read_line(&mut buf))
+            .await
+            .map_err(|_| AutomationError::Bridge("timeout authenticating".into()))?
+            .map_err(|e| AutomationError::Bridge(e.to_string()))?;
+        let v: Value = serde_json::from_str(&buf).map_err(|e| AutomationError::Bridge(format!("bad reply to auth: {e}")))?;
+        if v.get("ok").and_then(Value::as_bool) == Some(true) {
+            return Ok(());
+        }
+        let why = v.get("error").and_then(Value::as_str).unwrap_or("refused");
+        Err(AutomationError::Bridge(format!("{} refused the control token ({why}); is it the app started with --control {port}?", self.addr)))
+    }
+
     /// Call a control method; returns `result` or the app's error.
     pub async fn call(&self, method: &str, params: Value) -> Result<Value, AutomationError> {
         let mut guard = self.conn.lock().await;
@@ -76,7 +104,9 @@ impl BridgeClient {
                     .map_err(|_| AutomationError::Bridge(format!("timed out connecting to {}", self.addr)))?
                     .map_err(|e| AutomationError::Bridge(format!("cannot connect to {} ({e}); start the app with `filmcraft --control <port>`", self.addr)))?;
                 let (r, w) = s.into_split();
-                *guard = Some((BufReader::new(r), w));
+                let mut conn = (BufReader::new(r), w);
+                self.authenticate(&mut conn).await?;
+                *guard = Some(conn);
             }
             let id = self.next_id.fetch_add(1, Ordering::Relaxed);
             let Some(conn) = guard.as_mut() else {
@@ -163,6 +193,44 @@ mod tests {
         assert!(seen.iter().all(|q| q["params"]["params"]["wait"] != json!(true)));
         assert_eq!(seen.iter().filter(|q| q["params"]["command"] == "file.exportMedia").count(), 1, "started once");
         assert_eq!(seen.iter().filter(|q| q["params"]["command"] == "jobs.list").count(), 3);
+    }
+
+    /// #163: the client reads the app's token file for the port and authenticates first, again
+    /// after a reconnect; the app answers nothing before that.
+    #[tokio::test]
+    async fn the_client_presents_the_apps_token_on_every_connection() {
+        if filmcraft_engine::control_token::token_from_env().is_some() {
+            return; // the environment's token would take precedence over the file
+        }
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let dir = std::env::temp_dir().join(format!("fc-bridge-token-{}", std::process::id()));
+        let path = filmcraft_engine::control_token::token_path(&dir, addr.port());
+        filmcraft_engine::control_token::write(&path, "t0ken").unwrap();
+        let auths = Arc::new(Mutex::new(0usize));
+        let count = auths.clone();
+        tokio::spawn(async move {
+            // two connections: the second after the first is dropped by the app
+            for conn in 0..2 {
+                let (s, _) = listener.accept().await.unwrap();
+                let (r, mut w) = s.into_split();
+                let mut lines = BufReader::new(r).lines();
+                let first: Value = serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+                assert_eq!(first["method"], "auth");
+                assert_eq!(first["params"]["token"], "t0ken");
+                *count.lock().await += 1;
+                w.write_all(format!("{}\n", json!({"id": first["id"], "ok": true, "result": null})).as_bytes()).await.unwrap();
+                let req: Value = serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+                if conn == 0 {
+                    continue; // drop the connection without answering: the client reconnects
+                }
+                w.write_all(format!("{}\n", json!({"id": req["id"], "ok": true, "result": "pong"})).as_bytes()).await.unwrap();
+            }
+        });
+        let b = BridgeClient::with_data_dir(addr.to_string(), Some(dir.clone())).unwrap();
+        assert_eq!(b.call("ping", json!({})).await.unwrap(), json!("pong"));
+        assert_eq!(*auths.lock().await, 2);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

@@ -44,3 +44,7 @@ web-time = "1"
 [dev-dependencies]
 filmcraft-testkit = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+# The control channel's access token (`control_token`): OS random numbers. Already in the lockfile.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+getrandom = "0.3"

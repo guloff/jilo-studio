@@ -175,7 +175,13 @@ impl FilmcraftMcp {
         Self { backend: Arc::new(Backend::Headless(Arc::new(Mutex::new(session)))), tool_router: Self::tool_router() }
     }
     pub fn bridge(addr: &str) -> Result<Self, AutomationError> {
-        Ok(Self { backend: Arc::new(Backend::Bridge(Arc::new(BridgeClient::new(addr)?))), tool_router: Self::tool_router() })
+        Self::bridge_with_data_dir(addr, None)
+    }
+
+    /// Drive the app at `addr`, reading its control token from `data_dir` (default: the default
+    /// data directory).
+    pub fn bridge_with_data_dir(addr: &str, data_dir: Option<std::path::PathBuf>) -> Result<Self, AutomationError> {
+        Ok(Self { backend: Arc::new(Backend::Bridge(Arc::new(BridgeClient::with_data_dir(addr, data_dir)?))), tool_router: Self::tool_router() })
     }
 
     pub async fn serve_stdio(self) -> Result<(), AutomationError> {

@@ -16,6 +16,8 @@ pub mod captions;
 pub mod clip_ops;
 pub mod color;
 pub mod commands;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod control_token;
 pub mod demo;
 pub mod essential_sound;
 pub mod export_tools;

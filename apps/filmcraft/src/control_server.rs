@@ -4,7 +4,12 @@
 //! (an HTTP request line from a browser's cross-origin `fetch`, a stray `nc`, binary junk) gets
 //! one error reply and the connection is closed, so nothing after it is executed. Lines are
 //! bounded ([`MAX_LINE`]) and so is the number of open connections ([`MAX_CONNECTIONS`]); junk
-//! never reaches the UI thread. See `docs/control-protocol.md`.
+//! never reaches the UI thread.
+//!
+//! Every connection authenticates first (#163): until a line
+//! `{"method": "auth", "params": {"token": "…"}}` with the app's token arrives, any request is
+//! refused and the connection closed (see `filmcraft_engine::control_token`). See
+//! `docs/control-protocol.md`.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -22,7 +27,8 @@ pub const MAX_LINE: usize = 4 * 1024 * 1024;
 /// Connections served at once; further ones get an error line and are closed.
 pub const MAX_CONNECTIONS: usize = 16;
 
-pub fn start(port: u16, ctx: egui::Context) -> Receiver<ControlRequest> {
+/// Listen on `127.0.0.1:port`. With `token`, each connection must present it first.
+pub fn start(port: u16, ctx: egui::Context, token: Option<String>) -> Receiver<ControlRequest> {
     let (tx, rx) = channel::<ControlRequest>();
     let listener = match TcpListener::bind(("127.0.0.1", port)) {
         Ok(l) => l,
@@ -32,11 +38,12 @@ pub fn start(port: u16, ctx: egui::Context) -> Receiver<ControlRequest> {
         }
     };
     eprintln!("filmcraft: control server listening on 127.0.0.1:{port}");
-    std::thread::spawn(move || accept_loop(listener, tx, ctx));
+    let token: Option<Arc<str>> = token.map(Arc::from);
+    std::thread::spawn(move || accept_loop(listener, tx, ctx, token));
     rx
 }
 
-fn accept_loop(listener: TcpListener, tx: Sender<ControlRequest>, ctx: egui::Context) {
+fn accept_loop(listener: TcpListener, tx: Sender<ControlRequest>, ctx: egui::Context, token: Option<Arc<str>>) {
     let open = Arc::new(AtomicUsize::new(0));
     for mut stream in listener.incoming().flatten() {
         if open.fetch_add(1, Ordering::SeqCst) >= MAX_CONNECTIONS {
@@ -46,12 +53,13 @@ fn accept_loop(listener: TcpListener, tx: Sender<ControlRequest>, ctx: egui::Con
         }
         let tx = tx.clone();
         let ctx = ctx.clone();
+        let token = token.clone();
         // The slot is given back when the guard drops: after `serve` returns, if it panics, or if
         // the thread can't be started (the closure, and with it the guard, is dropped).
         let slot = Slot(Arc::clone(&open));
         let spawned = std::thread::Builder::new().name("control-conn".into()).spawn(move || {
             let _slot = slot;
-            serve(stream, &tx, &ctx);
+            serve(stream, &tx, &ctx, token.as_deref());
         });
         if let Err(e) = spawned {
             eprintln!("filmcraft: control server could not start a connection thread: {e}");
@@ -68,9 +76,9 @@ impl Drop for Slot {
     }
 }
 
-fn serve(stream: TcpStream, tx: &Sender<ControlRequest>, ctx: &egui::Context) {
+fn serve(stream: TcpStream, tx: &Sender<ControlRequest>, ctx: &egui::Context, token: Option<&str>) {
     let Ok(read) = stream.try_clone() else { return };
-    serve_lines(read, stream, |method, params| {
+    serve_lines(read, stream, token, |method, params| {
         let (req, rrx) = ControlRequest::new(method, params);
         tx.send(req).ok()?;
         ctx.request_repaint();
@@ -137,10 +145,12 @@ fn read_bounded_line(reader: &mut impl BufRead, buf: &mut Vec<u8>, max: usize) -
 
 /// Serve requests from `read`, answering on `out`, until the peer closes, sends something that is
 /// not a request, or `handle` returns `None` (app gone). `handle` gets `(method, params)` and
-/// returns the reply object (the request's `id` is added here).
-fn serve_lines<R: Read, W: Write>(read: R, mut out: W, mut handle: impl FnMut(String, Value) -> Option<Value>) {
+/// returns the reply object (the request's `id` is added here). With `token`, the first request
+/// must be `auth` with that token; nothing reaches `handle` before it.
+fn serve_lines<R: Read, W: Write>(read: R, mut out: W, token: Option<&str>, mut handle: impl FnMut(String, Value) -> Option<Value>) {
     let mut reader = BufReader::new(read);
     let mut buf = Vec::new();
+    let mut authed = token.is_none();
     loop {
         let reject = match read_bounded_line(&mut reader, &mut buf, MAX_LINE) {
             Ok(false) => return,
@@ -148,6 +158,24 @@ fn serve_lines<R: Read, W: Write>(read: R, mut out: W, mut handle: impl FnMut(St
             Ok(true) => match parse_line(&buf) {
                 Line::Blank => continue,
                 Line::Reject(e) => e,
+                Line::Request { id, method, params } if method == "auth" => {
+                    let presented = params.get("token").and_then(Value::as_str).unwrap_or("");
+                    match token {
+                        Some(t) if !filmcraft_engine::control_token::matches(t, presented) => {
+                            "wrong control token; closing the connection".to_string()
+                        }
+                        _ => {
+                            authed = true;
+                            if writeln!(out, "{}", json!({"id": id, "ok": true, "result": null})).and_then(|()| out.flush()).is_err() {
+                                return;
+                            }
+                            continue;
+                        }
+                    }
+                }
+                Line::Request { .. } if !authed => {
+                    "not authenticated: send {\"method\":\"auth\",\"params\":{\"token\":\"…\"}} first (the token is in control-<port>.token in the FilmCraft data directory, or FILMCRAFT_CONTROL_TOKEN); closing the connection".to_string()
+                }
                 Line::Request { id, method, params } => {
                     let Some(mut r) = handle(method, params) else { return };
                     if let Some(o) = r.as_object_mut() {
@@ -170,9 +198,13 @@ mod tests {
     use super::*;
 
     fn run(input: &[u8]) -> (Vec<Value>, Vec<String>) {
+        run_with(input, None)
+    }
+
+    fn run_with(input: &[u8], token: Option<&str>) -> (Vec<Value>, Vec<String>) {
         let mut out = Vec::new();
         let mut calls = Vec::new();
-        serve_lines(input, &mut out, |m, _p| {
+        serve_lines(input, &mut out, token, |m, _p| {
             calls.push(m);
             Some(json!({"ok": true, "result": null}))
         });
@@ -188,6 +220,49 @@ mod tests {
         assert_eq!(r[0]["id"], 1);
         assert_eq!(r[1]["id"], 2);
         assert_eq!(r[2]["id"], Value::Null);
+    }
+
+    /// #163: with a token, nothing runs before `auth` presents it.
+    #[test]
+    fn requests_before_auth_are_refused_and_close_the_connection() {
+        let (r, calls) = run_with(
+            b"{\"id\":1,\"method\":\"engine.execute\"}\n{\"method\":\"auth\",\"params\":{\"token\":\"s3cret\"}}\n{\"method\":\"b\"}\n",
+            Some("s3cret"),
+        );
+        assert!(calls.is_empty(), "{calls:?}");
+        assert_eq!(r.len(), 1);
+        assert!(r[0]["error"].as_str().unwrap().contains("not authenticated"), "{r:?}");
+    }
+
+    #[test]
+    fn a_wrong_token_is_refused() {
+        for bad in [r#"{"token":"nope"}"#, r#"{"token":""}"#, r#"{}"#, r#"{"token":"s3cre"}"#] {
+            let input = format!("{{\"method\":\"auth\",\"params\":{bad}}}\n{{\"method\":\"a\"}}\n");
+            let (r, calls) = run_with(input.as_bytes(), Some("s3cret"));
+            assert!(calls.is_empty(), "{bad}: {calls:?}");
+            assert_eq!(r.len(), 1, "{bad}");
+            assert!(r[0]["error"].as_str().unwrap().contains("wrong control token"), "{r:?}");
+        }
+    }
+
+    #[test]
+    fn the_right_token_unlocks_the_connection() {
+        let (r, calls) = run_with(
+            b"{\"id\":0,\"method\":\"auth\",\"params\":{\"token\":\"s3cret\"}}\n{\"id\":1,\"method\":\"a\"}\n{\"id\":2,\"method\":\"b\"}\n",
+            Some("s3cret"),
+        );
+        assert_eq!(calls, ["a", "b"]);
+        assert_eq!(r.len(), 3);
+        assert_eq!(r[0]["ok"], true);
+        assert_eq!(r[0]["id"], 0);
+        assert_eq!(r[2]["id"], 2);
+    }
+
+    #[test]
+    fn auth_is_accepted_and_harmless_without_a_token() {
+        let (r, calls) = run(b"{\"method\":\"auth\",\"params\":{\"token\":\"x\"}}\n{\"method\":\"a\"}\n");
+        assert_eq!(calls, ["a"]);
+        assert_eq!(r.len(), 2);
     }
 
     #[test]
@@ -256,7 +331,7 @@ mod tests {
         let server = std::thread::spawn(move || {
             let (s, _) = listener.accept().unwrap();
             let read = s.try_clone().unwrap();
-            serve_lines(read, s, |_, _| Some(json!({"ok": true})));
+            serve_lines(read, s, None, |_, _| Some(json!({"ok": true})));
         });
         let mut c = TcpStream::connect(addr).unwrap();
         c.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
@@ -275,7 +350,7 @@ mod tests {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let addr = listener.local_addr().unwrap();
         let (tx, _rx) = channel::<ControlRequest>();
-        std::thread::spawn(move || accept_loop(listener, tx, egui::Context::default()));
+        std::thread::spawn(move || accept_loop(listener, tx, egui::Context::default(), None));
         // Idle connections are accepted in order and held open.
         let held: Vec<TcpStream> = (0..16).map(|_| TcpStream::connect(addr).unwrap()).collect();
         let mut extra = TcpStream::connect(addr).unwrap();

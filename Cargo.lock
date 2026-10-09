@@ -1877,6 +1877,7 @@ dependencies = [
  "filmcraft-testkit",
  "filmcraft-text",
  "filmcraft-time",
+ "getrandom 0.3.4",
  "image",
  "log",
  "serde",

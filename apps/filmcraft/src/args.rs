@@ -5,7 +5,8 @@ pub const USAGE: &str = "\
 Usage: filmcraft [options] [project.fcproj | media files...]
 
 Options:
-  --control <port>   start the localhost JSON-lines control server
+  --control <port>   start the localhost JSON-lines control server (clients authenticate with
+                     the token in <data dir>/control-<port>.token)
                      (also: FILMCRAFT_CONTROL_PORT)
   --demo             open the demo project
   --empty            start with an empty project

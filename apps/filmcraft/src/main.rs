@@ -117,6 +117,19 @@ fn main() -> eframe::Result {
         Ok(n) => log::info!("open-file limit {n}"),
         Err(e) => log::warn!("{e}"),
     }
+    // The control channel's access token (#163), made before the window so a client started right
+    // after the app finds it.
+    let control_token = match control_port.map(|port| control_auth(port, data_dir.clone().or_else(default_data_dir))) {
+        Some(Ok(t)) => t,
+        Some(Err(e)) => {
+            // No token means no control server: an open port without one is what #163 is about.
+            eprintln!("filmcraft: control server not started: {e}");
+            log::warn!("control server not started: {e}");
+            None
+        }
+        None => None,
+    };
+    let control_port = control_port.filter(|_| control_token.is_some() || filmcraft_engine::control_token::auth_disabled());
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("FilmCraft")
@@ -254,7 +267,7 @@ fn main() -> eframe::Result {
                 app.ui.show_menu_bar = false;
             }
             if let Some(port) = control_port {
-                let rx = control_server::start(port, cc.egui_ctx.clone());
+                let rx = control_server::start(port, cc.egui_ctx.clone(), control_token.clone());
                 app = app.with_control(rx);
             }
             Ok(Box::new(app))
@@ -301,6 +314,26 @@ fn open_path(path: &str, reveal: bool) -> Result<(), String> {
 /// Put the OS hardware video decoders in front of our own. Registered in a statement of its own:
 /// a log macro does not evaluate its arguments while no logger takes its level, which left the
 /// hardware decoders out of every run.
+/// The token clients of `--control <port>` must present (#163): `FILMCRAFT_CONTROL_TOKEN`, else a
+/// new random one written to `<data dir>/control-<port>.token` (user-only permissions), where
+/// `filmcraft-cli --bridge` finds it. `Ok(None)` when `FILMCRAFT_CONTROL_NO_AUTH=1` turns it off.
+fn control_auth(port: u16, data_dir: Option<std::path::PathBuf>) -> Result<Option<String>, String> {
+    use filmcraft_engine::control_token as ct;
+    if ct::auth_disabled() {
+        eprintln!("filmcraft: control channel authentication is off ({}=1)", ct::NO_AUTH_ENV);
+        return Ok(None);
+    }
+    if let Some(t) = ct::token_from_env() {
+        return Ok(Some(t));
+    }
+    let dir = data_dir.ok_or("no data directory for the control token (set FILMCRAFT_DATA_DIR, --data-dir or FILMCRAFT_CONTROL_TOKEN)")?;
+    let token = ct::generate()?;
+    let path = ct::token_path(&dir, port);
+    ct::write(&path, &token)?;
+    eprintln!("filmcraft: control token in {}", path.display());
+    Ok(Some(token))
+}
+
 fn register_hardware_decoders() -> filmcraft_platform::Availability {
     let hardware = filmcraft_platform::register();
     log::info!("hardware decoding: {hardware:?}");
