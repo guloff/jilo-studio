@@ -4,3 +4,12 @@ plan/
 /dist
 /log
 .DS_Store
+# Secrets (our fork)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+.netrc
+secrets/
