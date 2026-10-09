@@ -61,6 +61,9 @@ struct VideoTrack {
     order: Vec<usize>,
     /// MPEG-2 sequence header for priming decoders.
     header: Vec<u8>,
+    /// H.264: an `avc1` sample entry from the stream's first parameter sets, so the registered
+    /// decoders (VideoToolbox, …) can take the stream as they take an MP4's (#255).
+    avc: Option<filmcraft_isobmff::SampleEntry>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -251,6 +254,7 @@ impl MpegSource {
                         pts,
                         order,
                         header: Vec::new(),
+                        avc: None,
                     };
                     src.file = Some(file);
                     src.video = Some(track);
@@ -309,6 +313,7 @@ impl MpegSource {
             pts,
             order,
             header: Vec::new(),
+            avc: None,
         };
         let mut src = MpegSource {
             info: MediaInfo {
@@ -390,6 +395,7 @@ impl MpegSource {
     /// Fill in the video stream info from the first picture.
     fn describe_video(&mut self, rate_from_pts: Option<f64>) -> crate::Result<()> {
         let mut seq_header = None;
+        let mut avc_entry = None;
         let v = self.video.as_ref().ok_or_else(|| CodecError::Unsupported("no video stream".into()))?;
         let first = self.read_unit(v, 0)?;
         let n = v.order.len();
@@ -423,7 +429,15 @@ impl MpegSource {
             }
             VKind::H264 | VKind::Hevc => {
                 // decode up to the first frame for size, aspect and colour
-                let mut dec: Box<dyn VideoDecoder> = if v.kind == VKind::H264 { Box::new(H264Decoder::annexb()) } else { Box::new(HevcDecoder::annexb()) };
+                if v.kind == VKind::H264 {
+                    let units: Vec<Vec<u8>> = (0..v.units.len().min(32)).filter_map(|i| self.read_unit(v, i).ok()).collect();
+                    avc_entry = h264_entry(&units);
+                }
+                let mut dec: Box<dyn VideoDecoder> = match (v.kind, &avc_entry) {
+                    (VKind::H264, Some(e)) => annexb_decoder(e)?,
+                    (VKind::H264, None) => Box::new(H264Decoder::annexb()),
+                    _ => Box::new(HevcDecoder::annexb()),
+                };
                 let mut frame = None;
                 for i in 0..v.units.len().min(32) {
                     if let Some(f) = dec.decode(&self.read_unit(v, i)?, i as i64)?.into_iter().next() {
@@ -458,6 +472,9 @@ impl MpegSource {
             && let Some(v) = self.video.as_mut()
         {
             v.header = h;
+        }
+        if let Some(v) = self.video.as_mut() {
+            v.avc = avc_entry;
         }
         self.info.duration = duration;
         self.info.video = Some(VideoStreamInfo {
@@ -757,7 +774,10 @@ impl VideoSamples for MpegVideo<'_> {
         }
         Ok(match self.v.kind {
             VKind::Mpeg2 => Box::new(Mpeg2Decoder::new(self.v.header.clone())),
-            VKind::H264 => Box::new(H264Decoder::annexb()),
+            VKind::H264 => match &self.v.avc {
+                Some(e) => annexb_decoder(e)?,
+                None => Box::new(H264Decoder::annexb()),
+            },
             VKind::Hevc => Box::new(HevcDecoder::annexb()),
         })
     }
@@ -847,6 +867,108 @@ pub fn reader_opener(name: &str, head: &[u8], reader: &filmcraft_media::SharedRe
         return None;
     }
     Some(MpegSource::open_reader(name, reader.clone()).map(|s| Arc::new(s) as SharedSource).map_err(Into::into))
+}
+
+/// NAL units of an Annex B access unit (start codes removed).
+fn annexb_nals(au: &[u8]) -> Vec<&[u8]> {
+    let mut starts = Vec::new();
+    let mut i = 0;
+    while i + 3 <= au.len() {
+        if au[i] == 0 && au[i + 1] == 0 && au[i + 2] == 1 {
+            starts.push(i + 3);
+            i += 3;
+        } else {
+            i += 1;
+        }
+    }
+    let mut out = Vec::with_capacity(starts.len());
+    for (k, &a) in starts.iter().enumerate() {
+        let mut b = starts.get(k + 1).map_or(au.len(), |&next| next - 3);
+        // a four-byte start code (and trailing zero bytes) belong to no unit
+        while b > a && au[b - 1] == 0 {
+            b -= 1;
+        }
+        if let Some(n) = au.get(a..b).filter(|n| !n.is_empty()) {
+            out.push(n);
+        }
+    }
+    out
+}
+
+/// An `avc1` sample entry from the first SPS and PPS of an H.264 Annex B stream.
+fn h264_entry(units: &[Vec<u8>]) -> Option<filmcraft_isobmff::SampleEntry> {
+    let mut sps = None;
+    let mut pps = None;
+    for nal in units.iter().flat_map(|u| annexb_nals(u)) {
+        match nal.first().map(|b| b & 0x1F) {
+            Some(7) if sps.is_none() && nal.len() >= 4 => sps = Some(nal.to_vec()),
+            Some(8) if pps.is_none() => pps = Some(nal.to_vec()),
+            _ => {}
+        }
+        if sps.is_some() && pps.is_some() {
+            break;
+        }
+    }
+    let (sps, pps) = (sps?, pps?);
+    let parsed = filmcraft_h264::params::Sps::parse(&filmcraft_bitstream::unescape_rbsp(sps.get(1..)?)).ok()?;
+    let (_, _, w, h) = parsed.crop_rect();
+    let (profile, compatibility, level) = (*sps.get(1)?, *sps.get(2)?, *sps.get(3)?);
+    let cfg = filmcraft_isobmff::AvcConfig { profile, compatibility, level, length_size: 4, sps: vec![sps], pps: vec![pps], ext: Vec::new() };
+    Some(filmcraft_isobmff::SampleEntry::avc(cfg, u16::try_from(w).ok()?, u16::try_from(h).ok()?))
+}
+
+/// A decoder for an H.264 Annex B stream from the registered decoders (hardware first, then our
+/// own), fed length-prefixed samples as they expect.
+fn annexb_decoder(entry: &filmcraft_isobmff::SampleEntry) -> crate::Result<Box<dyn VideoDecoder>> {
+    Ok(Box::new(AnnexBAsAvcc { inner: crate::make_video_decoder(entry)? }))
+}
+
+/// Rewrites Annex B access units (MPEG-TS / PS) as 4-byte length-prefixed ones (MP4 / `avcC`).
+/// Access unit delimiters are dropped; parameter sets stay in band.
+struct AnnexBAsAvcc {
+    inner: Box<dyn VideoDecoder>,
+}
+
+impl AnnexBAsAvcc {
+    fn avcc(au: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(au.len() + 16);
+        for nal in annexb_nals(au) {
+            if nal.first().map(|b| b & 0x1F) == Some(9) {
+                continue;
+            }
+            let Ok(len) = u32::try_from(nal.len()) else { continue };
+            out.extend_from_slice(&len.to_be_bytes());
+            out.extend_from_slice(nal);
+        }
+        out
+    }
+}
+
+impl VideoDecoder for AnnexBAsAvcc {
+    fn decode(&mut self, sample: &[u8], pts: i64) -> crate::Result<Vec<crate::DecodedFrame>> {
+        self.inner.decode(&Self::avcc(sample), pts)
+    }
+    fn flush(&mut self) -> Vec<crate::DecodedFrame> {
+        self.inner.flush()
+    }
+    fn reset(&mut self) {
+        self.inner.reset()
+    }
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+    fn is_random_access(&self, sample: &[u8]) -> Option<bool> {
+        self.inner.is_random_access(&Self::avcc(sample))
+    }
+    fn is_disposable(&self, sample: &[u8]) -> bool {
+        self.inner.is_disposable(&Self::avcc(sample))
+    }
+    fn set_draft(&mut self, on: bool) {
+        self.inner.set_draft(on)
+    }
+    fn thread_limited(&self) -> bool {
+        self.inner.thread_limited()
+    }
 }
 
 #[cfg(test)]

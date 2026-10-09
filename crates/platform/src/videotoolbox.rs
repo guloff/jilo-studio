@@ -247,11 +247,27 @@ fn copy_out(pb: &CVImageBuffer, l: &Layout) -> std::result::Result<VideoFrame, S
     Ok(VideoFrame { width: w as u32, height: h as u32, data, color: l.color, par: l.par, pts: filmcraft_time::Tick::ZERO })
 }
 
+/// Streams FilmCraft's own decoders cannot decode at all (`filmcraft-h264` is progressive 4:2:0
+/// 8-bit; `filmcraft-hevc` is 4:2:0): for these VideoToolbox's software decoder is the only one.
+fn software_lacks(info: &NalStreamInfo) -> bool {
+    !lacks_what(info).is_empty()
+}
+
+fn lacks_what(info: &NalStreamInfo) -> &'static str {
+    match info.codec {
+        NalCodec::H264 if info.interlaced => "interlaced H.264",
+        NalCodec::H264 if info.chroma_format_idc != 1 => "H.264 4:2:2 / 4:4:4",
+        NalCodec::H264 if info.bit_depth_luma != 8 => "high-bit-depth H.264",
+        NalCodec::Hevc if info.chroma_format_idc != 1 => "HEVC 4:2:2 / 4:4:4",
+        _ => "",
+    }
+}
+
 /// The layout for a stream, or why VideoToolbox is not used for it.
 fn layout(info: &NalStreamInfo) -> std::result::Result<Layout, String> {
-    if info.interlaced {
-        return Err("field-coded H.264".into());
-    }
+    // Interlaced H.264 (field pictures, MBAFF) is taken: VideoToolbox returns the woven frame,
+    // which is what the rest of the pipeline expects, and our own decoder has no field coding, so
+    // refusing it here left camera footage black (#255).
     if info.bit_depth_luma != info.bit_depth_chroma || !matches!(info.bit_depth_luma, 8 | 10) {
         return Err(format!("{}-bit luma / {}-bit chroma", info.bit_depth_luma, info.bit_depth_chroma));
     }
@@ -276,11 +292,13 @@ fn layout(info: &NalStreamInfo) -> std::result::Result<Layout, String> {
 }
 
 impl Session {
-    fn new(info: &NalStreamInfo, layout: Layout) -> std::result::Result<Session, String> {
+    /// `require_hw`: only a hardware decoder (the normal case); otherwise VideoToolbox may use
+    /// Apple's software decoder (streams our own decoders can't decode at all).
+    fn new(info: &NalStreamInfo, layout: Layout, require_hw: bool) -> std::result::Result<Session, String> {
         let format = format_description(info)?;
         // SAFETY: reading an immutable framework constant.
         let key: &CFString = unsafe { kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder };
-        let spec = CFDictionary::<CFString, CFType>::from_slices(&[key], &[CFBoolean::new(true).as_ref()]);
+        let spec = CFDictionary::<CFString, CFType>::from_slices(&[key], &[CFBoolean::new(require_hw).as_ref()]);
         let pf = CFNumber::new_i32(layout.pixel_format as i32);
         // SAFETY: reading an immutable framework constant.
         let pf_key: &CFString = unsafe { kCVPixelBufferPixelFormatTypeKey };
@@ -431,6 +449,8 @@ pub struct VtDecoder {
     fail_after: Option<u64>,
     fed: u64,
     name: &'static str,
+    /// Hardware decoder only (false: VideoToolbox's software decoder, for streams ours can't do).
+    require_hw: bool,
 }
 
 impl VtDecoder {
@@ -438,14 +458,25 @@ impl VtDecoder {
     /// hardware decoder, session creation failed).
     pub fn new(info: NalStreamInfo) -> std::result::Result<Self, String> {
         let layout = layout(&info)?;
-        if !hardware_available(info.codec) {
-            return Err("no hardware decoder".into());
-        }
-        // Create the session now so unsupported streams are declined up front.
-        let session = Session::new(&info, layout.clone())?;
-        let name = match info.codec {
-            NalCodec::H264 => "VideoToolbox H.264",
-            NalCodec::Hevc => "VideoToolbox HEVC",
+        // Create the session now so unsupported streams are declined up front. A stream the
+        // hardware refuses and our own decoders can't decode either (interlaced H.264, H.264
+        // 4:2:2 / 10-bit, HEVC 4:2:2 / 4:4:4) goes to VideoToolbox's software decoder rather than
+        // nowhere: such clips were black, or would not import (#255).
+        let hardware = if hardware_available(info.codec) { Session::new(&info, layout.clone(), true) } else { Err("no hardware decoder".into()) };
+        let (session, require_hw) = match hardware {
+            Ok(s) => (s, true),
+            Err(why) if software_lacks(&info) => {
+                let s = Session::new(&info, layout.clone(), false).map_err(|e| format!("{why}; software VideoToolbox: {e}"))?;
+                log::info!("{why}: decoding in VideoToolbox's software decoder (FilmCraft's own has no {})", lacks_what(&info));
+                (s, false)
+            }
+            Err(why) => return Err(why),
+        };
+        let name = match (info.codec, require_hw) {
+            (NalCodec::H264, true) => "VideoToolbox H.264",
+            (NalCodec::Hevc, true) => "VideoToolbox HEVC",
+            (NalCodec::H264, false) => "VideoToolbox H.264 (software)",
+            (NalCodec::Hevc, false) => "VideoToolbox HEVC (software)",
         };
         Ok(Self {
             info,
@@ -458,6 +489,7 @@ impl VtDecoder {
             fail_after: None,
             fed: 0,
             name,
+            require_hw,
         })
     }
 
@@ -523,7 +555,7 @@ impl VideoDecoder for VtDecoder {
         }
         self.first = false;
         if self.session.is_none() {
-            self.session = Some(Session::new(&self.info, self.layout.clone()).map_err(CodecError::Decode)?);
+            self.session = Some(Session::new(&self.info, self.layout.clone(), self.require_hw).map_err(CodecError::Decode)?);
         }
         let Some(session) = self.session.as_ref() else {
             return Err(CodecError::Decode("no VideoToolbox session".into()));

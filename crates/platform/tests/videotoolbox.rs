@@ -230,3 +230,78 @@ fn hevc_422_10bit_matches_ffmpeg_when_the_hardware_takes_it() {
         assert!(planes[0][..] == raw[..y] && planes[1][..] == raw[y..y + c] && planes[2][..] == raw[y + c..], "frame {i} differs from ffmpeg");
     }
 }
+
+/// #255: interlaced H.264 (MBAFF and field pictures, as cameras record 1080i) decodes in
+/// VideoToolbox (its software decoder: the hardware takes no field coding), matching ffmpeg; our
+/// own decoder has no field coding, so these clips were black.
+#[test]
+fn interlaced_h264_decodes_and_matches_ffmpeg() {
+    let ff = filmcraft_testkit::require_ffmpeg!();
+    for (name, x264) in
+        [("h264_mbaff_1080i.mp4", "log-level=error:tff=1:keyint=12"), ("h264_paff_1080i.mp4", "log-level=error:tff=1:keyint=12:pic-struct=1:fake-interlaced=0")]
+    {
+        let mut args = vec!["-f", "lavfi", "-i", "testsrc2=s=1920x1080:r=25:d=1,noise=alls=12:allf=t", "-c:v", "libx264", "-pix_fmt", "yuv420p"];
+        args.extend(["-flags", "+ildct+ilme", "-x264-params", x264]);
+        let Some(path) = fixture(&ff, name, &args) else { return };
+        let s = read_stream(&path);
+        let Some(mut hw) = hardware(&s) else { return };
+        let out = decode_all(hw.as_mut(), &s.samples);
+        let o =
+            std::process::Command::new(&ff).args(["-v", "error", "-i", path.to_str().unwrap(), "-f", "rawvideo", "-pix_fmt", "yuv420p", "-"]).output().unwrap();
+        let (w, h) = (1920usize, 1080usize);
+        let fsize = w * h * 3 / 2;
+        assert_eq!(out.len(), o.stdout.len() / fsize, "{name}: frame count");
+        for (i, f) in out.iter().enumerate() {
+            let raw = &o.stdout[i * fsize..(i + 1) * fsize];
+            let filmcraft_frame::PixelData::Yuv8 { planes, .. } = &f.frame.data else { panic!("{name}: 8-bit planes") };
+            // Apple's software decoder (the hardware one takes no field coding) gives ffmpeg's luma
+            // exactly; its chroma differs at sharp colour edges between the fields (re-sited field
+            // chroma: under 1% of the samples of a test pattern, none elsewhere).
+            let (y, c) = (w * h, w * h / 4);
+            assert!(planes[0][..] == raw[..y], "{name}: frame {i}: luma differs from ffmpeg");
+            let chroma: Vec<u8> = planes[1].iter().chain(planes[2].iter()).copied().collect();
+            let differ = chroma.iter().zip(&raw[y..y + 2 * c]).filter(|(a, b)| a != b).count();
+            assert!(differ * 50 < 2 * c, "{name}: frame {i}: {differ} chroma samples differ from ffmpeg");
+        }
+    }
+}
+
+/// #255 end to end: an interlaced H.264 MP4 opened through the media stack (hardware decoders
+/// registered, as the app does) gives pictures, not black.
+#[test]
+fn interlaced_h264_mp4_through_the_media_stack() {
+    use filmcraft_media::FrameRequest;
+    let ff = filmcraft_testkit::require_ffmpeg!();
+    if !matches!(filmcraft_platform::register(), filmcraft_platform::Availability::Available(_)) {
+        return;
+    }
+    // MP4 (camera MOV/MP4) and MPEG-TS (AVCHD .mts / .m2ts), which also failed to import
+    for (name, mux) in [("h264_mbaff_stack.mp4", "mp4"), ("h264_1080i_stack.mts", "mpegts")] {
+        let args = [
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=s=1920x1080:r=25:d=2",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-flags",
+            "+ildct+ilme",
+            "-x264-params",
+            "log-level=error:tff=1",
+            "-f",
+            mux,
+        ];
+        let Some(path) = fixture(&ff, name, &args) else { return };
+        let bytes: std::sync::Arc<[u8]> = std::fs::read(&path).unwrap().into();
+        let src = filmcraft_codecs::open_bytes(name, bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let r = src.info().frame_rate();
+        for f in [0i64, 13, 37] {
+            let frame = src.video_frame(FrameRequest::full(r.tick_of(f))).unwrap_or_else(|e| panic!("{name} frame {f}: {e}"));
+            let filmcraft_frame::PixelData::Yuv8 { planes, .. } = &frame.data else { panic!("8-bit") };
+            let mean = planes[0].iter().map(|&v| u64::from(v)).sum::<u64>() / planes[0].len() as u64;
+            assert!(mean > 40, "{name} frame {f}: mean luma {mean} (black)");
+        }
+    }
+}
