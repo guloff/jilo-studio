@@ -533,6 +533,9 @@ impl FilmcraftApp {
             if language == i18n::Language::Ja && !i18n::install_japanese_font(ctx) {
                 self.ui.language = i18n::Language::En;
                 self.ui.status = tl!("no Japanese font is installed on this system; the interface stays in English").into();
+            } else if language == i18n::Language::ZhCn && !i18n::install_chinese_font(ctx) {
+                self.ui.language = i18n::Language::En;
+                self.ui.status = tl!("no Chinese font is installed on this system; the interface stays in English").into();
             } else {
                 self.ui.language = language;
             }
@@ -1612,6 +1615,8 @@ impl eframe::App for FilmcraftApp {
             // theme::install replaces the fonts: add the system Japanese font back (or fall back to
             // English when a saved Japanese setting meets a system without one)
             if self.ui.language == i18n::Language::Ja && !i18n::install_japanese_font(ctx) {
+                self.ui.language = i18n::Language::En;
+            } else if self.ui.language == i18n::Language::ZhCn && !i18n::install_chinese_font(ctx) {
                 self.ui.language = i18n::Language::En;
             }
             self.styled = true;
