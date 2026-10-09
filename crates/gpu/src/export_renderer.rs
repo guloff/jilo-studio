@@ -88,6 +88,12 @@ impl ExportRenderer {
         static SHARED: std::sync::OnceLock<Option<(wgpu::Instance, wgpu::Device, wgpu::Queue)>> = std::sync::OnceLock::new();
         let (instance, device, queue) = SHARED
             .get_or_init(|| {
+                // `Instance::default` panics in a build without a backend (a binary that links no
+                // eframe and enables none): no GPU export there, the CPU renders
+                if wgpu::Instance::enabled_backend_features().is_empty() {
+                    log::info!("GPU export rendering: no wgpu backend in this build");
+                    return None;
+                }
                 let instance = wgpu::Instance::default();
                 let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default())).ok()?;
                 let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).ok()?;

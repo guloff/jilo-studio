@@ -85,8 +85,11 @@ pub enum HardwareEncoding {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum GpuRendering {
-    #[default]
     Auto,
+    /// The default in our build until the GPU export renderer's rayon deadlock is fixed: a frame
+    /// worker holding the renderer pool runs `plan_frame`, whose parallel source decoding can pick
+    /// up another frame job that waits for the same pool (seen with generator media, 2026-10-10).
+    #[default]
     Off,
 }
 
