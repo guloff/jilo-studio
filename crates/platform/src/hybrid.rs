@@ -224,6 +224,10 @@ impl VideoDecoder for HybridDecoder {
         self.info.is_disposable(sample)
     }
 
+    fn intra_only(&self) -> bool {
+        self.info.intra_only()
+    }
+
     fn set_draft(&mut self, on: bool) {
         self.draft = on;
         if let Some(sw) = self.sw.as_mut() {

@@ -140,6 +140,9 @@ pub struct NalStreamInfo {
 pub enum StreamInfo {
     Nal(NalStreamInfo),
     Frame(FrameStreamInfo),
+    /// An intra-only stream (ProRes): every sample is a restart point and carries everything it
+    /// needs, so nothing in-band changes what the hardware decoder was set up with.
+    Intra,
 }
 
 impl From<NalStreamInfo> for StreamInfo {
@@ -160,6 +163,7 @@ impl StreamInfo {
         match self {
             Self::Nal(i) => i.is_irap(sample),
             Self::Frame(i) => i.is_random_access(sample),
+            Self::Intra => true,
         }
     }
 
@@ -167,7 +171,7 @@ impl StreamInfo {
     pub fn keeps_previous_restart(&self, sample: &[u8]) -> bool {
         match self {
             Self::Nal(i) => i.codec == NalCodec::Hevc && i.nal_types(sample).contains(&21),
-            Self::Frame(_) => false,
+            Self::Frame(_) | Self::Intra => false,
         }
     }
 
@@ -179,6 +183,7 @@ impl StreamInfo {
                 i.nals(sample).into_iter().any(|n| n.first().is_some_and(|&h| i.is_parameter_set(i.nal_type(h))) && !i.parameter_sets.iter().any(|p| p == n))
             }
             Self::Frame(i) => i.parameters_changed(sample),
+            Self::Intra => false,
         }
     }
 
@@ -187,6 +192,8 @@ impl StreamInfo {
         match self {
             Self::Nal(i) => i.is_random_access(sample),
             Self::Frame(i) => Some(i.is_random_access(sample)),
+            // ProRes decoders trust the container's sync flags (every sample is one anyway)
+            Self::Intra => None,
         }
     }
 
@@ -194,8 +201,13 @@ impl StreamInfo {
     pub fn is_disposable(&self, sample: &[u8]) -> bool {
         match self {
             Self::Nal(i) => i.is_disposable(sample),
-            Self::Frame(_) => false,
+            Self::Frame(_) | Self::Intra => false,
         }
+    }
+
+    /// As the software decoder's [`crate::VideoDecoder::intra_only`]: frames decode independently.
+    pub fn intra_only(&self) -> bool {
+        matches!(self, Self::Intra)
     }
 }
 

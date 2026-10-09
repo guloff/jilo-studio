@@ -621,6 +621,46 @@ pub fn av1_factory(e: &SampleEntry) -> Option<Result<Box<dyn VideoDecoder>>> {
     }
 }
 
+/// What our ProRes decoder reports for a frame, read from its frame header alone (hardware
+/// decoders give their pictures the same size and colour).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ProResFrameInfo {
+    pub width: u32,
+    pub height: u32,
+    pub chroma: filmcraft_frame::Chroma,
+    /// The frame carries an alpha channel.
+    pub alpha: bool,
+    pub color: filmcraft_color::ColorInfo,
+}
+
+/// The size, chroma format, alpha and colour of a ProRes frame (one sample), without decoding it.
+pub fn prores_frame_info(sample: &[u8]) -> Result<ProResFrameInfo> {
+    let h = filmcraft_prores::probe(sample).map_err(|e| CodecError::Decode(e.to_string()))?;
+    let chroma = match h.chroma {
+        filmcraft_prores::ChromaFormat::Yuv422 => filmcraft_frame::Chroma::C422,
+        filmcraft_prores::ChromaFormat::Yuv444 => filmcraft_frame::Chroma::C444,
+    };
+    Ok(ProResFrameInfo {
+        width: u32::from(h.width),
+        height: u32::from(h.height),
+        chroma,
+        alpha: h.alpha != filmcraft_prores::AlphaType::None,
+        color: prores_color(&h.color),
+    })
+}
+
+/// The colour of a ProRes frame: BT.709 with the frame header's matrix and transfer.
+fn prores_color(c: &filmcraft_prores::ColorInfo) -> filmcraft_color::ColorInfo {
+    let mut color = filmcraft_color::ColorInfo::REC709;
+    if let Some(m) = filmcraft_color::Matrix::from_code(c.matrix) {
+        color.matrix = m;
+    }
+    if let Some(t) = filmcraft_color::Transfer::from_code(c.transfer) {
+        color.transfer = t;
+    }
+    color
+}
+
 /// Our ProRes decoder (every frame is intra; slices decode in parallel).
 pub struct ProResDecoder;
 
@@ -632,13 +672,7 @@ impl VideoDecoder for ProResDecoder {
             filmcraft_prores::ChromaFormat::Yuv422 => filmcraft_frame::Chroma::C422,
             filmcraft_prores::ChromaFormat::Yuv444 => filmcraft_frame::Chroma::C444,
         };
-        let mut color = filmcraft_color::ColorInfo::REC709;
-        if let Some(m) = filmcraft_color::Matrix::from_code(f.color.matrix) {
-            color.matrix = m;
-        }
-        if let Some(t) = filmcraft_color::Transfer::from_code(f.color.transfer) {
-            color.transfer = t;
-        }
+        let color = prores_color(&f.color);
         let frame = VideoFrame {
             width: f.width,
             height: f.height,
