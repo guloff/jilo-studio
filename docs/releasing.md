@@ -178,3 +178,8 @@ warning, never a failed build.
 | `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | notarization (`APPLE_PASSWORD` is an app-specific password) |
 | `WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD` | Windows signing with a `.pfx` |
 | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT`, `AZURE_CERT_PROFILE` | Windows signing with Azure Trusted Signing |
+
+On a local Mac, `packaging/macos/package.sh` signs with the Developer ID identity in the login
+keychain (`MACOS_SIGN_IDENTITY`) and notarizes with a `xcrun notarytool store-credentials`
+profile (`MACOS_NOTARY_PROFILE`) instead of the Apple ID triple. Both read the login keychain, so
+macOS may ask for its password: run it at the machine.
