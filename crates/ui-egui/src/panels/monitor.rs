@@ -585,10 +585,44 @@ fn mini_timeline(
     }
 }
 
-fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which) {
-    let t = app.tokens;
-    let src = which == Which::Source;
-    let buttons: Vec<(Icon, &str, &str)> = if src {
+/// Transport buttons in the default row, by id (Premiere's default layout).
+const SOURCE_DEFAULT: [&str; 12] = [
+    "markers.add",
+    "src.markIn",
+    "src.markOut",
+    "src.goIn",
+    "src.stepBack",
+    "source.playback.toggle",
+    "src.stepFwd",
+    "src.goOut",
+    "source.insert",
+    "source.overwrite",
+    "exportFrame",
+    "media.toggleProxies",
+];
+const PROGRAM_DEFAULT: [&str; 12] = [
+    "markers.add",
+    "markers.markIn",
+    "markers.markOut",
+    "markers.goToIn",
+    "playhead.stepBack",
+    "playback.toggle",
+    "playhead.stepForward",
+    "markers.goToOut",
+    "sequence.lift",
+    "sequence.extract",
+    "exportFrame",
+    "media.toggleProxies",
+];
+
+/// The default row's ids for a monitor.
+pub fn default_buttons(source: bool) -> Vec<String> {
+    (if source { &SOURCE_DEFAULT[..] } else { &PROGRAM_DEFAULT[..] }).iter().map(|s| s.to_string()).collect()
+}
+
+/// Every button the Button Editor offers for a monitor: the default row plus extras (#431).
+pub fn button_catalogue(app: &FilmcraftApp, src: bool) -> Vec<(Icon, &'static str, &'static str)> {
+    if src {
         vec![
             (Icon::Marker, "markers.add", tl!("Add Marker (M)")),
             (Icon::MarkIn, "src.markIn", tl!("Mark In (I)")),
@@ -602,6 +636,7 @@ fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which)
             (Icon::Overwrite, "source.overwrite", tl!("Overwrite (.)")),
             (Icon::Camera, "exportFrame", tl!("Export Frame")),
             (Icon::Proxy, "media.toggleProxies", tl!("Toggle Proxies")),
+            (Icon::Loop, "playback.loop", tl!("Loop")),
         ]
     } else {
         vec![
@@ -617,8 +652,19 @@ fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which)
             (Icon::Extract, "sequence.extract", tl!("Extract (')")),
             (Icon::Camera, "exportFrame", tl!("Export Frame")),
             (Icon::Proxy, "media.toggleProxies", tl!("Toggle Proxies")),
+            (Icon::Loop, "playback.loop", tl!("Loop")),
+            (Icon::ArrowUp, "playhead.prevEdit", tl!("Go to Previous Edit Point (Up)")),
+            (Icon::ChevronDown, "playhead.nextEdit", tl!("Go to Next Edit Point (Down)")),
         ]
-    };
+    }
+}
+
+fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which) {
+    let t = app.tokens;
+    let src = which == Which::Source;
+    let shown = crate::panels::monitor_view::view_mut(app, which).buttons.clone().unwrap_or_else(|| default_buttons(src));
+    let catalogue = button_catalogue(app, src);
+    let buttons: Vec<(Icon, &str, &str)> = shown.iter().filter_map(|id| catalogue.iter().find(|(_, c, _)| c == id).copied()).collect();
     let bw = 30.0;
     let total = buttons.len() as f32 * bw;
     let mut x = row.center().x - total / 2.0;
@@ -633,7 +679,8 @@ fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which)
             ui.painter().rect_filled(r, 4.0, t.hover);
         }
         let sz = if is_play { 16.0 } else { 14.0 };
-        let on = cmd == "media.toggleProxies" && app.session.media.use_proxies();
+        let looping = if src { app.source_playback.clock.looping } else { app.playback.looping };
+        let on = (cmd == "media.toggleProxies" && app.session.media.use_proxies()) || (cmd == "playback.loop" && looping);
         let col = if on {
             t.accent
         } else if resp.hovered() {
@@ -663,7 +710,82 @@ fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which)
     // button editor "+"
     let r = Rect::from_min_size(pos2(row.max.x - 30.0, row.min.y + 4.0), vec2(22.0, 22.0));
     let resp = ui.interact(r, egui::Id::new((prefix, "btn-editor")), Sense::click()).on_hover_text(tl!("Button Editor"));
+    app.auto.add(&format!("{prefix}.transport.buttonEditor"), r, tl!("Button Editor"));
     icons::paint(ui.painter(), r.shrink(5.0), Icon::Plus, if resp.hovered() { t.tab_text_active } else { t.text_dim });
+    if resp.clicked() {
+        app.ui.button_editor = Some(crate::state::ButtonEditorDraft { source: src, buttons: shown });
+    }
+}
+
+/// The Button Editor (#431): tick the buttons the monitor's transport row shows. OK applies,
+/// Cancel and Esc leave the row as it was, Reset Layout ticks the default row.
+///
+/// Automation ids: `buttonEditor.item.<button id>`, `buttonEditor.reset`, `buttonEditor.cancel`,
+/// `buttonEditor.ok`.
+pub fn button_editor(app: &mut FilmcraftApp, ctx: &egui::Context) {
+    let Some(mut draft) = app.ui.button_editor.take() else { return };
+    let catalogue = button_catalogue(app, draft.source);
+    let title = if draft.source { tl!("Button Editor (Source)") } else { tl!("Button Editor (Program)") };
+    let (mut done, mut apply) = (false, false);
+    egui::Window::new(title).id(egui::Id::new("button-editor")).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, vec2(0.0, 0.0)).show(
+        ctx,
+        |ui| {
+            ui.label(tl!("Show these buttons under the monitor:"));
+            ui.add_space(6.0);
+            for (icon, id, tip) in &catalogue {
+                let mut on = draft.buttons.iter().any(|b| b == id);
+                let r = ui.horizontal(|ui| {
+                    let (rect, _) = ui.allocate_exact_size(vec2(18.0, 18.0), Sense::hover());
+                    icons::paint(ui.painter(), rect, *icon, app.tokens.icon);
+                    ui.checkbox(&mut on, *tip)
+                });
+                app.auto.add(&format!("buttonEditor.item.{id}"), r.inner.rect, tip);
+                if r.inner.changed() {
+                    // keep the catalogue's order, which is the order on the row
+                    let mut next: Vec<String> = catalogue.iter().map(|(_, c, _)| c.to_string()).filter(|c| draft.buttons.contains(c)).collect();
+                    if on {
+                        let pos = catalogue.iter().position(|(_, c, _)| c == id).unwrap_or(0);
+                        let at = next.iter().filter(|c| catalogue.iter().position(|(_, x, _)| x == c).unwrap_or(0) < pos).count();
+                        next.insert(at, id.to_string());
+                    } else {
+                        next.retain(|c| c != id);
+                    }
+                    draft.buttons = next;
+                }
+            }
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                let reset = ui.button(tl!("Reset Layout"));
+                app.auto.add("buttonEditor.reset", reset.rect, tl!("Reset Layout"));
+                if reset.clicked() {
+                    draft.buttons = default_buttons(draft.source);
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let ok = ui.button(tl!("OK"));
+                    app.auto.add("buttonEditor.ok", ok.rect, tl!("OK"));
+                    let cancel = ui.button(tl!("Cancel"));
+                    app.auto.add("buttonEditor.cancel", cancel.rect, tl!("Cancel"));
+                    if ok.clicked() {
+                        (done, apply) = (true, true);
+                    }
+                    if cancel.clicked() {
+                        done = true;
+                    }
+                });
+            });
+        },
+    );
+    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        done = true;
+    }
+    if apply {
+        let which = if draft.source { Which::Source } else { Which::Program };
+        let view = crate::panels::monitor_view::view_mut(app, which);
+        view.buttons = (draft.buttons != default_buttons(draft.source)).then(|| draft.buttons.clone());
+    }
+    if !done {
+        app.ui.button_editor = Some(draft);
+    }
 }
 
 fn source_nav(app: &mut FilmcraftApp, cmd: &str) {

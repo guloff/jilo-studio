@@ -70,7 +70,10 @@ forward without making it key (macOS `orderFrontRegardless`), so the user's typi
 the app they are in. Only an explicit `ui.focus` activates FilmCraft.
 
 Element ids are stable, e.g. `timeline.clip.<id>`, `timeline.track.V1.lock`, `tools.Razor`,
-`project.item.<id>`, `effects.item.gaussian_blur`, `panel.tab.Timeline`, `program.transport.playback.toggle`.
+`project.item.<id>`, `effects.item.gaussian_blur`, `panel.tab.Timeline`, `program.transport.playback.toggle`. The "+" at the end of a
+monitor's transport row is `<source|program>.transport.buttonEditor`; it opens the Button Editor
+(`buttonEditor.item.<button id>`, `buttonEditor.reset`, `buttonEditor.cancel`, `buttonEditor.ok`), and
+the row it sets is `ui.inspect` → `source.buttons` / `program.buttons` (null = the default row).
 
 Audio mixing: `mixer.*` commands (strips `"A1"`, `"S1"`, `"Mix"` or ids; lanes `volume`, `pan`,
 `mute`, `send.<i>.level`, `fx.<slot>.<param>`): `mixer.inspect`, `mixer.setStrip` (volume, pan, mute,

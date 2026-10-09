@@ -288,6 +288,9 @@ pub struct MonitorView {
     /// Snap in Program Monitor: graphic drags snap to guides, the frame edges and centre.
     pub snap: bool,
     pub guides: Vec<Guide>,
+    /// Button Editor (the "+" under the monitor): the transport buttons shown, by id, in order;
+    /// `None` is the default row (#431).
+    pub buttons: Option<Vec<String>>,
 }
 
 impl Default for MonitorView {
@@ -308,6 +311,7 @@ impl Default for MonitorView {
             lock_guides: false,
             snap: true,
             guides: Vec::new(),
+            buttons: None,
         }
     }
 }
@@ -357,6 +361,14 @@ pub enum GuideDialog {
         #[serde(default)]
         source: bool,
     },
+}
+
+/// The Button Editor while it is open: which monitor, and the buttons ticked so far.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ButtonEditorDraft {
+    pub source: bool,
+    pub buttons: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -483,6 +495,9 @@ pub struct UiState {
     /// Open guide dialog (Add Guide / Save Guides as Template / Manage Guides).
     #[serde(default)]
     pub guide_dialog: Option<GuideDialog>,
+    /// Open Button Editor of a monitor's transport row (#431).
+    #[serde(default)]
+    pub button_editor: Option<ButtonEditorDraft>,
     /// Open Text Properties dialog (the wrench in the Properties panel's Text section).
     #[serde(default)]
     pub text_props_dialog: Option<TextPropsDialog>,
@@ -904,6 +919,7 @@ impl Default for UiState {
             multicam_record: true,
             edit_cameras: None,
             guide_dialog: None,
+            button_editor: None,
             text_props_dialog: None,
             workspace_dialog: None,
             clip_dialog: None,
