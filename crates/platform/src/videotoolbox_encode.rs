@@ -39,12 +39,16 @@ use objc2_core_video::{
 use objc2_video_toolbox::{
     VTCompressionSession, VTEncodeInfoFlags, VTSessionCopyProperty, VTSessionSetProperty, kVTCompressionPropertyKey_AllowFrameReordering,
     kVTCompressionPropertyKey_AllowOpenGOP, kVTCompressionPropertyKey_AverageBitRate, kVTCompressionPropertyKey_ColorPrimaries,
-    kVTCompressionPropertyKey_ConstantBitRate, kVTCompressionPropertyKey_DataRateLimits, kVTCompressionPropertyKey_ExpectedFrameRate,
-    kVTCompressionPropertyKey_MaxKeyFrameInterval, kVTCompressionPropertyKey_ProfileLevel, kVTCompressionPropertyKey_RealTime,
-    kVTCompressionPropertyKey_TransferFunction, kVTCompressionPropertyKey_UsingHardwareAcceleratedVideoEncoder, kVTCompressionPropertyKey_YCbCrMatrix,
-    kVTProfileLevel_H264_Baseline_AutoLevel, kVTProfileLevel_H264_High_AutoLevel, kVTProfileLevel_H264_Main_AutoLevel, kVTProfileLevel_HEVC_Main_AutoLevel,
+    kVTCompressionPropertyKey_DataRateLimits, kVTCompressionPropertyKey_ExpectedFrameRate, kVTCompressionPropertyKey_MaxKeyFrameInterval,
+    kVTCompressionPropertyKey_ProfileLevel, kVTCompressionPropertyKey_RealTime, kVTCompressionPropertyKey_TransferFunction,
+    kVTCompressionPropertyKey_UsingHardwareAcceleratedVideoEncoder, kVTCompressionPropertyKey_YCbCrMatrix, kVTProfileLevel_H264_Baseline_AutoLevel,
+    kVTProfileLevel_H264_High_AutoLevel, kVTProfileLevel_H264_Main_AutoLevel, kVTProfileLevel_HEVC_Main_AutoLevel,
     kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder,
 };
+
+/// The value of `kVTCompressionPropertyKey_ConstantBitRate` (macOS 13+), used by name so the binary
+/// does not import the symbol and still starts on macOS 11 and 12 (#330).
+const CONSTANT_BIT_RATE_KEY: &str = "ConstantBitRate";
 
 /// The pixel format of the buffers we hand over: biplanar Y + interleaved CbCr, video range.
 const NV12_VIDEO: u32 = u32::from_be_bytes(*b"420v");
@@ -527,8 +531,12 @@ impl VtEncoder {
         let _ = set_value(session, fps_key, CFNumber::new_f64(fps).as_ref());
 
         // SAFETY: reading immutable framework constants.
-        let (avg_key, limits_key, cbr_key) =
-            unsafe { (kVTCompressionPropertyKey_AverageBitRate, kVTCompressionPropertyKey_DataRateLimits, kVTCompressionPropertyKey_ConstantBitRate) };
+        let (avg_key, limits_key) = unsafe { (kVTCompressionPropertyKey_AverageBitRate, kVTCompressionPropertyKey_DataRateLimits) };
+        // kVTCompressionPropertyKey_ConstantBitRate is macOS 13+. Linking the framework constant
+        // made dyld refuse to start the whole app on macOS 11 and 12 (#330), so the key is spelled
+        // out; older systems answer kVTPropertyNotSupportedErr and take the fallback below.
+        let cbr_key = CFString::from_static_str(CONSTANT_BIT_RATE_KEY);
+        let cbr_key: &CFString = &cbr_key;
         let bps = |kbps: u32| i32::try_from(u64::from(kbps).saturating_mul(1000)).unwrap_or(i32::MAX);
         match c.rate {
             VtRate::Cbr { kbps } => {
@@ -653,5 +661,19 @@ impl VtEncoder {
             }
         }
         Ok(packets)
+    }
+}
+
+#[cfg(test)]
+mod availability_tests {
+    use super::CONSTANT_BIT_RATE_KEY;
+    use objc2_core_foundation::CFString;
+
+    /// The spelled-out key is the framework's own (only this test links the macOS 13 symbol).
+    #[test]
+    fn constant_bit_rate_key_matches_the_framework_constant() {
+        // SAFETY: reading an immutable framework constant (the test host runs macOS 13 or later).
+        let framework: &CFString = unsafe { objc2_video_toolbox::kVTCompressionPropertyKey_ConstantBitRate };
+        assert_eq!(framework.to_string(), CONSTANT_BIT_RATE_KEY);
     }
 }
