@@ -13,7 +13,7 @@
   <key>CFBundleExecutable</key>
   <string>FilmCraft</string>
   <key>CFBundleIdentifier</key>
-  <string>ai.storyteller.filmcraft</string>
+  <string>com.rustamguloff.filmcraft</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -42,6 +42,10 @@
   <true/>
   <key>NSRequiresAquaSystemAppearance</key>
   <false/>
+  <!-- Voice-over recording (Audio Track Mixer ▸ Record) opens the microphone. Without this key
+       macOS terminates the app on the first microphone access. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>FilmCraft records voice-over from your microphone when you arm a track and press Record.</string>
   <key>NSHumanReadableCopyright</key>
   <string>Copyright © the FilmCraft authors. MIT OR Apache-2.0.</string>
 
@@ -50,7 +54,7 @@
   <array>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>ai.storyteller.filmcraft.project</string>
+      <string>com.rustamguloff.filmcraft.project</string>
       <key>UTTypeDescription</key>
       <string>FilmCraft Project</string>
       <key>UTTypeConformsTo</key>
