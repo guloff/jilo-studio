@@ -112,6 +112,61 @@ struct Imp<'a, 'i, 'r> {
     xml_clip_ids: HashMap<(ItemId, String), ClipId>,
 }
 
+/// `currentExplodedTrackIndex` / `totalExplodedTrackCount` of a Premiere audio track.
+fn exploded(tn: Node) -> (Option<usize>, usize) {
+    let num = |a: &str| tn.attribute(a).and_then(|v| v.trim().parse::<usize>().ok());
+    (num("currentExplodedTrackIndex"), num("totalExplodedTrackCount").unwrap_or(1))
+}
+
+/// The tracks after `nodes[i]` that carry the other channels of the same Premiere track: a stereo
+/// track is written as two xmeml tracks, exploded index 0 and 1 of 2, one per output channel. Each
+/// played the whole file before, so a stereo track sounded twice (#371). Only stereo pairs are
+/// folded; anything else stays one track per xmeml track.
+fn exploded_partners<'a, 'i>(nodes: &[Node<'a, 'i>], i: usize) -> Vec<Node<'a, 'i>> {
+    let Some(&first) = nodes.get(i) else { return Vec::new() };
+    if exploded(first) != (Some(0), 2) {
+        return Vec::new();
+    }
+    match nodes.get(i + 1) {
+        Some(&next) if exploded(next) == (Some(1), 2) => vec![next],
+        _ => Vec::new(),
+    }
+}
+
+/// The source channel (0-based) a clip item plays: `<sourcetrack><trackindex>` (1-based).
+fn source_channel(c: Node) -> Option<u16> {
+    child(c, "sourcetrack").and_then(|s| child_i64(s, "trackindex")).filter(|i| (1..=64).contains(i)).and_then(|i| u16::try_from(i - 1).ok())
+}
+
+/// The clip item on a partner track that is the same clip as `c` on another channel: same record
+/// span and same file.
+fn partner_clip<'a, 'i>(c: Node<'a, 'i>, track: Node<'a, 'i>) -> Option<Node<'a, 'i>> {
+    let file = |n: Node| child(n, "file").and_then(|f| f.attribute("id")).map(str::to_string);
+    let span = |n: Node| (child_i64(n, "start"), child_i64(n, "end"));
+    elements(track).find(|o| o.has_tag_name("clipitem") && span(*o) == span(c) && file(*o) == file(c))
+}
+
+/// Which source channels an imported audio clip plays (`TrackItem::source_channels`; empty = the
+/// first two, a mono file on both sides). A folded stereo pair takes one channel per side from its
+/// two clip items; a clip on a Premiere mono track takes its one channel. Anything else (plain
+/// FCP7 tracks) keeps the default, as before.
+fn source_channels(c: Node, tn: Node, partners: &[Node], mates: &[Node]) -> Vec<u16> {
+    if !partners.is_empty() {
+        let mut chans = vec![source_channel(c)];
+        chans.extend(mates.iter().map(|m| source_channel(*m)));
+        let Some(chans) = chans.into_iter().collect::<Option<Vec<u16>>>() else { return Vec::new() };
+        return match chans.as_slice() {
+            [0, 1] | [0] => Vec::new(),
+            [a, b] if a == b => vec![*a],
+            _ => chans,
+        };
+    }
+    if tn.attribute("premiereTrackType").is_some_and(|t| t.eq_ignore_ascii_case("mono")) {
+        return source_channel(c).map(|ch| vec![ch]).unwrap_or_default();
+    }
+    Vec::new()
+}
+
 fn node_key(n: Node) -> String {
     match n.attribute("id") {
         Some(id) => id.to_string(),
@@ -317,9 +372,16 @@ impl<'a, 'i> Imp<'a, 'i, '_> {
         let media = child(def, "media");
         for (kind, tag) in [(TrackKind::Video, "video"), (TrackKind::Audio, "audio")] {
             let Some(m) = media.and_then(|m| child(m, tag)) else { continue };
-            for (ti, tn) in children(m, "track").enumerate() {
+            let nodes: Vec<Node> = children(m, "track").collect();
+            let (mut i, mut ti) = (0, 0);
+            while let Some(&tn) = nodes.get(i) {
+                // Premiere writes a stereo track as one xmeml track per channel; the second is
+                // folded back into the first's clips (#371).
+                let partners = if kind == TrackKind::Audio { exploded_partners(&nodes, i) } else { Vec::new() };
                 self.b.ensure_tracks(&mut seq, kind, ti + 1);
-                self.track(&mut seq, id, kind, ti, tn, rate, (w, h));
+                self.track(&mut seq, id, kind, ti, tn, &partners, rate, (w, h));
+                i += 1 + partners.len();
+                ti += 1;
             }
         }
         if seq.video_tracks.is_empty() {
@@ -334,7 +396,17 @@ impl<'a, 'i> Imp<'a, 'i, '_> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn track(&mut self, seq: &mut Sequence, seq_id: ItemId, kind: TrackKind, ti: usize, tn: Node<'a, 'i>, rate: FrameRate, frame: (u32, u32)) {
+    fn track(
+        &mut self,
+        seq: &mut Sequence,
+        seq_id: ItemId,
+        kind: TrackKind,
+        ti: usize,
+        tn: Node<'a, 'i>,
+        partners: &[Node<'a, 'i>],
+        rate: FrameRate,
+        frame: (u32, u32),
+    ) {
         {
             let t = &mut seq.tracks_mut(kind)[ti];
             t.enabled = child_bool(tn, "enabled").unwrap_or(true);
@@ -344,9 +416,17 @@ impl<'a, 'i> Imp<'a, 'i, '_> {
         for c in elements(tn) {
             match c.tag_name().name() {
                 "clipitem" | "generatoritem" => {
-                    if let Some((ti_item, refs)) = self.clip_item(c, kind, rate, frame) {
+                    if let Some((mut ti_item, refs)) = self.clip_item(c, kind, rate, frame) {
                         let xml_id = node_key(c);
                         self.xml_clip_ids.insert((seq_id, xml_id), ti_item.id);
+                        if kind == TrackKind::Audio {
+                            let mates: Vec<Node> = partners.iter().filter_map(|p| partner_clip(c, *p)).collect();
+                            // links to the other channels' clip items lead to this clip
+                            for m in &mates {
+                                self.xml_clip_ids.insert((seq_id, node_key(*m)), ti_item.id);
+                            }
+                            ti_item.source_channels = source_channels(c, tn, partners, &mates);
+                        }
                         if !refs.is_empty() {
                             self.links.push(PendingLink { seq: seq_id, kind, track: ti, clip: ti_item.id, refs });
                         }

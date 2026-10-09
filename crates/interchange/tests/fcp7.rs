@@ -527,3 +527,69 @@ fn sub_frame_clips_keep_equal_source_and_record_spans() {
         assert_eq!(out_f - in_f, end_f - start_f, "start {start}, in {src}, duration {dur} (tenths of a second): {spans:?}");
     }
 }
+
+/// #371: Premiere writes a stereo audio track as two xmeml tracks (exploded index 0 and 1 of 2),
+/// one per output channel, each with a clip item naming its source channel. Imported as two tracks
+/// that each played the whole file, a mono voice came out louder and a stereo effect twice. The
+/// pair is one track again, playing each source channel once.
+#[test]
+fn premiere_exploded_stereo_tracks_fold_into_one() {
+    let clip = |id: &str, file: &str, ch: u32, start: u32, end: u32, link: &str| {
+        format!(
+            r#"<clipitem id="{id}" premiereChannelType="mono"><name>{file}</name>{RATE}<start>{start}</start><end>{end}</end><in>0</in><out>{len}</out>
+              <file id="file-{file}"/><sourcetrack><mediatype>audio</mediatype><trackindex>{ch}</trackindex></sourcetrack>
+              <link><linkclipref>{link}</linkclipref><mediatype>audio</mediatype></link></clipitem>"#,
+            len = end - start
+        )
+    };
+    let file = |name: &str, channels: u32| {
+        format!(
+            r#"<clip id="mc-{name}"><name>{name}</name><duration>2400</duration>{RATE}<media><audio><track><clipitem id="m-{name}"><name>{name}</name>
+              <file id="file-{name}"><name>{name}</name><pathurl>file:///Volumes/Audio/{name}</pathurl>{RATE}<duration>2400</duration>
+                <media><audio><samplecharacteristics><samplerate>48000</samplerate></samplecharacteristics><channelcount>{channels}</channelcount></audio></media>
+              </file></clipitem></track></audio></media></clip>"#
+        )
+    };
+    let track = |idx: u32, ty: &str, clips: &str| {
+        format!(
+            r#"<track currentExplodedTrackIndex="{idx}" totalExplodedTrackCount="2" premiereTrackType="{ty}">{clips}<outputchannelindex>{}</outputchannelindex></track>"#,
+            idx + 1
+        )
+    };
+    let mono_track = |clips: &str| format!(r#"<track currentExplodedTrackIndex="0" totalExplodedTrackCount="1" premiereTrackType="Mono">{clips}</track>"#);
+    let doc = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE xmeml><xmeml version="4"><project><name>Mix</name><children>
+        {voice_file}{sfx_file}{dual_file}
+        <sequence id="sequence-1"><name>Mix</name>{RATE}<duration>240</duration><media><audio>
+          <numOutputChannels>2</numOutputChannels>
+          {a1l}{a1r}{a2l}{a2r}{a3}
+        </audio></media></sequence></children></project></xmeml>"#,
+        voice_file = file("voice.wav", 1),
+        sfx_file = file("sfx.wav", 2),
+        dual_file = file("dual.wav", 2),
+        // A1: mono voice on a stereo track: channel 1 on both halves
+        a1l = track(0, "Stereo", &clip("v-l", "voice.wav", 1, 0, 96, "v-r")),
+        a1r = track(1, "Stereo", &clip("v-r", "voice.wav", 1, 0, 96, "v-l")),
+        // A2: stereo effect: left half plays channel 1, right half channel 2
+        a2l = track(0, "Stereo", &clip("s-l", "sfx.wav", 1, 24, 72, "s-r")),
+        a2r = track(1, "Stereo", &clip("s-r", "sfx.wav", 2, 24, 72, "s-l")),
+        // A3: a mono track playing the second channel of a stereo file
+        a3 = mono_track(&clip("d", "dual.wav", 2, 0, 48, "d")),
+    );
+    let (imp, rep) = import(doc.as_bytes(), Format::Fcp7Xml, Some("/proj")).unwrap();
+    let p = &imp.project;
+    let s = p.sequence(imp.sequences[0]).unwrap();
+    assert_eq!(s.audio_tracks.len(), 3, "two folded stereo pairs and a mono track: {:?}", rep);
+    let only = |t: usize| {
+        let items = &s.audio_tracks[t].items;
+        assert_eq!(items.len(), 1, "A{}: {items:?}", t + 1);
+        items[0].clone()
+    };
+    let (voice, sfx, dual) = (only(0), only(1), only(2));
+    // channel 1 on both sides, once (for a stereo file it would be its left channel only)
+    assert_eq!(voice.source_channels, vec![0], "mono voice");
+    assert!(sfx.source_channels.is_empty(), "stereo effect: left from 1, right from 2 (the default)");
+    assert_eq!(dual.source_channels, vec![1], "the mono track's clip plays channel 2");
+    assert_eq!(p.item(sfx.item).unwrap().name, "sfx.wav");
+    assert_eq!(sfx.start, FrameRate::FPS_23_976.tick_of(24));
+}
