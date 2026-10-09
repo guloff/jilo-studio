@@ -361,6 +361,88 @@ fn gpu_effects_match_cpu_exactly() {
     assert!(failures.is_empty(), "GPU effects differ from the CPU:\n{}", failures.join("\n"));
 }
 
+/// Masks in the test picture's working pixels: a feathered, expanded ellipse (Add), a hard
+/// triangle (Subtract, 70 %), an inverted feathered rectangle (Difference).
+fn masks(w: f64, h: f64) -> Vec<filmcraft_render::mask::FlatMask> {
+    use filmcraft_project::{Mask, MaskMode, MaskPath};
+    let mut a = Mask::new("a", MaskPath::ellipse(Vec2::new(w * 0.45, h * 0.5), Vec2::new(w * 0.3, h * 0.3)));
+    a.feather.value = fl(6.0);
+    a.expansion.value = fl(2.0);
+    let mut b = Mask::new("b", MaskPath::polygon(&[Vec2::new(w * 0.1, h * 0.1), Vec2::new(w * 0.8, h * 0.25), Vec2::new(w * 0.4, h * 0.95)]));
+    b.mode = MaskMode::Subtract;
+    b.feather.value = fl(0.0);
+    b.opacity.value = fl(70.0);
+    let mut c = Mask::new("c", MaskPath::rect(w * 0.6, h * 0.55, w * 0.95, h * 0.97));
+    c.mode = MaskMode::Difference;
+    c.inverted = true;
+    c.feather.value = fl(1.5);
+    filmcraft_render::mask::prepare(&[a, b, c], Tick::ZERO, 1.0)
+}
+
+/// Effects limited to masks and opacity masks (#30): the GPU's coverage (the polygon distance of
+/// `mask.wgsl`) and mix against `mask::apply_effect` / `apply_opacity_masks`, alone, with ops
+/// that keep their own original (Unsharp, Ultra Key), with no passes at all, and in chains.
+#[test]
+fn gpu_masks_match_cpu() {
+    let Some((dev, q)) = device() else {
+        eprintln!("no GPU adapter; skipping");
+        return;
+    };
+    let mut c = GpuCompositor::new(&dev, &q);
+    let (w, h) = (96u32, 54u32);
+    let px = picture(w, h);
+    let frame = VideoFrame::rgba_f32(w, h, px.clone());
+    let ms = masks(w as f64, h as f64);
+    let hard = {
+        let m = filmcraft_project::Mask::new("r", filmcraft_project::MaskPath::rect(20.0, 10.0, 70.5, 40.0));
+        filmcraft_render::mask::prepare(&[m], Tick::ZERO, 1.0)
+    };
+    // the masks cover some pixels fully, some partly and some not at all
+    let cov = filmcraft_render::mask::coverage(&ms, w as usize, h as usize).expect("coverage");
+    assert!(cov.iter().any(|v| *v > 0.99) && cov.iter().any(|v| *v < 0.01) && cov.iter().any(|v| *v > 0.2 && *v < 0.8));
+    let op = |id: &str, params: &[(&str, ParamValue)]| FxOp::eval(&effect(id, params), &cx(Tick::ZERO, 1.0), w as usize, h as usize).expect("op");
+    let masked = |o: FxOp, m: &[filmcraft_render::mask::FlatMask]| FxOp::Masked { op: Box::new(o), masks: m.to_vec() };
+    let cases: Vec<(&str, Vec<FxOp>, bool)> = vec![
+        ("masked blur", vec![masked(op("gaussian_blur", &[("blurriness", fl(8.0))]), &ms)], false),
+        ("masked brightness, hard rect", vec![masked(op("brightness_contrast", &[("brightness", fl(40.0))]), &hard)], false),
+        ("masked unsharp", vec![masked(op("unsharp_mask", &[("amount", fl(200.0)), ("radius", fl(3.0))]), &ms)], false),
+        ("masked ultra key", vec![masked(op("ultra_key", &[("choke", fl(30.0)), ("soften", fl(20.0))]), &ms)], true),
+        ("masked no-op", vec![masked(op("directional_blur", &[("length", fl(0.0))]), &ms)], false),
+        (
+            "chain",
+            vec![
+                masked(op("gaussian_blur", &[("blurriness", fl(5.0))]), &ms),
+                op("tint", &[("amount", fl(60.0))]),
+                masked(op("unsharp_mask", &[("amount", fl(150.0))]), &hard),
+                masked(op("levels", &[("in_black", fl(30.0))]), &ms),
+            ],
+            false,
+        ),
+        ("opacity mask", vec![FxOp::OpacityMask { masks: ms.clone() }], false),
+        (
+            "effects then opacity mask",
+            vec![op("proc_amp", &[("saturation", fl(160.0))]), masked(op("invert", &[]), &hard), FxOp::OpacityMask { masks: ms.clone() }],
+            false,
+        ),
+    ];
+    let mut failures = Vec::new();
+    for (name, ops, steps) in cases {
+        assert!(ops.iter().all(FxOp::gpu_ok), "{name}: not GPU-capable");
+        let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
+        for o in &ops {
+            o.apply(&mut cpu);
+        }
+        let fx = LayerFx { size: (w, h), decimation: 1, ops };
+        let (_, _, gpu) = c.effect_image(&frame, &fx).expect("effect image");
+        let (worst, flips) = compare(&cpu.px, &gpu);
+        eprintln!("{name}: max rel diff {worst:.2e}, {:.3}% flipped", flips * 100.0);
+        if worst > EXACT || flips > if steps { FLIPS } else { 0.0 } {
+            failures.push(format!("{name}: {worst:.2e}, flips {flips:.4}"));
+        }
+    }
+    assert!(failures.is_empty(), "GPU masks differ from the CPU:\n{}", failures.join("\n"));
+}
+
 /// Chains run in order (and Unsharp keeps its original while blurring, between other blurs).
 #[test]
 fn gpu_effect_chains_match_cpu() {

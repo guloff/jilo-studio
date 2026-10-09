@@ -5,11 +5,11 @@
 //! pixels, an opacity and a blend mode (all 27 of [`Blend`] are composited by the GPU). A media
 //! clip whose enabled standard effects all have a GPU implementation ([`crate::gpufx`]) carries
 //! them as a [`LayerFx`]: their parameters evaluated at the frame's time, run by the GPU on the
-//! clip's working image before Motion places it, in the CPU's order (effects → Motion → Opacity /
-//! blend). Anything the shaders don't cover yet — other standard effects, masks, adjustment
-//! layers, nested sequences, transitions other than dissolves, dips and Push — is rendered on the CPU
-//! for that layer (or the whole frame) and handed over as a pre-composited image, so the GPU path
-//! is always exact with respect to the CPU reference.
+//! clip's working image before Motion places it, in the CPU's order (effects, each limited to its
+//! masks → Opacity masks → Motion → Opacity / blend). Anything the shaders don't cover yet — other
+//! standard effects, adjustment layers, nested sequences, transitions other than dissolves, dips
+//! and Push — is rendered on the CPU for that layer (or the whole frame) and handed over as a
+//! pre-composited image, so the GPU path is always exact with respect to the CPU reference.
 //!
 //! A Push transition is planned as ordered [`PlanStep`] operations on isolated clip inputs: each
 //! side is drawn into its own image, the two are pushed together, and the result is composited (Normal) over
@@ -162,12 +162,12 @@ fn simple_transition(id: &str) -> bool {
     matches!(id, "cross_dissolve" | "dip_to_black" | "dip_to_white" | "morph_cut")
 }
 
-/// The standard effects of a media clip if the GPU can draw it (any blend mode, no opacity masks,
-/// every enabled standard effect unmasked and with a GPU implementation; empty without effects or
-/// with effects off). None: the clip is rendered on the CPU.
+/// The standard effects of a media clip if the GPU can draw it (any blend mode, every enabled
+/// standard effect with a GPU implementation, masked or not; empty without effects or with
+/// effects off). None: the clip is rendered on the CPU.
 fn gpu_chain<'a>(project: &Project, item: &'a TrackItem, opts: RenderOptions) -> Option<Vec<&'a filmcraft_project::EffectInstance>> {
     let is_media = project.item(item.item).is_some_and(|p| matches!(p.kind, ItemKind::Media(_) | ItemKind::Subclip { .. }));
-    if !is_media || item.has_opacity_masks() {
+    if !is_media {
         return None;
     }
     if !opts.effects {
@@ -178,8 +178,7 @@ fn gpu_chain<'a>(project: &Project, item: &'a TrackItem, opts: RenderOptions) ->
         if !e.enabled {
             continue;
         }
-        let masked = e.masks.iter().any(|m| m.mode != filmcraft_project::MaskMode::None);
-        if masked || !crate::gpufx::GPU_EFFECTS.contains(&e.effect.as_str()) {
+        if !crate::gpufx::GPU_EFFECTS.contains(&e.effect.as_str()) {
             return None;
         }
         chain.push(e);
@@ -403,7 +402,8 @@ fn push_item(
         // in-between frames (Frame Blending / Optical Flow on speed-changed clips)
         let plain =
             !crate::colorman::needs_management(&seq.settings.color, cs, &frame) && crate::interpolation_blend(item, t, src.info().frame_rate()).is_none();
-        if plain && !chain.is_empty() {
+        let opacity_masks = item.has_opacity_masks();
+        if plain && (!chain.is_empty() || opacity_masks) {
             // GPU effect stage: the working image the CPU would decode (`base_layer`), the
             // effects evaluated for it, placed as `item_layer` places it
             let n = crate::decimation(frame.width as f32, size.0 as f32 * want);
@@ -420,7 +420,20 @@ fn push_item(
                 env: None,
                 working: seq.settings.color.working,
             };
-            let ops: Option<Vec<FxOp>> = chain.iter().map(|e| FxOp::eval(e, &cx, lw, lh).filter(FxOp::gpu_ok)).collect();
+            // a masked effect mixes with what it started from, opacity masks come last: the
+            // order of `mask::apply_effect` and `mask::apply_opacity_masks` in `item_layer`
+            let masked = |op: FxOp, masks: &[filmcraft_project::Mask]| {
+                let masks = crate::mask::prepare(masks, mt, px_scale);
+                if masks.is_empty() { op } else { FxOp::Masked { op: Box::new(op), masks } }
+            };
+            let opacity = opacity_masks
+                .then(|| FxOp::OpacityMask { masks: item.effect("opacity").map(|o| crate::mask::prepare(&o.masks, mt, px_scale)).unwrap_or_default() });
+            let ops: Option<Vec<FxOp>> = chain
+                .iter()
+                .map(|e| FxOp::eval(e, &cx, lw, lh).map(|op| masked(op, &e.masks)))
+                .chain(opacity.map(Some))
+                .map(|op| op.filter(FxOp::gpu_ok))
+                .collect();
             if let Some(ops) = ops {
                 let m = Affine::scale(opts.scale as f64, opts.scale as f64)
                     .then_apply(&motion)

@@ -208,6 +208,48 @@ fn plan_matches_reference_renderer() {
     }
 }
 
+/// A clip with a masked effect and Opacity masks stays on the GPU effect stage (#30) and its plan
+/// draws what the reference renderer draws: masks at the clip's time and working scale, effect
+/// masks before the opacity masks.
+#[test]
+fn masked_effects_and_opacity_masks_plan_on_the_gpu() {
+    use filmcraft_project::{Mask, MaskMode, MaskPath};
+    let (mut p, red, ocean, seq, map) = setup();
+    place(&mut p, seq, 0, ocean, 0, 48);
+    let top = place(&mut p, seq, 1, red, 0, 48);
+    {
+        let s = p.sequence_mut(seq).unwrap();
+        let (_, it) = s.find_item_mut(top).unwrap();
+        it.effect_mut("motion").unwrap().params.get_mut("scale").unwrap().value = ParamValue::Float(80.0);
+        let mut dim = filmcraft_project::find_effect("brightness_contrast").unwrap().instance();
+        dim.params.get_mut("brightness").unwrap().value = ParamValue::Float(-60.0);
+        let mut m = Mask::new("m", MaskPath::ellipse(filmcraft_geom::Vec2::new(160.0, 90.0), filmcraft_geom::Vec2::new(70.0, 45.0)));
+        m.feather.value = ParamValue::Float(20.0);
+        dim.masks.push(m);
+        it.effects.push(dim);
+        let mut o = Mask::new("o", MaskPath::rect(20.0, 10.0, 300.0, 170.0));
+        o.feather.value = ParamValue::Float(12.0);
+        let mut cut = Mask::new("cut", MaskPath::rect(200.0, 100.0, 260.0, 160.0));
+        cut.mode = MaskMode::Subtract;
+        let op = it.effect_mut("opacity").unwrap();
+        op.masks.push(o);
+        op.masks.push(cut);
+    }
+    let r = FrameRate::FPS_24;
+    for scale in [1.0, 0.5] {
+        let opts = RenderOptions { scale, ..Default::default() };
+        let reference = render_sequence(&p, seq, r.tick_of(5), opts, &map);
+        let plan = plan::plan_frame(&p, seq, r.tick_of(5), opts, &map);
+        let plan::FramePlan::Layers { layers, .. } = &plan else { panic!("masked clip should plan as layers") };
+        let ops = layers.last().and_then(|l| l.fx.as_ref()).map(|fx| fx.ops.clone()).unwrap_or_default();
+        assert!(matches!(ops.as_slice(), [gpufx::FxOp::Masked { .. }, gpufx::FxOp::OpacityMask { .. }]), "scale {scale}: {ops:?}");
+        let got = plan::execute_cpu(&plan);
+        assert_eq!((got.w, got.h), (reference.w, reference.h));
+        let max = got.px.iter().zip(&reference.px).map(|(a, b)| (a - b).abs()).fold(0f32, f32::max);
+        assert!(max < 1e-4, "scale {scale}: max diff {max}");
+    }
+}
+
 #[test]
 fn push_plan_preserves_reference_track_order_and_reverse() {
     let (mut p, red, ocean, seq, map) = setup();

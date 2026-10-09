@@ -19,6 +19,7 @@ struct U {
 @group(0) @binding(2) var dst: texture_storage_2d<rgba32float, write>;
 // Unsharp Mask: the image before blurring.
 @group(0) @binding(3) var aux: texture_2d<f32>;
+@group(0) @binding(4) var<storage, read> mdata: array<vec4<f32>>;
 
 const OP_BRIGHTNESS_CONTRAST: u32 = 1u;
 const OP_PROC_AMP: u32 = 2u;
@@ -55,6 +56,8 @@ const OP_UK_CHOKE: u32 = 33u;
 const OP_UK_FINAL: u32 = 34u;
 const OP_COLOR_KEY: u32 = 35u;
 const OP_LUMA_KEY: u32 = 36u;
+const OP_MASK_MIX: u32 = 37u;
+const OP_OPACITY_MASK: u32 = 38u;
 
 fn size() -> vec2<i32> {
     return vec2<i32>(i32(u.i0.y), i32(u.i0.z));
@@ -531,6 +534,93 @@ fn lumetri_op(c: vec3<f32>, p: vec2<i32>) -> vec3<f32> {
 }
 
 // One output pixel of every op but the running-sum box blur.
+// ---- masks (`filmcraft_render::mask`, as `mask.wgsl`): `mdata` from `fx.rs` `mask_data`
+
+fn mk_falloff(s: f32, feather: f32) -> f32 {
+    let w = max(feather, 1.0);
+    let t = clamp(s / w + 0.5, 0.0, 1.0);
+    let smooth_t = t * t * (3.0 - 2.0 * t);
+    return t + (smooth_t - t) * min(feather, 1.0);
+}
+
+// `MaskMode::start` / `combine` by mode index: None 0, Add 1, Subtract 2, Intersect 3, Lighten 4,
+// Darken 5, Difference 6.
+fn mk_start(mode: u32) -> f32 {
+    if mode == 2u || mode == 3u || mode == 5u {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+fn mk_combine(mode: u32, a: f32, m: f32) -> f32 {
+    switch mode {
+        case 1u: { return a + m - a * m; }
+        case 2u: { return a * (1.0 - m); }
+        case 3u: { return a * m; }
+        case 4u: { return max(a, m); }
+        case 5u: { return min(a, m); }
+        case 6u: { return a + m - 2.0 * a * m; }
+        default: { return a; }
+    }
+}
+
+fn mk_seg_dist2(q: vec2<f32>, a: vec2<f32>, b: vec2<f32>) -> f32 {
+    let d = b - a;
+    let r = q - a;
+    let l2 = dot(d, d);
+    var t = 0.0;
+    if l2 > 0.0 {
+        t = clamp(dot(r, d) / l2, 0.0, 1.0);
+    }
+    let e = r - d * t;
+    return dot(e, e);
+}
+
+// Coverage of mask `i` at `q` (`mask_row`): signed distance to the polygon (nonzero winding),
+// saturated beyond the band, through the feather falloff.
+fn mk_value(i: u32, q: vec2<f32>) -> f32 {
+    let h0 = mdata[1u + 2u * i];
+    let h1 = mdata[2u + 2u * i];
+    let start = u32(h0.x);
+    let len = u32(h0.y);
+    let feather = h1.x;
+    let expansion = h1.y;
+    let band = abs(expansion) + max(feather, 1.0) * 0.5 + 1.0;
+    var sd = -band;
+    if len >= 3u {
+        var wind = 0;
+        var d2 = band * band;
+        for (var k = 0u; k < len; k++) {
+            let a = mdata[start + k].xy;
+            let c = mdata[start + (k + 1u) % len].xy;
+            if (a.y <= q.y) != (c.y <= q.y) {
+                let t = (q.y - a.y) / (c.y - a.y);
+                if a.x + (c.x - a.x) * t < q.x {
+                    wind += select(-1, 1, c.y > a.y);
+                }
+            }
+            d2 = min(d2, mk_seg_dist2(q, a, c));
+        }
+        let d = sqrt(d2);
+        sd = select(-d, d, wind != 0);
+    }
+    let c = mk_falloff(sd + expansion, feather);
+    return h1.z * select(c, 1.0 - c, h0.w != 0.0);
+}
+
+// Combined coverage of the pass's masks at pixel centre `q` (`mask::coverage`).
+fn mask_coverage(q: vec2<f32>) -> f32 {
+    let count = u32(mdata[0].x);
+    if count == 0u {
+        return 1.0;
+    }
+    var acc = mk_start(u32(mdata[1].z));
+    for (var i = 0u; i < count; i++) {
+        acc = clamp(mk_combine(u32(mdata[1u + 2u * i].z), acc, mk_value(i, q)), 0.0, 1.0);
+    }
+    return acc;
+}
+
 // ---- Ultra Key (`gpufx::UltraKey`)
 
 // BT.709 Y'CbCr of an encoded RGB triple (`filmcraft_color::rgb_to_ycbcr`).
@@ -672,6 +762,14 @@ fn pixel(op: u32, p: vec2<i32>) -> vec4<f32> {
         }
         case OP_UK_FINAL: {
             return uk_final(p);
+        }
+        case OP_MASK_MIX: {
+            // src: the effected image, aux: the image the effect started from
+            let o = textureLoad(aux, p, 0);
+            return o + (ld(p) - o) * mask_coverage(pc);
+        }
+        case OP_OPACITY_MASK: {
+            return ld(p) * mask_coverage(pc);
         }
         case OP_COLOR_KEY: {
             // `FxOp::ColorKey`: p0.xyz = key Y'CbCr, p1.x = tolerance, p1.y = softness

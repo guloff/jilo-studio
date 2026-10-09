@@ -16,6 +16,7 @@ use rayon::prelude::*;
 
 use crate::effects::{FxCtx, b, choice, color, dec, enc, f, gaussian_boxes, grade_space, on, point, text};
 use crate::image::Image;
+use crate::mask::FlatMask;
 
 /// A bilinear resample of the working image through an affine map (`Image::transformed` at a
 /// magnification or mild minification: no mip pre-filter).
@@ -211,6 +212,29 @@ pub enum FxOp {
         th: f32,
         cut: f32,
     },
+    /// An effect limited to its masks (`mask::apply_effect`): `op` runs, then the result is mixed
+    /// with the image it started from by the masks' coverage. `masks` are the active ones,
+    /// flattened at the clip's time and working scale (`mask::prepare`).
+    Masked {
+        op: Box<FxOp>,
+        masks: Vec<FlatMask>,
+    },
+    /// The masks of the clip's Opacity effect (`mask::apply_opacity_masks`): premultiplied pixels
+    /// scaled by their coverage.
+    OpacityMask {
+        masks: Vec<FlatMask>,
+    },
+}
+
+/// Most polygon points the GPU takes for one op's masks (each pixel visits every edge); masks
+/// with more are drawn on the CPU.
+pub const GPU_MASK_POINTS: usize = 16_384;
+
+/// Whether the GPU's mask coverage covers `masks`: finite geometry and at most
+/// [`GPU_MASK_POINTS`] points.
+fn masks_gpu_ok(masks: &[FlatMask]) -> bool {
+    masks.iter().map(|m| m.pts.len()).sum::<usize>() <= GPU_MASK_POINTS
+        && masks.iter().all(|m| [m.feather, m.expansion, m.opacity].iter().chain(m.pts.iter().flatten()).all(|v| v.is_finite()))
 }
 
 /// Ultra Key, evaluated: the matte from the key colour, its cleanup (Choke, Soften as box-blur
@@ -778,6 +802,8 @@ impl FxOp {
             // a softness of zero or less divides by zero (or flips the ramp) on the CPU
             FxOp::ColorKey { k, tol, soft } => fin(k) && tol.is_finite() && soft.is_finite() && *soft > 0.0,
             FxOp::LumaKey { th, cut } => fin(&[*th, *cut]),
+            FxOp::Masked { op, masks } => !masks.is_empty() && op.gpu_ok() && masks_gpu_ok(masks),
+            FxOp::OpacityMask { masks } => !masks.is_empty() && masks_gpu_ok(masks),
             FxOp::BrightnessContrast { br, co } => fin(&[*br, *co]),
             FxOp::ProcAmp { br, co, hue, sat } => fin(&[*br, *co, *hue, *sat]),
             FxOp::Tint { black, white, amount } => fin(black) && fin(white) && amount.is_finite(),
@@ -839,6 +865,20 @@ impl FxOp {
                     let l = dec(c);
                     p.copy_from_slice(&[l[0] * a, l[1] * a, l[2] * a, a]);
                 });
+            }
+            FxOp::Masked { op, masks } => {
+                let Some(cov) = crate::mask::coverage(masks, img.w, img.h) else {
+                    op.apply(img);
+                    return;
+                };
+                let original = img.clone();
+                op.apply(img);
+                crate::mask::mix(img, &original, &cov);
+            }
+            FxOp::OpacityMask { masks } => {
+                if let Some(cov) = crate::mask::coverage(masks, img.w, img.h) {
+                    crate::mask::scale_by(img, &cov);
+                }
             }
             FxOp::LumaKey { th, cut } => {
                 let (th, cut) = (*th, *cut);

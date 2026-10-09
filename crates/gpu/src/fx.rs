@@ -15,6 +15,7 @@
 use std::collections::{HashMap, HashSet};
 
 use filmcraft_render::gpufx::FxOp;
+use filmcraft_render::mask::FlatMask;
 use filmcraft_render::plan::LayerFx;
 
 /// Working texture format.
@@ -57,6 +58,8 @@ const OP_UK_CHOKE: u32 = 33;
 const OP_UK_FINAL: u32 = 34;
 const OP_COLOR_KEY: u32 = 35;
 const OP_LUMA_KEY: u32 = 36;
+const OP_MASK_MIX: u32 = 37;
+const OP_OPACITY_MASK: u32 = 38;
 
 type Target = (wgpu::Texture, wgpu::TextureView);
 
@@ -66,6 +69,8 @@ pub(crate) struct FxStage {
     bgl: wgpu::BindGroupLayout,
     /// Draws a layer's source into a working texture (`composite.wgsl` `fs`, no blending).
     source: wgpu::RenderPipeline,
+    /// Empty mask data for the passes without masks.
+    no_masks: wgpu::Buffer,
     pool: HashMap<(u32, u32), Vec<Target>>,
     used: HashSet<(u32, u32)>,
 }
@@ -99,8 +104,11 @@ struct Step {
     /// A blur pass of Unsharp Mask (the original stays untouched until the combine); also every
     /// matte pass of Ultra Key.
     unsharp_blur: bool,
-    /// A combine after which the original is still needed (Ultra Key's Choke, before its final pass).
+    /// A combine after which the original is still needed (Ultra Key's Choke, before its final
+    /// pass; the last pass of a masked effect, before the mask mix).
     keep_after: bool,
+    /// Mask polygons for the pass ([`mask_data`]; empty: none).
+    data: Vec<f32>,
 }
 
 fn step(code: u32, i1: [u32; 4], p: &[f32]) -> Step {
@@ -108,7 +116,24 @@ fn step(code: u32, i1: [u32; 4], p: &[f32]) -> Step {
     for (d, s) in q.iter_mut().zip(p) {
         *d = *s;
     }
-    Step { run: false, code, i1, p: q, combine: false, unsharp_blur: false, keep_after: false }
+    Step { run: false, code, i1, p: q, combine: false, unsharp_blur: false, keep_after: false, data: Vec::new() }
+}
+
+/// Masks as `fx.wgsl` reads them (`vec4`s): the count, then per mask (first point, points, mode
+/// index, inverted) and (feather, expansion, opacity, 0), then every point as (x, y, 0, 0).
+fn mask_data(masks: &[FlatMask]) -> Vec<f32> {
+    let head = 1 + 2 * masks.len();
+    let mut out = vec![masks.len() as f32, 0.0, 0.0, 0.0];
+    let mut start = head;
+    for m in masks {
+        out.extend_from_slice(&[start as f32, m.pts.len() as f32, m.mode.index() as f32, if m.inverted { 1.0 } else { 0.0 }]);
+        out.extend_from_slice(&[m.feather, m.expansion, m.opacity, 0.0]);
+        start += m.pts.len();
+    }
+    for p in masks.iter().flat_map(|m| &m.pts) {
+        out.extend_from_slice(&[p[0], p[1], 0.0, 0.0]);
+    }
+    out
 }
 
 /// Box passes along x (vertical = false) or y for the radii (radius 0 is a no-op on the CPU).
@@ -141,6 +166,26 @@ fn steps(op: &FxOp) -> Vec<Step> {
         FxOp::Extract { lo, hi, soft, invert } => out.push(step(OP_EXTRACT, [*invert as u32, 0, 0, 0], &[*lo, *hi, *soft])),
         FxOp::ColorKey { k, tol, soft } => out.push(step(OP_COLOR_KEY, [0; 4], &[k[0], k[1], k[2], 0.0, *tol, *soft])),
         FxOp::LumaKey { th, cut } => out.push(step(OP_LUMA_KEY, [0; 4], &[*th, *cut])),
+        FxOp::Masked { op, masks } => {
+            // the op's passes keep the image it started from, which the mask mix reads back
+            for mut s in steps(op) {
+                if s.combine {
+                    s.keep_after = true;
+                } else {
+                    s.unsharp_blur = true;
+                }
+                out.push(s);
+            }
+            let mut mix = step(OP_MASK_MIX, [0; 4], &[]);
+            mix.combine = true;
+            mix.data = mask_data(masks);
+            out.push(mix);
+        }
+        FxOp::OpacityMask { masks } => {
+            let mut s = step(OP_OPACITY_MASK, [0; 4], &[]);
+            s.data = mask_data(masks);
+            out.push(s);
+        }
         FxOp::Invert { channel: 4, blend } => out.push(step(OP_INVERT_ALPHA, [0; 4], &[*blend])),
         FxOp::Invert { channel, blend } => out.push(step(OP_INVERT, [*channel, 0, 0, 0], &[*blend])),
         FxOp::Posterize { n } => out.push(step(OP_POSTERIZE, [0; 4], &[*n])),
@@ -300,6 +345,7 @@ impl FxStage {
     pub(crate) fn supported(device: &wgpu::Device) -> bool {
         let l = device.limits();
         l.max_storage_textures_per_shader_stage >= 1
+            && l.max_storage_buffers_per_shader_stage >= 1
             && l.max_compute_invocations_per_workgroup >= 256
             && l.max_compute_workgroup_size_x >= 64
             && l.max_compute_workgroup_size_y >= 16
@@ -342,6 +388,16 @@ impl FxStage {
                     count: None,
                 },
                 tex(3),
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
         let pl = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: Some("fx"), bind_group_layouts: &[Some(&bgl)], immediate_size: 0 });
@@ -376,7 +432,14 @@ impl FxStage {
             multiview_mask: None,
             cache: None,
         });
-        Self { px: compute("fx_px"), run: compute("fx_run"), bgl, source, pool: HashMap::new(), used: HashSet::new() }
+        // bound as the mask data of the passes without masks
+        let no_masks = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("fx-no-masks"),
+            size: 16,
+            usage: wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+        Self { px: compute("fx_px"), run: compute("fx_run"), bgl, source, no_masks, pool: HashMap::new(), used: HashSet::new() }
     }
 
     /// Start a frame: pooled textures of sizes no layer uses by [`end_frame`](Self::end_frame)
@@ -469,6 +532,17 @@ impl FxStage {
                 mapped_at_creation: false,
             });
             queue.write_buffer(&buf, 0, &bytes);
+            let masks = (!s.data.is_empty()).then(|| {
+                let bytes: Vec<u8> = s.data.iter().flat_map(|v| v.to_le_bytes()).collect();
+                let b = device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("fx-masks"),
+                    size: bytes.len() as u64,
+                    usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                });
+                queue.write_buffer(&b, 0, &bytes);
+                b
+            });
             let bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("fx"),
                 layout: &self.bgl,
@@ -477,6 +551,7 @@ impl FxStage {
                     wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(views.get(cur)?) },
                     wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(views.get(dst)?) },
                     wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::TextureView(aux) },
+                    wgpu::BindGroupEntry { binding: 4, resource: masks.as_ref().unwrap_or(&self.no_masks).as_entire_binding() },
                 ],
             });
             let groups = if s.run {
