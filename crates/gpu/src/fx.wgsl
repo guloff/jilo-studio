@@ -50,6 +50,9 @@ const OP_MIRROR: u32 = 28u;
 const OP_OFFSET: u32 = 29u;
 const OP_VIDEO_LIMITER: u32 = 30u;
 const OP_LUMETRI: u32 = 31u;
+const OP_UK_MATTE: u32 = 32u;
+const OP_UK_CHOKE: u32 = 33u;
+const OP_UK_FINAL: u32 = 34u;
 
 fn size() -> vec2<i32> {
     return vec2<i32>(i32(u.i0.y), i32(u.i0.z));
@@ -526,6 +529,80 @@ fn lumetri_op(c: vec3<f32>, p: vec2<i32>) -> vec3<f32> {
 }
 
 // One output pixel of every op but the running-sum box blur.
+// ---- Ultra Key (`gpufx::UltraKey`)
+
+// BT.709 Y'CbCr of an encoded RGB triple (`filmcraft_color::rgb_to_ycbcr`).
+fn ycbcr709(c: vec3<f32>) -> vec3<f32> {
+    let y = 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+    return vec3(y, (c.z - y) / (2.0 * (1.0 - 0.0722)), (c.x - y) / (2.0 * (1.0 - 0.2126)));
+}
+
+// `UltraKey::matte`: p0 = key Y'CbCr + |CbCr|², p1 = tolerance, gain, highlight, shadow, p2.x = pedestal
+fn uk_matte(o: vec4<f32>) -> f32 {
+    if o.a <= 1e-6 {
+        return 0.0;
+    }
+    let k = u.p0.xyz;
+    let kmag2 = u.p0.w;
+    let y = ycbcr709(enc(o.rgb / o.a));
+    let proj = (y.y * k.y + y.z * k.z) / kmag2;
+    let dy = y.y - proj * k.y;
+    let dz = y.z - proj * k.z;
+    let perp = sqrt(dy * dy + dz * dz) / sqrt(kmag2);
+    let keyness = clamp(proj, 0.0, 1.5) * (1.0 - smoothstep_fx(0.0, u.p1.x, perp));
+    var m = clamp(1.0 - keyness * u.p1.y, 0.0, 1.0);
+    m += max(y.x - k.x, 0.0) * u.p1.z * 2.0 * min(keyness, 1.0);
+    m += max(k.x - y.x, 0.0) * u.p1.w * 2.0 * min(keyness, 1.0);
+    let ped = u.p2.x;
+    return clamp((clamp(m, 0.0, 1.0) - ped) / (1.0 - ped), 0.0, 1.0);
+}
+
+// `UltraKey::apply` after the matte: contrast, spill suppression, colour correction, output.
+// src: the matte (R), aux: the original.
+fn uk_final(p: vec2<i32>) -> vec4<f32> {
+    let o = textureLoad(aux, p, 0);
+    let src_a = o.a;
+    var a = ld(p).x;
+    if u.i1.z != 0u {
+        a = clamp((a - u.p0.y) * u.p0.x + u.p0.y, 0.0, 1.0);
+    }
+    var v = enc(select(o.rgb / o.a, vec3(0.0), o.a <= 1e-6));
+    let dom = u.i1.x % 3u;
+    let spill = u.p0.z; let desat = u.p0.w; let range = u.p1.x; let sluma = u.p1.y;
+    let o1 = v[(dom + 1u) % 3u];
+    let o2 = v[(dom + 2u) % 3u];
+    let limit = max(o1, o2) * (1.0 - range) + (o1 + o2) * 0.5 * range;
+    let excess = max(v[dom] - limit, 0.0);
+    if excess > 0.0 && spill > 0.0 {
+        let l0 = luma709(v);
+        v[dom] -= excess * spill;
+        let lm = luma709(v);
+        v = vec3(lm) + (v - vec3(lm)) * (1.0 - desat * min(excess * 4.0, 1.0));
+        v += vec3((l0 - lm) * sluma);
+    }
+    if u.i1.w != 0u {
+        var h = rgb_to_hsl(clamp(v, vec3(0.0), vec3(1.0)));
+        h.x = fract_euclid(h.x + u.p1.w);
+        h.y = clamp(h.y * u.p1.z, 0.0, 1.0);
+        h.z = clamp(h.z * u.p2.x, 0.0, 1.0);
+        v = hsl_to_rgb(h.x, h.y, h.z);
+    }
+    let l = dec(v);
+    switch u.i1.y {
+        case 1u: {
+            let g = srgb_to_linear1(a);
+            return vec4(g * src_a, g * src_a, g * src_a, src_a);
+        }
+        case 2u: {
+            return vec4(l * src_a, src_a);
+        }
+        default: {
+            let na = a * src_a;
+            return vec4(l * na, na);
+        }
+    }
+}
+
 fn pixel(op: u32, p: vec2<i32>) -> vec4<f32> {
     let s = size();
     let pc = vec2<f32>(p) + 0.5;
@@ -581,6 +658,18 @@ fn pixel(op: u32, p: vec2<i32>) -> vec4<f32> {
                 acc += sample_clamped(pc.x + dx * t, pc.y + dy * t);
             }
             return acc / f32(steps);
+        }
+        case OP_UK_MATTE: {
+            return vec4(uk_matte(ld(p)));
+        }
+        case OP_UK_CHOKE: {
+            // src: the blurred matte, aux: the original (its matte recomputed); p2.y = threshold
+            let a = uk_matte(textureLoad(aux, p, 0));
+            let c = u.p2.y;
+            return vec4(min(a, clamp((ld(p).x - c) / (1.0 - c), 0.0, 1.0)));
+        }
+        case OP_UK_FINAL: {
+            return uk_final(p);
         }
         case OP_UNSHARP: {
             // src: the blurred image, aux: the original

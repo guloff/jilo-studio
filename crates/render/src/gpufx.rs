@@ -197,6 +197,172 @@ pub enum FxOp {
         aspect: f32,
         gpu_capable: bool,
     },
+    /// Ultra Key (boxed: the largest op by far).
+    UltraKey(Box<UltraKey>),
+}
+
+/// Ultra Key, evaluated: the matte from the key colour, its cleanup (Choke, Soften as box-blur
+/// radii, Contrast), spill suppression, colour correction and the output mode (#30: keys on the GPU).
+#[derive(Clone, Debug, PartialEq)]
+pub struct UltraKey {
+    /// The key colour as BT.709 Y'CbCr of its sRGB-encoded value, and |CbCr|² (at least 1e-6).
+    pub k: [f32; 3],
+    pub kmag2: f32,
+    pub tol: f32,
+    pub gain: f32,
+    pub highlight: f32,
+    pub shadow: f32,
+    pub pedestal: f32,
+    /// Choke: threshold `c` and the box radii of the matte blur it compares with.
+    pub choke: Option<(f32, Vec<u32>, Vec<u32>)>,
+    /// Soften: box radii of the matte blur (empty: none).
+    pub soften: (Vec<u32>, Vec<u32>),
+    /// Contrast: gain and mid point.
+    pub contrast: Option<(f32, f32)>,
+    pub spill: f32,
+    pub desat: f32,
+    pub range: f32,
+    pub spill_luma: f32,
+    /// Colour correction: saturation, hue (turns), luminance multipliers.
+    pub cc: Option<[f32; 3]>,
+    /// Dominant channel of the key colour (0 R, 1 G, 2 B).
+    pub dom: u32,
+    /// Output: 0 composite, 1 alpha channel, 2 colour channels.
+    pub output: u32,
+}
+
+impl UltraKey {
+    fn eval(e: &EffectInstance, cx: &FxCtx, w: usize, h: usize) -> Self {
+        use crate::vfx::{chv, cv, fv};
+        let kc = cv(e, "key_color", cx);
+        let k = filmcraft_color::rgb_to_ycbcr(kc[0], kc[1], kc[2], filmcraft_color::Matrix::Bt709);
+        let kmag2 = (k[1] * k[1] + k[2] * k[2]).max(1e-6);
+        let (g_mul, ped_mul) = match chv(e, "setting") {
+            1 => (0.85, 0.7),
+            2 => (1.2, 1.5),
+            _ => (1.0, 1.0),
+        };
+        let transparency = fv(e, "transparency", cx) / 100.0;
+        let choke = fv(e, "choke", cx) / 100.0;
+        let soften = fv(e, "soften", cx) / 100.0;
+        let contrast = fv(e, "contrast", cx) / 100.0;
+        let (cc_s, cc_h, cc_l) = (fv(e, "cc_saturation", cx) / 100.0, fv(e, "cc_hue", cx) / 360.0, fv(e, "cc_luminance", cx) / 100.0);
+        let cc = (cc_s - 1.0).abs() > 1e-4 || cc_h.abs() > 1e-6 || (cc_l - 1.0).abs() > 1e-4;
+        UltraKey {
+            k,
+            kmag2,
+            tol: 0.08 + fv(e, "tolerance", cx) / 100.0 * 0.5,
+            gain: (1.0 + 2.0 * transparency) * g_mul,
+            highlight: fv(e, "highlight", cx) / 100.0,
+            shadow: fv(e, "shadow", cx) / 100.0,
+            pedestal: (fv(e, "pedestal", cx) / 100.0 * 0.3 * ped_mul).min(0.9),
+            choke: (choke > 0.0).then(|| {
+                let r = (choke * 4.0 * cx.px_scale).max(0.5);
+                let (rx, ry) = gaussian_boxes(w, h, r, r);
+                (choke * 0.5, rx, ry)
+            }),
+            soften: if soften > 0.0 { gaussian_boxes(w, h, soften * 10.0 * cx.px_scale, soften * 10.0 * cx.px_scale) } else { (Vec::new(), Vec::new()) },
+            contrast: (contrast > 0.0).then(|| (1.0 + contrast * 4.0, fv(e, "mid_point", cx) / 100.0)),
+            spill: fv(e, "spill", cx) / 100.0,
+            desat: fv(e, "desaturate", cx) / 100.0,
+            range: fv(e, "range", cx) / 100.0,
+            spill_luma: fv(e, "spill_luma", cx) / 100.0,
+            cc: cc.then_some([cc_s, cc_h, cc_l]),
+            dom: if kc[1] >= kc[0] && kc[1] >= kc[2] {
+                1
+            } else if kc[2] >= kc[0] {
+                2
+            } else {
+                0
+            },
+            output: chv(e, "output").min(2),
+        }
+    }
+
+    fn gpu_ok(&self) -> bool {
+        let fin = |v: &[f32]| v.iter().all(|x| x.is_finite());
+        fin(&self.k)
+            && fin(&[self.kmag2, self.tol, self.gain, self.highlight, self.shadow, self.pedestal, self.spill, self.desat, self.range, self.spill_luma])
+            && self.choke.as_ref().is_none_or(|(c, ..)| c.is_finite() && *c < 1.0)
+            && self.contrast.is_none_or(|(g, m)| g.is_finite() && m.is_finite())
+            && self.cc.is_none_or(|c| fin(&c))
+            && self.pedestal < 1.0
+    }
+
+    /// The matte of one premultiplied pixel (the GPU's `uk_matte`).
+    fn matte(&self, p: &[f32]) -> f32 {
+        if p[3] <= 1e-6 {
+            return 0.0;
+        }
+        let k = self.k;
+        let v = enc(Image::unpremul([p[0], p[1], p[2], p[3]]));
+        let y = filmcraft_color::rgb_to_ycbcr(v[0], v[1], v[2], filmcraft_color::Matrix::Bt709);
+        let proj = (y[1] * k[1] + y[2] * k[2]) / self.kmag2;
+        let perp = ((y[1] - proj * k[1]).powi(2) + (y[2] - proj * k[2]).powi(2)).sqrt() / self.kmag2.sqrt();
+        let keyness = proj.clamp(0.0, 1.5) * (1.0 - crate::vfx::smoothstep(0.0, self.tol, perp));
+        let mut m = (1.0 - keyness * self.gain).clamp(0.0, 1.0);
+        m += (y[0] - k[0]).max(0.0) * self.highlight * 2.0 * keyness.min(1.0);
+        m += (k[0] - y[0]).max(0.0) * self.shadow * 2.0 * keyness.min(1.0);
+        ((m.clamp(0.0, 1.0) - self.pedestal) / (1.0 - self.pedestal)).clamp(0.0, 1.0)
+    }
+
+    /// The CPU reference: matte, cleanup on the matte plane (the same box blurs as the GPU's),
+    /// then spill suppression, colour correction and the output.
+    fn apply(&self, img: &mut Image) {
+        let (w, h) = (img.w, img.h);
+        let mut alpha: Vec<f32> = img.px.par_chunks(4).map(|p| self.matte(p)).collect();
+        // a plane blurred as the GPU blurs its matte texture: `effects::box_blur` on channel R
+        let blur = |plane: &[f32], rx: &[u32], ry: &[u32]| -> Vec<f32> {
+            let mut im = Image { w, h, px: plane.iter().flat_map(|&v| [v, 0.0, 0.0, 0.0]).collect() };
+            crate::effects::box_blur(&mut im, rx, ry, false);
+            im.px.as_chunks::<4>().0.iter().map(|p| p[0]).collect()
+        };
+        if let Some((c, rx, ry)) = &self.choke {
+            let b = blur(&alpha, rx, ry);
+            alpha.par_iter_mut().zip(b.par_iter()).for_each(|(a, &bb)| *a = a.min(((bb - c) / (1.0 - c)).clamp(0.0, 1.0)));
+        }
+        if !self.soften.0.is_empty() || !self.soften.1.is_empty() {
+            alpha = blur(&alpha, &self.soften.0, &self.soften.1);
+        }
+        if let Some((g, mid)) = self.contrast {
+            alpha.par_iter_mut().for_each(|a| *a = ((*a - mid) * g + mid).clamp(0.0, 1.0));
+        }
+        let dom = self.dom as usize % 3;
+        img.px.par_chunks_mut(4).zip(alpha.par_iter()).for_each(|(p, &a)| {
+            let src_a = p[3];
+            let mut v = enc(Image::unpremul([p[0], p[1], p[2], p[3]]));
+            let (o1, o2) = (v[(dom + 1) % 3], v[(dom + 2) % 3]);
+            let limit = o1.max(o2) * (1.0 - self.range) + (o1 + o2) * 0.5 * self.range;
+            let excess = (v[dom] - limit).max(0.0);
+            if excess > 0.0 && self.spill > 0.0 {
+                let l0 = crate::vfx::luma(v);
+                v[dom] -= excess * self.spill;
+                let lm = crate::vfx::luma(v);
+                v = v.map(|q| lm + (q - lm) * (1.0 - self.desat * (excess * 4.0).min(1.0)));
+                let comp = (l0 - lm) * self.spill_luma;
+                v = v.map(|q| q + comp);
+            }
+            if let Some([cs, ch, cl]) = self.cc {
+                let mut hsl = rgb_to_hsl(v[0].clamp(0.0, 1.0), v[1].clamp(0.0, 1.0), v[2].clamp(0.0, 1.0));
+                hsl[0] = (hsl[0] + ch).rem_euclid(1.0);
+                hsl[1] = (hsl[1] * cs).clamp(0.0, 1.0);
+                hsl[2] = (hsl[2] * cl).clamp(0.0, 1.0);
+                v = hsl_to_rgb(hsl[0], hsl[1], hsl[2]);
+            }
+            let l = dec(v);
+            match self.output {
+                1 => {
+                    let g = filmcraft_color::srgb_to_linear(a);
+                    p.copy_from_slice(&[g * src_a, g * src_a, g * src_a, src_a]);
+                }
+                2 => p.copy_from_slice(&[l[0] * src_a, l[1] * src_a, l[2] * src_a, src_a]),
+                _ => {
+                    let na = a * src_a;
+                    p.copy_from_slice(&[l[0] * na, l[1] * na, l[2] * na, na]);
+                }
+            }
+        });
+    }
 }
 
 /// Effect ids [`FxOp::eval`] understands (the GPU-capable standard effects).
@@ -235,6 +401,7 @@ pub const GPU_EFFECTS: &[&str] = &[
     "vignette",
     "video_limiter",
     "lumetri",
+    "ultra_key",
 ];
 
 /// `Image::transformed` without the mip path: the destination rectangle it writes and the inverse.
@@ -568,6 +735,7 @@ impl FxOp {
                     gpu_capable,
                 }
             }
+            "ultra_key" => FxOp::UltraKey(Box::new(UltraKey::eval(e, cx, w, h))),
             _ => return None,
         })
     }
@@ -583,6 +751,7 @@ impl FxOp {
     pub fn gpu_ok(&self) -> bool {
         let fin = |v: &[f32]| v.iter().all(|x| x.is_finite());
         match self {
+            FxOp::UltraKey(k) => k.gpu_ok(),
             FxOp::BrightnessContrast { br, co } => fin(&[*br, *co]),
             FxOp::ProcAmp { br, co, hue, sat } => fin(&[*br, *co, *hue, *sat]),
             FxOp::Tint { black, white, amount } => fin(black) && fin(white) && amount.is_finite(),
@@ -630,6 +799,7 @@ impl FxOp {
             return;
         }
         match self {
+            FxOp::UltraKey(k) => k.apply(img),
             FxOp::BrightnessContrast { br, co } => {
                 let (br, co) = (*br, *co);
                 img.map_rgb(|c, _, _| {

@@ -297,6 +297,30 @@ fn cases() -> Vec<(&'static str, Vec<(&'static str, ParamValue)>, bool)> {
             ],
             false,
         ),
+        // Ultra Key (#30): default green key, every cleanup stage, spill and colour correction,
+        // the three outputs and the three presets; a blue key; magnified px_scale-free blurs
+        ("ultra_key", vec![], true),
+        (
+            "ultra_key",
+            vec![("choke", fl(30.0)), ("soften", fl(20.0)), ("contrast", fl(40.0)), ("mid_point", fl(40.0)), ("spill", fl(80.0)), ("desaturate", fl(60.0))],
+            true,
+        ),
+        (
+            "ultra_key",
+            vec![
+                ("key_color", col(0.1, 0.2, 0.9)),
+                ("setting", ch(2)),
+                ("range", fl(70.0)),
+                ("spill_luma", fl(80.0)),
+                ("cc_hue", fl(40.0)),
+                ("cc_saturation", fl(150.0)),
+                ("cc_luminance", fl(80.0)),
+            ],
+            true,
+        ),
+        ("ultra_key", vec![("output", ch(1)), ("choke", fl(60.0)), ("setting", ch(1))], true),
+        ("ultra_key", vec![("output", ch(2)), ("soften", fl(100.0)), ("pedestal", fl(90.0)), ("tolerance", fl(0.0))], true),
+        ("ultra_key", vec![("transparency", fl(100.0)), ("highlight", fl(100.0)), ("shadow", fl(0.0)), ("key_color", col(0.9, 0.1, 0.1))], true),
     ]
 }
 
@@ -441,6 +465,10 @@ fn hostile_parameters_are_bounded() {
         effect("lumetri", &[("temperature", fl(f64::INFINITY))]),
         effect("lumetri", &[("contrast", fl(f64::NAN))]),
         effect("lumetri", &[("vignette_amount", fl(f64::NAN))]),
+        effect("ultra_key", &[("tolerance", fl(f64::NAN))]),
+        effect("ultra_key", &[("key_color", ParamValue::Color([f32::NAN, 0.8, 0.2, 1.0]))]),
+        effect("ultra_key", &[("contrast", fl(50.0)), ("mid_point", fl(f64::INFINITY))]),
+        effect("ultra_key", &[("highlight", fl(f64::NAN))]),
     ];
     for e in &nan {
         let op = FxOp::eval(e, &cx(Tick::ZERO, 1.0), w, h);

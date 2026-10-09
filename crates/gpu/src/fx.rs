@@ -52,6 +52,9 @@ const OP_MIRROR: u32 = 28;
 const OP_OFFSET: u32 = 29;
 const OP_VIDEO_LIMITER: u32 = 30;
 const OP_LUMETRI: u32 = 31;
+const OP_UK_MATTE: u32 = 32;
+const OP_UK_CHOKE: u32 = 33;
+const OP_UK_FINAL: u32 = 34;
 
 type Target = (wgpu::Texture, wgpu::TextureView);
 
@@ -91,8 +94,11 @@ struct Step {
     p: [f32; 24],
     /// Unsharp combine: reads the blurred image and the original.
     combine: bool,
-    /// A blur pass of Unsharp Mask (the original stays untouched until the combine).
+    /// A blur pass of Unsharp Mask (the original stays untouched until the combine); also every
+    /// matte pass of Ultra Key.
     unsharp_blur: bool,
+    /// A combine after which the original is still needed (Ultra Key's Choke, before its final pass).
+    keep_after: bool,
 }
 
 fn step(code: u32, i1: [u32; 4], p: &[f32]) -> Step {
@@ -100,7 +106,7 @@ fn step(code: u32, i1: [u32; 4], p: &[f32]) -> Step {
     for (d, s) in q.iter_mut().zip(p) {
         *d = *s;
     }
-    Step { run: false, code, i1, p: q, combine: false, unsharp_blur: false }
+    Step { run: false, code, i1, p: q, combine: false, unsharp_blur: false, keep_after: false }
 }
 
 /// Box passes along x (vertical = false) or y for the radii (radius 0 is a no-op on the CPU).
@@ -185,6 +191,41 @@ fn steps(op: &FxOp) -> Vec<Step> {
         }
         FxOp::VideoLimiter { max, comp, axis, warn, warning_color } => {
             out.push(step(OP_VIDEO_LIMITER, [*axis, *warn as u32, 0, 0], &[*max, *comp, warning_color[0], warning_color[1], warning_color[2]]));
+        }
+        FxOp::UltraKey(k) => {
+            // matte from the original (kept), its cleanup on the matte texture, then the final pass
+            // that reads the original again: the passes of `UltraKey::apply`
+            let mp = [k.k[0], k.k[1], k.k[2], k.kmag2, k.tol, k.gain, k.highlight, k.shadow, k.pedestal];
+            let mut matte = step(OP_UK_MATTE, [0; 4], &mp);
+            matte.unsharp_blur = true;
+            out.push(matte);
+            let blur = |rx: &[u32], ry: &[u32], out: &mut Vec<Step>| {
+                let at = out.len();
+                boxes(rx, false, false, out);
+                boxes(ry, true, false, out);
+                for s in &mut out[at..] {
+                    s.unsharp_blur = true;
+                }
+            };
+            if let Some((c, rx, ry)) = &k.choke {
+                blur(rx, ry, &mut out);
+                let mut p = mp.to_vec();
+                p.push(*c);
+                let mut choke = step(OP_UK_CHOKE, [0; 4], &p);
+                choke.combine = true;
+                choke.keep_after = true;
+                out.push(choke);
+            }
+            blur(&k.soften.0, &k.soften.1, &mut out);
+            let (g, mid) = k.contrast.unwrap_or((1.0, 0.0));
+            let [cs, ch, cl] = k.cc.unwrap_or([1.0, 0.0, 1.0]);
+            let mut fin = step(
+                OP_UK_FINAL,
+                [k.dom, k.output, u32::from(k.contrast.is_some()), u32::from(k.cc.is_some())],
+                &[g, mid, k.spill, k.desat, k.range, k.spill_luma, cs, ch, cl],
+            );
+            fin.combine = true;
+            out.push(fin);
         }
         FxOp::Lumetri {
             gains,
@@ -442,7 +483,7 @@ impl FxStage {
             };
             dispatches.push(Dispatch { run: s.run, bg, groups });
             cur = dst;
-            if s.combine {
+            if s.combine && !s.keep_after {
                 orig = None;
             }
         }
