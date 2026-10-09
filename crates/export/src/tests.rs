@@ -333,6 +333,55 @@ fn gpu_hook_scenarios() {
         let bytes = std::fs::read(tmp("hostile000.png")).unwrap_or_default();
         assert!(!bytes.is_empty(), "{w}x{h}: PNG written");
     }
+
+    // 4. A renderer that uses rayon inside (as the GPU one does: sources, CPU effects, uploads)
+    // must not deadlock the export. A frame worker waiting inside that work stole other frame
+    // tasks, which then waited for a renderer held further down their own stack.
+    crate::reset_frame_renderers_for_tests();
+    crate::register_frame_renderer(|| Some(Box::new(RayonRenderer) as Box<dyn FrameRenderer>));
+    for (format, name) in [(Format::PngSequence, "rayon-gpu.png"), (Format::H264, "rayon-gpu.mp4")] {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (p, seq, m) = (p.clone(), seq, m.clone());
+        std::thread::spawn(move || {
+            let mut s = ExportSettings { format, path: tmp(name), include_audio: false, ..Default::default() };
+            s.range = Some(TimeRange::new(Tick::ZERO, FrameRate::FPS_24.tick_of(24)));
+            s.gpu_rendering = crate::GpuRendering::Auto;
+            // more workers than pooled renderers (16 for 4, as on a 16-core machine); the hang is a
+            // race, so several runs (before the fix every run of this test hung)
+            let pool = rayon::ThreadPoolBuilder::new().num_threads(16).build().unwrap();
+            let r = (0..16).try_for_each(|_| pool.install(|| export(&p, seq, &s, &m, &Progress::default()).map(|_| ())));
+            let _ = tx.send(r);
+        });
+        let r = rx.recv_timeout(std::time::Duration::from_secs(60)).unwrap_or_else(|_| panic!("{name}: export with a rayon-using renderer hung"));
+        r.unwrap();
+    }
+    crate::reset_frame_renderers_for_tests();
+    crate::register_frame_renderer(|| None);
+}
+
+/// Renders through rayon joins (and sleeps in them, so the waiting workers look for other work),
+/// then returns the CPU reference picture: tests running meanwhile with GPU rendering Auto (the
+/// registry is process-global) get the same bytes as without it.
+struct RayonRenderer;
+
+impl FrameRenderer for RayonRenderer {
+    fn render(
+        &mut self,
+        project: &Project,
+        seq: ItemId,
+        t: Tick,
+        opts: filmcraft_render::RenderOptions,
+        sources: &dyn SourceProvider,
+    ) -> Option<filmcraft_render::Image> {
+        let n: u64 = (0..16u64)
+            .into_par_iter()
+            .map(|i| {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+                i
+            })
+            .sum();
+        (n == 120).then(|| filmcraft_render::render_sequence(project, seq, t, opts, sources))
+    }
 }
 
 struct FakeRenderer;

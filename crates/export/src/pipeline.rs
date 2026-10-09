@@ -183,6 +183,57 @@ impl Pipeline {
         })
     }
 
+    /// Whether frames render on pooled GPU renderers (see [`Pipeline::frames`]).
+    pub fn renders_on_gpu(&self) -> bool {
+        self.renderer.is_some()
+    }
+
+    /// `each(f)` for every frame `f` of `range`, in parallel, results in frame order.
+    ///
+    /// On the CPU path the frames are rayon tasks. With pooled GPU renderers they run on threads
+    /// of their own instead: a frame holds a renderer while it renders, and rendering uses rayon
+    /// (sources, CPU effects, uploads). A rayon worker waiting inside that work runs other rayon
+    /// tasks meanwhile; a frame task it picked up there waited for a renderer held further down its
+    /// own stack, and with every renderer held that way the export hung. Plain threads never pick
+    /// up rayon tasks: they hand their parallel work to the pool and wait for it.
+    pub fn frames<T: Send>(&self, range: std::ops::Range<i64>, each: impl Fn(i64) -> T + Send + Sync) -> Vec<T> {
+        if !self.renders_on_gpu() || cfg!(target_arch = "wasm32") {
+            return range.into_par_iter().map(each).collect();
+        }
+        let start = range.start;
+        let count = usize::try_from(range.end.saturating_sub(start)).unwrap_or(0);
+        let slots: Vec<std::sync::Mutex<Option<T>>> = (0..count).map(|_| std::sync::Mutex::new(None)).collect();
+        let next = std::sync::atomic::AtomicUsize::new(0);
+        let work = || {
+            loop {
+                let k = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let Some(slot) = slots.get(k) else { break };
+                let v = each(start.saturating_add(i64::try_from(k).unwrap_or(i64::MAX)));
+                *slot.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(v);
+            }
+        };
+        // as many frames in flight as the rayon path had; the threads past the pool's renderers
+        // wait for one, then place, overlay and convert their frame while others render
+        let threads = count.min(rayon::current_num_threads().max(1));
+        std::thread::scope(|s| {
+            for _ in 0..threads {
+                // a thread the OS refuses only means fewer of them; frames left over are drawn below
+                if std::thread::Builder::new().name("filmcraft-export-frame".into()).spawn_scoped(s, work).is_err() {
+                    break;
+                }
+            }
+        });
+        // a frame no thread drew (none could be started) is drawn here
+        slots
+            .into_iter()
+            .enumerate()
+            .map(|(k, slot)| {
+                let v = slot.into_inner().unwrap_or_else(std::sync::PoisonError::into_inner);
+                v.unwrap_or_else(|| each(start.saturating_add(i64::try_from(k).unwrap_or(i64::MAX))))
+            })
+            .collect()
+    }
+
     /// Output frame `f` as straight sRGB RGBA8 at the output size, or for HDR exports the encoded
     /// R'G'B' floats (3 per pixel).
     pub fn frame(&self, f: i64, sources: &dyn SourceProvider) -> (Vec<u8>, Vec<f32>) {

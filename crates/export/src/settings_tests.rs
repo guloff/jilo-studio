@@ -558,11 +558,11 @@ fn extreme_bitrates_do_not_overflow_encoder_setup() {
 }
 
 #[test]
-fn gpu_rendering_is_off_by_default() {
-    assert_eq!(ExportSettings::default().gpu_rendering, crate::GpuRendering::Off);
+fn gpu_rendering_is_auto_by_default() {
+    assert_eq!(ExportSettings::default().gpu_rendering, crate::GpuRendering::Auto);
     // settings saved before the field existed get the default too
     let s: ExportSettings = serde_json::from_value(serde_json::json!({"format": "h264"})).unwrap();
-    assert_eq!(s.gpu_rendering, crate::GpuRendering::Off);
-    let auto: ExportSettings = serde_json::from_value(serde_json::json!({"format": "h264", "gpuRendering": "auto"})).unwrap();
-    assert_eq!(auto.gpu_rendering, crate::GpuRendering::Auto);
+    assert_eq!(s.gpu_rendering, crate::GpuRendering::Auto);
+    let off: ExportSettings = serde_json::from_value(serde_json::json!({"format": "h264", "gpuRendering": "off"})).unwrap();
+    assert_eq!(off.gpu_rendering, crate::GpuRendering::Off);
 }

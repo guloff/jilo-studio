@@ -67,7 +67,6 @@ use filmcraft_isobmff::{Brand, Mp4Writer, PcmConfig, SampleEntry, TrackConfig, W
 use filmcraft_project::{ItemId, Project};
 use filmcraft_render::SourceProvider;
 use filmcraft_time::FrameRate;
-use rayon::prelude::*;
 
 use crate::audio_out::AudioOut;
 use crate::mxf_out::{MxfMux, MxfSetup};
@@ -115,16 +114,13 @@ struct Ahead {
 /// must be rendered again.
 fn render_batch(pipe: &Pipeline, f: i64, end: i64, sources: &dyn SourceProvider) -> Option<Vec<Frame>> {
     let pending = AtomicBool::new(false);
-    let frames: Vec<Frame> = (f..end)
-        .into_par_iter()
-        .map(|fi| {
-            let frame = pipe.frame(fi, sources);
-            if filmcraft_media::pending::take() {
-                pending.store(true, Ordering::Relaxed);
-            }
-            frame
-        })
-        .collect();
+    let frames: Vec<Frame> = pipe.frames(f..end, |fi| {
+        let frame = pipe.frame(fi, sources);
+        if filmcraft_media::pending::take() {
+            pending.store(true, Ordering::Relaxed);
+        }
+        frame
+    });
     (!pending.load(Ordering::Relaxed)).then_some(frames)
 }
 
@@ -553,14 +549,26 @@ impl Exporter {
         let pipe = self.pipe.clone();
         let mut slot: Option<std::thread::Result<Option<Vec<Frame>>>> = None;
         let mut encode_done: Option<web_time::Instant> = None;
-        let encoded = rayon::in_place_scope(|s| {
-            s.spawn(|_| {
-                slot = Some(catch_unwind(AssertUnwindSafe(|| timed(Stage::Render, || render_batch(&pipe, a, b, sources)))));
-            });
-            let r = self.encode_batch(f, frames, sources);
-            encode_done = Some(web_time::Instant::now());
-            r
-        });
+        let render_ahead = || catch_unwind(AssertUnwindSafe(|| timed(Stage::Render, || render_batch(&pipe, a, b, sources))));
+        let encoded = if pipe.renders_on_gpu() {
+            // GPU frames render on threads of their own (`Pipeline::frames`): start them from a
+            // plain thread too, so no rayon worker sits blocked waiting for them
+            std::thread::scope(|s| {
+                let ahead = std::thread::Builder::new().name("filmcraft-export-ahead".into()).spawn_scoped(s, render_ahead);
+                let r = self.encode_batch(f, frames, sources);
+                encode_done = Some(web_time::Instant::now());
+                // no thread for the prefetch: the next step renders that batch itself
+                slot = ahead.ok().and_then(|h| h.join().ok());
+                r
+            })
+        } else {
+            rayon::in_place_scope(|s| {
+                s.spawn(|_| slot = Some(render_ahead()));
+                let r = self.encode_batch(f, frames, sources);
+                encode_done = Some(web_time::Instant::now());
+                r
+            })
+        };
         // the scope returned only now: what is left since the encoding ended is waiting for the render
         if let Some(t) = encode_done {
             note_stage(Stage::Wait, t.elapsed());

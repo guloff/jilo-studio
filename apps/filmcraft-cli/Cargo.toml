@@ -33,3 +33,6 @@ filmcraft-ogg = { workspace = true }
 filmcraft-automation = { workspace = true }
 serde_json = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+# Only for its backends: filmcraft-gpu links wgpu without any (the desktop app gets them through
+# eframe), so without these the CLI had no GPU export renderer and exported on the CPU.
+wgpu = { version = "30", default-features = false, features = ["wgsl", "metal", "vulkan", "dx12", "gles"] }
