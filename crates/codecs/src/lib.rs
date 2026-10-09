@@ -128,7 +128,17 @@ pub fn openers() -> Vec<filmcraft_media::Opener> {
 
 fn reader_registry() -> &'static RwLock<Vec<filmcraft_media::ReaderOpener>> {
     static R: std::sync::OnceLock<RwLock<Vec<filmcraft_media::ReaderOpener>>> = std::sync::OnceLock::new();
-    R.get_or_init(|| RwLock::new(vec![mp4::reader_opener, mkv::reader_opener, mxf::reader_opener, ogg::reader_opener, mpeg::reader_opener, apv::reader_opener]))
+    R.get_or_init(|| {
+        RwLock::new(vec![
+            mp4::reader_opener,
+            mkv::reader_opener,
+            mxf::reader_opener,
+            ogg::reader_opener,
+            mpeg::reader_opener,
+            apv::reader_opener,
+            filmcraft_media::wav::reader_opener,
+        ])
+    })
 }
 
 /// Openers that read containers through a [`filmcraft_media::ByteReader`] (index now, samples on
