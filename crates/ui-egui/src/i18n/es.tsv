@@ -3487,3 +3487,5 @@
 	Go to Previous Edit Point (Up)	Ir al punto de edición anterior (Arriba)
 	Reset Layout	Restablecer diseño
 	Show these buttons under the monitor:	Mostrar estos botones bajo el monitor:
+	GPU Rendering	Renderizado en GPU
+	Composite on the GPU when available	Componer en la GPU cuando esté disponible

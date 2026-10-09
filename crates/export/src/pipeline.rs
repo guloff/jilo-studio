@@ -12,7 +12,7 @@ use filmcraft_time::FrameRate;
 use rayon::prelude::*;
 
 use crate::settings::{ExportEffects, Placement, Scaling, TextOverlay};
-use crate::{ExportError, ExportSettings, Format, Result};
+use crate::{ExportError, ExportSettings, Format, FrameRenderer, GpuRendering, Result, build_frame_renderer, note_gpu_fallback, note_gpu_frame};
 
 /// Where the rendered picture lands in the output frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -49,9 +49,43 @@ impl Geometry {
     }
 }
 
+/// GPU renderers shared by the export workers: a worker takes a free one for a frame and puts it
+/// back (a single renderer behind a mutex made the workers queue, GPU export ~20 % slower than CPU).
+struct RendererPool {
+    renderers: std::sync::Mutex<Vec<Box<dyn FrameRenderer>>>,
+    available: std::sync::Condvar,
+}
+
+impl RendererPool {
+    /// `None` for an empty list (a pool nobody could take from).
+    fn new(renderers: Vec<Box<dyn FrameRenderer>>) -> Option<Self> {
+        (!renderers.is_empty()).then(|| Self { renderers: std::sync::Mutex::new(renderers), available: std::sync::Condvar::new() })
+    }
+
+    /// Run `f` with a free renderer, waiting for one if all are busy.
+    fn with<R>(&self, f: impl FnOnce(&mut dyn FrameRenderer) -> R) -> Option<R> {
+        let mut free = self.renderers.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut r = loop {
+            match free.pop() {
+                Some(r) => break r,
+                None => free = self.available.wait(free).unwrap_or_else(std::sync::PoisonError::into_inner),
+            }
+        };
+        drop(free);
+        // the renderer goes back even when `f` panics (the export worker runs under catch_unwind)
+        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(&mut *r)));
+        self.renderers.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(r);
+        self.available.notify_one();
+        res.ok()
+    }
+}
+
 /// The immutable part of an export: everything needed to produce one output frame.
 pub(crate) struct Pipeline {
     pub project: Arc<Project>,
+    /// The registered frame renderers (GPU compositors) when the setting allows and factories
+    /// provide them; pooled because `frame` runs on several export threads at once.
+    renderer: Option<RendererPool>,
     pub seq: ItemId,
     /// Output frame rate (frame `f` is at `rate.tick_of(f)`).
     pub rate: FrameRate,
@@ -112,7 +146,24 @@ impl Pipeline {
         } else {
             None
         };
+        let renderer = if settings.gpu_rendering == GpuRendering::Off {
+            None
+        } else {
+            // Four renderers: as fast as one per worker (measured on 16 threads, where more only
+            // contend for memory bandwidth in the read-back), with a quarter of the GPU memory.
+            let count = rayon::current_num_threads().clamp(2, 4);
+            let mut list = Vec::with_capacity(count);
+            for _ in 0..count {
+                if let Some(r) = build_frame_renderer() {
+                    list.push(r);
+                } else {
+                    break;
+                }
+            }
+            RendererPool::new(list)
+        };
         Ok(Pipeline {
+            renderer,
             seq_rate: q.settings.frame_rate,
             start_tc: q.start_timecode,
             drop_frame: q.settings.drop_frame,
@@ -136,7 +187,31 @@ impl Pipeline {
     /// R'G'B' floats (3 per pixel).
     pub fn frame(&self, f: i64, sources: &dyn SourceProvider) -> (Vec<u8>, Vec<f32>) {
         let t = self.rate.tick_of(f);
-        let img = filmcraft_render::render_sequence(&self.project, self.seq, t, self.opts, sources);
+        // The registered GPU renderer goes first; `None` (no adapter, a plan the GPU cannot
+        // draw, any internal error) falls back to the CPU reference renderer below.
+        let gpu = match self.renderer.as_ref() {
+            Some(pool) => {
+                let asked = std::time::Instant::now();
+                pool.with(|r| {
+                    crate::note_lock_wait(asked.elapsed());
+                    r.render(&self.project, self.seq, t, self.opts, sources)
+                })
+                .flatten()
+            }
+            None => None,
+        };
+        let img = match gpu {
+            Some(img) => {
+                note_gpu_frame();
+                img
+            }
+            None => {
+                if self.renderer.is_some() {
+                    note_gpu_fallback();
+                }
+                filmcraft_render::render_sequence(&self.project, self.seq, t, self.opts, sources)
+            }
+        };
         let mut img = self.place(img);
         self.overlays(&mut img, t);
         let lim = &self.effects.video_limiter;
