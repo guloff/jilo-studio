@@ -32,6 +32,10 @@ filmcraft-isobmff = { workspace = true }
 filmcraft-time = { workspace = true }
 log = { workspace = true }
 
+# The open-file limit (`open_files`): safe getrlimit / setrlimit. Already in the lockfile.
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1", default-features = false, features = ["std", "process"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-core-foundation = "0.3.2"
 objc2-core-media = "0.3.2"

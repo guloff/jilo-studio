@@ -222,6 +222,9 @@ async fn cli() {
         return;
     }
     register_hardware_decoders();
+    // Every media source keeps its file open (MCP sessions on large projects, #67). A failure
+    // leaves the old limit, which is still usable.
+    let _ = filmcraft_platform::raise_open_file_limit();
     let a = Args::parse(std::env::args().skip(1));
     let Some(cmd) = a.pos(0) else { usage("missing subcommand") };
     match cmd {

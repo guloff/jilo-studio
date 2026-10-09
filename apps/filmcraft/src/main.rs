@@ -112,6 +112,11 @@ fn main() -> eframe::Result {
     // OS hardware video decoders (VideoToolbox on macOS) in front of our own; Settings ▸ Playback ▸
     // Hardware decoding switches them off. Unsupported streams and failures use our decoders.
     register_hardware_decoders();
+    // Every media source keeps its file open; launchd gives Finder-started apps only 256 (#67).
+    match filmcraft_platform::raise_open_file_limit() {
+        Ok(n) => log::info!("open-file limit {n}"),
+        Err(e) => log::warn!("{e}"),
+    }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("FilmCraft")
