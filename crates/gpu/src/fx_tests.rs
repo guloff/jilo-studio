@@ -443,6 +443,59 @@ fn gpu_masks_match_cpu() {
     assert!(failures.is_empty(), "GPU masks differ from the CPU:\n{}", failures.join("\n"));
 }
 
+/// Track Matte Key (#30): the matte track's alpha or luma (a plane of an odd size, so its last
+/// values sit in a partly filled vec4) read through a rotated, scaled placement, reversed or not,
+/// alone, masked and after another effect.
+#[test]
+fn gpu_track_matte_matches_cpu() {
+    let Some((dev, q)) = device() else {
+        eprintln!("no GPU adapter; skipping");
+        return;
+    };
+    let mut c = GpuCompositor::new(&dev, &q);
+    let (w, h) = (96u32, 54u32);
+    let px = picture(w, h);
+    let frame = VideoFrame::rgba_f32(w, h, px.clone());
+    // the matte "track" at output size: a soft disc of colour over transparency
+    let (mw, mh) = (123usize, 71usize);
+    let mut matte = filmcraft_render::Image::new(mw, mh);
+    for y in 0..mh {
+        for x in 0..mw {
+            let d = ((x as f32 - 60.0).powi(2) + (y as f32 - 35.0).powi(2)).sqrt();
+            let a = (1.0 - (d - 22.0) / 10.0).clamp(0.0, 1.0);
+            let c = [x as f32 / mw as f32, y as f32 / mh as f32, 0.4];
+            matte.px[(y * mw + x) * 4..(y * mw + x) * 4 + 4].copy_from_slice(&[c[0] * a, c[1] * a, c[2] * a, a]);
+        }
+    }
+    let m = Affine::motion(Vec2::new(62.0, 36.0), Vec2::new(1.2, 1.2), 14.0, Vec2::new(48.0, 27.0));
+    let tm = |luma: bool, reverse: bool| FxOp::TrackMatte(filmcraft_render::gpufx::TrackMatte::new(&matte, m, luma, reverse));
+    let op = |id: &str, params: &[(&str, ParamValue)]| FxOp::eval(&effect(id, params), &cx(Tick::ZERO, 1.0), w as usize, h as usize).expect("op");
+    let cases: Vec<(&str, Vec<FxOp>)> = vec![
+        ("alpha", vec![tm(false, false)]),
+        ("alpha reversed", vec![tm(false, true)]),
+        ("luma", vec![tm(true, false)]),
+        ("luma reversed, after a blur", vec![op("gaussian_blur", &[("blurriness", fl(6.0))]), tm(true, true)]),
+        ("masked", vec![FxOp::Masked { op: Box::new(tm(false, false)), masks: masks(w as f64, h as f64) }]),
+    ];
+    let mut failures = Vec::new();
+    for (name, ops) in cases {
+        assert!(ops.iter().all(FxOp::gpu_ok), "{name}: not GPU-capable");
+        let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
+        for o in &ops {
+            o.apply(&mut cpu);
+        }
+        assert!(cpu.px.iter().zip(&px).any(|(a, b)| (a - b).abs() > 0.1), "{name}: the matte changes the picture");
+        let fx = LayerFx { size: (w, h), decimation: 1, ops };
+        let (_, _, gpu) = c.effect_image(&frame, &fx).expect("effect image");
+        let (worst, flips) = compare(&cpu.px, &gpu);
+        eprintln!("{name}: max rel diff {worst:.2e}, {:.3}% flipped", flips * 100.0);
+        if worst > EXACT || flips > 0.0 {
+            failures.push(format!("{name}: {worst:.2e}, flips {flips:.4}"));
+        }
+    }
+    assert!(failures.is_empty(), "GPU Track Matte differs from the CPU:\n{}", failures.join("\n"));
+}
+
 /// Chains run in order (and Unsharp keeps its original while blurring, between other blurs).
 #[test]
 fn gpu_effect_chains_match_cpu() {

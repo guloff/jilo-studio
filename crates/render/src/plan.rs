@@ -178,7 +178,7 @@ fn gpu_chain<'a>(project: &Project, item: &'a TrackItem, opts: RenderOptions) ->
         if !e.enabled {
             continue;
         }
-        if !crate::gpufx::GPU_EFFECTS.contains(&e.effect.as_str()) {
+        if !crate::gpufx::GPU_EFFECTS.contains(&e.effect.as_str()) && e.effect != "track_matte" {
             return None;
         }
         chain.push(e);
@@ -428,16 +428,22 @@ fn push_item(
             };
             let opacity = opacity_masks
                 .then(|| FxOp::OpacityMask { masks: item.effect("opacity").map(|o| crate::mask::prepare(&o.masks, mt, px_scale)).unwrap_or_default() });
+            let m = Affine::scale(opts.scale as f64, opts.scale as f64)
+                .then_apply(&motion)
+                .then_apply(&Affine::scale(1.0 / px_scale as f64, 1.0 / px_scale as f64));
             let ops: Option<Vec<FxOp>> = chain
                 .iter()
-                .map(|e| FxOp::eval(e, &cx, lw, lh).map(|op| masked(op, &e.masks)))
+                .filter_map(|e| {
+                    if e.effect == "track_matte" {
+                        // no matte track: the effect does nothing, as on the CPU
+                        return track_matte(project, seq, e, t, opts, sources, m).map(|op| Some(masked(op, &e.masks)));
+                    }
+                    Some(FxOp::eval(e, &cx, lw, lh).map(|op| masked(op, &e.masks)))
+                })
                 .chain(opacity.map(Some))
                 .map(|op| op.filter(FxOp::gpu_ok))
                 .collect();
             if let Some(ops) = ops {
-                let m = Affine::scale(opts.scale as f64, opts.scale as f64)
-                    .then_apply(&motion)
-                    .then_apply(&Affine::scale(1.0 / px_scale as f64, 1.0 / px_scale as f64));
                 let fx = LayerFx { size: (lw as u32, lh as u32), decimation: n as u32, ops };
                 out.push(PlanLayer { frame, matrix: m, opacity: op * extra_opacity, blend: bl, fx: Some(Arc::new(fx)) });
                 return;
@@ -463,6 +469,28 @@ fn push_item(
     if let Some((img, op2, _)) = crate::item_layer(project, seq, item, t, opts, sources, &tc) {
         out.push(PlanLayer::new(cpu_frame(img), Affine::IDENTITY, op2 * extra_opacity, bl));
     }
+}
+
+/// Track Matte Key as the CPU applies it (`vfx::color::track_matte` through `ItemEnv::track`):
+/// the matte track rendered at the output size, read through `m` (working-layer pixels → output
+/// pixels). None without a matte track (the effect then does nothing).
+#[allow(clippy::too_many_arguments)]
+fn track_matte(
+    project: &Project,
+    seq: &Sequence,
+    e: &filmcraft_project::EffectInstance,
+    t: Tick,
+    opts: RenderOptions,
+    sources: &dyn SourceProvider,
+    m: Affine,
+) -> Option<FxOp> {
+    let index = (crate::vfx::chv(e, "matte") as usize).checked_sub(1)?;
+    if index >= seq.video_tracks.len() {
+        return None;
+    }
+    let o = RenderOptions { captions: false, working_output: true, depth: opts.depth + 1, ..opts };
+    let matte = crate::render_seq_tracks(project, seq, t, o, sources, Some(index));
+    Some(FxOp::TrackMatte(crate::gpufx::TrackMatte::new(&matte, m, crate::vfx::chv(e, "composite") == 1, crate::vfx::bv(e, "reverse"))))
 }
 
 fn near_identity(m: &Affine) -> bool {

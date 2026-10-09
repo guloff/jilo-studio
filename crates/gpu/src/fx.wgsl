@@ -58,6 +58,7 @@ const OP_COLOR_KEY: u32 = 35u;
 const OP_LUMA_KEY: u32 = 36u;
 const OP_MASK_MIX: u32 = 37u;
 const OP_OPACITY_MASK: u32 = 38u;
+const OP_TRACK_MATTE: u32 = 39u;
 
 fn size() -> vec2<i32> {
     return vec2<i32>(i32(u.i0.y), i32(u.i0.z));
@@ -608,6 +609,36 @@ fn mk_value(i: u32, q: vec2<f32>) -> f32 {
     return h1.z * select(c, 1.0 - c, h0.w != 0.0);
 }
 
+// ---- Track Matte plane (`gpufx::TrackMatte::sample`): one value per output pixel in `mdata`
+
+fn matte_ld(x: i32, y: i32) -> f32 {
+    let w = i32(u.i1.x);
+    let h = i32(u.i1.y);
+    if x < 0 || y < 0 || x >= w || y >= h {
+        return 0.0;
+    }
+    let k = u32(y) * u.i1.x + u32(x);
+    return mdata[k / 4u][k % 4u];
+}
+
+fn matte_bilinear(x: f32, y: f32) -> f32 {
+    let fx = x - 0.5;
+    let fy = y - 0.5;
+    let x0 = floor(fx);
+    let y0 = floor(fy);
+    let tx = fx - x0;
+    let ty = fy - y0;
+    let i = i32(x0);
+    let j = i32(y0);
+    let a = matte_ld(i, j);
+    let b = matte_ld(i + 1, j);
+    let c = matte_ld(i, j + 1);
+    let d = matte_ld(i + 1, j + 1);
+    let top = a + (b - a) * tx;
+    let bot = c + (d - c) * tx;
+    return top + (bot - top) * ty;
+}
+
 // Combined coverage of the pass's masks at pixel centre `q` (`mask::coverage`).
 fn mask_coverage(q: vec2<f32>) -> f32 {
     let count = u32(mdata[0].x);
@@ -770,6 +801,20 @@ fn pixel(op: u32, p: vec2<i32>) -> vec4<f32> {
         }
         case OP_OPACITY_MASK: {
             return ld(p) * mask_coverage(pc);
+        }
+        case OP_TRACK_MATTE: {
+            // `gpufx::TrackMatte`: p0 = (a b c d), p1 = (e f) layer → output; i1 = plane w, h,
+            // luma, reverse; the plane in `mdata`
+            let x = u.p0.x * pc.x + u.p0.z * pc.y + u.p1.x;
+            let y = u.p0.y * pc.x + u.p0.w * pc.y + u.p1.y;
+            var v = matte_bilinear(x, y);
+            if u.i1.z != 0u {
+                v = linear_to_srgb1(clamp(v, 0.0, 1.0));
+            }
+            if u.i1.w != 0u {
+                v = 1.0 - v;
+            }
+            return ld(p) * clamp(v, 0.0, 1.0);
         }
         case OP_COLOR_KEY: {
             // `FxOp::ColorKey`: p0.xyz = key Y'CbCr, p1.x = tolerance, p1.y = softness

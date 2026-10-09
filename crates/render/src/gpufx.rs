@@ -224,6 +224,93 @@ pub enum FxOp {
     OpacityMask {
         masks: Vec<FlatMask>,
     },
+    /// Track Matte Key with its matte track rendered (it needs the sequence, so the plan builds it
+    /// with [`TrackMatte::new`] instead of [`FxOp::eval`]).
+    TrackMatte(TrackMatte),
+}
+
+/// Track Matte Key, evaluated: the matte track's alpha or luma per output pixel, read where each
+/// layer pixel lands in the frame, multiplies the layer.
+#[derive(Clone, PartialEq)]
+pub struct TrackMatte {
+    /// The matte per output pixel, `w`×`h`: alpha, or linear BT.709 luma (`vfx::luma`).
+    pub plane: std::sync::Arc<Vec<f32>>,
+    pub w: u32,
+    pub h: u32,
+    /// Working-layer pixels → output pixels (Motion included).
+    pub m: Affine,
+    /// Luma (encoded after sampling) instead of alpha.
+    pub luma: bool,
+    pub reverse: bool,
+}
+
+impl std::fmt::Debug for TrackMatte {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TrackMatte")
+            .field("w", &self.w)
+            .field("h", &self.h)
+            .field("m", &self.m)
+            .field("luma", &self.luma)
+            .field("reverse", &self.reverse)
+            .finish()
+    }
+}
+
+/// Largest matte plane the GPU takes (values; 128 MiB, wgpu's default storage binding size).
+pub const GPU_MATTE_VALUES: usize = 32 << 20;
+
+impl TrackMatte {
+    /// The matte of a rendered matte track (output pixels, premultiplied).
+    pub fn new(matte: &Image, m: Affine, luma: bool, reverse: bool) -> Self {
+        let plane = matte.px.par_chunks(4).map(|s| if luma { crate::vfx::luma([s[0], s[1], s[2]]) } else { s[3] }).collect();
+        TrackMatte { plane: std::sync::Arc::new(plane), w: matte.w as u32, h: matte.h as u32, m, luma, reverse }
+    }
+
+    fn gpu_ok(&self) -> bool {
+        let m = &self.m;
+        [m.a, m.b, m.c, m.d, m.e, m.f].iter().all(|v| v.is_finite())
+            && self.plane.len() == self.w as usize * self.h as usize
+            && !self.plane.is_empty()
+            && self.plane.len() <= GPU_MATTE_VALUES
+    }
+
+    /// `Image::sample_bilinear` of the plane: pixel centres at +0.5, zero outside.
+    fn sample(&self, x: f32, y: f32) -> f32 {
+        let at = |x: isize, y: isize| -> f32 {
+            if x < 0 || y < 0 || x >= self.w as isize || y >= self.h as isize {
+                return 0.0;
+            }
+            self.plane.get(y as usize * self.w as usize + x as usize).copied().unwrap_or(0.0)
+        };
+        let (fx, fy) = (x - 0.5, y - 0.5);
+        let (x0, y0) = (fx.floor(), fy.floor());
+        let (tx, ty) = (fx - x0, fy - y0);
+        let (x0, y0) = (x0 as isize, y0 as isize);
+        let (a, b, c, d) = (at(x0, y0), at(x0 + 1, y0), at(x0, y0 + 1), at(x0 + 1, y0 + 1));
+        let top = a + (b - a) * tx;
+        let bot = c + (d - c) * tx;
+        top + (bot - top) * ty
+    }
+
+    /// The CPU reference: each layer pixel scaled by the matte where it lands.
+    pub fn apply(&self, img: &mut Image) {
+        let w = img.w;
+        img.px.par_chunks_mut(w * 4).enumerate().for_each(|(y, row)| {
+            for x in 0..w {
+                let o = self.m.apply(filmcraft_geom::Vec2::new(x as f64 + 0.5, y as f64 + 0.5));
+                let mut v = self.sample(o.x as f32, o.y as f32);
+                if self.luma {
+                    v = linear_to_srgb(v.clamp(0.0, 1.0));
+                }
+                if self.reverse {
+                    v = 1.0 - v;
+                }
+                for c in &mut row[x * 4..x * 4 + 4] {
+                    *c *= v.clamp(0.0, 1.0);
+                }
+            }
+        });
+    }
 }
 
 /// Most polygon points the GPU takes for one op's masks (each pixel visits every edge); masks
@@ -804,6 +891,7 @@ impl FxOp {
             FxOp::LumaKey { th, cut } => fin(&[*th, *cut]),
             FxOp::Masked { op, masks } => !masks.is_empty() && op.gpu_ok() && masks_gpu_ok(masks),
             FxOp::OpacityMask { masks } => !masks.is_empty() && masks_gpu_ok(masks),
+            FxOp::TrackMatte(t) => t.gpu_ok(),
             FxOp::BrightnessContrast { br, co } => fin(&[*br, *co]),
             FxOp::ProcAmp { br, co, hue, sat } => fin(&[*br, *co, *hue, *sat]),
             FxOp::Tint { black, white, amount } => fin(black) && fin(white) && amount.is_finite(),
@@ -875,6 +963,7 @@ impl FxOp {
                 op.apply(img);
                 crate::mask::mix(img, &original, &cov);
             }
+            FxOp::TrackMatte(t) => t.apply(img),
             FxOp::OpacityMask { masks } => {
                 if let Some(cov) = crate::mask::coverage(masks, img.w, img.h) {
                     crate::mask::scale_by(img, &cov);

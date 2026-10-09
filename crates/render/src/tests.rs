@@ -250,6 +250,49 @@ fn masked_effects_and_opacity_masks_plan_on_the_gpu() {
     }
 }
 
+/// A clip keyed by Track Matte Key stays on the GPU effect stage (#30): the plan renders the matte
+/// track as the CPU does and draws the reference renderer's frame, for alpha and luma mattes.
+#[test]
+fn track_matte_plans_on_the_gpu() {
+    let (mut p, red, ocean, seq, map) = setup();
+    let fill = place(&mut p, seq, 0, ocean, 0, 48);
+    let matte = place(&mut p, seq, 1, red, 0, 48);
+    {
+        let s = p.sequence_mut(seq).unwrap();
+        let (_, it) = s.find_item_mut(matte).unwrap();
+        let m = it.effect_mut("motion").unwrap();
+        m.params.get_mut("scale").unwrap().value = ParamValue::Float(50.0);
+        m.params.get_mut("rotation").unwrap().value = ParamValue::Float(20.0);
+        let (_, it) = s.find_item_mut(fill).unwrap();
+        it.effect_mut("motion").unwrap().params.get_mut("scale").unwrap().value = ParamValue::Float(90.0);
+        let mut tm = filmcraft_project::find_effect("track_matte").unwrap().instance();
+        tm.params.get_mut("matte").unwrap().value = ParamValue::Choice(2);
+        it.effects.push(tm);
+    }
+    let r = FrameRate::FPS_24;
+    for (composite, reverse) in [(0, false), (1, false), (0, true)] {
+        {
+            let s = p.sequence_mut(seq).unwrap();
+            let (_, it) = s.find_item_mut(fill).unwrap();
+            let tm = it.effects.iter_mut().find(|e| e.effect == "track_matte").unwrap();
+            tm.params.get_mut("composite").unwrap().value = ParamValue::Choice(composite);
+            tm.params.get_mut("reverse").unwrap().value = ParamValue::Bool(reverse);
+        }
+        for scale in [1.0, 0.5] {
+            let opts = RenderOptions { scale, ..Default::default() };
+            let reference = render_sequence(&p, seq, r.tick_of(5), opts, &map);
+            let plan = plan::plan_frame(&p, seq, r.tick_of(5), opts, &map);
+            let plan::FramePlan::Layers { layers, .. } = &plan else { panic!("track-matted clip should plan as layers") };
+            let ops = layers.first().and_then(|l| l.fx.as_ref()).map(|fx| fx.ops.clone()).unwrap_or_default();
+            assert!(matches!(ops.as_slice(), [gpufx::FxOp::TrackMatte(_)]), "{composite} {reverse} @{scale}: {ops:?}");
+            let got = plan::execute_cpu(&plan);
+            assert_eq!((got.w, got.h), (reference.w, reference.h));
+            let max = got.px.iter().zip(&reference.px).map(|(a, b)| (a - b).abs()).fold(0f32, f32::max);
+            assert!(max < 1e-4, "{composite} {reverse} @{scale}: max diff {max}");
+        }
+    }
+}
+
 #[test]
 fn push_plan_preserves_reference_track_order_and_reverse() {
     let (mut p, red, ocean, seq, map) = setup();

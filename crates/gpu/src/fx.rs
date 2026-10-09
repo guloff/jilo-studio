@@ -13,6 +13,7 @@
 //! radius costs O(1) per pixel like on the CPU (radii are capped by `gaussian_boxes`).
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use filmcraft_render::gpufx::FxOp;
 use filmcraft_render::mask::FlatMask;
@@ -60,6 +61,7 @@ const OP_COLOR_KEY: u32 = 35;
 const OP_LUMA_KEY: u32 = 36;
 const OP_MASK_MIX: u32 = 37;
 const OP_OPACITY_MASK: u32 = 38;
+const OP_TRACK_MATTE: u32 = 39;
 
 type Target = (wgpu::Texture, wgpu::TextureView);
 
@@ -107,8 +109,8 @@ struct Step {
     /// A combine after which the original is still needed (Ultra Key's Choke, before its final
     /// pass; the last pass of a masked effect, before the mask mix).
     keep_after: bool,
-    /// Mask polygons for the pass ([`mask_data`]; empty: none).
-    data: Vec<f32>,
+    /// The pass's storage data: mask polygons ([`mask_data`]) or a Track Matte plane (None: none).
+    data: Option<Arc<Vec<f32>>>,
 }
 
 fn step(code: u32, i1: [u32; 4], p: &[f32]) -> Step {
@@ -116,7 +118,7 @@ fn step(code: u32, i1: [u32; 4], p: &[f32]) -> Step {
     for (d, s) in q.iter_mut().zip(p) {
         *d = *s;
     }
-    Step { run: false, code, i1, p: q, combine: false, unsharp_blur: false, keep_after: false, data: Vec::new() }
+    Step { run: false, code, i1, p: q, combine: false, unsharp_blur: false, keep_after: false, data: None }
 }
 
 /// Masks as `fx.wgsl` reads them (`vec4`s): the count, then per mask (first point, points, mode
@@ -178,12 +180,18 @@ fn steps(op: &FxOp) -> Vec<Step> {
             }
             let mut mix = step(OP_MASK_MIX, [0; 4], &[]);
             mix.combine = true;
-            mix.data = mask_data(masks);
+            mix.data = Some(Arc::new(mask_data(masks)));
             out.push(mix);
         }
         FxOp::OpacityMask { masks } => {
             let mut s = step(OP_OPACITY_MASK, [0; 4], &[]);
-            s.data = mask_data(masks);
+            s.data = Some(Arc::new(mask_data(masks)));
+            out.push(s);
+        }
+        FxOp::TrackMatte(t) => {
+            let m = &t.m;
+            let mut s = step(OP_TRACK_MATTE, [t.w, t.h, t.luma as u32, t.reverse as u32], &[m.a, m.b, m.c, m.d, m.e, m.f].map(|v| v as f32));
+            s.data = Some(t.plane.clone());
             out.push(s);
         }
         FxOp::Invert { channel: 4, blend } => out.push(step(OP_INVERT_ALPHA, [0; 4], &[*blend])),
@@ -532,8 +540,19 @@ impl FxStage {
                 mapped_at_creation: false,
             });
             queue.write_buffer(&buf, 0, &bytes);
-            let masks = (!s.data.is_empty()).then(|| {
-                let bytes: Vec<u8> = s.data.iter().flat_map(|v| v.to_le_bytes()).collect();
+            let masks = match s.data.as_ref().filter(|d| !d.is_empty()) {
+                Some(d) => {
+                    // whole vec4s: the shader reads the data as `array<vec4<f32>>`
+                    let mut bytes: Vec<u8> = d.iter().flat_map(|v| v.to_le_bytes()).collect();
+                    bytes.resize(bytes.len().next_multiple_of(16), 0);
+                    if bytes.len() as u64 > device.limits().max_storage_buffer_binding_size {
+                        return None;
+                    }
+                    Some(bytes)
+                }
+                None => None,
+            };
+            let masks = masks.map(|bytes| {
                 let b = device.create_buffer(&wgpu::BufferDescriptor {
                     label: Some("fx-masks"),
                     size: bytes.len() as u64,

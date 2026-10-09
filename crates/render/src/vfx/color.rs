@@ -162,25 +162,8 @@ pub fn track_matte(img: &mut Image, e: &EffectInstance, cx: &FxCtx) {
     }
     let Some(env) = cx.env else { return };
     let Some(matte) = env.track(idx - 1) else { return };
-    apply_matte(img, &matte, &env.layer_to_output(), chv(e, "composite") == 1, bv(e, "reverse"));
-}
-
-/// Multiply `img` (layer pixels) by `matte` (output pixels) mapped through `m`.
-pub(crate) fn apply_matte(img: &mut Image, matte: &Image, m: &Affine, use_luma: bool, reverse: bool) {
-    let w = img.w;
-    img.px.par_chunks_mut(w * 4).enumerate().for_each(|(y, row)| {
-        for x in 0..w {
-            let o = m.apply(Vec2::new(x as f64 + 0.5, y as f64 + 0.5));
-            let s = matte.sample_bilinear(o.x as f32, o.y as f32);
-            let mut v = if use_luma { filmcraft_color::linear_to_srgb(luma([s[0], s[1], s[2]]).clamp(0.0, 1.0)) } else { s[3] };
-            if reverse {
-                v = 1.0 - v;
-            }
-            for c in &mut row[x * 4..x * 4 + 4] {
-                *c *= v.clamp(0.0, 1.0);
-            }
-        }
-    });
+    // the GPU effect stage runs the same op (`gpufx::TrackMatte`)
+    crate::gpufx::TrackMatte::new(&matte, env.layer_to_output(), chv(e, "composite") == 1, bv(e, "reverse")).apply(img);
 }
 
 /// Cineon Converter (Kodak Cineon printing-density model, film gamma 0.6, 0.002 density / code).
