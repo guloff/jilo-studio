@@ -448,7 +448,15 @@ fn hevc_declines_what_the_hardware_path_does_not_take() {
     assert_eq!((config.profile, config.keyframe_interval, config.rate), (VtProfile::HevcMain, 30, VtRate::Vbr { target_kbps: 6000, max_kbps: 9000 }));
     let declined = |s: &ExportSettings, what: &str| assert!(config_for(W, H, FPS, s).is_err(), "{what} must not use the hardware encoder");
     declined(&ExportSettings { bitrate_mode: BitrateMode::Vbr2Pass, ..ok.clone() }, "two-pass VBR");
-    declined(&ExportSettings { signal: filmcraft_export::ColorSignal::PQ, ..ok.clone() }, "HDR");
+    // HDR is HEVC Main 10 (BT.2020 PQ / HLG); any other HDR description is declined
+    let pq = config_for(W, H, FPS, &ExportSettings { signal: filmcraft_export::ColorSignal::PQ, ..ok.clone() }).unwrap();
+    assert_eq!(pq.profile, VtProfile::HevcMain10 { hlg: false });
+    let hlg = config_for(W, H, FPS, &ExportSettings { signal: filmcraft_export::ColorSignal::HLG, ..ok.clone() }).unwrap();
+    assert_eq!(hlg.profile, VtProfile::HevcMain10 { hlg: true });
+    declined(
+        &ExportSettings { signal: filmcraft_export::ColorSignal { primaries: 1, ..filmcraft_export::ColorSignal::PQ }, ..ok.clone() },
+        "PQ outside BT.2020",
+    );
     declined(&ExportSettings { pixel_aspect: Some((4, 3)), ..ok.clone() }, "non-square pixels");
     assert!(config_for(321, 181, FPS, &ok).is_err() && config_for(640, 361, FPS, &ok).is_err(), "odd sizes");
     assert!(config_for(W, H, FrameRate { num: 0, den: 1 }, &ok).is_err());

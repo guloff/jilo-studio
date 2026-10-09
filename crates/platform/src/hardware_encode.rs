@@ -33,8 +33,13 @@ pub fn config_for(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Result
     if s.bitrate_mode == BitrateMode::Vbr2Pass || !matches!(s.h264_pass, H264Pass::Single) {
         return Err("two-pass encoding".into());
     }
-    if s.signal.is_hdr() {
-        return Err("HDR".into());
+    // HDR: HEVC Main 10, BT.2020 NCL with PQ or HLG (the signal the export resolved); H.264 stays SDR
+    let hdr = s.signal.is_hdr();
+    if hdr && !hevc {
+        return Err("HDR needs H.265".into());
+    }
+    if hdr && (s.signal.primaries != 9 || s.signal.matrix != 9 || !matches!(s.signal.transfer, 16 | 18)) {
+        return Err(format!("the colour signal {:?} (HDR here is BT.2020 with PQ or HLG)", s.signal));
     }
     if !w.is_multiple_of(2) || !h.is_multiple_of(2) {
         return Err("odd picture size".into());
@@ -54,6 +59,7 @@ pub fn config_for(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Result
         frame_duration,
         keyframe_interval: s.keyframe_distance.filter(|k| *k > 0).unwrap_or_else(|| (fps * 2.0).round().max(1.0) as u32),
         profile: match (hevc, s.h264_profile) {
+            (true, _) if hdr => VtProfile::HevcMain10 { hlg: s.signal.transfer == 18 },
             (true, _) => VtProfile::HevcMain,
             (false, H264Profile::Baseline) => VtProfile::Baseline,
             (false, H264Profile::Main) => VtProfile::Main,
@@ -85,6 +91,29 @@ pub fn hevc_available() -> bool {
         let result = VtEncoder::new(probe);
         if let Err(why) = &result {
             log::info!("no hardware HEVC encoder: {why}");
+        }
+        result.is_ok()
+    })
+}
+
+static HEVC_HDR_PROBE: OnceLock<bool> = OnceLock::new();
+
+/// Whether this machine's hardware HEVC encoder takes 10-bit HDR (Main 10, BT.2020 PQ): what lets
+/// HDR sequences export as HDR H.265 instead of being tone-mapped to SDR. Asked once.
+pub fn hevc_hdr_available() -> bool {
+    *HEVC_HDR_PROBE.get_or_init(|| {
+        let probe = VtConfig {
+            width: 640,
+            height: 360,
+            timescale: 30,
+            frame_duration: 1,
+            keyframe_interval: 30,
+            profile: VtProfile::HevcMain10 { hlg: false },
+            rate: VtRate::Vbr { target_kbps: 2000, max_kbps: 3000 },
+        };
+        let result = VtEncoder::new(probe);
+        if let Err(why) = &result {
+            log::info!("no hardware HEVC Main 10 encoder: {why}");
         }
         result.is_ok()
     })
@@ -130,13 +159,29 @@ pub fn videotoolbox_encoder_factory(
         Ok(c) => c,
         Err(why) => {
             log::info!("hardware {name} encoding declined: {why}");
+            filmcraft_export::note_hw_encode_declined();
             return None;
         }
     };
     match VtEncoder::new(config) {
-        Ok(vt) => Some(Ok(Box::new(HardwareEncoder { vt, y: Vec::new(), u: Vec::new(), v: Vec::new(), decoded: 0 }))),
+        Ok(vt) => Some(Ok({
+            // `perf.stats` and the export report count hardware sessions and frames, as for NVENC
+            filmcraft_export::note_hw_encode_session();
+            Box::new(HardwareEncoder {
+                vt,
+                signal: s.signal,
+                y: Vec::new(),
+                u: Vec::new(),
+                v: Vec::new(),
+                y16: Vec::new(),
+                u16: Vec::new(),
+                v16: Vec::new(),
+                decoded: 0,
+            })
+        })),
         Err(why) => {
             log::info!("hardware {name} encoding declined: {why}");
+            filmcraft_export::note_hw_encode_declined();
             None
         }
     }
@@ -155,9 +200,15 @@ fn hevc_config(p: &ParamSets) -> Result<HevcConfig, String> {
 /// [`VtEncoder`] as a `VideoEncoder`: RGBA pictures in, MP4 samples out.
 pub struct HardwareEncoder {
     vt: VtEncoder,
+    /// The export's colour signal: BT.709, or BT.2020 PQ / HLG for Main 10 (written as `colr`,
+    /// and for PQ `mdcv` / `clli`, in the sample entry).
+    signal: filmcraft_export::ColorSignal,
     y: Vec<u8>,
     u: Vec<u8>,
     v: Vec<u8>,
+    y16: Vec<u16>,
+    u16: Vec<u16>,
+    v16: Vec<u16>,
     /// Compressed frames returned so far.
     decoded: i64,
 }
@@ -196,7 +247,14 @@ impl VideoEncoder for HardwareEncoder {
                 SampleEntry::avc(AvcConfig::new(sps, pps, 4), w, h)
             }
             // `encode` refuses to go on without a usable record, so a stream that got this far has one
-            (VtCodec::Hevc, p) => SampleEntry::hevc(p.as_ref().and_then(|p| hevc_config(p).ok()).unwrap_or_default(), w, h),
+            (VtCodec::Hevc, p) => {
+                let mut e = SampleEntry::hevc(p.as_ref().and_then(|p| hevc_config(p).ok()).unwrap_or_default(), w, h);
+                if c.profile.ten_bit() {
+                    // HDR: `colr` (BT.2020 + PQ / HLG) and, for PQ, `mdcv` / `clli`, as the NVENC path writes
+                    self.signal.apply_to(&mut e, false);
+                }
+                e
+            }
         }
     }
 
@@ -207,18 +265,32 @@ impl VideoEncoder for HardwareEncoder {
     fn encode(&mut self, f: &EncoderFrame) -> filmcraft_export::Result<Vec<EncodedPacket>> {
         let c = self.vt.config();
         let codec = c.profile.codec();
-        if f.hdr.is_some() {
-            return Err(ExportError::Unsupported("hardware encoding does not take HDR pictures".into()));
-        }
         if (f.width, f.height) != (c.width, c.height) {
             return Err(ExportError::Encode(format!("picture is {}x{}, the encoder was created for {}x{}", f.width, f.height, c.width, c.height)));
         }
         let (w, h) = (f.width as usize, f.height as usize);
-        if f.rgba.len() < w.saturating_mul(h).saturating_mul(4) {
-            return Err(ExportError::Encode("the RGBA picture is smaller than its size".into()));
-        }
-        filmcraft_export::timed(filmcraft_export::Stage::Convert, || filmcraft_export::rgba_to_yuv420_8(f.rgba, w, h, &mut self.y, &mut self.u, &mut self.v));
-        let packets = self.vt.encode(f.index, &self.y, &self.u, &self.v).map_err(ExportError::Encode)?;
+        let packets = match (c.profile.ten_bit(), f.hdr) {
+            // Main 10 takes the encoded R'G'B' floats: 10-bit limited-range BT.2020 NCL
+            (true, Some(rgb)) => {
+                let (kr, kb) = self.signal.kr_kb();
+                filmcraft_export::timed(filmcraft_export::Stage::Convert, || {
+                    filmcraft_export::rgbf_to_yuv420_10(rgb, w, h, kr, kb, &mut self.y16, &mut self.u16, &mut self.v16)
+                })?;
+                self.vt.encode_10(f.index, &self.y16, &self.u16, &self.v16).map_err(ExportError::Encode)?
+            }
+            (true, None) => return Err(ExportError::Unsupported("hardware HEVC Main 10 needs the HDR picture (EncoderFrame::hdr)".into())),
+            (false, Some(_)) => return Err(ExportError::Unsupported("hardware encoding of 8-bit video does not take HDR pictures".into())),
+            (false, None) => {
+                if f.rgba.len() < w.saturating_mul(h).saturating_mul(4) {
+                    return Err(ExportError::Encode("the RGBA picture is smaller than its size".into()));
+                }
+                filmcraft_export::timed(filmcraft_export::Stage::Convert, || {
+                    filmcraft_export::rgba_to_yuv420_8(f.rgba, w, h, &mut self.y, &mut self.u, &mut self.v)
+                });
+                self.vt.encode(f.index, &self.y, &self.u, &self.v).map_err(ExportError::Encode)?
+            }
+        };
+        filmcraft_export::note_hw_encode_frame();
         // the muxer needs the parameter sets after the first group of pictures
         if f.index == 0 {
             let params = self.vt.parameter_sets().ok_or_else(|| ExportError::Encode("VideoToolbox returned no parameter sets for the first frame".into()))?;
