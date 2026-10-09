@@ -53,6 +53,8 @@ const OP_LUMETRI: u32 = 31u;
 const OP_UK_MATTE: u32 = 32u;
 const OP_UK_CHOKE: u32 = 33u;
 const OP_UK_FINAL: u32 = 34u;
+const OP_COLOR_KEY: u32 = 35u;
+const OP_LUMA_KEY: u32 = 36u;
 
 fn size() -> vec2<i32> {
     return vec2<i32>(i32(u.i0.y), i32(u.i0.z));
@@ -670,6 +672,37 @@ fn pixel(op: u32, p: vec2<i32>) -> vec4<f32> {
         }
         case OP_UK_FINAL: {
             return uk_final(p);
+        }
+        case OP_COLOR_KEY: {
+            // `FxOp::ColorKey`: p0.xyz = key Y'CbCr, p1.x = tolerance, p1.y = softness
+            let o = ld(p);
+            if o.a <= 0.0 {
+                return o;
+            }
+            let c = enc(o.rgb / o.a);
+            let y = ycbcr709(c);
+            let k = u.p0.xyz;
+            let d = sqrt((y.y - k.y) * (y.y - k.y) + (y.z - k.z) * (y.z - k.z)) + abs(y.x - k.x) * 0.15;
+            let a = o.a * clamp((d - u.p1.x) / u.p1.y, 0.0, 1.0);
+            return vec4(dec(c) * a, a);
+        }
+        case OP_LUMA_KEY: {
+            // `FxOp::LumaKey`: p0.x = threshold, p0.y = cutoff
+            let o = ld(p);
+            if o.a <= 0.0 {
+                return o;
+            }
+            let th = u.p0.x; let cut = u.p0.y;
+            let l = linear_to_srgb1(max(luma709(o.rgb / o.a), 0.0));
+            var a: f32;
+            if l <= cut {
+                a = 0.0;
+            } else if l >= max(th, cut + 1e-3) {
+                a = 1.0;
+            } else {
+                a = (l - cut) / max(th - cut, 1e-3);
+            }
+            return o * a;
         }
         case OP_UNSHARP: {
             // src: the blurred image, aux: the original

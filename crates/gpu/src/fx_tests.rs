@@ -321,6 +321,14 @@ fn cases() -> Vec<(&'static str, Vec<(&'static str, ParamValue)>, bool)> {
         ("ultra_key", vec![("output", ch(1)), ("choke", fl(60.0)), ("setting", ch(1))], true),
         ("ultra_key", vec![("output", ch(2)), ("soften", fl(100.0)), ("pedestal", fl(90.0)), ("tolerance", fl(0.0))], true),
         ("ultra_key", vec![("transparency", fl(100.0)), ("highlight", fl(100.0)), ("shadow", fl(0.0)), ("key_color", col(0.9, 0.1, 0.1))], true),
+        // Color Key and Luma Key (#30): defaults, wide and narrow ramps, a green and a red key;
+        // a threshold under the cutoff
+        ("color_key", vec![], true),
+        ("color_key", vec![("color", col(0.1, 0.8, 0.2)), ("tolerance", fl(60.0)), ("feather", fl(20.0))], true),
+        ("color_key", vec![("color", col(0.9, 0.2, 0.1)), ("tolerance", fl(255.0)), ("feather", fl(50.0))], true),
+        ("luma_key", vec![], true),
+        ("luma_key", vec![("threshold", fl(70.0)), ("cutoff", fl(30.0))], true),
+        ("luma_key", vec![("threshold", fl(20.0)), ("cutoff", fl(60.0))], true),
     ]
 }
 
@@ -469,6 +477,11 @@ fn hostile_parameters_are_bounded() {
         effect("ultra_key", &[("key_color", ParamValue::Color([f32::NAN, 0.8, 0.2, 1.0]))]),
         effect("ultra_key", &[("contrast", fl(50.0)), ("mid_point", fl(f64::INFINITY))]),
         effect("ultra_key", &[("highlight", fl(f64::NAN))]),
+        effect("color_key", &[("tolerance", fl(f64::NAN))]),
+        effect("color_key", &[("feather", fl(-50.0))]),
+        effect("color_key", &[("color", ParamValue::Color([0.2, f32::INFINITY, 0.2, 1.0]))]),
+        effect("luma_key", &[("threshold", fl(f64::NAN))]),
+        effect("luma_key", &[("cutoff", fl(f64::INFINITY))]),
     ];
     for e in &nan {
         let op = FxOp::eval(e, &cx(Tick::ZERO, 1.0), w, h);

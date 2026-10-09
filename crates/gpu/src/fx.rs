@@ -55,6 +55,8 @@ const OP_LUMETRI: u32 = 31;
 const OP_UK_MATTE: u32 = 32;
 const OP_UK_CHOKE: u32 = 33;
 const OP_UK_FINAL: u32 = 34;
+const OP_COLOR_KEY: u32 = 35;
+const OP_LUMA_KEY: u32 = 36;
 
 type Target = (wgpu::Texture, wgpu::TextureView);
 
@@ -137,6 +139,8 @@ fn steps(op: &FxOp) -> Vec<Step> {
         FxOp::Gamma { g } => out.push(step(OP_GAMMA, [0; 4], &[*g])),
         FxOp::Levels { ib, iw, ob, ow, g } => out.push(step(OP_LEVELS, [0; 4], &[*ib, *iw, *ob, *ow, *g])),
         FxOp::Extract { lo, hi, soft, invert } => out.push(step(OP_EXTRACT, [*invert as u32, 0, 0, 0], &[*lo, *hi, *soft])),
+        FxOp::ColorKey { k, tol, soft } => out.push(step(OP_COLOR_KEY, [0; 4], &[k[0], k[1], k[2], 0.0, *tol, *soft])),
+        FxOp::LumaKey { th, cut } => out.push(step(OP_LUMA_KEY, [0; 4], &[*th, *cut])),
         FxOp::Invert { channel: 4, blend } => out.push(step(OP_INVERT_ALPHA, [0; 4], &[*blend])),
         FxOp::Invert { channel, blend } => out.push(step(OP_INVERT, [*channel, 0, 0, 0], &[*blend])),
         FxOp::Posterize { n } => out.push(step(OP_POSTERIZE, [0; 4], &[*n])),

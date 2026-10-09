@@ -199,6 +199,18 @@ pub enum FxOp {
     },
     /// Ultra Key (boxed: the largest op by far).
     UltraKey(Box<UltraKey>),
+    /// Color Key: the encoded colour's distance from the key in BT.709 Y'CbCr (chroma plus
+    /// 0.15 × luma); transparent within `tol`, opaque `soft` beyond it.
+    ColorKey {
+        k: [f32; 3],
+        tol: f32,
+        soft: f32,
+    },
+    /// Luma Key: the encoded luma; transparent up to `cut`, opaque from `th`, a ramp between.
+    LumaKey {
+        th: f32,
+        cut: f32,
+    },
 }
 
 /// Ultra Key, evaluated: the matte from the key colour, its cleanup (Choke, Soften as box-blur
@@ -402,6 +414,8 @@ pub const GPU_EFFECTS: &[&str] = &[
     "video_limiter",
     "lumetri",
     "ultra_key",
+    "color_key",
+    "luma_key",
 ];
 
 /// `Image::transformed` without the mip path: the destination rectangle it writes and the inverse.
@@ -736,6 +750,15 @@ impl FxOp {
                 }
             }
             "ultra_key" => FxOp::UltraKey(Box::new(UltraKey::eval(e, cx, w, h))),
+            "color_key" => {
+                let kc = color(e, "color", cx);
+                FxOp::ColorKey {
+                    k: filmcraft_color::rgb_to_ycbcr(kc[0], kc[1], kc[2], filmcraft_color::Matrix::Bt709),
+                    tol: f(e, "tolerance", cx) / 255.0 * 0.6 + 0.01,
+                    soft: f(e, "feather", cx) / 50.0 * 0.2 + 0.01,
+                }
+            }
+            "luma_key" => FxOp::LumaKey { th: f(e, "threshold", cx) / 100.0, cut: f(e, "cutoff", cx) / 100.0 },
             _ => return None,
         })
     }
@@ -752,6 +775,9 @@ impl FxOp {
         let fin = |v: &[f32]| v.iter().all(|x| x.is_finite());
         match self {
             FxOp::UltraKey(k) => k.gpu_ok(),
+            // a softness of zero or less divides by zero (or flips the ramp) on the CPU
+            FxOp::ColorKey { k, tol, soft } => fin(k) && tol.is_finite() && soft.is_finite() && *soft > 0.0,
+            FxOp::LumaKey { th, cut } => fin(&[*th, *cut]),
             FxOp::BrightnessContrast { br, co } => fin(&[*br, *co]),
             FxOp::ProcAmp { br, co, hue, sat } => fin(&[*br, *co, *hue, *sat]),
             FxOp::Tint { black, white, amount } => fin(black) && fin(white) && amount.is_finite(),
@@ -800,6 +826,39 @@ impl FxOp {
         }
         match self {
             FxOp::UltraKey(k) => k.apply(img),
+            FxOp::ColorKey { k, tol, soft } => {
+                let (k, tol, soft) = (*k, *tol, *soft);
+                img.px.par_chunks_mut(4).for_each(|p| {
+                    if p[3] <= 0.0 {
+                        return;
+                    }
+                    let c = enc([p[0] / p[3], p[1] / p[3], p[2] / p[3]]);
+                    let y = filmcraft_color::rgb_to_ycbcr(c[0], c[1], c[2], filmcraft_color::Matrix::Bt709);
+                    let d = ((y[1] - k[1]).powi(2) + (y[2] - k[2]).powi(2)).sqrt() + (y[0] - k[0]).abs() * 0.15;
+                    let a = p[3] * ((d - tol) / soft).clamp(0.0, 1.0);
+                    let l = dec(c);
+                    p.copy_from_slice(&[l[0] * a, l[1] * a, l[2] * a, a]);
+                });
+            }
+            FxOp::LumaKey { th, cut } => {
+                let (th, cut) = (*th, *cut);
+                img.px.par_chunks_mut(4).for_each(|p| {
+                    if p[3] <= 0.0 {
+                        return;
+                    }
+                    let l = linear_to_srgb(luma709(p[0] / p[3], p[1] / p[3], p[2] / p[3]).max(0.0));
+                    let a = if l <= cut {
+                        0.0
+                    } else if l >= th.max(cut + 1e-3) {
+                        1.0
+                    } else {
+                        (l - cut) / (th - cut).max(1e-3)
+                    };
+                    for v in p.iter_mut() {
+                        *v *= a;
+                    }
+                });
+            }
             FxOp::BrightnessContrast { br, co } => {
                 let (br, co) = (*br, *co);
                 img.map_rgb(|c, _, _| {
