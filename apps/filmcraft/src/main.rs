@@ -156,6 +156,9 @@ fn main() -> eframe::Result {
         graphics::configure(&mut options, eframe::wgpu::Backends::from_env());
         options
     };
+    // macOS: files opened from Finder / the Dock come as an Apple Event; catch the ones that launch
+    // FilmCraft (installed again once the event loop runs, see the creator below).
+    filmcraft_platform::open_documents::install();
     let started = eframe::run_native(
         "FilmCraft",
         options,
@@ -257,6 +260,12 @@ fn main() -> eframe::Result {
             app.hooks.open_path = Some(Box::new(open_path));
             // Settings ▸ General ▸ Interface Language ▸ System Language (#218).
             app.hooks.cursor_screen_position = Some(Box::new(filmcraft_platform::cursor::cursor_screen_position));
+            // Finder / Dock "open" requests and the system's recent documents (macOS).
+            filmcraft_platform::open_documents::install();
+            let repaint = cc.egui_ctx.clone();
+            filmcraft_platform::open_documents::set_waker(Box::new(move || repaint.request_repaint()));
+            app.hooks.opened_documents = Some(Box::new(filmcraft_platform::open_documents::take));
+            app.hooks.note_recent_document = Some(Box::new(filmcraft_platform::open_documents::note_recent));
             app.hooks.system_languages = Some(Box::new(|| sys_locale::get_locales().collect()));
             // Settings ▸ Appearance ▸ Appearance Mode ▸ Sync with system on Linux desktops whose
             // compositor reports no theme to winit (no polling: see appearance.rs).

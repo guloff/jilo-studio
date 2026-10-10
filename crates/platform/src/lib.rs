@@ -45,6 +45,7 @@ pub mod hybrid;
 pub mod media_foundation;
 #[cfg(any(target_os = "windows", all(target_os = "linux", target_pointer_width = "64")))]
 pub mod nvenc;
+pub mod open_documents;
 pub mod open_files;
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub mod vaapi;

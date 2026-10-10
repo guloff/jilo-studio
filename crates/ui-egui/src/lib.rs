@@ -107,6 +107,11 @@ pub struct HostHooks {
     pub pick_files: Option<Box<dyn FnMut(&[&str]) -> Vec<String>>>,
     /// The cursor in physical screen pixels. Where the windowing layer reports no pointer while files are dragged in from the OS (Windows), a drop is placed where this says it landed.
     pub cursor_screen_position: Option<Box<dyn Fn() -> Option<(i32, i32)>>>,
+    /// Files the OS asked to open since the last call (macOS: double-click in Finder, Open With,
+    /// a drop on the Dock icon): projects open, media is imported.
+    pub opened_documents: Option<Box<dyn Fn() -> Vec<String>>>,
+    /// Tell the OS a project was opened or saved (macOS: the Dock icon's recent documents).
+    pub note_recent_document: Option<Box<dyn Fn(&str)>>,
     pub pick_save: Option<Box<dyn FnMut(&str) -> Option<String>>>,
     pub pick_open_project: Option<Box<dyn FnMut() -> Option<String>>>,
     /// Save dialog with a filter: (filter name, extensions, suggested file name) → path.
@@ -286,6 +291,8 @@ pub struct FilmcraftApp {
     /// Files being dragged over the window from the OS (count, pointer): the Timeline previews where they would land.
     file_drag_hover: Option<(usize, egui::Pos2)>,
     timeline_view_last: Option<filmcraft_engine::project::SequenceView>,
+    /// The project file last reported through `hooks.note_recent_document`.
+    noted_recent: Option<String>,
     pub fps: f32,
     last_time: f64,
     bindings: Vec<menus::KeyBinding>,
@@ -480,6 +487,7 @@ impl FilmcraftApp {
             pending_timeline_drop: None,
             file_drag_hover: None,
             timeline_view_last: None,
+            noted_recent: None,
             fps: 60.0,
             last_time: 0.0,
             bindings: Vec::new(),
@@ -1224,6 +1232,42 @@ impl FilmcraftApp {
         r
     }
 
+    /// Files the OS asked to open: the last project opens (asking to save edits first, as Recent
+    /// Projects does), media is imported into the current project. A project saved or opened is
+    /// reported back for the system's recent documents.
+    fn handle_opened_documents(&mut self, ctx: &egui::Context) {
+        let paths = self.hooks.opened_documents.as_ref().map(|f| f()).unwrap_or_default();
+        let (projects, media): (Vec<String>, Vec<String>) =
+            paths.into_iter().partition(|p| std::path::Path::new(p).extension().is_some_and(|e| e.eq_ignore_ascii_case("fcproj")));
+        if let Some(path) = projects.last() {
+            if self.session.is_dirty() {
+                self.ui.clip_dialog =
+                    Some(state::ClipDialogDraft { command: "file.open".into(), params: json!({"path": path}), info: json!({}), error: String::new() });
+            } else {
+                match menus::invoke(self, ctx, "file.open", json!({"path": path})) {
+                    Ok(_) => {
+                        self.stop();
+                        self.ui.mode = state::Mode::Edit;
+                    }
+                    Err(e) => self.ui.status = e,
+                }
+            }
+        }
+        if !media.is_empty() {
+            match self.session.execute("file.import", json!({"paths": media, "bin": self.import_bin().0})) {
+                Ok(_) => self.ui.mode = state::Mode::Edit,
+                Err(e) => self.ui.status = e.to_string(),
+            }
+        }
+        let path = self.session.path.clone();
+        if path.is_some() && path != self.noted_recent {
+            if let (Some(p), Some(note)) = (&path, &self.hooks.note_recent_document) {
+                note(p);
+            }
+            self.noted_recent = path;
+        }
+    }
+
     /// Import dropped files. With Timeline ▸ drop imports to the timeline, the new items are also
     /// queued to be placed at the pointer (see `timeline::interact`).
     fn handle_drops(&mut self, ctx: &egui::Context) {
@@ -1470,6 +1514,7 @@ impl FilmcraftApp {
         }
         self.sync_timeline_view();
         self.handle_drops(&ctx);
+        self.handle_opened_documents(&ctx);
         if let Some(rx) = self.command_inbox.take() {
             while let Ok(id) = rx.try_recv() {
                 if let Err(e) = menus::invoke(self, &ctx, &id, json!({})) {

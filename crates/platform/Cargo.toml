@@ -39,6 +39,10 @@ rustix = { version = "1", default-features = false, features = ["std", "process"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-core-foundation = "0.3.2"
 # Cursor position while files are dragged in from Finder (`cursor.rs`); already in the lockfile through winit.
+# Files opened from Finder / the Dock ("open documents" Apple Event) and recent documents
+# (`open_documents.rs`); already in the lockfile through winit / wgpu.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSAppleEventManager", "NSObject", "NSString", "NSURL"] }
 objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "CGDirectDisplay", "CGError", "CGEvent", "CGEventTypes"] }
 objc2-core-media = "0.3.2"
 objc2-core-video = "0.3.2"
