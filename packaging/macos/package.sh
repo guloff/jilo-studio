@@ -8,7 +8,7 @@
 #
 # Signing (env):
 #   MACOS_SIGN_IDENTITY   codesign identity (name or SHA-1). Default "-" = ad-hoc (local testing;
-#                         Gatekeeper will reject the result on other Macs). In CI, import-cert.sh sets it.
+#                         Gatekeeper will reject the result on other Macs).
 #   MACOS_KEYCHAIN        keychain holding the identity (optional)
 # Notarization (env, with a real identity): either
 #   MACOS_NOTARY_PROFILE  a `xcrun notarytool store-credentials` keychain profile (local machines), or

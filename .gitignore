@@ -13,3 +13,5 @@ plan/
 *.pfx
 .netrc
 secrets/
+__pycache__/
+*.pyc
