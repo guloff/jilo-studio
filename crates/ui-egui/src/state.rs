@@ -459,6 +459,40 @@ pub struct YouTubeUi {
     pub title: usize,
 }
 
+/// File ▸ Batch Process… (`panels::batch`).
+#[derive(Clone, Debug)]
+pub struct BatchUi {
+    pub dialog: bool,
+    /// Project items to process.
+    pub items: Vec<u64>,
+    /// The steps chosen, in `filmcraft_engine::batch::STEPS` order.
+    pub steps: [bool; 7],
+    /// `whisper`, `gemini` or `openai`.
+    pub speech: String,
+    /// `auto`, `ru`, `tg`, `en`…
+    pub language: String,
+    /// Export preset ("" = the current export settings).
+    pub preset: String,
+    /// The batch job being watched; its summary is shown when it ends.
+    pub job: Option<u64>,
+    pub summary: Option<serde_json::Value>,
+}
+
+impl Default for BatchUi {
+    fn default() -> Self {
+        Self {
+            dialog: false,
+            items: Vec::new(),
+            steps: [true, false, false, false, false, false, true],
+            speech: "whisper".into(),
+            language: "auto".into(),
+            preset: String::new(),
+            job: None,
+            summary: None,
+        }
+    }
+}
+
 /// Text panel ▸ Transcribe while it works: the background recognition (`transcript.recognize`), its
 /// parameters (`transcript.generate` applies the result with the same ones), a cloud recognition
 /// waiting for the user's consent, and the last message.
@@ -560,6 +594,9 @@ pub struct UiState {
     /// Sequence ▸ YouTube Title, Description and Chapters…: the window and the texts being edited.
     #[serde(skip)]
     pub youtube: YouTubeUi,
+    /// File ▸ Batch Process…: the dialog, its choices and the batch it started.
+    #[serde(skip)]
+    pub batch: BatchUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -1049,6 +1086,7 @@ impl Default for UiState {
             highlights: HighlightsUi::default(),
             auto_zoom: AutoZoomUi::default(),
             youtube: YouTubeUi::default(),
+            batch: BatchUi::default(),
             ai_task: None,
             translate_track: None,
             translate_to: String::new(),

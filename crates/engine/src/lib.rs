@@ -15,6 +15,7 @@ pub mod ai;
 pub mod ai_tasks;
 pub mod autosave;
 pub mod autozoom;
+pub mod batch;
 pub mod captions;
 pub mod clip_ops;
 pub mod color;
@@ -449,6 +450,8 @@ pub struct Session {
     pub recognition_cache: recognition::RecognitionCache,
     /// Answers of cloud text features fetched in the background, waiting to be applied.
     pub ai_task_cache: ai_tasks::TaskCache,
+    /// The batch running or last run (`batch.*`), advanced by [`batch::pump`].
+    pub batch: Option<batch::BatchRun>,
     /// The Events panel log: failed commands, job results, auto-save errors, messages.
     pub log: panels::EventLog,
     /// Media Browser navigation (directory, back / forward history, selected files).
@@ -547,6 +550,7 @@ impl Session {
             ai_models: Default::default(),
             recognition_cache: Default::default(),
             ai_task_cache: Default::default(),
+            batch: None,
             log: Default::default(),
             browser: Default::default(),
             exec_depth: 0,
@@ -644,6 +648,7 @@ impl Session {
         masks::poll(self);
         scene_detect::poll(self);
         export_tools::pump_queue(self, false);
+        batch::pump(self);
         panels::log_jobs(self);
         let Some(p) = self.persistence.as_mut() else { return };
         for ev in p.drain_events() {

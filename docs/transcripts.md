@@ -169,6 +169,20 @@ current chapter markers when YouTube will take them (at least 3, each ≥ 10 s, 
 the hashtags; past the limit the text is shortened, not the chapters. The window copies each field
 or everything at once.
 
+## Batch processing
+
+File ▸ Batch Process… (`batch.start`) runs the same steps over the sequences and clips selected in
+the Project panel (up to 50; a clip becomes a sequence, as New Sequence From Clip), one after
+another, as Jilo Studio's batches do: `transcribe` (only media without a transcript, with the batch's
+engine — local Whisper by default — and language), `fillers`, `pauses`, `autoZoom` (by loudness),
+`highlights`, `youtube`, `export` (an export queue item per sequence with the chosen preset, the
+queue started at the end). The engines are checked when the batch starts (keys, network and the
+consent given with `confirm`), and the dialog says what goes to the cloud before Start. The batch is
+one job in the status bar and the Progress panel (Cancel stops it after the current step); a failed
+step is noted and the item goes on, one item's failure never stops the others, and a summary lists
+every item (`batch.status`). Each step is the same command as by hand, so every change is an undo
+step, and the editor keeps its sequence while the batch works.
+
 ## Limits
 
 - Transcription runs synchronously inside the command (no background job or progress bar yet).

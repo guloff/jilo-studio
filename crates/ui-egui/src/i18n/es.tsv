@@ -3696,3 +3696,31 @@
 	Write Again…	Escribir de nuevo…
 	Copied: the title, the description with chapters and the tags	Copiado: el título, la descripción con capítulos y las etiquetas
 	Writing YouTube texts	Escribiendo textos para YouTube
+# File ▸ Batch Process (11.9)
+	Batch Process…	Procesar por lotes…
+	Batch Process	Procesar por lotes
+	Batch Status	Estado del lote
+	Stop Batch	Detener el lote
+	Batch	Lote
+	and {n} more	y {n} más
+	{n} items: {list}	{n} elementos: {list}
+	For each, in this order	Para cada uno, en este orden
+	Transcribe the clips without a transcript	Transcribir los clips sin transcripción
+	Remove filler words (hesitations)	Quitar muletillas (vacilaciones)
+	Remove silent pauses (by sound)	Quitar pausas silenciosas (por sonido)
+	Auto zoom on louder phrases	Zoom automático en las frases más fuertes
+	Find highlights	Buscar momentos destacados
+	YouTube title, description and chapters	Título, descripción y capítulos para YouTube
+	Export each sequence	Exportar cada secuencia
+	The current export settings	Los ajustes de exportación actuales
+	the clips' audio goes to {provider}	el audio de los clips se envía a {provider}
+	the transcripts go to {provider}	las transcripciones se envían a {provider}
+	Nothing is sent: every chosen step runs on this computer. Each change can be undone.	No se envía nada: todos los pasos elegidos se hacen en este ordenador. Cada cambio se puede deshacer.
+	Starting the batch agrees that {what}. Each change can be undone.	Al iniciar el lote aceptas que {what}. Cada cambio se puede deshacer.
+	Start	Iniciar
+	Batch started: {n} items	Lote iniciado: {n} elementos
+	Batch Results	Resultados del lote
+	Done: {done} of {n}	Hecho: {done} de {n}
+	done	hecho
+	cancelled	cancelado
+	with errors	con errores

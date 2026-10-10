@@ -3691,3 +3691,31 @@ mode	Edit	Монтаж
 	Write Again…	Написать заново…
 	Copied: the title, the description with chapters and the tags	Скопировано: название, описание с главами и теги
 	Writing YouTube texts	Пишем тексты для YouTube
+# File ▸ Batch Process (11.9)
+	Batch Process…	Пакетная обработка…
+	Batch Process	Пакетная обработка
+	Batch Status	Состояние пакета
+	Stop Batch	Остановить пакет
+	Batch	Пакет
+	and {n} more	и ещё {n}
+	{n} items: {list}	Элементов: {n} — {list}
+	For each, in this order	Для каждого, по порядку
+	Transcribe the clips without a transcript	Распознать клипы без расшифровки
+	Remove filler words (hesitations)	Убрать слова-паразиты (междометия)
+	Remove silent pauses (by sound)	Убрать паузы по звуку
+	Auto zoom on louder phrases	Авто-зум на громких фразах
+	Find highlights	Найти хайлайты
+	YouTube title, description and chapters	Название, описание и главы для YouTube
+	Export each sequence	Экспортировать каждую секвенцию
+	The current export settings	Текущие настройки экспорта
+	the clips' audio goes to {provider}	звук клипов уходит в {provider}
+	the transcripts go to {provider}	расшифровки уходят в {provider}
+	Nothing is sent: every chosen step runs on this computer. Each change can be undone.	Ничего не отправляется: все выбранные шаги выполняются на этом компьютере. Каждое изменение можно отменить.
+	Starting the batch agrees that {what}. Each change can be undone.	Запуская пакет, вы соглашаетесь, что {what}. Каждое изменение можно отменить.
+	Start	Запустить
+	Batch started: {n} items	Пакет запущен, элементов: {n}
+	Batch Results	Итоги пакета
+	Done: {done} of {n}	Готово: {done} из {n}
+	done	готово
+	cancelled	отменено
+	with errors	с ошибками

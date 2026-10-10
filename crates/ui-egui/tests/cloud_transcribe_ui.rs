@@ -517,3 +517,72 @@ fn youtube_texts_are_written_shown_and_edited() {
     assert!(after != before && !after.is_empty(), "the status bar says what was copied: {after}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// File ▸ Batch Process: the dialog for the Project panel's selection, the cloud note, the batch
+/// as a job, and the summary with the item that failed a step.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn a_batch_runs_from_the_dialog_and_ends_with_a_summary() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-batch-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |_| {
+            let answer = json!({"titles": ["Заголовок"], "description": "Описание.", "chapters": [], "tags": ["тег"], "hashtags": ["#тег"]});
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": answer.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "gemini", "key": "k"})).unwrap();
+    s.path = Some(dir.join("Demo.fcproj").to_string_lossy().into_owned());
+    let mut d = Driver::new(s);
+    d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
+    d.frames(2);
+    d.click("text.tab.Transcript");
+    russian_transcript(&mut d);
+    // Main Edit (transcribed) and Rough Cut (empty: its YouTube step fails)
+    let project = d.ok("engine.execute", json!({"command": "project.inspect", "params": {}})).to_string();
+    let v: Value = serde_json::from_str(&project).unwrap();
+    let seqs: Vec<u64> = v["root"]["children"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|b| b["children"].as_array().cloned().unwrap_or_default())
+        .filter(|i| i["type"] == "Sequence")
+        .filter_map(|i| i["item"].as_u64())
+        .collect();
+    assert_eq!(seqs.len(), 2);
+    d.ok("engine.execute", json!({"command": "project.select", "params": {"items": seqs}}));
+    d.ok("ui.menu.invoke", json!({"id": "batch.start"}));
+    d.frames(3);
+    assert!(d.ids("batch.").contains(&"batch.go".to_string()));
+    // transcribe and export are on by default; choose YouTube and the WAV preset
+    d.click("batch.step.transcribe");
+    d.click("batch.step.youtube");
+    d.harness.state_mut().ui.batch.preset = "Waveform Audio 48 kHz 16-bit".into();
+    d.snapshot("batch-dialog");
+    d.click("batch.go");
+    let mut done = false;
+    for _ in 0..600 {
+        d.frames(2);
+        if d.ids("batch.summary").iter().any(|i| i == "batch.summary.close") {
+            done = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(done, "the summary opens when the batch ends");
+    d.snapshot("batch-summary");
+    let st = d.ok("engine.execute", json!({"command": "batch.status", "params": {}}));
+    let status: Vec<&str> = st["items"].as_array().unwrap().iter().filter_map(|i| i["status"].as_str()).collect();
+    assert_eq!(status, ["done", "failed"], "{st}");
+    d.click("batch.summary.close");
+    assert!(d.ids("batch.summary").is_empty());
+    let _ = std::fs::remove_dir_all(&dir);
+}

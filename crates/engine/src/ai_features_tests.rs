@@ -530,3 +530,109 @@ fn youtube_texts_are_written_kept_and_chapters_become_markers() {
     assert_eq!(fake.sent().len(), sent);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ---------- batches ----------
+
+/// Gemini answering both the speech windows (two words) and the YouTube prompt.
+fn gemini_for_batch(fake: &FakeTransport) {
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |r| {
+            let b = r.json().unwrap_or_default();
+            let text = b.to_string();
+            let answer = if text.contains("YouTube producer") {
+                json!({"titles": ["Заголовок"], "description": "Описание.", "chapters": [], "tags": ["тег"], "hashtags": ["#тег"]})
+            } else {
+                json!({"language": "Russian", "segments": [{"start": "00:01.000", "end": "00:03.000", "text": "Привет, мир.",
+                    "words": [{"text": "Привет,", "start": "00:01.000", "end": "00:01.800"}, {"text": "мир.", "start": "00:02.000", "end": "00:02.900"}]}]})
+            };
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": answer.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+}
+
+/// A media item with a minute of tone (never placed), for batches that make its sequence.
+fn tone_clip(s: &mut Session, name: &str) -> u64 {
+    let rate = 16_000u32;
+    let pcm: Vec<f32> = (0..rate as usize * 2 * 20).map(|i| ((i / 2) as f32 * 0.05).sin() * 0.3).collect();
+    crate::commands::import_bytes(s, &format!("/{name}.wav"), crate::previews::write_wav_f32(&pcm, rate).into(), None).unwrap().0
+}
+
+#[test]
+fn a_batch_runs_its_steps_over_every_item_and_survives_a_failing_one() {
+    let (mut s, fake, dir) = transcribed("batch");
+    gemini_for_batch(&fake);
+    let first = s.state.active_sequence.unwrap().0;
+    // a second transcribed sequence, and a clip without a transcript
+    let item = s.active_sequence().unwrap().audio_tracks[0].items[0].item.0;
+    s.execute("file.newSequence", json!({"name": "second", "audio": 1, "video": 1})).unwrap();
+    let second = s.state.active_sequence.unwrap().0;
+    s.execute("timeline.place", json!({"item": item, "audioTrack": "A1", "seconds": 0.0})).unwrap();
+    let clip = tone_clip(&mut s, "raw");
+    s.state.active_sequence = Some(filmcraft_project::ItemId(first));
+    let out = dir.join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    // a cloud step needs the consent first
+    let p = json!({"items": [first, second, clip], "youtube": true, "export": true, "preset": "Waveform Audio 48 kHz 16-bit", "path": out.to_string_lossy()});
+    assert!(s.execute("batch.start", p.clone()).unwrap_err().to_string().contains("CONFIRM_CLOUD"));
+    assert!(s.batch.is_none());
+    let mut go = p.clone();
+    go["confirm"] = json!(true);
+    go["wait"] = json!(true);
+    let r = s.execute("batch.start", go).unwrap();
+    assert_eq!(r["finished"], true, "{r}");
+    let items = r["items"].as_array().unwrap();
+    assert_eq!(items.len(), 3);
+    assert_eq!((items[0]["status"].clone(), items[0]["done"].clone()), (json!("done"), json!(["youtube", "export"])), "{r}");
+    assert_eq!(items[1]["status"], "done");
+    // the clip became a sequence; it has no transcript, so its YouTube step fails and export still runs
+    assert_eq!(items[2]["name"], "raw.wav");
+    assert_eq!(items[2]["status"], "failed");
+    assert_eq!(items[2]["errors"][0]["step"], "youtube");
+    assert!(items[2]["errors"][0]["error"].as_str().unwrap().contains("no transcript"), "{r}");
+    assert_eq!(items[2]["done"], json!(["export"]));
+    assert_eq!(s.export_queue.items.len(), 3, "an export per sequence");
+    assert!(s.export_queue.running, "the queue starts at the end");
+    // the editor keeps its sequence; the texts are with each sequence
+    assert_eq!(s.state.active_sequence.map(|i| i.0), Some(first));
+    assert!(crate::youtube::texts_of(&s, filmcraft_project::ItemId(second)).is_some());
+    let job = s.jobs.iter().find(|j| j.id == r["job"].as_u64().unwrap()).unwrap().to_json();
+    assert_eq!(job["status"], "Batch done: 2 of 3", "{job}");
+    // hostile parameters
+    for bad in
+        [json!({}), json!({"items": [first]}), json!({"items": [999_999], "fillers": true}), json!({"items": (0..60).collect::<Vec<u64>>(), "fillers": true})]
+    {
+        assert!(s.execute("batch.start", bad.clone()).is_err(), "{bad}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_batch_transcribes_what_has_no_transcript_and_can_be_stopped() {
+    let (mut s, fake, dir) = session("batch-asr");
+    gemini_for_batch(&fake);
+    let a = tone_clip(&mut s, "one");
+    let b = tone_clip(&mut s, "two");
+    s.execute("prefs.set", json!({"key": "ai.confirmedProviders", "value": ["gemini"]})).unwrap();
+    let r = s.execute("batch.start", json!({"items": [a, b], "transcribe": true, "speechEngine": "gemini", "language": "ru", "wait": true})).unwrap();
+    assert_eq!(r["items"][0]["done"], json!(["transcribe"]), "{r}");
+    assert_eq!(r["items"][1]["status"], "done");
+    for id in [a, b] {
+        let words: Vec<String> = s.project.transcripts.get(&filmcraft_project::ItemId(id)).unwrap().words.iter().map(|w| w.text.clone()).collect();
+        assert_eq!(words, ["Привет,", "мир."]);
+    }
+    // again: nothing left to transcribe, nothing is sent
+    let sent = fake.sent().len();
+    let seq = r["items"][0]["sequence"].as_u64().unwrap();
+    let r = s.execute("batch.start", json!({"items": [seq], "transcribe": true, "speechEngine": "gemini", "wait": true})).unwrap();
+    assert_eq!(r["items"][0]["status"], "done");
+    assert_eq!(fake.sent().len(), sent);
+    // Stop: the rest is cancelled
+    let r = s.execute("batch.start", json!({"items": [a, b], "fillers": true})).unwrap();
+    assert_eq!(r["finished"], false);
+    let r = s.execute("batch.cancel", json!({})).unwrap();
+    assert_eq!(r["finished"], true);
+    assert!(r["items"].as_array().unwrap().iter().all(|i| i["status"] == "cancelled"), "{r}");
+    assert!(s.execute("batch.cancel", json!({})).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}

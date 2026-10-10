@@ -3726,3 +3726,31 @@
 	Write Again…	重新撰写…
 	Copied: the title, the description with chapters and the tags	已复制：标题、含章节的描述和标签
 	Writing YouTube texts	正在撰写 YouTube 文本
+# File ▸ Batch Process (11.9)
+	Batch Process…	批量处理…
+	Batch Process	批量处理
+	Batch Status	批处理状态
+	Stop Batch	停止批处理
+	Batch	批处理
+	and {n} more	以及另外 {n} 个
+	{n} items: {list}	{n} 个项目：{list}
+	For each, in this order	对每一项，按此顺序
+	Transcribe the clips without a transcript	转写没有文字稿的剪辑
+	Remove filler words (hesitations)	移除填充词（犹豫语气词）
+	Remove silent pauses (by sound)	移除静音停顿（按声音）
+	Auto zoom on louder phrases	在较响语句上自动缩放
+	Find highlights	查找精彩片段
+	YouTube title, description and chapters	YouTube 标题、描述和章节
+	Export each sequence	导出每个序列
+	The current export settings	当前导出设置
+	the clips' audio goes to {provider}	剪辑的音频发送到 {provider}
+	the transcripts go to {provider}	文字稿发送到 {provider}
+	Nothing is sent: every chosen step runs on this computer. Each change can be undone.	不发送任何内容：所选步骤都在此电脑上完成。每项更改都可撤销。
+	Starting the batch agrees that {what}. Each change can be undone.	开始批处理即表示同意：{what}。每项更改都可撤销。
+	Start	开始
+	Batch started: {n} items	批处理已开始：{n} 个项目
+	Batch Results	批处理结果
+	Done: {done} of {n}	完成：{done}/{n}
+	done	完成
+	cancelled	已取消
+	with errors	有错误

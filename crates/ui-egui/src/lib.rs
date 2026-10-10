@@ -1709,6 +1709,7 @@ impl FilmcraftApp {
         panels::highlights::show(self, &ctx);
         panels::autozoom::show(self, &ctx);
         panels::youtube::show(self, &ctx);
+        panels::batch::show(self, &ctx);
         if !self.ui.show_status_bar {
             // no bar to draw the job in, but a finished preview render still plays
             self.watch_jobs(ui.ctx());
