@@ -3489,3 +3489,11 @@
 	Show these buttons under the monitor:	Mostrar estos botones bajo el monitor:
 	GPU Rendering	Renderizado en GPU
 	Composite on the GPU when available	Componer en la GPU cuando esté disponible
+
+# System appearance modes and theme cards.
+	Active	Activo
+	Appearance Mode	Modo de apariencia
+	Dark Theme	Tema oscuro
+	Light Theme	Tema claro
+	Next Appearance Mode	Siguiente modo de apariencia
+	Sync with system	Sincronizar con el sistema
