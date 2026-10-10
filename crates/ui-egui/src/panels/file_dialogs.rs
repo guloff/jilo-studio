@@ -120,7 +120,8 @@ pub fn show_revert(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
             });
         });
     });
-    open && !r.should_close()
+    // (the modal's own close also fires on Escape: not while a drag is being cancelled, #580)
+    open && !(r.should_close() && !ctx.input(|i| i.pointer.any_down()))
 }
 
 /// "Save changes to '<project>' before quitting?" Save (Save As when the project has no file yet),
