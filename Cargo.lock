@@ -2131,6 +2131,7 @@ dependencies = [
  "libloading",
  "log",
  "objc2-core-foundation",
+ "objc2-core-graphics",
  "objc2-core-media",
  "objc2-core-video",
  "objc2-video-toolbox",
