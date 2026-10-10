@@ -248,7 +248,7 @@ pub fn duration_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
     let accent = app.tokens.accent;
     let (mut keep, mut apply) = (true, false);
     let mut elems: Elems = Vec::new();
-    egui::Window::new(tl!("Set Transition Duration"))
+    crate::dialog_style::Window::new(tl!("Set Transition Duration"))
         .collapsible(false)
         .resizable(false)
         .default_width(260.0)

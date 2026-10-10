@@ -729,9 +729,12 @@ pub fn button_editor(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let catalogue = button_catalogue(app, draft.source);
     let title = if draft.source { tl!("Button Editor (Source)") } else { tl!("Button Editor (Program)") };
     let (mut done, mut apply) = (false, false);
-    egui::Window::new(title).id(egui::Id::new("button-editor")).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, vec2(0.0, 0.0)).show(
-        ctx,
-        |ui| {
+    crate::dialog_style::Window::new(title)
+        .id(egui::Id::new("button-editor"))
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, vec2(0.0, 0.0))
+        .show(ctx, |ui| {
             ui.label(tl!("Show these buttons under the monitor:"));
             ui.add_space(6.0);
             for (icon, id, tip) in &catalogue {
@@ -775,8 +778,7 @@ pub fn button_editor(app: &mut FilmcraftApp, ctx: &egui::Context) {
                     }
                 });
             });
-        },
-    );
+        });
     if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
         done = true;
     }
