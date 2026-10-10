@@ -977,7 +977,20 @@ fn build() -> Vec<CommandSpec> {
                 } else {
                     // Media files through the host's reader (no whole-file read) when it has one.
                     let streamed = filmcraft_media::is_importable(std::path::Path::new(&path)) && s.services.reader(&path).is_some();
-                    let read = if streamed { Ok(Vec::new()) } else { s.services.read_file(&path) };
+                    let native_project = std::path::Path::new(&path).extension().is_some_and(|e| e.eq_ignore_ascii_case("prproj"));
+                    let read = if streamed {
+                        Ok(Vec::new())
+                    } else if native_project {
+                        s.services.file_size(&path).and_then(|size| {
+                            if size > filmcraft_interchange::premiere::MAX_DOCUMENT_BYTES as u64 {
+                                Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Premiere project exceeds the 64 MiB size limit"))
+                            } else {
+                                s.services.read_file(&path)
+                            }
+                        })
+                    } else {
+                        s.services.read_file(&path)
+                    };
                     let media = match read {
                         Ok(_) if streamed => import_streamed(s, &path, bin).map(Some),
                         Ok(b) => {
