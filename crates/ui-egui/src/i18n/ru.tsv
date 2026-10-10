@@ -3645,3 +3645,6 @@ mode	Edit	Монтаж
 	FLAC (lossless)	FLAC (без потерь)
 	Compression Level	Уровень сжатия
 	0 fastest, 8 smallest	0 — быстрее всего, 8 — меньше всего
+# Export: CRF (PR #600)
+	CRF (constant quality)	CRF (постоянное качество)
+	Quality (CRF)	Качество (CRF)

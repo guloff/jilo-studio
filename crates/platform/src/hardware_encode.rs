@@ -38,6 +38,9 @@ pub fn config_for(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Result
     if s.bitrate_mode == BitrateMode::Vbr2Pass || !matches!(s.h264_pass, H264Pass::Single) {
         return Err("two-pass encoding".into());
     }
+    if s.bitrate_mode == BitrateMode::Crf {
+        return Err("CRF (constant quality)".into());
+    }
     // HDR: HEVC Main 10, BT.2020 NCL with PQ or HLG (the signal the export resolved); H.264 stays SDR
     let hdr = s.signal.is_hdr();
     if hdr && !hevc {
