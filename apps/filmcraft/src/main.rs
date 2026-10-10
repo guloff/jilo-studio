@@ -110,6 +110,10 @@ fn main() -> eframe::Result {
         }
     }
     app_nap::disable();
+    // The app menu's title and its Hide / Quit items use the process name: the bundle's executable
+    // is "Jilo Studio", but a binary run straight from the build is "filmcraft".
+    #[cfg(target_os = "macos")]
+    objc2_foundation::NSProcessInfo::processInfo().setProcessName(&objc2_foundation::NSString::from_str(filmcraft_ui_egui::brand::APP_NAME));
     #[cfg(target_os = "linux")]
     dev_icon::ensure_dev_desktop_entry();
     // Panics anywhere go to <data dir>/Logs/crash-<day>.log with a backtrace; the UI pass and
