@@ -7,6 +7,7 @@ pub mod autozoom;
 pub mod batch;
 pub mod clip_dialogs;
 pub mod color_dialogs;
+pub mod crash_report;
 pub mod dialogs;
 pub mod effect_controls;
 pub mod effects;

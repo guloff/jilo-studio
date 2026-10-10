@@ -1728,6 +1728,7 @@ impl FilmcraftApp {
         panels::autozoom::show(self, &ctx);
         panels::reframe::show(self, &ctx);
         panels::updates::show(self, &ctx);
+        panels::crash_report::show(self, &ctx);
         panels::youtube::show(self, &ctx);
         panels::batch::show(self, &ctx);
         if !self.ui.show_status_bar {
@@ -2062,6 +2063,7 @@ impl eframe::App for FilmcraftApp {
     }
 
     fn on_exit(&mut self) {
+        crash::end_session();
         if self.discard_on_exit {
             // "Don't Save": nothing to offer on the next launch.
             self.session.discard_unsaved_on_exit();

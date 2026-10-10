@@ -3790,3 +3790,9 @@
 	Download opens the release page on GitHub; the new version replaces this one in Applications.	“下载”会打开 GitHub 上的发布页面；新版本将替换“应用程序”中的此版本。
 	Download…	下载…
 	Later	稍后
+# The report on a previous run's unexpected end (12.D2)
+	{app} Quit Unexpectedly	{app} 意外退出
+	{app} quit unexpectedly the last time it ran. If it happens again, the report below helps to fix it: copy it into an issue on GitHub. Nothing is sent.	{app} 上次运行时意外退出。如果再次发生，下面的报告有助于修复问题：请将其复制到 GitHub 上的问题中。不会发送任何内容。
+	Unsaved changes, if there were any, are offered for recovery separately.	如有未保存的更改，将另行提供恢复。
+	Copy Report	复制报告
+	The report is copied	报告已复制

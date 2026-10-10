@@ -115,6 +115,11 @@ fn main() -> eframe::Result {
     // Panics anywhere go to <data dir>/Logs/crash-<day>.log with a backtrace; the UI pass and
     // frame workers catch them and keep running (see filmcraft_ui_egui::crash).
     filmcraft_ui_egui::crash::install(log_dir);
+    // A run that ended without quitting (crash, forced quit) leaves its marker unlocked: the
+    // window offers its report once.
+    if filmcraft_ui_egui::crash::begin_session().is_some() {
+        log::warn!("the previous run ended without quitting");
+    }
     // OS hardware video decoders (VideoToolbox on macOS) in front of our own; Settings ▸ Playback ▸
     // Hardware decoding switches them off. Unsupported streams and failures use our decoders.
     register_hardware_decoders();

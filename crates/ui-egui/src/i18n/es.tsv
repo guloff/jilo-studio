@@ -3759,3 +3759,9 @@
 	Download opens the release page on GitHub; the new version replaces this one in Applications.	Descargar abre la página de la versión en GitHub; la nueva versión sustituye a esta en Aplicaciones.
 	Download…	Descargar…
 	Later	Más tarde
+# The report on a previous run's unexpected end (12.D2)
+	{app} Quit Unexpectedly	{app} se cerró inesperadamente
+	{app} quit unexpectedly the last time it ran. If it happens again, the report below helps to fix it: copy it into an issue on GitHub. Nothing is sent.	{app} se cerró inesperadamente la última vez que se ejecutó. Si vuelve a ocurrir, el informe de abajo ayuda a corregirlo: cópialo en una incidencia en GitHub. No se envía nada.
+	Unsaved changes, if there were any, are offered for recovery separately.	Los cambios sin guardar, si los había, se ofrecen para recuperar por separado.
+	Copy Report	Copiar informe
+	The report is copied	Informe copiado

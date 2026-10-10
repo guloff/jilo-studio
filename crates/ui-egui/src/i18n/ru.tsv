@@ -3754,3 +3754,9 @@ mode	Edit	Монтаж
 	Download opens the release page on GitHub; the new version replaces this one in Applications.	«Скачать» откроет страницу версии на GitHub; новая версия заменяет эту в папке «Программы».
 	Download…	Скачать…
 	Later	Позже
+# The report on a previous run's unexpected end (12.D2)
+	{app} Quit Unexpectedly	{app} неожиданно завершилась
+	{app} quit unexpectedly the last time it ran. If it happens again, the report below helps to fix it: copy it into an issue on GitHub. Nothing is sent.	В прошлый раз {app} неожиданно завершилась. Если это повторится, отчёт ниже поможет исправить ошибку: скопируйте его в обращение на GitHub. Ничего не отправляется.
+	Unsaved changes, if there were any, are offered for recovery separately.	Несохранённые изменения, если они были, предлагаются к восстановлению отдельно.
+	Copy Report	Скопировать отчёт
+	The report is copied	Отчёт скопирован

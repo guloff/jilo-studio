@@ -646,6 +646,12 @@ pub struct UiState {
     /// Clip ▸ Reframe to Face…: the dialog and its choices.
     #[serde(default)]
     pub reframe: ReframeUi,
+    /// The report on the previous run's unexpected end, while its window is open (`crash`).
+    #[serde(skip)]
+    pub crash_report: Option<String>,
+    /// Whether the report was looked for (once per run).
+    #[serde(skip)]
+    pub crash_report_taken: bool,
     /// Help ▸ Check for Updates…: the check and its window.
     #[serde(skip)]
     pub updates: UpdatesUi,
@@ -1145,6 +1151,8 @@ impl Default for UiState {
             auto_zoom: AutoZoomUi::default(),
             reframe: ReframeUi::default(),
             updates: UpdatesUi::default(),
+            crash_report: None,
+            crash_report_taken: false,
             youtube: YouTubeUi::default(),
             batch: BatchUi::default(),
             ai_task: None,
