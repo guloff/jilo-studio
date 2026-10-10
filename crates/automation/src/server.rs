@@ -615,7 +615,7 @@ impl ServerHandler for FilmcraftMcp {
         if let Some(m) = self.unknown_arg(&request.name, request.arguments.as_ref()) {
             return Err(McpError::invalid_params(m, None));
         }
-        // A blocking export reports progress and can be cancelled (docs/agents.md § Long exports).
+        // A blocking export reports progress and can be cancelled (docs/automation.md § Long exports).
         // Bridge mode too: the app runs it as a job, so it stays responsive (#91, #92).
         if request.name == "command_run"
             && let Some(a) = &request.arguments
@@ -874,7 +874,7 @@ mod tests {
         }
     }
 
-    /// docs/agents.md § Long exports: a blocking export reports `notifications/progress` for its
+    /// docs/automation.md § Long exports: a blocking export reports `notifications/progress` for its
     /// token (none without one), answers `ping` meanwhile, and `notifications/cancelled` stops
     /// it, deletes the partial file and sends no response.
     #[tokio::test(flavor = "multi_thread")]

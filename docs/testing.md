@@ -43,7 +43,7 @@ Commit `*.proptest-regressions` files so failing cases are re-run.
 ## 2. ffmpeg oracle tests
 
 ffmpeg and ffprobe are **external processes** used to generate fixtures and to check results. They
-are never linked or shipped ([AGENTS.md](../AGENTS.md) §2).
+are never linked or shipped ([rules.md](rules.md) §2).
 
 - The tools are found by `filmcraft-testkit` (a dev-dependency-only crate, `crates/testkit`), in
   this order: `FILMCRAFT_FFMPEG` / `FILMCRAFT_FFPROBE` (explicit paths; a wrong path is an error),
@@ -248,7 +248,7 @@ cargo run --release -p filmcraft -- --control 9876
 Then script it over the control channel or MCP: run commands, click by automation id,
 `ui.inspect` / `ui.elements` to assert state, and `ui.screenshot {"path": "…"}` to capture the window
 or a single panel (`{"panel": "Timeline"}`). Look at every screenshot. Examples are in
-[agents.md](agents.md). The headless path (`filmcraft-cli run script.jsonl`, MCP `--demo`) covers
+[automation.md](automation.md). The headless path (`filmcraft-cli run script.jsonl`, MCP `--demo`) covers
 engine behaviour without a window.
 
 ## 5. Performance

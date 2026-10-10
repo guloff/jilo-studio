@@ -15,7 +15,7 @@ Design principles:
 5. **CPU reference, GPU fast path.** The CPU compositor is the oracle. The GPU path is tested
    against it.
 6. **Pure Rust, clean-room.** Codecs and containers are written from public specifications
-   (see [AGENTS.md](../AGENTS.md)).
+   (see [rules.md](rules.md)).
 
 ## 1. Layers
 
@@ -748,7 +748,7 @@ All of these dispatch the same command ids.
   rename, dialogs and the hover-scrubbed card are `UiState::project_panel`; the browser's tree
   state is `UiState::media_browser` (`ui.set {"projectPanel": …, "mediaBrowser": …}`).
 
-Protocol reference: [control-protocol.md](control-protocol.md). Agent guide: [agents.md](agents.md).
+Protocol reference: [control-protocol.md](control-protocol.md). Automation guide: [automation.md](automation.md).
 
 ## 8. Not built yet
 

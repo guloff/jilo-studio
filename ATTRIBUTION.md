@@ -1,7 +1,7 @@
 # Attribution
 
 Every non-code asset in FilmCraft, with its author, source and licence. Each file listed here also has
-a `<file>.attribution` sidecar with full details. The rules are in [AGENTS.md](AGENTS.md) §1: no Adobe
+a `<file>.attribution` sidecar with full details. The rules are in [docs/rules.md](docs/rules.md) §1: no Adobe
 iconography, images or other Adobe assets; open licences only; every asset attributed.
 `cargo xtask assets` checks that this index and the sidecars cover every asset in the repository.
 

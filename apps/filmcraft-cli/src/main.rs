@@ -1,6 +1,6 @@
 //! FilmCraft headless CLI: every engine command is one shell call away, for scripts and AI agents.
 //!
-//! Run `filmcraft-cli help` for the full reference (also in docs/agents.md).
+//! Run `filmcraft-cli help` for the full reference (also in docs/automation.md).
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
 

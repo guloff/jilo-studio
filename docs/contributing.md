@@ -1,6 +1,6 @@
 # Contributing
 
-Read [AGENTS.md](../AGENTS.md) first. Its rules on assets, clean-room code and licences are
+Read [rules.md](rules.md) first. Its rules on assets, clean-room code and licences are
 absolute and override everything here. Then read [architecture.md](architecture.md) and the README
 of the crate you will change.
 
@@ -120,7 +120,7 @@ Run them with `CRAFT_FONTS_DIR` set too when you change font code ([craft-fonts]
 ### Never crash
 
 Production code must never crash: a crash loses someone's work, so this outranks feature work. The rules
-are in [AGENTS.md](../AGENTS.md) §0. In short: return `Result<T, E>` instead of `unwrap()` / `expect()` /
+are in [rules.md](rules.md) §0. In short: return `Result<T, E>` instead of `unwrap()` / `expect()` /
 `panic!` / `unreachable!` / `todo!` / `unimplemented!`; no `unsafe`; use `get()`, `checked_*` /
 `saturating_*` and validated bounds on anything that came from a file, a command parameter or the UI;
 bound recursion; tolerate lock poisoning; catch panics in background threads and report them as errors.
@@ -150,7 +150,6 @@ export CARGO_TARGET_DIR=target/agent-hevc     # separate build dir, no lock figh
 - The workspace includes `crates/*` and `apps/*` by glob, so one broken `Cargo.toml` breaks every
   build. Keep every manifest valid at all times, including half-finished crates.
 - Test fixtures always go to `<repo>/target/fixtures/`, whatever `CARGO_TARGET_DIR` says.
-- `.mcp.json` points at `target/release/filmcraft-cli`. With a custom target dir, use your own path.
 
 ## 6. How to add…
 
@@ -220,7 +219,7 @@ stream is cut into blocks (there are tests for this).
 ### A codec or container crate
 
 1. **Spec first.** Work only from the public specification (ITU-T, ISO/IEC, IETF RFCs, SMPTE,
-   published container specs). Never copy GPL/LGPL code, and follow AGENTS.md §2 on reading other
+   published container specs). Never copy GPL/LGPL code, and follow rules.md §2 on reading other
    implementations. Name the spec edition in the crate README.
 2. Create `crates/<name>` as an L0 crate that depends only on `filmcraft-bitstream` (plus
    `thiserror` and optional `rayon` behind a `threads` feature). Add `[lints] workspace = true`, add
@@ -249,13 +248,13 @@ stream is cut into blocks (there are tests for this).
 - UI state that should survive or be scriptable goes in `crates/ui-egui/src/state.rs` (serde), so
   `ui.inspect` and `ui.set` can reach it.
 - Project changes go through `session.execute(…)`, never by mutating the project directly.
-- Icons are drawn in code in `crates/ui-egui/src/icons.rs`, from scratch (AGENTS.md §1).
+- Icons are drawn in code in `crates/ui-egui/src/icons.rs`, from scratch (rules.md §1).
 - Look at the result: run with `--control`, drive it, take `ui.screenshot`
-  ([agents.md](agents.md#3-verifying-ui-work)).
+  ([automation.md](automation.md#2-control-channel)).
 
 ### An asset
 
-The rules are in [AGENTS.md §1](../AGENTS.md#1-assets-no-adobe-artwork-every-asset-licensed-and-attributed).
+The rules are in [rules.md §1](rules.md#1-assets-no-adobe-artwork-every-asset-licensed-and-attributed).
 In short:
 
 - No Adobe iconography, images, fonts, LUTs, presets or other Adobe assets, in any form, including

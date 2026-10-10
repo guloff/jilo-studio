@@ -54,7 +54,7 @@ fn keys_are_saved_privately_and_never_returned_or_journaled() {
 
     s.execute("ai.setKey", json!({"provider": "gemini", "key": null})).unwrap();
     assert_eq!(provider(&s.execute("ai.status", json!({})).unwrap(), "gemini")["key"], Value::Null);
-    assert!(s.execute("ai.setKey", json!({"provider": "claude", "key": "x"})).is_err());
+    assert!(s.execute("ai.setKey", json!({"provider": "skynet", "key": "x"})).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
 

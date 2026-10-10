@@ -65,7 +65,7 @@ In priority order. Agents should prefer this work over adding more checklist ite
    smoke test on both, not just release builds. Fix the Linux audio path (#23).
 6. **Delivery codecs.** HEVC export is in on macOS (VideoToolbox, 8-bit, no software encoder) and on Windows (NVENC, 8-bit and Main 10 HDR); still to do: HEVC elsewhere, 10-bit / HDR HEVC on macOS, and AV1 (`rav1e`, BSD-2).
 7. **Plugin hosting** (VST3 / Audio Units, then OpenFX). Needs FFI, so it falls under the isolated
-   `unsafe` crate rule (AGENTS.md §0.3). **Owner decision needed** before starting.
+   `unsafe` crate rule (docs/rules.md §0.3). **Owner decision needed** before starting.
 8. **AI features** with openly licensed local models: transcription on by default, text-based
    editing, speech enhancement, reframing.
 9. **The web app shell**: file access, WebCodecs, audio.
@@ -207,7 +207,7 @@ Status: ✅ done · 🟡 in progress · ⬜ not started. Estimates are remaining
 
 - **2026-09-30 (evening):** Opus decoder (RFC 6716/8251, range-exact on every conformance vector, ~80–110× realtime 48 kHz stereo) wired into WebM/MKV and MP4 import.
 - **2026-09-30 (afternoon):** Matroska/WebM import; LUFS meters; clip audio effects on the DSP crate.
-- **2026-09-30 (midday):** HEVC decoder, Matroska/WebM demuxer and audio DSP merged; HEVC import wired; asset rules (AGENTS.md, ATTRIBUTION.md, `cargo xtask assets`); README with hero screenshot and the Craft family.
+- **2026-09-30 (midday):** HEVC decoder, Matroska/WebM demuxer and audio DSP merged; HEVC import wired; asset rules (docs/rules.md, ATTRIBUTION.md, `cargo xtask assets`); README with hero screenshot and the Craft family.
 - **2026-09-30 (late morning):** keyframe value/velocity graphs; xtask gates; H.264 MP4 export; Lumetri curves, wheels, looks, HSL secondary.
 - **2026-09-30 (early morning):** H.264 decoder, ProRes, AAC; GPU compositor; MCP; Premiere 26 visual fidelity pass.
 

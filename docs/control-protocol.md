@@ -163,8 +163,8 @@ or `--bridge 127.0.0.1:9876` to drive the running app (it reads the app's contro
 Authentication above). Tools: `command_list`, `command_run`,
 `command_batch`, `doc_inspect`, `render_preview`, `project_inspect`, `sequence_inspect`, `media_import`,
 `render_frame`, `ui_inspect`, `ui_elements`, `ui_click`, `ui_drag`, `ui_key`, `ui_type`, `ui_screenshot`,
-`ui_control`; resources `filmcraft://document` and `filmcraft://commands`. `.mcp.json` registers both.
+`ui_control`; resources `filmcraft://document` and `filmcraft://commands`.
 Annotations, argument checking, errors and export progress / cancellation:
-[agents.md § Conventions](agents.md#conventions).
+[automation.md § Conventions](automation.md#conventions).
 
 Time is in ticks (254 016 000 000 per second); commands also accept `seconds`, `frame` or `timecode`.

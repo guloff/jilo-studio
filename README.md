@@ -67,9 +67,10 @@ cargo run --release -p filmcraft-cli -- mcp           # MCP server (headless)
 bash packaging/macos/package.sh                       # Jilo Studio.app and the DMG (ad-hoc signed)
 ```
 
-The rules and quality gates are FilmCraft's: [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md) and
+The rules and quality gates are FilmCraft's: [docs/rules.md](docs/rules.md) and
 [docs/contributing.md](docs/contributing.md); the architecture is in
-[docs/architecture.md](docs/architecture.md).
+[docs/architecture.md](docs/architecture.md), automation (MCP, control channel, CLI) in
+[docs/automation.md](docs/automation.md).
 
 ## Relationship with FilmCraft
 

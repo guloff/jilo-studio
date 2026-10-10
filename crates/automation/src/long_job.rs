@@ -1,4 +1,4 @@
-//! Long exports over MCP (docs/agents.md § Long exports): `file.exportMedia` with `wait: true`
+//! Long exports over MCP (docs/automation.md § Long exports): `file.exportMedia` with `wait: true`
 //! runs as a background engine job; the server reports its progress as MCP
 //! `notifications/progress` (when the request carried a `progressToken`) and stops it on
 //! `notifications/cancelled`, deleting the partial output. The session lock is only held for
