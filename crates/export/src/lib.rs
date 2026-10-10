@@ -1656,6 +1656,29 @@ fn h264_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSetti
 }
 
 /// The range to export (settings → In/Out → whole sequence).
+/// The chapters of a file exported from `range` of `q`: its chapter markers (Markers ▸ Add Chapter
+/// Marker), as Jilo Studio puts them in a file. A chapter that began before the range starts the
+/// file; one in the last half second of the range would not show and is left out; a marker
+/// without a name is "Chapter <n>". Fewer than two chapters divide nothing: the list is empty.
+pub fn file_chapters(q: &filmcraft_project::Sequence, range: TimeRange) -> Vec<filmcraft_isobmff::Chapter> {
+    let (from, to) = (range.start, range.end());
+    let late = to - Tick::from_seconds_f64(0.5);
+    let mut markers: Vec<&filmcraft_project::Marker> = q.markers.iter().filter(|m| m.kind == filmcraft_project::MarkerKind::Chapter).collect();
+    markers.sort_by_key(|m| m.start);
+    let mut out: Vec<filmcraft_isobmff::Chapter> = Vec::new();
+    for (n, m) in markers.iter().enumerate() {
+        let title = if m.name.trim().is_empty() { format!("Chapter {}", n + 1) } else { m.name.trim().to_string() };
+        if m.start <= from {
+            out.clear();
+            out.push(filmcraft_isobmff::Chapter { start_ms: 0, title });
+        } else if m.start < late {
+            let ms = ((m.start - from).seconds() * 1000.0).round().max(0.0) as u64;
+            out.push(filmcraft_isobmff::Chapter { start_ms: ms, title });
+        }
+    }
+    if out.len() < 2 { Vec::new() } else { out }
+}
+
 pub fn export_range(project: &Project, seq: ItemId, settings: &ExportSettings) -> Result<TimeRange> {
     let q = project.sequence(seq).ok_or(ExportError::NoSequence)?;
     q.check_bounds().map_err(ExportError::Unsupported)?;

@@ -615,3 +615,46 @@ fn default_export_dir_never_needs_a_real_filesystem() {
     let s = Session { path: Some("/projects/show/edit.fcproj".into()), ..Default::default() };
     assert_eq!(crate::export_tools::default_export_dir(&s), std::path::PathBuf::from("/projects/show"));
 }
+
+/// Chapter markers in the exported range become the file's chapters (a QuickTime chapter track),
+/// offset to the range; a chapter that began before the range starts the file.
+#[test]
+fn chapter_markers_become_chapters_of_an_mp4() {
+    let mut s = demo();
+    for (t, name) in [(0.5, "Before"), (1.5, "Middle"), (2.5, "")] {
+        s.execute("markers.addChapter", json!({"time": filmcraft_time::Tick::from_seconds_f64(t).0, "name": name})).unwrap();
+    }
+    let dir = Scratch::new("chapters");
+    let path = dir.0.join("Chapters").to_string_lossy().to_string();
+    let r = s
+        .execute("file.exportMedia", json!({"format": "h264", "path": path, "range": "custom", "startSeconds": 1.0, "endSeconds": 3.5, "wait": true}))
+        .unwrap();
+    let Some(ffprobe) = filmcraft_testkit::ffprobe_or_skip("export chapters") else { return };
+    let chapters = |path: &str| -> Vec<(f64, String)> {
+        let o = std::process::Command::new(&ffprobe).args(["-v", "error", "-of", "json", "-show_chapters", path]).output().unwrap();
+        let v: Value = serde_json::from_slice(&o.stdout).unwrap();
+        v["chapters"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .map(|c| (c["start_time"].as_str().unwrap_or("0").parse().unwrap_or(-1.0), c["tags"]["title"].as_str().unwrap_or("").to_string()))
+            .collect()
+    };
+    let got = chapters(r["path"].as_str().unwrap());
+    // the range starts on frame 23 at 23.976 fps (0.959 s), and so does the file
+    let start = 23.0 * 1001.0 / 24000.0;
+    let want = [(0.0, "Before"), (1.5 - start, "Middle"), (2.5 - start, "Chapter 3")];
+    assert_eq!(got.len(), 3, "{got:?}");
+    for ((t, title), (wt, wtitle)) in got.iter().zip(want) {
+        assert!((t - wt).abs() < 0.01 && title == wtitle, "{got:?}");
+    }
+    // one chapter marker in the range divides nothing
+    let r = s
+        .execute(
+            "file.exportMedia",
+            json!({"format": "h264", "path": dir.0.join("One").to_string_lossy(), "range": "custom", "startSeconds": 2.0, "endSeconds": 2.4, "wait": true}),
+        )
+        .unwrap();
+    assert!(chapters(r["path"].as_str().unwrap()).is_empty());
+}

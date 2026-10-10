@@ -410,6 +410,11 @@ impl Exporter {
         let mut opts = WriterOptions::new(self.brand);
         opts.metadata = self.settings.metadata.udta();
         let mut mux = Mp4Writer::new(file, opts).map_err(|e| ExportError::Io(e.to_string()))?;
+        // the sequence's chapter markers in the exported range become the file's chapters
+        if let Some(q) = self.project.sequence(self.seq) {
+            let range = filmcraft_time::TimeRange::from_bounds(self.pipe.rate.tick_of(self.f0), self.pipe.rate.tick_of(self.f1));
+            mux.set_chapters(crate::file_chapters(q, range));
+        }
         let mut vcfg = TrackConfig::new(self.venc.sample_entry(), self.venc.timescale());
         vcfg.media_start = self.venc.media_start();
         self.vt = mux.add_track(vcfg).map_err(|e| ExportError::Io(e.to_string()))?;

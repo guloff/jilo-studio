@@ -109,6 +109,11 @@ let bytes = w.finish_faststart()?.into_inner(); // or finish() for moov-at-end
 - Edit lists: set `TrackConfig::edits` explicitly, or use `media_start` to get a single edit.
 - Timecode: `add_timecode_track(video, TimecodeConfig, start_frame)` adds a `tmcd` track (with `gmhd`)
   and a `tref/tmcd` link from the video track.
+- Chapters: `set_chapters(Vec<Chapter>)` adds a QuickTime chapter track at `finish` (Apple's QuickTime
+  File Format: a disabled `text` track with `gmhd`/`text` media information, one text sample per chapter
+  — a 16-bit length and UTF-8 text, plus an `encd` atom (0x08000100) when it is not ASCII) and a
+  `tref/chap` link from every video and audio track. ffprobe and AVFoundation read it; the export puts the
+  sequence's chapter markers there.
 - `WriterOptions::metadata` writes `©xxx` text atoms to `udta`.
 - `FragmentedWriter<W: Write>` writes fMP4. The init segment is `ftyp` + `moov` with `mvex/trex`. Each
   `flush_fragment()` then writes `moof` (`mfhd`, `traf` with default-base-is-moof `tfhd`, `tfdt` v1,
