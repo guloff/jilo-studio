@@ -286,9 +286,15 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
         monitor_view::pan_input(app, ui, which, video_area, pic);
     }
     if which == Which::Program && show_picture {
-        eyedropper(app, ui, &pic_resp, pic, target, rate, time);
-        crate::panels::graphics::monitor_overlay(app, ui, pic, frame_size);
-        crate::panels::masks::monitor_overlay(app, ui, pic, frame_size);
+        // An armed eyedropper owns clicks in the picture: the graphics and mask overlays cover it
+        // with their own responses (on top, so the picture would never see the click) and would
+        // take the click as a selection.
+        if app.ui.eyedropper.is_some() {
+            eyedropper(app, ui, &pic_resp, pic, target, rate, time);
+        } else {
+            crate::panels::graphics::monitor_overlay(app, ui, pic, frame_size);
+            crate::panels::masks::monitor_overlay(app, ui, pic, frame_size);
+        }
     }
     if show_picture {
         monitor_view::guides(app, ui, which, video_area, pic, frame_size);
