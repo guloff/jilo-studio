@@ -380,6 +380,18 @@ pub struct Eyedropper {
     pub mask: Option<usize>,
 }
 
+/// Text panel ▸ Transcribe while it works: the background recognition (`transcript.recognize`), its
+/// parameters (`transcript.generate` applies the result with the same ones), a cloud recognition
+/// waiting for the user's consent, and the last message.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TranscribeUi {
+    pub job: Option<u64>,
+    pub params: serde_json::Value,
+    pub confirm: Option<serde_json::Value>,
+    pub message: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UiState {
     #[serde(default)]
@@ -442,6 +454,9 @@ pub struct UiState {
     /// Text panel ▸ Transcript: search text.
     #[serde(default)]
     pub transcript_search: String,
+    /// Text panel ▸ Transcribe: the running recognition and a pending cloud consent.
+    #[serde(default)]
+    pub transcribe: TranscribeUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -926,6 +941,7 @@ impl Default for UiState {
             caption_search: String::new(),
             transcript_sel: None,
             transcript_search: String::new(),
+            transcribe: TranscribeUi::default(),
             play_after_render: true,
             mixer_fx_open: false,
             mixer_hidden: Vec::new(),

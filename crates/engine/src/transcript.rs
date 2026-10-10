@@ -16,10 +16,10 @@ use serde_json::{Value, json};
 use filmcraft_edit as edit;
 use filmcraft_edit::transcript::{self as tx, CaptionRules, SeqWord};
 use filmcraft_project::{CaptionFormat, CaptionTrack, ItemId, ItemKind, TrackId, Transcript};
-use filmcraft_speech::{Options, SpeechError, Transcriber};
+use filmcraft_speech::{SpeechError, Transcriber};
 use filmcraft_time::{TICKS_PER_SECOND, Tick, TimeRange};
 
-use crate::commands::{CommandSpec, always, bad, bool_p, f64_p, has_seq, str_p, u64_p};
+use crate::commands::{CommandSpec, always, bad, f64_p, has_seq, str_p, u64_p};
 use crate::{EngineError, Result, Session};
 
 type Run = fn(&mut Session, &Value) -> Result<Value>;
@@ -63,7 +63,9 @@ pub(crate) const NO_SPEECH: &str =
 /// `transcript.generate` can run: a host installed a transcriber or the build has speech-to-text
 /// (#97: it reported enabled and then always failed).
 pub(crate) fn can_transcribe(s: &Session) -> std::result::Result<(), String> {
-    if s.transcriber.is_some() || speech_available() { Ok(()) } else { Err(NO_SPEECH.into()) }
+    // a cloud engine (Settings ▸ AI) needs only the network
+    let cloud = crate::ai::network_available() || s.ai_transport.is_some();
+    if s.transcriber.is_some() || speech_available() || cloud { Ok(()) } else { Err(NO_SPEECH.into()) }
 }
 
 /// `transcript.downloadModel` can run: built with `speech-download` (#98).
@@ -86,7 +88,7 @@ fn ids_p(p: &Value, k: &str) -> Option<Vec<ItemId>> {
 
 /// Items to transcribe: `items` / `item`, else the Project panel selection, else the media of the
 /// active sequence's enabled audio clips. Subclips resolve to their media; duplicates are removed.
-fn targets(s: &Session, p: &Value) -> Vec<ItemId> {
+pub(crate) fn targets(s: &Session, p: &Value) -> Vec<ItemId> {
     let mut raw = ids_p(p, "items").or_else(|| u64_p(p, "item").map(|i| vec![ItemId(i)])).unwrap_or_default();
     if raw.is_empty() {
         raw = s.state.project_selection.clone();
@@ -127,8 +129,8 @@ fn speech_err(e: SpeechError) -> EngineError {
     EngineError::Other(e.to_string())
 }
 
-/// The transcriber to use: the installed one, else the named catalogue model.
-fn transcriber(s: &Session, p: &Value) -> Result<Arc<dyn Transcriber>> {
+/// The local transcriber: the installed one, else the named Whisper model of the catalogue.
+pub(crate) fn local_transcriber(s: &Session, p: &Value) -> Result<Arc<dyn Transcriber>> {
     if let Some(t) = &s.transcriber {
         return Ok(t.clone());
     }
@@ -145,47 +147,71 @@ fn transcriber(s: &Session, p: &Value) -> Result<Arc<dyn Transcriber>> {
 }
 
 fn generate(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "transcript.generate";
     let items = targets(s, p);
     if items.is_empty() {
-        return Err(bad("transcript.generate", "nothing to transcribe (pass `items`, select clips, or open a sequence with audio)"));
+        return Err(bad(cmd, "nothing to transcribe (pass `items`, select clips, or open a sequence with audio)"));
     }
-    let t = transcriber(s, p)?;
-    // Settings ▸ Media Analysis & Transcription: language (or auto-detect) and speaker labelling
-    let ma = &s.prefs.media_analysis;
-    let default_language = if ma.language_auto_detect { None } else { Some(ma.default_language.clone()) };
-    let opts = Options {
-        language: match str_p(p, "language") {
-            Some(l) => Some(l).filter(|l| !l.is_empty() && *l != "auto").map(str::to_string),
-            None => default_language,
-        },
-        diarize: bool_p(p, "diarize").unwrap_or(ma.speaker_labeling != "off"),
-        max_speakers: u64_p(p, "maxSpeakers").map(|n| n.clamp(1, 32) as usize).unwrap_or(Options::default().max_speakers),
-    };
-    let mut done: Vec<(ItemId, Transcript)> = Vec::new();
+    let engine = crate::recognition::engine_choice(s, p, cmd)?;
+    let opts = crate::recognition::opts_from(s, p);
+    let key = crate::recognition::plan_key(&engine, &opts);
+    // transcripts recognised in the background (`transcript.recognize`) with these settings
+    let mut cached: Vec<crate::recognition::Recognition> = items.iter().filter_map(|&i| crate::recognition::take_cached(s, i, &key)).collect();
+    let missing: Vec<ItemId> = items.iter().copied().filter(|i| !cached.iter().any(|r| r.item == *i)).collect();
     let mut skipped = Vec::new();
-    for item in items {
-        let Some(audio) = item_audio(s, item) else {
-            skipped.push(item.0);
-            continue;
+    if !missing.is_empty() {
+        let plan = match crate::recognition::plan(s, p, cmd, &missing) {
+            Ok(plan) => plan,
+            Err(e) => {
+                // nothing was applied: the background results stay for the next try
+                s.recognition_cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner).extend(cached);
+                return Err(e);
+            }
         };
-        let mut tr = t.transcribe(&audio, &opts, &mut |_, _| true).map_err(speech_err)?;
-        tr.normalize();
-        done.push((item, tr));
+        for item in missing {
+            let Some(audio) = item_audio(s, item) else {
+                skipped.push(item.0);
+                continue;
+            };
+            let mut tr = plan.transcriber.transcribe(&audio, &plan.opts, &mut |_, _| true).map_err(speech_err)?;
+            tr.normalize();
+            let (report, model_switched) = match &plan.cloud {
+                Some(c) => (c.last_report(), c.switched_model()),
+                None => (None, None),
+            };
+            cached.push(crate::recognition::Recognition { item, key: key.clone(), transcript: tr, report, model_switched });
+        }
     }
-    if done.is_empty() {
+    if cached.is_empty() {
         return Err(EngineError::Other("none of the clips has audio to transcribe".into()));
     }
-    let report: Vec<Value> = done
+    // a retired cloud model was replaced: Settings ▸ AI remembers the replacement
+    if let (crate::recognition::EngineChoice::Cloud { provider, .. }, Some(m)) = (&engine, cached.iter().find_map(|r| r.model_switched.clone())) {
+        let k = match provider {
+            filmcraft_ai::Provider::Gemini => "ai.geminiSpeechModel",
+            filmcraft_ai::Provider::OpenAi => "ai.openaiSpeechModel",
+        };
+        s.execute("prefs.set", json!({"key": k, "value": m}))?;
+    }
+    let report: Vec<Value> = cached
         .iter()
-        .map(|(i, t)| json!({"item": i.0, "words": t.words.len(), "speakers": t.speakers.len(), "language": t.language, "source": t.source}))
+        .map(|r| {
+            let t = &r.transcript;
+            let mut v = json!({"item": r.item.0, "words": t.words.len(), "speakers": t.speakers.len(), "language": t.language, "source": t.source});
+            if let Some(rep) = &r.report {
+                v["recognition"] = crate::recognition::report_json(rep);
+            }
+            v
+        })
         .collect();
+    let done: Vec<(ItemId, Transcript)> = cached.into_iter().map(|r| (r.item, r.transcript)).collect();
     s.edit("Transcribe", move |pr, _| {
         for (i, t) in done {
             pr.transcripts.insert(i, Arc::new(t));
         }
         Ok(())
     })?;
-    Ok(json!({"items": report, "skipped": skipped}))
+    Ok(json!({"items": report, "skipped": skipped, "engine": engine.describe()}))
 }
 
 fn set(s: &mut Session, p: &Value) -> Result<Value> {
@@ -439,10 +465,19 @@ pub fn commands() -> Vec<CommandSpec> {
             "transcript.generate",
             "Transcribe…",
             &["Sequence", "Transcript"],
-            r#"{"items":[id]?,"model":"whisper-base"?,"language":"en|auto"?,"diarize":bool?,"maxSpeakers":n?}"#,
+            r#"{"items":[id]?,"engine":"whisper|gemini|openai"?,"model":str?,"language":"ru|tg|en|auto"?,"diarize":bool?,"maxSpeakers":n?,"confirm":bool?}"#,
             can_transcribe,
             generate,
             true,
+        ),
+        spec(
+            "transcript.recognize",
+            "Recognize Speech",
+            &[],
+            r#"{"items":[id]?,"engine":"whisper|gemini|openai"?,"model":str?,"language":"ru|tg|en|auto"?,"diarize":bool?,"maxSpeakers":n?,"confirm":bool?,"wait":bool?}"#,
+            can_transcribe,
+            crate::recognition::recognize,
+            false,
         ),
         spec(
             "transcript.set",

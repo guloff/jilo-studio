@@ -3572,3 +3572,12 @@ mode	Edit	Монтаж
 	A non-linear video editor for the Mac, written in Rust.	Нелинейный видеоредактор для Mac, написанный на Rust.
 	Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.	Основано на {upstream} от команды ArtCraft. Не создано и не одобрено командой ArtCraft.
 	The name and icon of this app belong to Rustam Gulov.	Название и значок этого приложения принадлежат Рустаму Гулову.
+# Text panel ▸ Transcribe: engines, cloud consent
+	Send audio to {provider}?	Отправить звук в {provider}?
+	Send	Отправить
+	Sends about {n} min of audio to {provider}	Отправит около {n} мин звука в {provider}
+	Tajik	Таджикский
+	Auto-detect	Определить автоматически
+	Transcribed: {n} words	Расшифровано слов: {n}
+	Whisper on this computer sends nothing. You are asked once per provider; Settings ▸ AI changes the engine.	Whisper на этом компьютере ничего не отправляет. Разрешение спрашивается один раз для каждого провайдера; движок меняется в Настройках ▸ ИИ.
+	{app} will send about {n} min of the clips' audio to {provider} to recognise the speech, with your API key. {provider} handles it under its own terms.	{app} отправит около {n} мин звука клипов в {provider} для распознавания речи, с вашим ключом API. {provider} обрабатывает его по своим правилам.

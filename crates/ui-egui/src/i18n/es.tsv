@@ -3580,3 +3580,12 @@
 	A non-linear video editor for the Mac, written in Rust.	Un editor de vídeo no lineal para Mac, escrito en Rust.
 	Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.	Basado en {upstream}, del equipo de ArtCraft. No está hecho ni respaldado por el equipo de ArtCraft.
 	The name and icon of this app belong to Rustam Gulov.	El nombre y el icono de esta aplicación pertenecen a Rustam Gulov.
+# Text panel ▸ Transcribe: engines, cloud consent
+	Send audio to {provider}?	¿Enviar el audio a {provider}?
+	Send	Enviar
+	Sends about {n} min of audio to {provider}	Envía unos {n} min de audio a {provider}
+	Tajik	Tayiko
+	Auto-detect	Detectar automáticamente
+	Transcribed: {n} words	Transcrito: {n} palabras
+	Whisper on this computer sends nothing. You are asked once per provider; Settings ▸ AI changes the engine.	Whisper en este ordenador no envía nada. Se pregunta una vez por proveedor; el motor se cambia en Ajustes ▸ IA.
+	{app} will send about {n} min of the clips' audio to {provider} to recognise the speech, with your API key. {provider} handles it under its own terms.	{app} enviará unos {n} min del audio de los clips a {provider} para reconocer el habla, con tu clave de API. {provider} lo trata según sus propias condiciones.

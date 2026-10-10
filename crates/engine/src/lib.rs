@@ -42,6 +42,7 @@ pub mod project_manager;
 pub mod project_panel;
 pub mod project_tools;
 pub mod proxies;
+pub mod recognition;
 pub mod relink;
 pub mod remix;
 pub mod scene_detect;
@@ -432,6 +433,9 @@ pub struct Session {
     pub ai_sleep: Option<filmcraft_ai::SleepFn>,
     /// Model lists found by the last key check of each provider (`ai.test`).
     pub ai_models: ai::ModelCache,
+    /// Transcripts recognised in the background (`transcript.recognize`), waiting for
+    /// `transcript.generate`.
+    pub recognition_cache: recognition::RecognitionCache,
     /// The Events panel log: failed commands, job results, auto-save errors, messages.
     pub log: panels::EventLog,
     /// Media Browser navigation (directory, back / forward history, selected files).
@@ -528,6 +532,7 @@ impl Session {
             ai_keys_file: None,
             ai_sleep: None,
             ai_models: Default::default(),
+            recognition_cache: Default::default(),
             log: Default::default(),
             browser: Default::default(),
             exec_depth: 0,
@@ -1164,6 +1169,8 @@ mod project_manager_tests;
 mod project_panel_tests;
 #[cfg(test)]
 mod proxies_tests;
+#[cfg(test)]
+mod recognition_tests;
 #[cfg(test)]
 mod relink_tests;
 #[cfg(test)]

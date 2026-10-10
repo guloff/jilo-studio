@@ -69,6 +69,27 @@ revision of OpenAI's Hugging Face repositories and checked against its SHA-256:
 | `whisper-tiny` | multilingual | MIT (OpenAI); HF conversion Apache-2.0 |
 | `whisper-base` (default) | multilingual | MIT (OpenAI); HF conversion Apache-2.0 |
 | `whisper-small` | multilingual | MIT (OpenAI); HF conversion Apache-2.0 |
+| `whisper-large-v3-turbo` | multilingual, 128 mel bands, the best for Russian and Tajik (1.6 GB) | MIT (OpenAI) |
+
+Measured on 2026-10-10 (Apple M4 Pro, Metal): `whisper-large-v3-turbo` recognised English and
+Russian test sentences (macOS speech synthesis) with 0 % WER and word times, about 4× faster than
+real time.
+
+### Cloud engines
+
+Settings ▸ AI (or `engine` on `transcript.generate` / `transcript.recognize`) can choose Google
+Gemini or OpenAI instead of Whisper (`filmcraft_engine::recognition`). Nothing is sent before the
+user agreed for that provider (the Text panel asks once; agents pass `confirm: true`); the panel says
+how much audio would go out. The recording goes window by window as 16-bit mono 16 kHz WAV
+(Gemini: 2 minutes, OpenAI `whisper-1`: 10 minutes) with 3 s of overlap, 3 windows at a time; every
+answer is checked against the sound (cut off, speech left without words, cues that do not align)
+and recognised again in halves when incomplete (`filmcraft_speech::chunked`). The model's cue text
+is the truth: its words take times from the model's word times (`filmcraft_speech::cues`), cues are
+kept to 84 characters / 7 s, and the result becomes an ordinary transcript (`source`
+`gemini:<model>` or `openai:<model>`), with word bounds tightened by level and speakers from the
+model's labels or FilmCraft's own labelling. `transcript.recognize` runs it as a background job
+(progress, Stop) and keeps the transcript until `transcript.generate` with the same settings adds it
+as one undo step; the report gives the windows, retries, uncovered seconds and seconds sent.
 
 ### Testing
 

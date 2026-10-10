@@ -769,11 +769,17 @@ const LANGUAGES: &[(&str, &str)] = &[
     ("ko", "Korean"),
     ("zh", "Chinese"),
     ("ru", "Russian"),
+    ("tg", "Tajik"),
     ("hi", "Hindi"),
 ];
-const MODELS: &[(&str, &str)] =
-    &[("whisper-tiny", "Whisper tiny (fastest)"), ("whisper-base", "Whisper base (balanced)"), ("whisper-small", "Whisper small (most accurate)")];
-const SPEECH_ENGINES: &[(&str, &str)] = &[("whisper", "Whisper on this computer (offline)"), ("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)")];
+const MODELS: &[(&str, &str)] = &[
+    ("whisper-tiny", "Whisper tiny (fastest)"),
+    ("whisper-base", "Whisper base (balanced)"),
+    ("whisper-small", "Whisper small (accurate)"),
+    ("whisper-large-v3-turbo", "Whisper large-v3 turbo (most accurate; Russian, Tajik)"),
+];
+pub const SPEECH_ENGINES: &[(&str, &str)] =
+    &[("whisper", "Whisper on this computer (offline)"), ("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)")];
 const TEXT_ENGINES: &[(&str, &str)] = &[("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)")];
 const CACHE_MGMT: &[(&str, &str)] = &[
     ("never", "Do not delete cache files automatically"),
@@ -1067,9 +1073,9 @@ static CATEGORIES: &[Category] = &[
             Row::Group(
                 "Speech Recognition",
                 &[
-                    f("ai.speechEngine", "Engine", Kind::Choice(SPEECH_ENGINES), false),
-                    f("ai.geminiSpeechModel", "Gemini model", Kind::Text, false),
-                    f("ai.openaiSpeechModel", "OpenAI model", Kind::Text, false),
+                    f("ai.speechEngine", "Engine", Kind::Choice(SPEECH_ENGINES), true),
+                    f("ai.geminiSpeechModel", "Gemini model", Kind::Text, true),
+                    f("ai.openaiSpeechModel", "OpenAI model", Kind::Text, true),
                 ],
             ),
             Row::Group(

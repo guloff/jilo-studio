@@ -286,24 +286,7 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let mut actions: Vec<(String, Value)> = Vec::new();
     let words = filmcraft_engine::transcript::sequence_words(&app.session);
     if words.is_empty() {
-        let c = rect.center();
-        icons::paint(ui.painter(), Rect::from_center_size(c - vec2(0.0, 70.0), vec2(40.0, 40.0)), Icon::Captions, t.text_dim);
-        ui.painter().text(c - vec2(0.0, 30.0), Align2::CENTER_CENTER, tl!("Transcribe sequence"), Tokens::semibold(16.0), t.text);
-        let note = if filmcraft_speech_available(app) {
-            tl!("Speech-to-text turns the dialogue into editable text.")
-        } else {
-            tl!("This build has no speech-to-text; import a transcript with transcript.set.")
-        };
-        ui.painter().text(c - vec2(0.0, 8.0), Align2::CENTER_CENTER, note, Tokens::ui(12.0), t.text_dim);
-        let r = Rect::from_center_size(c + vec2(0.0, 26.0), vec2(200.0, 26.0));
-        let resp = ui.interact(r, egui::Id::new("text.transcript.generate"), Sense::click());
-        ui.painter().rect_filled(r, 13.0, if resp.hovered() { t.accent_hover } else { t.accent });
-        ui.painter().text(r.center(), Align2::CENTER_CENTER, tl!("Transcribe"), Tokens::semibold(12.0), Color32::WHITE);
-        app.auto.add("text.transcript.generate", r, "Transcribe");
-        if resp.clicked() {
-            actions.push(("transcript.generate".into(), json!({})));
-        }
-        run(app, ui, actions);
+        transcribe_empty(app, ui, rect);
         return;
     }
     let sel = app.ui.transcript_sel.filter(|(a, b)| *a < words.len() && *b < words.len());
@@ -383,6 +366,198 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         }
     });
     run(app, ui, actions);
+}
+
+/// Languages offered for recognition (Settings ▸ Media Analysis has the full list).
+const TRANSCRIBE_LANGUAGES: [(&str, &str); 4] = [("auto", "Auto-detect"), ("ru", "Russian"), ("tg", "Tajik"), ("en", "English")];
+
+/// The Transcript tab before there is a transcript: the engine and language, what a cloud engine
+/// would receive, Transcribe; then the background recognition with its progress and Stop, and the
+/// one-time consent before audio first goes to a cloud provider.
+fn transcribe_empty(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+    let t = app.tokens;
+    let c = rect.center();
+    icons::paint(ui.painter(), Rect::from_center_size(c - vec2(0.0, 92.0), vec2(40.0, 40.0)), Icon::Captions, t.text_dim);
+    ui.painter().text(c - vec2(0.0, 52.0), Align2::CENTER_CENTER, tl!("Transcribe sequence"), Tokens::semibold(16.0), t.text);
+    // a running recognition: its progress and Stop; when it finishes, apply it
+    if let Some(id) = app.ui.transcribe.job {
+        let Some(job) = app.session.jobs.iter().find(|j| j.id == id).cloned() else {
+            app.ui.transcribe.job = None;
+            return;
+        };
+        let v = job.to_json();
+        if v["finished"] == true {
+            app.ui.transcribe.job = None;
+            match v["result"]["error"].as_str() {
+                Some(e) => app.ui.transcribe.message = e.to_string(),
+                None => {
+                    let params = app.ui.transcribe.params.clone();
+                    app.ui.transcribe.message = match crate::menus::invoke(app, &ui.ctx().clone(), "transcript.generate", params) {
+                        Ok(r) => tlf!(
+                            "Transcribed: {n} words",
+                            n = r["items"].as_array().map(|a| a.iter().filter_map(|i| i["words"].as_u64()).sum::<u64>()).unwrap_or(0)
+                        ),
+                        Err(e) => e,
+                    };
+                }
+            }
+            return;
+        }
+        let bar = Rect::from_center_size(c - vec2(0.0, 18.0), vec2(260.0, 6.0));
+        ui.painter().rect_filled(bar, 3.0, t.field_bg);
+        let f = v["progress"].as_f64().unwrap_or(0.0).clamp(0.0, 1.0) as f32;
+        ui.painter().rect_filled(Rect::from_min_size(bar.min, vec2(bar.width() * f, bar.height())), 3.0, t.accent);
+        let status = v["status"].as_str().unwrap_or_default().to_string();
+        ui.painter().text(c + vec2(0.0, 2.0), Align2::CENTER_CENTER, crate::i18n::t(&status), Tokens::ui(12.0), t.text_dim);
+        let r = Rect::from_center_size(c + vec2(0.0, 32.0), vec2(120.0, 26.0));
+        let resp = ui.interact(r, egui::Id::new("text.transcript.stop"), Sense::click());
+        ui.painter().rect_stroke(r, 13.0, egui::Stroke::new(1.0, t.separator), egui::StrokeKind::Inside);
+        ui.painter().text(r.center(), Align2::CENTER_CENTER, tl!("Stop"), Tokens::semibold(12.0), t.text);
+        app.auto.add("text.transcript.stop", r, "Stop");
+        if resp.clicked() {
+            job.progress.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(150));
+        return;
+    }
+    let note = if filmcraft_speech_available(app) || app.session.prefs.ai.speech_provider().is_some() {
+        tl!("Speech-to-text turns the dialogue into editable text.")
+    } else {
+        tl!("This build has no speech-to-text; import a transcript with transcript.set.")
+    };
+    ui.painter().text(c - vec2(0.0, 30.0), Align2::CENTER_CENTER, note, Tokens::ui(12.0), t.text_dim);
+    // engine and language (stored in Settings ▸ AI and ▸ Media Analysis & Transcription)
+    let engine = app.session.prefs.ai.speech_engine.clone();
+    let ma = &app.session.prefs.media_analysis;
+    let language = if ma.language_auto_detect { "auto".to_string() } else { ma.default_language.clone() };
+    let mut set: Option<Value> = None;
+    let row = Rect::from_center_size(c - vec2(0.0, 2.0), vec2(330.0, 24.0));
+    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(row).layout(egui::Layout::left_to_right(egui::Align::Center)));
+    let shown = filmcraft_engine::settings::SPEECH_ENGINES.iter().find(|e| e.0 == engine).map_or(engine.as_str(), |e| e.1);
+    let mut items: Vec<(String, Rect, &str)> = Vec::new();
+    let er = egui::ComboBox::from_id_salt("text.transcript.engine").width(190.0).selected_text(crate::i18n::t(shown)).show_ui(&mut child, |ui| {
+        for (v, l) in filmcraft_engine::settings::SPEECH_ENGINES {
+            let r = ui.selectable_label(*v == engine, crate::i18n::t(l));
+            items.push((format!("text.transcript.engine.{v}"), r.rect, l));
+            if r.clicked() {
+                set = Some(json!({"key": "ai.speechEngine", "value": v}));
+            }
+        }
+    });
+    app.auto.add("text.transcript.engine", er.response.rect, "Engine");
+    let lshown = TRANSCRIBE_LANGUAGES.iter().find(|l| l.0 == language).map_or(language.as_str(), |l| l.1);
+    let lr = egui::ComboBox::from_id_salt("text.transcript.language").width(120.0).selected_text(crate::i18n::t(lshown)).show_ui(&mut child, |ui| {
+        for (v, l) in TRANSCRIBE_LANGUAGES {
+            let r = ui.selectable_label(v == language, crate::i18n::t(l));
+            items.push((format!("text.transcript.language.{v}"), r.rect, l));
+            if r.clicked() {
+                set = Some(if v == "auto" {
+                    json!({"values": {"mediaAnalysis.languageAutoDetect": true}})
+                } else {
+                    json!({"values": {"mediaAnalysis.languageAutoDetect": false, "mediaAnalysis.defaultLanguage": v}})
+                });
+            }
+        }
+    });
+    app.auto.add("text.transcript.language", lr.response.rect, "Language");
+    for (id, r, l) in items {
+        app.auto.add(&id, r, l);
+    }
+    if let Some(p) = set
+        && let Err(e) = app.session.execute("prefs.set", p)
+    {
+        app.ui.status = e.to_string();
+    }
+    // what a cloud engine would receive
+    let provider = app.session.prefs.ai.speech_provider();
+    let seconds = filmcraft_engine::recognition::target_seconds(&app.session, &json!({}));
+    if let Some(pv) = provider {
+        let mins = (seconds / 60.0).ceil().max(1.0) as u64;
+        ui.painter().text(
+            c + vec2(0.0, 22.0),
+            Align2::CENTER_CENTER,
+            tlf!("Sends about {n} min of audio to {provider}", n = mins, provider = pv.name()),
+            Tokens::ui(11.5),
+            t.text_dim,
+        );
+    }
+    let r = Rect::from_center_size(c + vec2(0.0, 48.0), vec2(200.0, 26.0));
+    let resp = ui.interact(r, egui::Id::new("text.transcript.generate"), Sense::click());
+    ui.painter().rect_filled(r, 13.0, if resp.hovered() { t.accent_hover } else { t.accent });
+    ui.painter().text(r.center(), Align2::CENTER_CENTER, tl!("Transcribe"), Tokens::semibold(12.0), Color32::WHITE);
+    app.auto.add("text.transcript.generate", r, "Transcribe");
+    if !app.ui.transcribe.message.is_empty() {
+        let g = ui.painter().layout(app.ui.transcribe.message.clone(), Tokens::ui(11.5), t.text_dim, rect.width() - 40.0);
+        ui.painter().galley(pos2(c.x - g.size().x / 2.0, c.y + 70.0), g, t.text_dim);
+    }
+    if resp.clicked() {
+        let params = json!({"engine": engine});
+        match provider {
+            Some(pv) if !app.session.prefs.ai.confirmed(pv) => app.ui.transcribe.confirm = Some(params),
+            _ => start_recognition(app, params),
+        }
+    }
+    consent_dialog(app, ui.ctx(), seconds);
+}
+
+/// Start `transcript.recognize` with `params` in the background.
+fn start_recognition(app: &mut FilmcraftApp, params: Value) {
+    let mut p = params.clone();
+    p["wait"] = json!(false);
+    app.ui.transcribe.message.clear();
+    match app.session.execute("transcript.recognize", p) {
+        Ok(r) => {
+            app.ui.transcribe.job = r["job"].as_u64();
+            // `transcript.generate` applies the result with the same settings (consent included)
+            app.ui.transcribe.params = params;
+        }
+        Err(e) => app.ui.transcribe.message = e.to_string(),
+    }
+}
+
+/// Before audio first goes to a cloud provider: what is sent, to whom, and the choice.
+fn consent_dialog(app: &mut FilmcraftApp, ctx: &egui::Context, seconds: f64) {
+    let Some(params) = app.ui.transcribe.confirm.clone() else { return };
+    let Some(provider) = params["engine"].as_str().and_then(filmcraft_ai::Provider::from_id) else {
+        app.ui.transcribe.confirm = None;
+        return;
+    };
+    let t = app.tokens;
+    let (mut send, mut cancel) = (false, false);
+    let w = 440.0;
+    egui::Modal::new(egui::Id::new("transcribe-consent")).frame(crate::dialog_style::frame(&t)).show(ctx, |ui| {
+        ui.set_width(w);
+        let bar = crate::dialog_style::header(ui, &tlf!("Send audio to {provider}?", provider = provider.name()), w);
+        app.auto.add("transcribe.consent", bar, "Send audio");
+        egui::Frame::new().inner_margin(egui::Margin::symmetric(18, 14)).show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 8.0;
+            let mins = (seconds / 60.0).ceil().max(1.0) as u64;
+            ui.label(tlf!(
+                "{app} will send about {n} min of the clips' audio to {provider} to recognise the speech, with your API key. {provider} handles it under its own terms.",
+                app = crate::brand::APP_NAME,
+                n = mins,
+                provider = provider.name()
+            ));
+            ui.label(egui::RichText::new(tl!("Whisper on this computer sends nothing. You are asked once per provider; Settings ▸ AI changes the engine.")).color(t.text_dim));
+            ui.add_space(4.0);
+            crate::dialog_style::actions(ui, |ui| {
+                let s = ui.add(crate::dialog_style::primary(tl!("Send")));
+                app.auto.add("transcribe.consent.send", s.rect, "Send");
+                let c = ui.add(crate::dialog_style::secondary(tl!("Cancel")));
+                app.auto.add("transcribe.consent.cancel", c.rect, "Cancel");
+                send = s.clicked();
+                cancel = c.clicked();
+            });
+        });
+    });
+    if send {
+        app.ui.transcribe.confirm = None;
+        let mut p = params;
+        p["confirm"] = json!(true);
+        start_recognition(app, p);
+    } else if cancel || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        app.ui.transcribe.confirm = None;
+    }
 }
 
 fn filmcraft_speech_available(app: &FilmcraftApp) -> bool {
