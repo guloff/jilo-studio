@@ -148,8 +148,10 @@ fn partner_clip<'a, 'i>(c: Node<'a, 'i>, track: Node<'a, 'i>) -> Option<Node<'a,
 
 /// Which source channels an imported audio clip plays (`TrackItem::source_channels`; empty = the
 /// first two, a mono file on both sides). A folded stereo pair takes one channel per side from its
-/// two clip items; a clip on a Premiere mono track takes its one channel. Anything else (plain
-/// FCP7 tracks) keeps the default, as before.
+/// two clip items (#371); a clip on a Premiere mono track takes its one channel. On any other
+/// track `sourcetrack/trackindex` above 1 picks the channel of a mono track split off a
+/// multichannel file (#463); index 1 is also what a stereo clip on a stereo track carries, so it
+/// keeps the default.
 fn source_channels(c: Node, tn: Node, partners: &[Node], mates: &[Node]) -> Vec<u16> {
     if !partners.is_empty() {
         let mut chans = vec![source_channel(c)];
@@ -164,7 +166,7 @@ fn source_channels(c: Node, tn: Node, partners: &[Node], mates: &[Node]) -> Vec<
     if tn.attribute("premiereTrackType").is_some_and(|t| t.eq_ignore_ascii_case("mono")) {
         return source_channel(c).map(|ch| vec![ch]).unwrap_or_default();
     }
-    Vec::new()
+    source_channel(c).filter(|ch| *ch > 0).map(|ch| vec![ch]).unwrap_or_default()
 }
 
 fn node_key(n: Node) -> String {
@@ -1042,7 +1044,7 @@ impl Exp<'_, '_> {
         if kind == TrackKind::Audio {
             self.w.open("sourcetrack", &[]);
             self.w.text("mediatype", "audio");
-            self.w.text("trackindex", 1);
+            self.w.text("trackindex", c.source_channels.first().map_or(1, |ch| u32::from(*ch).saturating_add(1)));
             self.w.close();
         }
         if let Some(blend) = param(c, "opacity", "blend").and_then(|p| p.value.as_f64()).map(|v| v as u32).filter(|v| *v != 0) {
