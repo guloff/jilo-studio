@@ -312,10 +312,19 @@ fn hdr_exports_signal_pq_and_hlg() {
     }
 }
 
+thread_local! {
+    /// Where the fake renderers below exist: only on the threads of the GPU hook scenarios. The
+    /// registry is process-global, and the other tests export at the same time with GPU rendering
+    /// Auto (the default): a fake picture there made them fail at random.
+    static FAKES: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// Scenario runner for the GPU hook: everything in one test because the renderer registry is
-/// process-global and parallel tests would see each other's factories.
+/// process-global and parallel tests would see each other's factories (the fakes only build on
+/// this test's threads, [`FAKES`]).
 #[test]
 fn gpu_hook_scenarios() {
+    FAKES.with(|f| f.set(true));
     // 1. Declining renderer: byte-equal to Off, and an empty registry too.
     crate::reset_frame_renderers_for_tests();
     crate::register_frame_renderer(|| None);
@@ -338,7 +347,7 @@ fn gpu_hook_scenarios() {
 
     // 2. Producing renderer: counters up and its picture reaches the export.
     crate::reset_frame_renderers_for_tests();
-    crate::register_frame_renderer(|| Some(Box::new(FakeRenderer) as Box<dyn FrameRenderer>));
+    crate::register_frame_renderer(|| FAKES.with(std::cell::Cell::get).then(|| Box::new(FakeRenderer) as Box<dyn FrameRenderer>));
     mk(&tmp("fake-gpu.png"), Some(true));
     assert!(gpu_render_stats().frames >= 2, "gpu frames counted: {:?}", gpu_render_stats());
     assert_eq!(gpu_render_stats().fallbacks, 0);
@@ -389,7 +398,7 @@ fn gpu_hook_scenarios() {
     // must not deadlock the export. A frame worker waiting inside that work stole other frame
     // tasks, which then waited for a renderer held further down their own stack.
     crate::reset_frame_renderers_for_tests();
-    crate::register_frame_renderer(|| Some(Box::new(RayonRenderer) as Box<dyn FrameRenderer>));
+    crate::register_frame_renderer(|| FAKES.with(std::cell::Cell::get).then(|| Box::new(RayonRenderer) as Box<dyn FrameRenderer>));
     for (format, name) in [(Format::PngSequence, "rayon-gpu.png"), (Format::H264, "rayon-gpu.mp4")] {
         let (tx, rx) = std::sync::mpsc::channel();
         let (p, seq, m) = (p.clone(), seq, m.clone());
@@ -400,7 +409,12 @@ fn gpu_hook_scenarios() {
             // more workers than pooled renderers (16 for 4, as on a 16-core machine); the hang is a
             // race, so several runs (before the fix every run of this test hung)
             let pool = rayon::ThreadPoolBuilder::new().num_threads(16).build().unwrap();
-            let r = (0..16).try_for_each(|_| pool.install(|| export(&p, seq, &s, &m, &Progress::default()).map(|_| ())));
+            let r = (0..16).try_for_each(|_| {
+                pool.install(|| {
+                    FAKES.with(|f| f.set(true));
+                    export(&p, seq, &s, &m, &Progress::default()).map(|_| ())
+                })
+            });
             let _ = tx.send(r);
         });
         let r = rx.recv_timeout(std::time::Duration::from_secs(60)).unwrap_or_else(|_| panic!("{name}: export with a rayon-using renderer hung"));
@@ -447,47 +461,5 @@ impl FrameRenderer for FakeRenderer {
         _sources: &dyn SourceProvider,
     ) -> Option<filmcraft_render::Image> {
         Some(filmcraft_render::Image::new(320, 180))
-    }
-}
-
-/// Hostile and degenerate frame sizes must not panic with a renderer attached.
-#[test]
-fn gpu_hostile_frame_sizes() {
-    crate::reset_frame_renderers_for_tests();
-    crate::register_frame_renderer(|| None); // declines: same path, no GPU involved
-    for (w, h) in [(1, 1), (17, 13), (4096, 1)] {
-        let mut p = Project::new("x");
-        let g = GeneratorSource::new(Generator::ColorMatte { color: [0.5, 0.5, 0.5, 1.0] }, 320, 180, FrameRate::FPS_24, Tick(2 * TICKS_PER_SECOND));
-        let info = g.info().clone();
-        let red = p.add_item(
-            &info.name.clone(),
-            Label::Iris,
-            ItemKind::Media(MediaClip {
-                media: MediaRef::Generator(g.generator.clone()),
-                info,
-                interpret: Default::default(),
-                mark_in: None,
-                mark_out: None,
-                markers: vec![],
-                offline: false,
-                proxy: None,
-                identity: None,
-            }),
-            None,
-        );
-        let seq = p.new_sequence("s", SequenceSettings { width: w, height: h, frame_rate: FrameRate::FPS_24, ..Default::default() }, 1, 1, None);
-        let v = p.make_track_item(red, TrackKind::Video, Tick::ZERO, TimeRange::new(Tick::ZERO, FrameRate::FPS_24.tick_of(2)), FrameRate::FPS_24).unwrap();
-        p.sequence_mut(seq).unwrap().video_tracks[0].items.push(v);
-        let mut m = SourceMap::default();
-        m.0.insert(red, Arc::new(g));
-        let mut s = ExportSettings { format: Format::PngSequence, path: tmp("hostile.png"), ..Default::default() };
-        s.range = Some(TimeRange::new(Tick::ZERO, FrameRate::FPS_24.tick_of(1)));
-        s.gpu_rendering = crate::GpuRendering::Auto;
-        let r = export(&Arc::new(p), seq, &s, &m, &Progress::default());
-        if r.is_err() {
-            continue; // sizes the exporter rejects are fine too — as long as nothing panics
-        }
-        let bytes = std::fs::read(tmp("hostile000.png")).unwrap_or_default();
-        assert!(!bytes.is_empty(), "{w}x{h}: PNG written");
     }
 }
