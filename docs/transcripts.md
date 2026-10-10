@@ -183,6 +183,24 @@ step is noted and the item goes on, one item's failure never stops the others, a
 every item (`batch.status`). Each step is the same command as by hand, so every change is an undo
 step, and the editor keeps its sequence while the batch works.
 
+## Reframe to faces
+
+Clip ▸ Reframe to Face… (`clip.reframeToFace`) frames the selected video clips on a face, as Jilo
+Studio frames a talk for a vertical screen. The faces are found on this computer with Apple Vision
+(nothing is sent; other systems say face detection is not available) on frames two a second (one a
+second past ten minutes, 3000 at most), each frame searched in nine overlapping tiles so a small
+face on a wide shot is found too. The analysis is a job in the status bar and the Progress panel and
+is kept for the session, so framing the same clip again is instant. `target`: `speaker` (default) —
+the face that stays near itself over the first frames with faces, not someone passing by; `group` —
+everyone steady in frame, framed by the group's middle; `face` — the face nearest `x`, `y` (fractions
+of the picture) at the playhead (or `seconds`), followed both ways; the dialog shows the frame at the
+playhead with its faces boxed (`clip.facesAt`) and a click picks one. A face may move 6 % of the width
+between frames; farther, the frame holds. The track is smoothed over `smoothing` seconds (1.5, 0–6)
+with a dead zone, so a nod moves nothing. The clip gets Motion keyframes in one undo step: Scale to
+fill the sequence frame (× `zoom` 100–400 %), and Position keys, thinned to the turns of the move,
+that put the face at `anchorX`, `anchorY` of the frame (0.5, 0.4) without ever showing an edge. Scale
+keys a clip already has (Auto Zoom) keep their zooms relative to the new scale.
+
 ## Limits
 
 - Transcription runs synchronously inside the command (no background job or progress bar yet).

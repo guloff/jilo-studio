@@ -176,6 +176,7 @@ fn main() -> eframe::Result {
         options,
         Box::new(move |cc| {
             let mut session = Session::default();
+            session.face_detector = face_detector();
             if let Some(dir) = data_dir.clone().or_else(default_data_dir) {
                 let mut cfg = AutosaveConfig::new(dir);
                 cfg.local_offset = local_offset;
@@ -405,6 +406,21 @@ fn control_auth(port: u16, data_dir: Option<std::path::PathBuf>) -> Result<Optio
     ct::write(&path, &token)?;
     eprintln!("filmcraft: control token in {}", path.display());
     Ok(Some(token))
+}
+
+/// Reframe to Face finds faces with Apple Vision where the system has it.
+fn face_detector() -> Option<filmcraft_engine::reframe::FaceDetector> {
+    filmcraft_platform::vision::available().then(|| {
+        let d: filmcraft_engine::reframe::FaceDetector = std::sync::Arc::new(|rgba: &[u8], w: usize, h: usize| {
+            filmcraft_platform::vision::detect_faces(rgba, w, h).map(|faces| {
+                faces
+                    .into_iter()
+                    .map(|f| filmcraft_engine::reframe::FaceBox { x: f.x.into(), y: f.y.into(), w: f.w.into(), h: f.h.into(), confidence: f.confidence.into() })
+                    .collect()
+            })
+        });
+        d
+    })
 }
 
 fn register_hardware_decoders() -> filmcraft_platform::Availability {

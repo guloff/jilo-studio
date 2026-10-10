@@ -3754,3 +3754,23 @@
 	done	完成
 	cancelled	已取消
 	with errors	有错误
+# Clip ▸ Reframe to Face (11.10)
+	Reframe to Face…	按人脸重新构图…
+	Reframe to Face	按人脸重新构图
+	The selected clips are reframed: {n}	将重新构图所选剪辑：{n}
+	Follow	跟随
+	The face that stays in frame, not someone passing by.	一直在画面中的人脸，而非路过的人。
+	Everyone in frame	画面中的所有人
+	All the steady faces, framed by their middle.	所有稳定的人脸，以其中心构图。
+	Chosen face	所选人脸
+	Click the face to follow on the frame at the playhead.	在播放指示器处的帧上点击要跟随的人脸。
+	No faces on the frame at the playhead. Move the playhead to a frame with the face.	播放指示器处的帧上没有人脸。请将播放指示器移到有人脸的帧。
+	Face height in the frame	人脸在画面中的高度
+	Smoothing, seconds	平滑，秒
+	Faces are found on this computer with Apple Vision; nothing is sent. The framing is Position and Scale keyframes in Effect Controls.	人脸在本机由 Apple Vision 查找，不会发送任何内容。构图为“效果控件”中的位置和缩放关键帧。
+	Reframe	重新构图
+	Finding faces…	正在查找人脸…
+	Finding faces	正在查找人脸
+	Reframed {clips} clips: {keys} keyframes	已重新构图 {clips} 个剪辑：{keys} 个关键帧
+	No faces in {names}	{names} 中没有人脸
+	Faces at Playhead	播放指示器处的人脸

@@ -3719,3 +3719,23 @@ mode	Edit	Монтаж
 	done	готово
 	cancelled	отменено
 	with errors	с ошибками
+# Clip ▸ Reframe to Face (11.10)
+	Reframe to Face…	Кадрировать по лицу…
+	Reframe to Face	Кадрирование по лицу
+	The selected clips are reframed: {n}	Кадрируются выбранные клипы: {n}
+	Follow	Следить за
+	The face that stays in frame, not someone passing by.	Лицо, которое остаётся в кадре, а не тот, кто проходит мимо.
+	Everyone in frame	Все в кадре
+	All the steady faces, framed by their middle.	Все устойчивые лица, по центру группы.
+	Chosen face	Выбранное лицо
+	Click the face to follow on the frame at the playhead.	Щёлкните лицо, за которым следить, на кадре под курсором воспроизведения.
+	No faces on the frame at the playhead. Move the playhead to a frame with the face.	На кадре под курсором воспроизведения нет лиц. Переместите курсор на кадр с лицом.
+	Face height in the frame	Высота лица в кадре
+	Smoothing, seconds	Сглаживание, секунды
+	Faces are found on this computer with Apple Vision; nothing is sent. The framing is Position and Scale keyframes in Effect Controls.	Лица ищутся на этом компьютере с помощью Apple Vision, ничего не отправляется. Кадрирование — это ключи Position и Scale в Effect Controls.
+	Reframe	Кадрировать
+	Finding faces…	Поиск лиц…
+	Finding faces	Поиск лиц
+	Reframed {clips} clips: {keys} keyframes	Кадрировано клипов: {clips}, ключей: {keys}
+	No faces in {names}	Нет лиц в {names}
+	Faces at Playhead	Лица под курсором

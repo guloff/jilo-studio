@@ -1708,6 +1708,7 @@ impl FilmcraftApp {
         panels::ai_tasks::show(self, &ctx);
         panels::highlights::show(self, &ctx);
         panels::autozoom::show(self, &ctx);
+        panels::reframe::show(self, &ctx);
         panels::youtube::show(self, &ctx);
         panels::batch::show(self, &ctx);
         if !self.ui.show_status_bar {

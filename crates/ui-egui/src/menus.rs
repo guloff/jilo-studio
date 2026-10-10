@@ -437,6 +437,10 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         "clip.autoZoom" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::autozoom::open(app);
         }
+        // Reframe to Face… from the menu opens the dialog; with params it frames directly.
+        "clip.reframeToFace" if params.as_object().is_none_or(|m| m.is_empty()) => {
+            return crate::panels::reframe::open(app);
+        }
         // Find Highlights… from the menu opens the search dialog; with params it searches directly.
         "highlights.find" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::highlights::open(app);

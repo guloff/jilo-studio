@@ -3724,3 +3724,23 @@
 	done	hecho
 	cancelled	cancelado
 	with errors	con errores
+# Clip ▸ Reframe to Face (11.10)
+	Reframe to Face…	Encuadrar en la cara…
+	Reframe to Face	Encuadrar en la cara
+	The selected clips are reframed: {n}	Se encuadran los clips seleccionados: {n}
+	Follow	Seguir
+	The face that stays in frame, not someone passing by.	La cara que permanece en el plano, no alguien que pasa.
+	Everyone in frame	Todos en el plano
+	All the steady faces, framed by their middle.	Todas las caras estables, centradas en su conjunto.
+	Chosen face	Cara elegida
+	Click the face to follow on the frame at the playhead.	Haga clic en la cara que seguir en el fotograma del cabezal.
+	No faces on the frame at the playhead. Move the playhead to a frame with the face.	No hay caras en el fotograma del cabezal. Mueva el cabezal a un fotograma con la cara.
+	Face height in the frame	Altura de la cara en el plano
+	Smoothing, seconds	Suavizado, segundos
+	Faces are found on this computer with Apple Vision; nothing is sent. The framing is Position and Scale keyframes in Effect Controls.	Las caras se buscan en este ordenador con Apple Vision; no se envía nada. El encuadre son fotogramas clave de Posición y Escala en Controles de efectos.
+	Reframe	Encuadrar
+	Finding faces…	Buscando caras…
+	Finding faces	Buscando caras
+	Reframed {clips} clips: {keys} keyframes	Clips encuadrados: {clips}, fotogramas clave: {keys}
+	No faces in {names}	Sin caras en {names}
+	Faces at Playhead	Caras en el cabezal

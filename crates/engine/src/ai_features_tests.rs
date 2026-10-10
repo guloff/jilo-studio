@@ -636,3 +636,101 @@ fn a_batch_transcribes_what_has_no_transcript_and_can_be_stopped() {
     assert!(s.execute("batch.cancel", json!({})).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A 1920×1080 black video on V1 of a 1080×1920 sequence, and a fake face finder: on its `k`-th
+/// call (one per analysed frame) the speaker is at x = 0.3 + 0.02 k, and on the first a big face
+/// passes by at the right. Returns (session, clip, calls).
+fn vertical_talk() -> (Session, u64, Arc<std::sync::atomic::AtomicUsize>) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let mut s = Session::default();
+    s.execute("file.newSequence", json!({"name": "Vertical", "width": 1080, "height": 1920, "video": 1, "audio": 1})).unwrap();
+    let r = s.execute("file.newBlackVideo", json!({"width": 1920, "height": 1080, "seconds": 10.0})).unwrap();
+    let r = s.execute("timeline.place", json!({"item": r["item"], "track": "V1", "seconds": 0.0})).unwrap();
+    let clip = r["clips"][0].as_u64().unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let c = calls.clone();
+    s.face_detector = Some(Arc::new(move |rgba: &[u8], w: usize, h: usize| {
+        assert_eq!(rgba.len(), w * h * 4);
+        let k = c.fetch_add(1, Ordering::SeqCst);
+        let mut faces = vec![crate::reframe::FaceBox { x: 0.25 + 0.02 * k as f64, y: 0.35, w: 0.1, h: 0.1, confidence: 0.9 }];
+        if k == 0 {
+            faces.push(crate::reframe::FaceBox { x: 0.75, y: 0.3, w: 0.2, h: 0.4, confidence: 0.95 });
+        }
+        Ok(faces)
+    }));
+    (s, clip, calls)
+}
+
+/// The clip's Motion at sequence second `t`: (position, scale, position keys).
+fn motion_at(s: &Session, clip: u64, t: f64) -> (filmcraft_geom::Vec2, f64, usize) {
+    let (_, it) = s.active_sequence().unwrap().find_item(filmcraft_project::ClipId(clip)).unwrap();
+    let m = it.effect("motion").unwrap();
+    let mt = it.effect_time_at(filmcraft_time::Tick::from_seconds_f64(t));
+    (m.vec2_at("position", mt), m.f64_at("scale", mt), m.params["position"].keyframes.len())
+}
+
+#[test]
+fn a_clip_is_reframed_on_its_speaker_in_one_undo_step() {
+    use std::sync::atomic::Ordering;
+    let (mut s, clip, calls) = vertical_talk();
+    let before = motion_at(&s, clip, 5.0);
+    let fit = if s.active_sequence().unwrap().find_item(filmcraft_project::ClipId(clip)).unwrap().1.scale_to_frame { 0.5625 } else { 1.0 };
+    let cover: f64 = 1920.0 / 1080.0;
+    let undo = s.history.undo.len();
+    let r = s.execute("clip.reframeToFace", json!({"clips": [clip]})).unwrap();
+    assert_eq!((r["clips"].as_u64(), r["target"].as_str()), (Some(1), Some("speaker")), "{r}");
+    assert_eq!(calls.load(Ordering::SeqCst), 21, "two frames a second, 0 to 10 s");
+    assert_eq!(s.history.undo.len(), undo + 1);
+    let (pos, scale, keys) = motion_at(&s, clip, 5.0);
+    assert!((scale - (cover / fit * 1000.0).round() / 10.0).abs() < 1e-9, "the picture fills the frame: {scale}");
+    assert!((2..21).contains(&keys), "the straight move is thinned: {keys}");
+    // the speaker (not the passer-by) on the vertical third, the frame filled top to bottom
+    let at = |x: f64| 540.0 - cover * (x * 1920.0 - 960.0);
+    assert!((pos.x - at(0.5)).abs() < 5.0 && (pos.y - 960.0).abs() < 1e-6, "{pos:?}");
+    let (pos, _, _) = motion_at(&s, clip, 2.0);
+    assert!((pos.x - at(0.38)).abs() < 5.0, "{pos:?} vs {}", at(0.38));
+    // the analysis is kept: another framing finds no faces again
+    s.execute("clip.reframeToFace", json!({"clips": [clip], "target": "group", "zoom": 200})).unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 21);
+    assert!((motion_at(&s, clip, 5.0).1 - (cover * 2.0 / fit * 1000.0).round() / 10.0).abs() < 1e-9);
+    // the face picked at the right edge: held there, the layer's right edge on the frame's
+    s.set_playhead(filmcraft_time::Tick::ZERO);
+    s.execute("clip.reframeToFace", json!({"clips": [clip], "target": "face", "x": 0.85, "y": 0.5})).unwrap();
+    let (pos, _, _) = motion_at(&s, clip, 6.0);
+    assert!((pos.x - (1080.0 - cover * 960.0)).abs() < 0.1, "{pos:?}");
+    s.undo();
+    s.undo();
+    s.undo();
+    assert_eq!(motion_at(&s, clip, 5.0), before);
+    // the faces under the playhead, for picking
+    s.set_playhead(filmcraft_time::Tick::from_seconds_f64(1.0));
+    let r = s.execute("clip.facesAt", json!({"clips": [clip]})).unwrap();
+    assert_eq!(r["clip"].as_u64(), Some(clip));
+    assert_eq!(r["faces"].as_array().map(Vec::len), Some(1), "{r}");
+    // hostile parameters
+    for bad in [json!({"clips": [clip], "target": "cat"}), json!({"clips": [clip], "target": "face"}), json!({"clips": [999_999]}), json!({"clips": "all"})] {
+        assert!(s.execute("clip.reframeToFace", bad.clone()).is_err(), "{bad}");
+    }
+    let r = s.execute("clip.reframeToFace", json!({"clips": [clip], "smoothing": -9, "zoom": 1e9, "anchorX": f64::MAX})).unwrap();
+    assert_eq!(r["clips"], 1);
+    assert!((motion_at(&s, clip, 5.0).1 - (cover * 4.0 / fit * 1000.0).round() / 10.0).abs() < 1e-9, "zoom clamps to 400 %");
+}
+
+#[test]
+fn reframing_without_faces_or_a_face_finder_says_why() {
+    let (mut s, clip, _) = vertical_talk();
+    s.face_detector = Some(Arc::new(|_: &[u8], _, _| Ok(Vec::new())));
+    let e = s.execute("clip.reframeToFace", json!({"clips": [clip]})).unwrap_err().to_string();
+    assert!(e.contains("no faces were found in"), "{e}");
+    s.face_cache.lock().unwrap().clear();
+    s.face_detector = Some(Arc::new(|_: &[u8], _, _| Err("Vision failed".to_string())));
+    let e = s.execute("clip.reframeToFace", json!({"clips": [clip]})).unwrap_err().to_string();
+    assert!(e.contains("Vision failed"), "{e}");
+    assert!(s.face_cache.lock().unwrap().is_empty(), "a failed analysis is not kept");
+    let undo = s.history.undo.len();
+    s.face_detector = None;
+    let e = s.execute("clip.reframeToFace", json!({"clips": [clip]})).unwrap_err().to_string();
+    assert!(e.contains("not available"), "{e}");
+    assert!(s.execute("clip.facesAt", json!({"clips": [clip]})).is_err());
+    assert_eq!(s.history.undo.len(), undo);
+}

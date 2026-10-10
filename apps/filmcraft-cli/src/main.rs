@@ -126,6 +126,21 @@ fn diag(msg: std::fmt::Arguments) {
     write_diag(&mut std::io::stderr(), msg);
 }
 
+/// Reframe to Face finds faces with Apple Vision where the system has it.
+fn face_detector() -> Option<filmcraft_engine::reframe::FaceDetector> {
+    filmcraft_platform::vision::available().then(|| {
+        let d: filmcraft_engine::reframe::FaceDetector = std::sync::Arc::new(|rgba: &[u8], w: usize, h: usize| {
+            filmcraft_platform::vision::detect_faces(rgba, w, h).map(|faces| {
+                faces
+                    .into_iter()
+                    .map(|f| filmcraft_engine::reframe::FaceBox { x: f.x.into(), y: f.y.into(), w: f.w.into(), h: f.h.into(), confidence: f.confidence.into() })
+                    .collect()
+            })
+        });
+        d
+    })
+}
+
 fn usage(msg: impl std::fmt::Display) -> ! {
     diag(format_args!("filmcraft-cli: {msg}\nRun `filmcraft-cli help` for usage."));
     std::process::exit(2)
@@ -151,6 +166,7 @@ impl Backend {
             return Backend::Bridge(BridgeClient::with_data_dir(addr, a.opt("--data-dir").map(std::path::PathBuf::from)).unwrap_or_else(|e| usage(e)));
         }
         let mut s = Session::default();
+        s.face_detector = face_detector();
         // user export presets (and other per-user libraries) from the data directory
         if let Some(dir) = a.opt("--data-dir").map(std::path::PathBuf::from).or_else(filmcraft_engine::autosave::default_data_dir) {
             s.export_presets.set_dir(&dir);

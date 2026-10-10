@@ -48,6 +48,7 @@ pub mod project_panel;
 pub mod project_tools;
 pub mod proxies;
 pub mod recognition;
+pub mod reframe;
 pub mod relink;
 pub mod remix;
 pub mod scene_detect;
@@ -452,6 +453,10 @@ pub struct Session {
     pub ai_task_cache: ai_tasks::TaskCache,
     /// The batch running or last run (`batch.*`), advanced by [`batch::pump`].
     pub batch: Option<batch::BatchRun>,
+    /// Finds faces for Reframe to Face (the host installs Apple Vision on macOS; None: not available).
+    pub face_detector: Option<reframe::FaceDetector>,
+    /// Faces found per clip's media range, for this session.
+    pub face_cache: reframe::FaceCache,
     /// The Events panel log: failed commands, job results, auto-save errors, messages.
     pub log: panels::EventLog,
     /// Media Browser navigation (directory, back / forward history, selected files).
@@ -551,6 +556,8 @@ impl Session {
             recognition_cache: Default::default(),
             ai_task_cache: Default::default(),
             batch: None,
+            face_detector: None,
+            face_cache: Default::default(),
             log: Default::default(),
             browser: Default::default(),
             exec_depth: 0,

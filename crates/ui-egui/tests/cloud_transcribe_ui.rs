@@ -586,3 +586,60 @@ fn a_batch_runs_from_the_dialog_and_ends_with_a_summary() {
     assert!(d.ids("batch.summary").is_empty());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Clip ▸ Reframe to Face… on a clip in a vertical sequence: the dialog, the frame at the playhead
+/// with its faces boxed, a click picking the other face, the analysis in the background and the
+/// framing it leaves in Motion.
+#[test]
+fn a_clip_is_reframed_on_a_face_picked_on_the_frame() {
+    use filmcraft_engine::reframe::FaceBox;
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.face_detector = Some(Arc::new(|_: &[u8], _, _| {
+        Ok(vec![FaceBox { x: 0.22, y: 0.25, w: 0.12, h: 0.22, confidence: 0.9 }, FaceBox { x: 0.62, y: 0.3, w: 0.09, h: 0.17, confidence: 0.8 }])
+    }));
+    let item = s.project.items.values().find(|i| i.has_video() && i.as_media().is_some()).map(|i| i.id.0).unwrap();
+    s.execute("file.newSequence", json!({"name": "Vertical", "width": 1080, "height": 1920, "video": 1, "audio": 1})).unwrap();
+    let r =
+        s.execute("timeline.place", json!({"item": item, "track": "V1", "seconds": 0.0, "duration": filmcraft_time::Tick::from_seconds_f64(6.0).0})).unwrap();
+    let clip = r["clips"][0].as_u64().unwrap();
+    s.state.selection = vec![filmcraft_project::ClipId(clip)];
+    s.set_playhead(filmcraft_time::Tick::from_seconds_f64(1.0));
+    let mut d = Driver::new(s);
+    d.frames(2);
+    d.ok("ui.menu.invoke", json!({"id": "clip.reframeToFace"}));
+    d.frames(3);
+    assert!(d.ids("reframe.").contains(&"reframe.go".to_string()));
+    d.snapshot("reframe-dialog");
+    d.click("reframe.target.face");
+    d.frames(3);
+    let picked = |d: &mut Driver| d.harness.state().ui.reframe.picker.as_ref().and_then(|p| p.picked);
+    assert_eq!(picked(&mut d), Some(0), "the biggest face to start with");
+    d.click("reframe.frame");
+    assert_eq!(picked(&mut d), Some(1), "a click picks the face nearest to it");
+    d.frames(2);
+    d.snapshot("reframe-face");
+    d.click("reframe.go");
+    for _ in 0..600 {
+        d.frames(2);
+        if d.harness.state().ui.reframe.job.is_none() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(d.harness.state().ui.reframe.job.is_none(), "the framing is applied when the faces are found");
+    let app = d.harness.state();
+    let (_, it) = app.session.active_sequence().unwrap().find_item(filmcraft_project::ClipId(clip)).unwrap();
+    let m = it.effect("motion").unwrap();
+    let pos = m.vec2_at("position", it.effect_time_at(filmcraft_time::Tick::from_seconds_f64(3.0)));
+    // the second face (centre 0.665 of 1920) on the middle of the 1080 frame, the picture 1920/1080 up
+    let want = 540.0 - 1920.0 / 1080.0 * (0.665 * 1920.0 - 960.0);
+    assert!((pos.x - want).abs() < 0.2 && m.params["position"].keyframes.is_empty(), "{pos:?} vs {want}");
+    assert!(app.ui.status.contains('1'), "{}", app.ui.status);
+    // the Program monitor renders the new framing in the background
+    for _ in 0..40 {
+        d.frames(2);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    d.snapshot("reframe-done");
+}

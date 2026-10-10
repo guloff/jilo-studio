@@ -441,6 +441,50 @@ impl Default for AutoZoomUi {
     }
 }
 
+/// Clip ▸ Reframe to Face… (`panels::reframe`): whom to follow and how the face sits in the frame.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ReframeUi {
+    /// The dialog is open.
+    pub dialog: bool,
+    /// `speaker`, `group` or `face`.
+    pub target: String,
+    /// Height of the face in the frame, in percent from the top (20–60).
+    pub face_height: f32,
+    /// Zoom over filling the frame, in percent (100–200).
+    pub zoom: f32,
+    /// Smoothing of the camera's movement, in seconds (0–6).
+    pub smoothing: f32,
+    /// The faces at the playhead, for the chosen-face target.
+    #[serde(skip)]
+    pub picker: Option<FacePicker>,
+    /// The face analysis running in the background, and the framing to apply when it ends.
+    #[serde(skip)]
+    pub job: Option<(u64, serde_json::Value)>,
+}
+
+impl Default for ReframeUi {
+    fn default() -> Self {
+        Self { dialog: false, target: "speaker".into(), face_height: 40.0, zoom: 100.0, smoothing: 1.5, picker: None, job: None }
+    }
+}
+
+/// The frame at the playhead with its faces (`clip.facesAt`), one of which may be picked.
+#[derive(Clone, Debug, Default)]
+pub struct FacePicker {
+    /// Sequence time the faces were found at.
+    pub at: i64,
+    pub clip: u64,
+    pub item: u64,
+    /// Media time of the frame (ticks).
+    pub time: i64,
+    /// Boxes (x, y, w, h) in fractions of the picture.
+    pub faces: Vec<[f64; 4]>,
+    pub picked: Option<usize>,
+    /// Why there are no faces to pick.
+    pub error: Option<String>,
+}
+
 /// Sequence ▸ YouTube Title, Description and Chapters… (`panels::youtube`).
 #[derive(Clone, Debug, Default)]
 pub struct YouTubeUi {
@@ -591,6 +635,9 @@ pub struct UiState {
     /// Clip ▸ Auto Zoom…: the dialog and its choices.
     #[serde(default)]
     pub auto_zoom: AutoZoomUi,
+    /// Clip ▸ Reframe to Face…: the dialog and its choices.
+    #[serde(default)]
+    pub reframe: ReframeUi,
     /// Sequence ▸ YouTube Title, Description and Chapters…: the window and the texts being edited.
     #[serde(skip)]
     pub youtube: YouTubeUi,
@@ -1085,6 +1132,7 @@ impl Default for UiState {
             fillers: None,
             highlights: HighlightsUi::default(),
             auto_zoom: AutoZoomUi::default(),
+            reframe: ReframeUi::default(),
             youtube: YouTubeUi::default(),
             batch: BatchUi::default(),
             ai_task: None,

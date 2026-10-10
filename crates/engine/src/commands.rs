@@ -2908,6 +2908,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::autozoom::commands());
     v.extend(crate::youtube::commands());
     v.extend(crate::batch::commands());
+    v.extend(crate::reframe::commands());
     v.extend(crate::keyboard::commands());
     v.extend(crate::project_panel::commands());
     v.extend(crate::media_browser::commands());
