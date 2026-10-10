@@ -1711,6 +1711,7 @@ dependencies = [
 name = "filmcraft"
 version = "0.5.0"
 dependencies = [
+ "arboard",
  "chrono",
  "cpal",
  "eframe",

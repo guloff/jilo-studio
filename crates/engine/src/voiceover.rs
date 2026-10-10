@@ -396,6 +396,13 @@ pub(crate) fn media_dir(s: &Session, p: &Value, fallback: &str) -> String {
     if let Some(d) = str_p(p, "dir") {
         return d.to_string();
     }
+    captured_dir(s, fallback)
+}
+
+/// Where FilmCraft writes media it makes (voice-over takes, pasted images): Project Settings ▸
+/// Scratch Disks ▸ Captured Audio and Video, else next to the project file, else (unsaved project)
+/// `fallback` in the data directory or the system temporary directory.
+pub(crate) fn captured_dir(s: &Session, fallback: &str) -> String {
     if let Some(d) = s.project.settings.scratch.captured.clone().filter(|d| !d.is_empty()) {
         return d;
     }
