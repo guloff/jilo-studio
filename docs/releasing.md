@@ -41,11 +41,12 @@ User-facing names say **Jilo Studio**. Release files are lowercase:
 5. Publish:
 
    ```sh
-   gh release create v0.6.0 --repo guloff/jilo-studio --title "Jilo Studio 0.6.0" --notes-file NOTES.md \
+   gh release create v0.6.0 --repo guloff/jilo-studio --title "Jilo Studio 0.6.0" --notes-file docs/releases/0.6.0.md \
      dist/release/jilo-studio-0.6.0-macos-aarch64.dmg dist/release/jilo-studio-cli-0.6.0-macos-aarch64.zip
    ```
 
-   Pre-releases (`-rc.N`) get `--prerelease`.
+   Pre-releases (`-rc.N`) get `--prerelease`. The notes of each version are kept in
+   `docs/releases/<version>.md`: GitHub shows them as Markdown, the app as plain text.
 
 ## How the app finds a release
 
