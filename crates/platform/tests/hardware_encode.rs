@@ -126,7 +126,8 @@ fn declines_what_the_hardware_path_does_not_take() {
 #[test]
 fn factory_only_acts_when_asked() {
     let s = hardware_settings();
-    for format in [Format::ProRes, Format::DnxHr, Format::Mjpeg, Format::PngSequence] {
+    // ProRes takes the hardware path too when asked (tests/videotoolbox_prores_encode.rs)
+    for format in [Format::DnxHr, Format::Mjpeg, Format::PngSequence] {
         assert!(videotoolbox_encoder_factory(format, W, H, FPS, &s).is_none(), "{format:?}");
     }
     assert!(videotoolbox_encoder_factory(Format::H264, W, H, FPS, &ExportSettings { hardware_encoding: HardwareEncoding::Off, ..s }).is_none());

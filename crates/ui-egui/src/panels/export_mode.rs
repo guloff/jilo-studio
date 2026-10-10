@@ -711,6 +711,16 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
                     s.prores_profile = keys[i].into();
                 }
             });
+            // macOS: the ProRes engine of Apple silicon Pro / Max chips (VideoToolbox); elsewhere,
+            // and wherever it declines, the built-in encoder
+            if cfg!(target_os = "macos") {
+                row(ui, t, "Hardware Encoding", |ui| {
+                    let mut on = s.hardware_encoding == HardwareEncoding::Auto;
+                    if check(ui, reg, "export.video.hardwareEncoding", &mut on, "Use the hardware encoder when available") {
+                        s.hardware_encoding = if on { HardwareEncoding::Auto } else { HardwareEncoding::Off };
+                    }
+                });
+            }
         }
         Format::DnxHr => {
             row(ui, t, tl!("Profile"), |ui| {

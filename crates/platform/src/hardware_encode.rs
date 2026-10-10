@@ -9,6 +9,10 @@
 //! the middle of an export reports an error (the export stops); it cannot hand the stream over to
 //! another encoder.
 //!
+//! ProRes (all six profiles) takes the hardware path with the same opt-in as H.264: the ProRes
+//! engine of Apple silicon Pro / Max chips encodes the planes the built-in encoder would (so the
+//! colours are the same), and any configuration it declines uses the built-in encoder.
+//!
 //! HEVC (`Format::Hevc`) has no built-in encoder, so choosing the format is the opt-in, the same
 //! configurations are declined, and a declined export fails with "encoder not available" instead of
 //! falling back; [`hevc_available`] tells the format list whether this machine can do it at all.
@@ -20,6 +24,7 @@ use filmcraft_isobmff::{AvcConfig, HevcConfig, SampleEntry};
 use filmcraft_time::FrameRate;
 
 use crate::videotoolbox_encode::{ParamSets, VtCodec, VtConfig, VtEncoder, VtPacket, VtProfile, VtRate};
+use crate::videotoolbox_prores_encode::{ProResConfig, ProResPacket, ProResSignal, VtProResEncoder};
 
 /// The hardware encoder's configuration for an export, or why it is not used for it.
 pub fn config_for(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Result<VtConfig, String> {
@@ -151,6 +156,7 @@ pub fn videotoolbox_encoder_factory(
     s: &ExportSettings,
 ) -> Option<filmcraft_export::Result<Box<dyn VideoEncoder>>> {
     let name = match format {
+        Format::ProRes if s.hardware_encoding == HardwareEncoding::Auto => return prores_factory(w, h, rate, s),
         Format::H264 if s.hardware_encoding == HardwareEncoding::Auto => "H.264",
         Format::Hevc => "HEVC",
         _ => return None,
@@ -184,6 +190,125 @@ pub fn videotoolbox_encoder_factory(
             filmcraft_export::note_hw_encode_declined();
             None
         }
+    }
+}
+
+/// The hardware ProRes encoder for an export, `None` (the built-in encoder) when declined.
+fn prores_factory(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option<filmcraft_export::Result<Box<dyn VideoEncoder>>> {
+    let decline = |why: String| {
+        log::info!("hardware ProRes encoding declined: {why}");
+        filmcraft_export::note_hw_encode_declined();
+        None
+    };
+    let signal = match (s.signal.is_hdr(), s.signal.transfer) {
+        (false, _) => ProResSignal::Bt709,
+        (true, 16) if s.signal.primaries == 9 && s.signal.matrix == 9 => ProResSignal::Pq,
+        (true, 18) if s.signal.primaries == 9 && s.signal.matrix == 9 => ProResSignal::Hlg,
+        (true, _) => return decline(format!("the colour signal {:?}", s.signal)),
+    };
+    let (Ok(timescale), Ok(frame_duration)) = (u32::try_from(rate.num), u32::try_from(rate.den)) else { return decline("frame rate".into()) };
+    let profile = filmcraft_export::prores_profile(&s.prores_profile);
+    // alpha only from straight RGBA (an HDR export carries none), as the built-in encoder
+    let alpha = s.alpha && filmcraft_export::prores_4444(s) && signal == ProResSignal::Bt709;
+    let config = ProResConfig { width: w, height: h, timescale, frame_duration, fourcc: profile.fourcc(), alpha, signal };
+    match VtProResEncoder::new(config) {
+        Ok(vt) if vt.uses_hardware() => {
+            filmcraft_export::note_hw_encode_session();
+            Some(Ok(Box::new(HardwareProResEncoder { vt, signal: s.signal, y: Vec::new(), u: Vec::new(), v: Vec::new(), a: Vec::new(), encoded: 0 })))
+        }
+        Ok(_) => decline("the session is not on the hardware encoder".into()),
+        Err(why) => decline(why),
+    }
+}
+
+/// [`VtProResEncoder`] as a `VideoEncoder`: RGBA (or HDR) pictures in, MOV samples out.
+pub struct HardwareProResEncoder {
+    vt: VtProResEncoder,
+    signal: filmcraft_export::ColorSignal,
+    y: Vec<u16>,
+    u: Vec<u16>,
+    v: Vec<u16>,
+    a: Vec<u16>,
+    /// Compressed frames returned so far.
+    encoded: i64,
+}
+
+impl HardwareProResEncoder {
+    /// MOV samples from compressed frames: every one a sync sample at `n × duration` (a frame at
+    /// another time is an error, never a file with wrong times).
+    fn samples(&mut self, packets: Vec<ProResPacket>) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+        let duration = self.vt.config().frame_duration;
+        let mut out = Vec::with_capacity(packets.len());
+        for p in packets {
+            let n = self.encoded;
+            self.encoded += 1;
+            if n.checked_mul(i64::from(duration)) != Some(p.pts) {
+                return Err(ExportError::Encode(format!("VideoToolbox returned ProRes frame {n} at time {}", p.pts)));
+            }
+            out.push(EncodedPacket { data: p.data, key: true, duration, composition_offset: 0 });
+        }
+        Ok(out)
+    }
+}
+
+impl VideoEncoder for HardwareProResEncoder {
+    fn sample_entry(&self) -> SampleEntry {
+        let c = self.vt.config();
+        let mut e = SampleEntry::prores(filmcraft_isobmff::FourCc(c.fourcc), c.width.min(u32::from(u16::MAX)) as u16, c.height.min(u32::from(u16::MAX)) as u16);
+        self.signal.apply_to(&mut e, true);
+        e
+    }
+
+    fn timescale(&self) -> u32 {
+        self.vt.config().timescale
+    }
+
+    fn encode(&mut self, f: &EncoderFrame) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+        let c = self.vt.config().clone();
+        if (f.width, f.height) != (c.width, c.height) {
+            return Err(ExportError::Encode(format!("picture is {}x{}, the encoder was created for {}x{}", f.width, f.height, c.width, c.height)));
+        }
+        let (w, h) = (f.width as usize, f.height as usize);
+        if f.hdr.is_none() && f.rgba.len() < w.saturating_mul(h).saturating_mul(4) {
+            return Err(ExportError::Encode("the RGBA picture is smaller than its size".into()));
+        }
+        if f.hdr.is_some_and(|rgb| rgb.len() < w.saturating_mul(h).saturating_mul(3)) {
+            return Err(ExportError::Encode("the HDR picture is smaller than its size".into()));
+        }
+        let (kr, kb) = self.signal.kr_kb();
+        let packets = if c.is_4444() {
+            let n = w * h;
+            for p in [&mut self.y, &mut self.u, &mut self.v] {
+                p.resize(n, 0);
+            }
+            self.a.resize(if c.alpha { n } else { 0 }, 0);
+            let (y, u, v) = (&mut self.y, &mut self.u, &mut self.v);
+            let a = (!self.a.is_empty()).then_some(self.a.as_mut_slice());
+            filmcraft_export::timed(filmcraft_export::Stage::Convert, || match f.hdr {
+                Some(rgb) => filmcraft_export::rgbf_to_yuv444_12(rgb, w, h, kr, kb, y, u, v),
+                None => filmcraft_export::rgba_to_yuv444_12(f.rgba, w, h, y, u, v, a),
+            });
+            let a = c.alpha.then_some(self.a.as_slice());
+            self.vt.encode_4444(f.index, &self.y, &self.u, &self.v, a).map_err(ExportError::Encode)?
+        } else {
+            let cw = w.div_ceil(2);
+            self.y.resize(w * h, 0);
+            self.u.resize(cw * h, 0);
+            self.v.resize(cw * h, 0);
+            let (y, u, v) = (&mut self.y, &mut self.u, &mut self.v);
+            filmcraft_export::timed(filmcraft_export::Stage::Convert, || match f.hdr {
+                Some(rgb) => filmcraft_export::rgbf_to_yuv422_10(rgb, w, h, kr, kb, y, u, v),
+                None => filmcraft_export::rgba_to_yuv422_10(f.rgba, w, h, y, u, v),
+            });
+            self.vt.encode_422(f.index, &self.y, &self.u, &self.v).map_err(ExportError::Encode)?
+        };
+        filmcraft_export::note_hw_encode_frame();
+        self.samples(packets)
+    }
+
+    fn flush(&mut self) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+        let packets = self.vt.flush().map_err(ExportError::Encode)?;
+        self.samples(packets)
     }
 }
 

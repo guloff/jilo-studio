@@ -53,6 +53,9 @@ pub mod videotoolbox;
 #[cfg(target_os = "macos")]
 #[allow(unsafe_code)]
 pub mod videotoolbox_encode;
+#[cfg(target_os = "macos")]
+#[allow(unsafe_code)]
+pub mod videotoolbox_prores_encode;
 
 pub use hybrid::HybridDecoder;
 pub use open_files::raise_open_file_limit;

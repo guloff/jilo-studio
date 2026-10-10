@@ -636,9 +636,18 @@ pub trait AudioEncoder: Send {
 pub type EncoderFactory = fn(format: Format, width: u32, height: u32, rate: FrameRate, settings: &ExportSettings) -> Option<Result<Box<dyn VideoEncoder>>>;
 pub type AudioEncoderFactory = fn(format: Format, sample_rate: u32, channels: u32, settings: &ExportSettings) -> Option<Result<Box<dyn AudioEncoder>>>;
 
+/// FilmCraft's own video encoders (registered ones go in front of them).
+const BUILT_IN_VIDEO_ENCODERS: [EncoderFactory; 5] = [h264_factory, prores_factory, dnx_factory, apv_factory, mjpeg_factory];
+
 fn video_factories() -> &'static RwLock<Vec<EncoderFactory>> {
     static F: OnceLock<RwLock<Vec<EncoderFactory>>> = OnceLock::new();
-    F.get_or_init(|| RwLock::new(vec![h264_factory, prores_factory, dnx_factory, apv_factory, mjpeg_factory]))
+    F.get_or_init(|| RwLock::new(BUILT_IN_VIDEO_ENCODERS.to_vec()))
+}
+
+/// FilmCraft's own encoder for an export's video, skipping registered (hardware) ones: the
+/// reference a hardware encoder is compared with. `None` for a format without one (H.265).
+pub fn software_video_encoder(settings: &ExportSettings, w: u32, h: u32, rate: FrameRate) -> Option<Result<Box<dyn VideoEncoder>>> {
+    BUILT_IN_VIDEO_ENCODERS.iter().find_map(|f| f(settings.video_format(), w, h, rate, settings))
 }
 fn audio_factories() -> &'static RwLock<Vec<AudioEncoderFactory>> {
     static F: OnceLock<RwLock<Vec<AudioEncoderFactory>>> = OnceLock::new();
