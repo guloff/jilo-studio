@@ -378,6 +378,16 @@ pub(crate) fn default_seq_settings_for(media: &MediaClip) -> SequenceSettings {
         st.frame_rate = v.frame_rate;
         st.par = media.pixel_aspect();
         st.preset = format!("{}x{} {}", v.width, v.height, v.frame_rate.label());
+        // HDR media makes an HDR sequence, as Premiere does: HLG and PQ keep their highlights
+        let working = match v.color.transfer {
+            filmcraft_color::Transfer::Hlg => Some(filmcraft_color::WorkingSpace::Rec2100Hlg),
+            filmcraft_color::Transfer::Pq => Some(filmcraft_color::WorkingSpace::Rec2100Pq),
+            _ => None,
+        };
+        if let Some(w) = working {
+            st.color.working = w;
+            st.working_space = w.label().into();
+        }
     }
     if let Some(a) = info.audio() {
         st.sample_rate = a.sample_rate.max(8000);

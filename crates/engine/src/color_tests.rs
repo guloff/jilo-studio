@@ -254,3 +254,23 @@ fn hdr_lumetri_and_mastering_metadata_through_commands() {
     let r = s.execute("media.colorInfo", json!({"item": item.0})).unwrap();
     assert!(r["hdrMetadata"].is_null() && r["toneMapPeakNits"].is_null(), "{r}");
 }
+
+/// A sequence made for HDR media is an HDR sequence (Rec. 2100 with the media's curve), as in
+/// Premiere; SDR media keeps Rec. 709.
+#[test]
+fn a_sequence_for_hdr_media_works_in_rec_2100() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let media = s.project.items.values().find_map(|i| i.as_media().filter(|m| m.info.video.is_some()).cloned()).unwrap();
+    for (transfer, want) in [
+        (filmcraft_color::Transfer::Hlg, filmcraft_color::WorkingSpace::Rec2100Hlg),
+        (filmcraft_color::Transfer::Pq, filmcraft_color::WorkingSpace::Rec2100Pq),
+        (filmcraft_color::Transfer::Bt709, filmcraft_color::WorkingSpace::Rec709),
+    ] {
+        let mut m = media.clone();
+        m.info.video.as_mut().unwrap().color.transfer = transfer;
+        let st = crate::commands::default_seq_settings_for(&m);
+        assert_eq!(st.color.working, want, "{transfer:?}");
+        assert_eq!(st.working_space, want.label());
+    }
+}
