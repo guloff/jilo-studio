@@ -33,7 +33,7 @@ use filmcraft_project::{ClipId, ItemId, ItemKind, MediaRef, Narration, TrackId, 
 use filmcraft_time::{Tick, TimeRange};
 use filmcraft_tts as tts;
 
-use crate::commands::{CommandSpec, always, bad, has_seq, str_p, time_p, u64_p};
+use crate::commands::{CommandSpec, always, bad, bool_p, has_seq, str_p, time_p, u64_p};
 use crate::{EngineError, Result, Session};
 
 /// Item name prefix of generated narrations.
@@ -73,7 +73,17 @@ fn settings(cmd: &str, p: &Value, base: Option<&Narration>) -> Result<Narration>
         None => base.map(|b| b.text.clone()).ok_or_else(|| bad(cmd, "`text` is required"))?,
     };
     let voice = str_p(p, "voice").map(str::to_string).or_else(|| base.map(|b| b.voice.clone())).unwrap_or_else(|| tts::default_voice_id().to_string());
-    let info = tts::voices_in(None).into_iter().find(|v| v.id == voice).ok_or_else(|| bad(cmd, format!("unknown voice `{voice}` (see tts.voices)")))?;
+    // an ElevenLabs voice speaks any language; its id is checked by ElevenLabs
+    let language = match cloud_voice(&voice) {
+        Some(id) if !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric()) => "multi".to_string(),
+        Some(_) => return Err(bad(cmd, format!("unknown voice `{voice}` (see tts.voices)"))),
+        None => tts::voices_in(None)
+            .into_iter()
+            .find(|v| v.id == voice)
+            .ok_or_else(|| bad(cmd, format!("unknown voice `{voice}` (see tts.voices)")))?
+            .language
+            .to_string(),
+    };
     let pitch = match str_p(p, "pitch") {
         Some(v) => VocalPitch::from_id(v).ok_or_else(|| bad(cmd, format!("unknown pitch `{v}` (extraLow, low, default, high, extraHigh)")))?,
         None => base.map(|b| b.pitch).unwrap_or_default(),
@@ -82,7 +92,7 @@ fn settings(cmd: &str, p: &Value, base: Option<&Narration>) -> Result<Narration>
         Some(v) => v.as_f64().ok_or_else(|| bad(cmd, "`pace` must be a number"))?,
         None => base.map_or(1.0, |b| b.pace),
     };
-    let n = Narration { text, language: info.language.to_string(), voice, pitch, pace, speech_duration: Tick::ZERO };
+    let n = Narration { text, language, voice, pitch, pace, speech_duration: Tick::ZERO };
     n.check().map_err(|e| bad(cmd, e))?;
     Ok(n)
 }
@@ -96,25 +106,75 @@ fn cache_key(n: &Narration) -> String {
     format!("{}\u{1f}{}\u{1f}{}\u{1f}{}", n.voice, n.pitch.id(), n.pace.to_bits(), n.text)
 }
 
-fn tts_err(cmd: &str, e: tts::TtsError) -> EngineError {
-    match e {
-        tts::TtsError::NotInstalled => bad(cmd, "the natural voices are not downloaded yet: Text to Speech ▸ Download natural voices (tts.downloadVoices)"),
-        e => bad(cmd, e.to_string()),
+/// The prefix of ElevenLabs voices' ids (`elevenlabs:<voice id>`).
+pub const CLOUD_VOICE_PREFIX: &str = "elevenlabs:";
+
+/// The ElevenLabs voice id of `voice`, when it is one.
+pub fn cloud_voice(voice: &str) -> Option<&str> {
+    voice.strip_prefix(CLOUD_VOICE_PREFIX)
+}
+
+/// What speaks a narration: a voice on this computer, or ElevenLabs (its key and transport taken
+/// on the session's thread, so a background job can use them).
+pub enum Speaker {
+    Local(Option<std::path::PathBuf>),
+    Cloud { key: filmcraft_ai::Secret, transport: Arc<dyn filmcraft_ai::Transport>, model: String, sleep: Option<filmcraft_ai::SleepFn> },
+}
+
+/// The speaker of `n`: an ElevenLabs voice needs its key, the network and the user's consent to send
+/// the text (`confirm`, asked once).
+fn speaker(s: &mut Session, cmd: &str, p: &Value, n: &Narration) -> Result<Speaker> {
+    if cloud_voice(&n.voice).is_none() {
+        return Ok(Speaker::Local(crate::transcript::models_dir()));
+    }
+    let provider = filmcraft_ai::Provider::ElevenLabs;
+    let (key, _) = crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(filmcraft_ai::AiError::NoKey(provider)))?;
+    let transport = crate::ai::transport(s).map_err(crate::ai::ai_err)?;
+    crate::recognition::ensure_consent_for(s, provider, p, cmd, "the narration's text")?;
+    Ok(Speaker::Cloud { key, transport, model: s.prefs.ai.voice_model(), sleep: s.ai_sleep.clone() })
+}
+
+/// Synthesize `n` (no cache). ElevenLabs voices speak at their own pitch and pace.
+fn render(n: &Narration, speaker: &Speaker) -> std::result::Result<tts::Audio, String> {
+    match speaker {
+        Speaker::Local(models_dir) => {
+            let voice = tts::voice_in(&n.voice, models_dir.as_deref()).map_err(|e| match e {
+                tts::TtsError::NotInstalled => "the natural voices are not downloaded yet: Text to Speech ▸ Download natural voices (tts.downloadVoices)".to_string(),
+                e => e.to_string(),
+            })?;
+            voice.synthesize(&n.text, &tts::Params { semitones: n.pitch.semitones(), pace: n.pace }).map_err(|e| e.to_string())
+        }
+        Speaker::Cloud { key, transport, model, sleep } => {
+            let mut ctx = filmcraft_ai::Ctx::new(transport.clone());
+            if let Some(sl) = sleep {
+                ctx = ctx.with_sleep(sl.clone());
+            }
+            // each piece of speech is spoken on its own, the script's pauses as silence between them
+            let rate = filmcraft_ai::elevenlabs::VOICE_SAMPLE_RATE;
+            let mut samples: Vec<f32> = Vec::new();
+            for seg in tts::script::parse(&n.text) {
+                match seg {
+                    tts::script::Segment::Speech(text) if !text.trim().is_empty() => {
+                        let pcm =
+                            filmcraft_ai::elevenlabs::speak(&ctx, key, model, cloud_voice(&n.voice).unwrap_or_default(), text.trim()).map_err(|e| e.to_string())?;
+                        samples.extend(pcm.iter().map(|v| f32::from(*v) / 32768.0));
+                    }
+                    tts::script::Segment::Speech(_) => {}
+                    tts::script::Segment::Pause { millis } => samples.extend(std::iter::repeat_n(0.0, (u64::from(rate) * u64::from(millis) / 1000) as usize)),
+                }
+            }
+            Ok(tts::Audio { samples, sample_rate: rate })
+        }
     }
 }
 
-/// Synthesize `n` (no cache).
-fn render(n: &Narration, models_dir: Option<&std::path::Path>) -> std::result::Result<tts::Audio, tts::TtsError> {
-    let voice = tts::voice_in(&n.voice, models_dir)?;
-    voice.synthesize(&n.text, &tts::Params { semitones: n.pitch.semitones(), pace: n.pace })
-}
-
-fn synthesize(s: &Session, cmd: &str, n: &Narration) -> Result<Arc<tts::Audio>> {
+fn synthesize(s: &mut Session, cmd: &str, p: &Value, n: &Narration) -> Result<Arc<tts::Audio>> {
     let key = cache_key(n);
     if let Some(a) = s.tts_cache.lock().unwrap_or_else(PoisonError::into_inner).iter().find(|(k, _)| *k == key).map(|(_, a)| a.clone()) {
         return Ok(a);
     }
-    let a = Arc::new(render(n, crate::transcript::models_dir().as_deref()).map_err(|e| tts_err(cmd, e))?);
+    let sp = speaker(s, cmd, p, n)?;
+    let a = Arc::new(render(n, &sp).map_err(|e| bad(cmd, e))?);
     cache_put(&s.tts_cache, key, a.clone());
     Ok(a)
 }
@@ -141,9 +201,49 @@ fn package_json() -> Value {
     })
 }
 
-fn voices(_s: &mut Session, _p: &Value) -> Result<Value> {
+/// ElevenLabs voices as `tts.voices` lists them (cached by `tts.cloudVoices`).
+fn cloud_voices_json(s: &Session) -> Value {
+    let list = s.cloud_voices.lock().unwrap_or_else(PoisonError::into_inner).clone();
+    json!({
+        "key": crate::ai::key(s, filmcraft_ai::Provider::ElevenLabs).is_some(),
+        "loaded": list.is_some(),
+        "voices": list.unwrap_or_default().iter().map(|v| json!({
+            "id": format!("{CLOUD_VOICE_PREFIX}{}", v.id), "name": v.name, "gender": v.gender, "language": v.language, "engine": "cloud",
+        })).collect::<Vec<_>>(),
+    })
+}
+
+/// Load the account's ElevenLabs voices (a job; `tts.voices` lists them as `cloud` once loaded).
+fn cloud_voices(s: &mut Session, p: &Value) -> Result<Value> {
+    let provider = filmcraft_ai::Provider::ElevenLabs;
+    let (key, _) = crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(filmcraft_ai::AiError::NoKey(provider)))?;
+    let transport = crate::ai::transport(s).map_err(crate::ai::ai_err)?;
+    let job = new_job(s, "Loading ElevenLabs voices".into());
+    let (prog, res, cache, sleep) = (job.progress.clone(), job.result.clone(), s.cloud_voices.clone(), s.ai_sleep.clone());
+    let wait = bool_p(p, "wait").unwrap_or(false);
+    let id = spawn(s, job, wait, "filmcraft-cloud-voices", move || {
+        let t0 = web_time::Instant::now();
+        let mut ctx = filmcraft_ai::Ctx::new(transport);
+        if let Some(sl) = sleep {
+            ctx = ctx.with_sleep(sl);
+        }
+        let r = filmcraft_ai::elevenlabs::voices(&ctx, &key).map(|v| {
+            let n = v.len();
+            *cache.lock().unwrap_or_else(PoisonError::into_inner) = Some(v);
+            format!("{n} ElevenLabs voices")
+        });
+        finish(&prog, &res, r.map_err(|e| e.to_string()), t0);
+    })?;
+    if wait {
+        return Ok(cloud_voices_json(s));
+    }
+    Ok(json!({"job": id}))
+}
+
+fn voices(s: &mut Session, _p: &Value) -> Result<Value> {
     let dir = crate::transcript::models_dir();
     Ok(json!({
+        "cloud": cloud_voices_json(s),
         "package": package_json(),
         "languages": tts::LANGUAGES.iter().map(|(id, name)| json!({"id": id, "name": name})).collect::<Vec<_>>(),
         "voices": tts::voices_in(dir.as_deref()),
@@ -164,7 +264,7 @@ fn preview(s: &mut Session, p: &Value) -> Result<Value> {
         q["text"] = json!(tts::SAMPLE_SENTENCE);
     }
     let n = settings(cmd, &q, base.as_ref())?;
-    let audio = synthesize(s, cmd, &n)?;
+    let audio = synthesize(s, cmd, &q, &n)?;
     let seconds = audio.seconds();
     let samples = audio.samples.len();
     let rate = audio.sample_rate;
@@ -230,7 +330,7 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
     if at < Tick::ZERO {
         return Err(bad(cmd, "the start time cannot be negative"));
     }
-    let audio = synthesize(s, cmd, &n)?;
+    let audio = synthesize(s, cmd, p, &n)?;
     let rate = audio.sample_rate.max(1);
     let dur = Tick::from_units(audio.samples.len() as i64, i64::from(rate));
     n.speech_duration = dur;
@@ -316,7 +416,7 @@ fn edit(s: &mut Session, p: &Value) -> Result<Value> {
     let (old_item, clip_dur, speed) = (it.item, it.duration, it.speed);
     let base = s.project.narrations.get(&old_item).cloned().ok_or_else(|| bad(cmd, "the clip is not a narration"))?;
     let mut n = settings(cmd, p, Some(&base))?;
-    let audio = synthesize(s, cmd, &n)?;
+    let audio = synthesize(s, cmd, p, &n)?;
     let rate = audio.sample_rate.max(1);
     let speech = audio.samples.len();
     n.speech_duration = Tick::from_units(speech as i64, i64::from(rate));
@@ -427,21 +527,18 @@ fn render_job(s: &mut Session, p: &Value) -> Result<Value> {
     if s.tts_cache.lock().unwrap_or_else(PoisonError::into_inner).iter().any(|(k, _)| *k == key) {
         return Ok(json!({"job": null, "cached": true}));
     }
+    let sp = speaker(s, cmd, &q, &n)?;
     let job = new_job(s, "Synthesizing narration".into());
     let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.tts_cache.clone());
     let wait = p.get("wait").and_then(Value::as_bool).unwrap_or(false);
     let id = spawn(s, job, wait, "filmcraft-tts", move || {
         let t0 = web_time::Instant::now();
         *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = "Synthesizing…".into();
-        let r = match render(&n, crate::transcript::models_dir().as_deref()) {
-            Ok(a) => {
-                let secs = a.seconds();
-                cache_put(&cache, key, Arc::new(a));
-                Ok(format!("{secs:.1} s of speech"))
-            }
-            Err(tts::TtsError::NotInstalled) => Err("the natural voices are not downloaded yet".to_string()),
-            Err(e) => Err(e.to_string()),
-        };
+        let r = render(&n, &sp).map(|a| {
+            let secs = a.seconds();
+            cache_put(&cache, key, Arc::new(a));
+            format!("{secs:.1} s of speech")
+        });
         finish(&prog, &res, r, t0);
     })?;
     Ok(json!({"job": id, "cached": false}))
@@ -505,7 +602,7 @@ pub fn commands() -> Vec<CommandSpec> {
         spec(
             "tts.preview",
             "Preview Narration",
-            r#"{"text":str?,"voice":str?,"pitch":"default"?,"pace":f64?,"sample":bool?,"clip":id?,"path":str?}"#,
+            r#"{"text":str?,"voice":str?,"pitch":"default"?,"pace":f64?,"sample":bool?,"clip":id?,"path":str?,"confirm":bool?}"#,
             always,
             preview,
             false,
@@ -513,21 +610,22 @@ pub fn commands() -> Vec<CommandSpec> {
         spec(
             "tts.create",
             "New Narration",
-            r#"{"text":str,"voice":str?,"pitch":"extraLow|low|default|high|extraHigh"?,"pace":0.5..2?,"time":ticks?,"track":"A1"|id?,"dir":str?}"#,
+            r#"{"text":str,"voice":str?,"pitch":"extraLow|low|default|high|extraHigh"?,"pace":0.5..2?,"time":ticks?,"track":"A1"|id?,"dir":str?,"confirm":bool?}"#,
             has_seq,
             create,
             true,
         ),
-        spec("tts.edit", "Edit Narration", r#"{"clip":id?,"text":str?,"voice":str?,"pitch":str?,"pace":f64?,"dir":str?}"#, has_narration_clip, edit, true),
+        spec("tts.edit", "Edit Narration", r#"{"clip":id?,"text":str?,"voice":str?,"pitch":str?,"pace":f64?,"dir":str?,"confirm":bool?}"#, has_narration_clip, edit, true),
         spec("tts.inspect", "Inspect Narration", r#"{"clip":id?,"item":id?}"#, always, inspect, false),
         spec(
             "tts.render",
             "Synthesize Narration",
-            r#"{"text":str?,"voice":str?,"pitch":str?,"pace":f64?,"sample":bool?,"clip":id?,"wait":bool?}"#,
+            r#"{"text":str?,"voice":str?,"pitch":str?,"pace":f64?,"sample":bool?,"clip":id?,"confirm":bool?,"wait":bool?}"#,
             always,
             render_job,
             false,
         ),
         spec("tts.downloadVoices", "Download Natural Voices", r#"{"wait":bool?}"#, always, download_voices, false),
+        spec("tts.cloudVoices", "Load ElevenLabs Voices", r#"{"wait":bool?}"#, always, cloud_voices, false),
     ]
 }

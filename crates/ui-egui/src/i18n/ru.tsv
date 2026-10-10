@@ -3784,3 +3784,13 @@ mode	Edit	Монтаж
 	Landscape	Горизонтальное
 	Portrait	Вертикальное
 	Picture shape	Формат
+	ElevenLabs voice	Голос ElevenLabs
+	ElevenLabs voices (cloud, any language)	Голоса ElevenLabs (облако, любой язык)
+	Load ElevenLabs voices…	Загрузить голоса ElevenLabs…
+	Loading ElevenLabs voices	Загрузка голосов ElevenLabs
+	Add an ElevenLabs API key in Settings ▸ AI to use this voice.	Чтобы использовать этот голос, добавьте ключ API ElevenLabs в Настройки ▸ ИИ.
+	This voice speaks in the cloud: the narration's text is sent to ElevenLabs.	Этот голос работает в облаке: текст озвучки отправляется в ElevenLabs.
+	Allow ElevenLabs	Разрешить ElevenLabs
+	Spoken by ElevenLabs in the cloud. Vocal pitch and pace don't apply.	Озвучивает ElevenLabs в облаке. Высота голоса и темп не применяются.
+	Couldn't load the ElevenLabs voices: {e}	Не удалось загрузить голоса ElevenLabs: {e}
+	Loading ElevenLabs voices…	Загрузка голосов ElevenLabs…

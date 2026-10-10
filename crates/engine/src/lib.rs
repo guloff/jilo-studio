@@ -416,6 +416,8 @@ pub struct Session {
     pub tts_preview: Option<Arc<filmcraft_tts::Audio>>,
     /// Synthesized narrations (`tts.render` fills it from a background job).
     pub tts_cache: narration::SynthCache,
+    /// The account's ElevenLabs voices once loaded (`tts.cloudVoices`).
+    pub cloud_voices: std::sync::Arc<std::sync::Mutex<Option<Vec<filmcraft_ai::elevenlabs::Voice>>>>,
     /// Dynamic (J/K/L) trimming and trim-mode loop playback in progress.
     pub trim_play: trim::TrimPlayback,
     /// Keyboard shortcuts (active bindings, presets; `shortcuts.*` commands).
@@ -542,6 +544,7 @@ impl Session {
             voiceover: Default::default(),
             tts_preview: None,
             tts_cache: Default::default(),
+            cloud_voices: Default::default(),
             trim_play: Default::default(),
             shortcuts: shortcuts::Shortcuts::new(),
             offline: Default::default(),

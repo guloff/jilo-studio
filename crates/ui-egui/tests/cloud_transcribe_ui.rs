@@ -789,3 +789,86 @@ fn an_image_is_generated_from_a_description() {
     d.snapshot("imagegen-done");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Text to Speech with an ElevenLabs voice: the account's voices are loaded on request, the panel
+/// asks once before the text goes out, and the narration is spoken by ElevenLabs.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn an_elevenlabs_voice_is_chosen_allowed_and_speaks_the_narration() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-eleven-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.ends_with("/v1/voices"),
+        |_| Ok(Response::json(200, &json!({"voices": [{"voice_id": "v1", "name": "Rachel", "labels": {"gender": "female"}}, {"voice_id": "v2", "name": "Adam"}]}))),
+    );
+    // half a second of a tone for every piece of speech
+    fake.route(
+        |r| r.url.contains("/text-to-speech/v1"),
+        |_| Ok(Response::new(200, (0..22_050).flat_map(|i| (((i as f32 * 0.05).sin() * 8000.0) as i16).to_le_bytes()).collect::<Vec<u8>>())),
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("file.projectSettings.scratchDisks", json!({"captured": dir.to_string_lossy()})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "elevenlabs", "key": "xi-test"})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("engine.execute", json!({"command": "window.panel.TextToSpeech", "params": {}}));
+    d.frames(3);
+    // the panel offers to load the account's voices
+    d.snapshot("tts-eleven-load");
+    d.click("tts.cloud.load");
+    let mut loaded = false;
+    for _ in 0..400 {
+        d.frames(1);
+        let v = d.ok("engine.execute", json!({"command": "tts.voices", "params": {}}));
+        if v["cloud"]["loaded"] == json!(true) {
+            loaded = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(loaded, "the ElevenLabs voices were loaded");
+    d.frames(3);
+    if !d.ids("tts.voice.").iter().any(|i| i == "tts.voice.elevenlabs:v1") {
+        d.click("tts.voice");
+    }
+    d.snapshot("tts-eleven-voices");
+    d.click("tts.voice.elevenlabs:v1");
+    let draft = d.ok("ui.inspect", json!({}))["ui"]["tts"].clone();
+    assert_eq!(draft["voice"], "elevenlabs:v1", "{draft}");
+    // nothing is spoken before the user allows ElevenLabs
+    assert!(d.ids("tts.cloud").contains(&"tts.cloud.allow".to_string()));
+    d.snapshot("tts-eleven-consent");
+    d.click("tts.hearVoice");
+    assert!(!fake.sent().iter().any(|r| r.url.contains("text-to-speech")), "nothing goes out before the user agrees");
+    d.click("tts.cloud.allow");
+    let confirmed = d.ok("engine.execute", json!({"command": "prefs.get", "params": {"key": "ai.confirmedProviders"}}));
+    assert_eq!(confirmed, json!(["elevenlabs"]));
+    assert!(d.ids("tts.cloud").is_empty());
+    // type a script and add it to the timeline
+    d.click("tts.text");
+    d.ok("ui.type", json!({"text": "Hello from the cloud."}));
+    d.frames(3);
+    d.click("tts.save");
+    let mut added = false;
+    for _ in 0..400 {
+        d.frames(1);
+        if d.ok("ui.inspect", json!({}))["ui"]["tts"]["pending"].is_null() && fake.sent().iter().any(|r| r.url.contains("text-to-speech")) {
+            added = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(added, "the narration was spoken");
+    d.frames(3);
+    d.snapshot("tts-eleven-added");
+    let status = d.ok("ui.inspect", json!({}))["ui"]["status"].as_str().unwrap_or_default().to_string();
+    assert!(!status.contains("CONFIRM_CLOUD") && !status.contains("rror"), "{status}");
+    let speech: Vec<_> = fake.sent().into_iter().filter(|r| r.url.contains("text-to-speech")).collect();
+    assert_eq!(speech.last().unwrap().json().unwrap()["text"], "Hello from the cloud.");
+    let _ = std::fs::remove_dir_all(&dir);
+}

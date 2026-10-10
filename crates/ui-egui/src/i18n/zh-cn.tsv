@@ -3823,3 +3823,13 @@
 	Gemini model	Gemini 模型
 	OpenAI model	OpenAI 模型
 	Picture shape	画幅
+	ElevenLabs voice	ElevenLabs 语音
+	ElevenLabs voices (cloud, any language)	ElevenLabs 语音（云端，任意语言）
+	Load ElevenLabs voices…	加载 ElevenLabs 语音…
+	Loading ElevenLabs voices	正在加载 ElevenLabs 语音
+	Add an ElevenLabs API key in Settings ▸ AI to use this voice.	要使用此语音，请在“设置 ▸ AI”中添加 ElevenLabs API 密钥。
+	This voice speaks in the cloud: the narration's text is sent to ElevenLabs.	此语音在云端合成：旁白文本将发送到 ElevenLabs。
+	Allow ElevenLabs	允许 ElevenLabs
+	Spoken by ElevenLabs in the cloud. Vocal pitch and pace don't apply.	由 ElevenLabs 在云端朗读。音高和语速不适用。
+	Couldn't load the ElevenLabs voices: {e}	无法加载 ElevenLabs 语音：{e}
+	Loading ElevenLabs voices…	正在加载 ElevenLabs 语音…

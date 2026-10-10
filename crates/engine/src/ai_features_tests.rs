@@ -788,3 +788,35 @@ fn a_generated_image_is_imported_and_placed_after_consent() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn an_elevenlabs_voice_speaks_a_narration_with_its_pauses() {
+    let (mut s, fake, dir) = session("eleven-tts");
+    s.execute("ai.setKey", json!({"provider": "elevenlabs", "key": "xi"})).unwrap();
+    fake.route(|r| r.url.ends_with("/v1/voices"), |_| Ok(Response::json(200, &json!({"voices": [{"voice_id": "v1", "name": "Rachel", "labels": {"gender": "female"}}]}))));
+    // half a second of a tone for every piece of speech
+    fake.route(
+        |r| r.url.contains("/text-to-speech/v1"),
+        |_| Ok(Response::new(200, (0..22_050).flat_map(|i| (((i as f32 * 0.05).sin() * 8000.0) as i16).to_le_bytes()).collect::<Vec<u8>>())),
+    );
+    let v = s.execute("tts.voices", json!({})).unwrap();
+    assert_eq!((v["cloud"]["key"].as_bool(), v["cloud"]["loaded"].as_bool()), (Some(true), Some(false)));
+    let v = s.execute("tts.cloudVoices", json!({"wait": true})).unwrap();
+    assert_eq!(v["voices"][0]["id"], "elevenlabs:v1", "{v}");
+    let p = json!({"text": "Привет. [pause 1s] Как дела?", "voice": "elevenlabs:v1", "dir": dir.to_string_lossy()});
+    let e = s.execute("tts.create", p.clone()).unwrap_err().to_string();
+    assert!(e.contains("CONFIRM_CLOUD"), "asks before the text goes out: {e}");
+    let mut ok = p.clone();
+    ok["confirm"] = json!(true);
+    let r = s.execute("tts.create", ok).unwrap();
+    let speech: Vec<_> = fake.sent().into_iter().filter(|r| r.url.contains("text-to-speech")).collect();
+    assert_eq!(speech.len(), 2, "each piece of speech is spoken on its own");
+    assert_eq!(speech[0].json().unwrap()["text"], "Привет.");
+    let secs = r["seconds"].as_f64().or_else(|| r["speechSeconds"].as_f64()).unwrap_or_default();
+    assert!((secs - 2.0).abs() < 0.1 || r.to_string().contains("clip"), "two half-second pieces and a one-second pause: {r}");
+    // hostile voices
+    for bad in ["elevenlabs:", "elevenlabs:../x", "elevenlabs:a b"] {
+        assert!(s.execute("tts.create", json!({"text": "a", "voice": bad, "confirm": true})).is_err(), "{bad}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

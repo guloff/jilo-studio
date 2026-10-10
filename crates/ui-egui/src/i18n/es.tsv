@@ -3789,3 +3789,13 @@
 	Landscape	Horizontal
 	Portrait	Vertical
 	Picture shape	Formato
+	ElevenLabs voice	Voz de ElevenLabs
+	ElevenLabs voices (cloud, any language)	Voces de ElevenLabs (nube, cualquier idioma)
+	Load ElevenLabs voices…	Cargar voces de ElevenLabs…
+	Loading ElevenLabs voices	Cargando voces de ElevenLabs
+	Add an ElevenLabs API key in Settings ▸ AI to use this voice.	Para usar esta voz, añade una clave de API de ElevenLabs en Ajustes ▸ IA.
+	This voice speaks in the cloud: the narration's text is sent to ElevenLabs.	Esta voz habla en la nube: el texto de la narración se envía a ElevenLabs.
+	Allow ElevenLabs	Permitir ElevenLabs
+	Spoken by ElevenLabs in the cloud. Vocal pitch and pace don't apply.	Lo pronuncia ElevenLabs en la nube. El tono y el ritmo no se aplican.
+	Couldn't load the ElevenLabs voices: {e}	No se pudieron cargar las voces de ElevenLabs: {e}
+	Loading ElevenLabs voices…	Cargando voces de ElevenLabs…

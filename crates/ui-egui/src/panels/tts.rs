@@ -6,11 +6,14 @@
 //! Synthesis runs as a background job (`tts.render`); when it finishes, the panel runs the action
 //! (preview, create or edit), which then uses the cached audio, so the window never stalls. The
 //! natural voices need a one-time download that the user confirms in the panel (size, source,
-//! licence); it runs as a job with progress and Cancel.
+//! licence); it runs as a job with progress and Cancel. With an ElevenLabs key (Settings ▸ AI) the
+//! account's voices are listed too (`tts.cloudVoices`, loaded on request); they speak any language,
+//! and the panel asks once before the text goes to ElevenLabs.
 //!
 //! Automation ids: `tts.language`, `tts.voice`, `tts.hearVoice`, `tts.advanced` (twirl),
 //! `tts.pitch`, `tts.pace`, `tts.text`, `tts.addPause`, `tts.preview`, `tts.save`, `tts.new`,
-//! `tts.download`, `tts.download.confirm`, `tts.download.cancel`.
+//! `tts.download`, `tts.download.confirm`, `tts.download.cancel`, `tts.cloud.load`, `tts.cloud.allow`,
+//! `tts.voice.elevenlabs:<id>` (an ElevenLabs voice in the open voice list).
 
 use egui::{Align2, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
 use filmcraft_project::{ClipId, VocalPitch};
@@ -42,6 +45,11 @@ pub struct TtsDraft {
     pub confirm_download: bool,
     /// The running natural-voice download job.
     pub download_job: Option<u64>,
+    /// The running job loading the ElevenLabs voices.
+    pub cloud_job: Option<u64>,
+    /// Whether an ElevenLabs key was found, and when it was looked up (seconds of UI time).
+    #[serde(skip)]
+    pub cloud_key: Option<(f64, bool)>,
 }
 
 /// A command to run when the synthesis job `job` finishes.
@@ -68,6 +76,8 @@ impl Default for TtsDraft {
             pending: None,
             confirm_download: false,
             download_job: None,
+            cloud_job: None,
+            cloud_key: None,
         }
     }
 }
@@ -158,6 +168,26 @@ fn poll(app: &mut FilmcraftApp) {
             Err(e) => tlf!("Download of the natural voices failed: {e}", e),
         };
     }
+    if let Some(j) = app.ui.tts.cloud_job
+        && let Some(r) = job_outcome(app, j)
+    {
+        app.ui.tts.cloud_job = None;
+        if let Err(e) = r {
+            app.ui.status = tlf!("Couldn't load the ElevenLabs voices: {e}", e);
+        }
+    }
+}
+
+/// An ElevenLabs key is set (looked up at most once a second: the key file is read).
+fn cloud_key(app: &mut FilmcraftApp, now: f64) -> bool {
+    match app.ui.tts.cloud_key {
+        Some((at, has)) if now - at < 1.0 && now >= at => has,
+        _ => {
+            let has = filmcraft_engine::ai::key(&app.session, filmcraft_ai::Provider::ElevenLabs).is_some();
+            app.ui.tts.cloud_key = Some((now, has));
+            has
+        }
+    }
 }
 
 /// The selected narration clip and its item, if any.
@@ -178,7 +208,10 @@ pub fn follow_selection(app: &mut FilmcraftApp) {
             if let Some(n) = app.session.project.narrations.get(&filmcraft_project::ItemId(item)).cloned() {
                 let d = &mut app.ui.tts;
                 d.text = n.text;
-                d.language = n.language;
+                // an ElevenLabs voice speaks any language: keep the one chosen
+                if n.language != "multi" {
+                    d.language = n.language;
+                }
                 d.voice = n.voice;
                 d.pitch = n.pitch;
                 d.pace = n.pace;
@@ -201,6 +234,8 @@ enum Action {
     New,
     Download,
     CancelDownload,
+    LoadCloud,
+    AllowCloud,
 }
 
 pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
@@ -218,6 +253,10 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         .and_then(|id| app.session.jobs.iter().find(|j| j.id == id))
         .map(|j| (j.progress.fraction(), j.progress.status.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()));
     let editing = app.ui.tts.loaded_from.map(|(c, _)| c);
+    let has_key = cloud_key(app, ui.input(|i| i.time));
+    let cloud_list = app.session.cloud_voices.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let cloud_allowed = app.session.prefs.ai.confirmed(filmcraft_ai::Provider::ElevenLabs);
+    let cloud_loading = app.ui.tts.cloud_job.is_some();
     let mut actions: Vec<Action> = Vec::new();
     let auto = &mut app.auto;
     let d = &mut app.ui.tts;
@@ -254,8 +293,26 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         auto.add("tts.language", visible(ui, cb.response.rect), "Language");
         ui.add_space(10.0);
         label(ui, &t, tl!("Voice"));
-        let voice_name = voices.iter().find(|v| v.id == d.voice).map_or(d.voice.as_str(), |v| v.name);
+        let cloud_id = filmcraft_engine::narration::cloud_voice(&d.voice).map(str::to_string);
+        let voice_name = match &cloud_id {
+            Some(id) => cloud_list.iter().flatten().find(|v| v.id == *id).map_or_else(|| tl!("ElevenLabs voice").to_string(), |v| format!("{} · ElevenLabs", v.name)),
+            None => voices.iter().find(|v| v.id == d.voice).map_or(d.voice.clone(), |v| v.name.to_string()),
+        };
         let cb = egui::ComboBox::from_id_salt("tts-voice").selected_text(voice_name).width(w).show_ui(ui, |ui| {
+            // the account's ElevenLabs voices first: they speak any language
+            if let Some(list) = &cloud_list {
+                ui.label(egui::RichText::new(tl!("ElevenLabs voices (cloud, any language)")).color(t.text_faint).size(11.0));
+                for v in list {
+                    let id = format!("{}{}", filmcraft_engine::narration::CLOUD_VOICE_PREFIX, v.id);
+                    let hint: Vec<&str> = v.gender.as_deref().into_iter().chain(v.language.as_deref()).collect();
+                    let r = ui.selectable_label(d.voice == id, &v.name);
+                    auto.add(&format!("tts.voice.{id}"), visible(ui, r.rect), &v.name);
+                    let r = if hint.is_empty() { r } else { r.on_hover_text(hint.join(" · ")) };
+                    if r.clicked() {
+                        d.voice = id;
+                    }
+                }
+            }
             for (engine, heading) in [("neural", tl!("Natural voices")), ("basic", tl!("Basic voices (built in)"))] {
                 ui.label(egui::RichText::new(heading).color(t.text_faint).size(11.0));
                 for v in voices.iter().filter(|v| v.language == d.language && v.engine == engine) {
@@ -268,6 +325,36 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             }
         });
         auto.add("tts.voice", visible(ui, cb.response.rect), "Voice");
+        if has_key && cloud_list.is_none() {
+            ui.add_space(4.0);
+            if cloud_loading {
+                ui.label(egui::RichText::new(tl!("Loading ElevenLabs voices…")).color(t.text_dim).size(11.5));
+            } else {
+                let r = ui.link(egui::RichText::new(tl!("Load ElevenLabs voices…")).color(t.accent).size(11.5));
+                auto.add("tts.cloud.load", visible(ui, r.rect), "Load ElevenLabs voices");
+                if r.clicked() {
+                    actions.push(Action::LoadCloud);
+                }
+            }
+        }
+        if cloud_id.is_some() {
+            ui.add_space(6.0);
+            if !has_key {
+                ui.label(egui::RichText::new(tl!("Add an ElevenLabs API key in Settings ▸ AI to use this voice.")).color(t.text).size(11.5));
+            } else if !cloud_allowed {
+                egui::Frame::new().fill(t.field_bg).stroke(egui::Stroke::new(1.0, t.field_border)).corner_radius(4.0).inner_margin(8.0).show(ui, |ui| {
+                    ui.set_width(w - 18.0);
+                    ui.label(egui::RichText::new(tl!("This voice speaks in the cloud: the narration's text is sent to ElevenLabs.")).color(t.text).size(11.5));
+                    let b = ui.button(tl!("Allow ElevenLabs"));
+                    auto.add("tts.cloud.allow", visible(ui, b.rect), "Allow ElevenLabs");
+                    if b.clicked() {
+                        actions.push(Action::AllowCloud);
+                    }
+                });
+            } else {
+                ui.label(egui::RichText::new(tl!("Spoken by ElevenLabs in the cloud. Vocal pitch and pace don't apply.")).color(t.text_dim).size(11.0));
+            }
+        }
         let natural = filmcraft_tts::catalog::find(&d.voice).is_some();
         if natural && !installed {
             ui.add_space(6.0);
@@ -318,7 +405,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 }
             });
         }
-        let voice_ready = !natural || installed;
+        let voice_ready = (!natural || installed) && (cloud_id.is_none() || (has_key && cloud_allowed));
         ui.add_space(4.0);
         let (r, resp) = ui.allocate_exact_size(vec2(130.0, 22.0), Sense::click());
         let col = if resp.hovered() { t.accent_hover } else { t.accent };
@@ -386,7 +473,8 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let fy = rect.max.y - FOOTER_H + 10.0;
     let half = (rect.width() - PAD * 2.0 - 10.0) / 2.0;
     let natural = filmcraft_tts::catalog::find(&d.voice).is_some();
-    let can_say = filmcraft_tts::check_text(&d.text).is_ok() && (!natural || installed) && !busy;
+    let cloud_ready = filmcraft_engine::narration::cloud_voice(&d.voice).is_none() || (has_key && cloud_allowed);
+    let can_say = filmcraft_tts::check_text(&d.text).is_ok() && (!natural || installed) && cloud_ready && !busy;
     let pr = Rect::from_min_size(pos2(rect.min.x + PAD, fy), vec2(half, 28.0));
     if button(ui, &t, pr, Icon::Play, if busy { tl!("Synthesizing…") } else { tl!("Preview") }, false, can_say, "tts-preview").clicked() && can_say {
         actions.push(Action::Run("tts.preview", d.params(), true));
@@ -411,8 +499,8 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             Action::New => {
                 let keep = (app.ui.tts.language.clone(), app.ui.tts.voice.clone(), app.ui.tts.pitch, app.ui.tts.pace);
                 app.session.state.selection.clear();
-                let dl = app.ui.tts.download_job;
-                app.ui.tts = TtsDraft { language: keep.0, voice: keep.1, pitch: keep.2, pace: keep.3, download_job: dl, ..Default::default() };
+                let (dl, cj) = (app.ui.tts.download_job, app.ui.tts.cloud_job);
+                app.ui.tts = TtsDraft { language: keep.0, voice: keep.1, pitch: keep.2, pace: keep.3, download_job: dl, cloud_job: cj, ..Default::default() };
             }
             Action::Run(cmd, p, play) => start(app, cmd, p, play),
             Action::Download => {
@@ -420,6 +508,18 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 match app.session.execute("tts.downloadVoices", json!({})) {
                     Ok(r) => app.ui.tts.download_job = r["job"].as_u64(),
                     Err(e) => app.ui.status = e.to_string(),
+                }
+            }
+            Action::LoadCloud => match app.session.execute("tts.cloudVoices", json!({})) {
+                Ok(r) => app.ui.tts.cloud_job = r["job"].as_u64(),
+                Err(e) => app.ui.status = e.to_string(),
+            },
+            Action::AllowCloud => {
+                // the user's consent, once per provider (as the other cloud features)
+                let mut list = app.session.prefs.ai.confirmed_providers.clone();
+                list.push(filmcraft_ai::Provider::ElevenLabs.id().to_string());
+                if let Err(e) = app.session.execute("prefs.set", json!({"key": "ai.confirmedProviders", "value": list})) {
+                    app.ui.status = e.to_string();
                 }
             }
             Action::CancelDownload => {

@@ -116,6 +116,16 @@ with `place`, puts it on the timeline at the playhead on the first free video tr
 none is free), scaled to the frame. It runs as a cloud task: consent, a job with progress and Stop,
 undoable.
 
+### ElevenLabs narration voices
+
+With an ElevenLabs key, the Text to Speech panel offers the account's voices (Load ElevenLabs
+voices…; `tts.cloudVoices`, then `tts.voices` lists them under `cloud` as `elevenlabs:<voice id>`).
+They speak any language with the voice model of Settings ▸ AI ▸ Voices (`eleven_multilingual_v2`).
+Each piece of speech between `[pause …]` markers is spoken on its own and the pauses are kept as
+silence; vocal pitch and pace apply only to the voices on this computer. The panel asks once before
+the narration's text goes to ElevenLabs (`confirm` on `tts.preview`, `tts.create`, `tts.edit`,
+`tts.render`).
+
 ### Testing
 
 Unit and engine tests use a fake `Transcriber` (`FixedTranscriber`), so CI needs no model. The
