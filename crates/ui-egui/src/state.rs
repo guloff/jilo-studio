@@ -371,6 +371,15 @@ pub struct ButtonEditorDraft {
     pub buttons: Vec<String>,
 }
 
+/// The colour parameter an armed eyedropper fills (`effects.setParam` arguments).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Eyedropper {
+    pub clip: u64,
+    pub effect: usize,
+    pub param: String,
+    pub mask: Option<usize>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UiState {
     #[serde(default)]
@@ -407,6 +416,10 @@ pub struct UiState {
     pub show_scopes: bool,
     /// Transient status line shown in the footer.
     pub status: String,
+    /// The colour parameter an armed eyedropper will fill with the next pixel clicked in the Program
+    /// monitor (Esc or a click elsewhere disarms it). Never saved.
+    #[serde(skip)]
+    pub eyedropper: Option<Eyedropper>,
     /// Essential Sound sub-tab: "Edit" or "Browse".
     #[serde(default)]
     pub essential_sound_tab: String,
@@ -902,6 +915,7 @@ impl Default for UiState {
             dark: true,
             show_scopes: false,
             status: String::new(),
+            eyedropper: None,
             essential_sound_tab: "Edit".into(),
             export: Default::default(),
             text_tab: captions_tab(),
