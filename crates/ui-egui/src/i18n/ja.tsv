@@ -3528,3 +3528,5 @@
 	A non-linear video editor for the Mac, written in Rust.	Rust で書かれた Mac 用ノンリニア動画エディター。
 	Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.	ArtCraft チームの {upstream} がベースです。ArtCraft チームが制作・推奨したものではありません。
 	The name and icon of this app belong to Rustam Gulov.	このアプリの名前とアイコンは Rustam Gulov に帰属します。
+# Sequence ▸ Remove Silent Pauses
+	Remove Silent Pauses	無音の間を削除

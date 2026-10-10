@@ -3581,3 +3581,7 @@ mode	Edit	Монтаж
 	Transcribed: {n} words	Расшифровано слов: {n}
 	Whisper on this computer sends nothing. You are asked once per provider; Settings ▸ AI changes the engine.	Whisper на этом компьютере ничего не отправляет. Разрешение спрашивается один раз для каждого провайдера; движок меняется в Настройках ▸ ИИ.
 	{app} will send about {n} min of the clips' audio to {provider} to recognise the speech, with your API key. {provider} handles it under its own terms.	{app} отправит около {n} мин звука клипов в {provider} для распознавания речи, с вашим ключом API. {provider} обрабатывает его по своим правилам.
+# Speech models; pauses by sound
+	Remove Silent Pauses	Удалить паузы по звуку
+	Whisper small (accurate)	Whisper small (точный)
+	Whisper large-v3 turbo (most accurate; Russian, Tajik)	Whisper large-v3 turbo (самый точный; русский, таджикский)

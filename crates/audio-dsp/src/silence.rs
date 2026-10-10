@@ -46,15 +46,19 @@ pub fn silences(samples: &[f32], rate: u32, threshold_db: f32, min_seconds: f64)
     if samples.is_empty() || rate == 0 {
         return Vec::new();
     }
-    let total = samples.len() as f64 / rate as f64;
-    let levels = frame_levels_db(samples, rate);
+    silences_in_levels(&frame_levels_db(samples, rate), samples.len() as f64 / rate as f64, threshold_db, min_seconds)
+}
+
+/// [`silences`] from 10 ms frame levels (see [`frame_levels_db`]) of a recording `duration`
+/// seconds long, for long recordings measured block by block.
+pub fn silences_in_levels(levels: &[f32], duration: f64, threshold_db: f32, min_seconds: f64) -> Vec<Span> {
     let mut out = Vec::new();
     let mut run: Option<usize> = None;
     for (i, &db) in levels.iter().chain(std::iter::once(&f32::INFINITY)).enumerate() {
         match (db < threshold_db, run) {
             (true, None) => run = Some(i),
             (false, Some(from)) => {
-                let span = Span { start: from as f64 * FRAME_SECONDS, end: (i as f64 * FRAME_SECONDS).min(total) };
+                let span = Span { start: from as f64 * FRAME_SECONDS, end: (i as f64 * FRAME_SECONDS).min(duration) };
                 if span.len() + 1e-9 >= min_seconds {
                     out.push(span);
                 }

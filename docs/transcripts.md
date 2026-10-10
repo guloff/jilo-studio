@@ -101,6 +101,15 @@ prints SKIPPED. Measured on 2026-10-01: `whisper-tiny`, English, 12.2 % WER over
 the local speech samples (LibriSpeech read speech and dialogue clips) (about 9.5 minutes for the run in a release build on an
 Apple-silicon laptop CPU).
 
+## Pauses by sound
+
+For footage without a transcript, Sequence ▸ Remove Silent Pauses (`audio.removeSilences`;
+`audio.findSilences` only lists them) finds the pauses in the sequence mix by level: 10 ms RMS
+frames below `thresholdDb` (−35 dBFS by default, −70…−10) for at least `minSeconds` (0.6 s, 0.2…5),
+measured in 10-second blocks with FilmCraft's own detector (`filmcraft_audio_dsp::silence`), no
+ffmpeg. Each pause keeps `keepSeconds` (0.15 s) at both ends, is snapped to frames and ripple-deleted,
+all in one undo step; a sequence that is silent everywhere is left alone.
+
 ## Limits
 
 - Transcription runs synchronously inside the command (no background job or progress bar yet).

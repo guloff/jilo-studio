@@ -3589,3 +3589,7 @@
 	Transcribed: {n} words	Transcrito: {n} palabras
 	Whisper on this computer sends nothing. You are asked once per provider; Settings ▸ AI changes the engine.	Whisper en este ordenador no envía nada. Se pregunta una vez por proveedor; el motor se cambia en Ajustes ▸ IA.
 	{app} will send about {n} min of the clips' audio to {provider} to recognise the speech, with your API key. {provider} handles it under its own terms.	{app} enviará unos {n} min del audio de los clips a {provider} para reconocer el habla, con tu clave de API. {provider} lo trata según sus propias condiciones.
+# Speech models; pauses by sound
+	Remove Silent Pauses	Quitar pausas silenciosas
+	Whisper small (accurate)	Whisper small (preciso)
+	Whisper large-v3 turbo (most accurate; Russian, Tajik)	Whisper large-v3 turbo (el más preciso; ruso, tayiko)
