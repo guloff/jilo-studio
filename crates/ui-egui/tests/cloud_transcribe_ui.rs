@@ -34,6 +34,10 @@ impl Driver {
         if let Ok(lang) = std::env::var("FILMCRAFT_UI_SNAPSHOT_LANG") {
             d.ok("engine.execute", json!({"command": "prefs.set", "params": {"key": "general.interfaceLanguage", "value": lang}}));
         }
+        // FILMCRAFT_UI_SNAPSHOT_THEME=light|dark: the appearance the snapshots are taken in
+        if let Ok(mode) = std::env::var("FILMCRAFT_UI_SNAPSHOT_THEME") {
+            d.ok("engine.execute", json!({"command": "prefs.set", "params": {"key": "appearance.appearanceMode", "value": mode}}));
+        }
         d.frames(4);
         d
     }
@@ -262,5 +266,114 @@ fn captions_are_translated_from_the_captions_tab() {
     }
     assert_eq!(tracks, 2, "the translated track was added");
     d.snapshot("translate-done");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Markers ▸ Find Highlights: the search dialog, the consent for the transcript, the background
+/// search, the range markers and the results window that goes to a highlight and assembles them.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn highlights_are_found_listed_and_assembled() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-highlights-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |r| {
+            // two highlights: the first half of the cues and the second
+            let b = r.json().unwrap_or_default();
+            let user = b["contents"][0]["parts"][1]["text"].as_str().unwrap_or_default().to_string();
+            let cues: Vec<(f64, f64)> = user
+                .lines()
+                .filter_map(|l| {
+                    let (a, b) = l.strip_prefix('[')?.split(']').next()?.split_once('-')?;
+                    Some((a.parse().ok()?, b.parse().ok()?))
+                })
+                .collect();
+            let mid = cues.len() / 2;
+            let answer = json!({"fragments": [
+                {"start": cues[mid].0, "end": cues[cues.len() - 1].1, "title": "Как монтировать быстрее", "score": 74, "reason": "Готовый совет со своим выводом."},
+                {"start": cues[0].0, "end": cues[mid - 1].1, "title": "Главная мысль интервью", "score": 91, "reason": "Законченная мысль: завязка и вывод в одном фрагменте."}
+            ]});
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": answer.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "gemini", "key": "k"})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
+    d.frames(2);
+    d.click("text.tab.Transcript");
+    // Russian transcripts for the media of the first two A1 clips: sentences of four words, a pause after each
+    let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
+    let tick = filmcraft_time::TICKS_PER_SECOND / 10; // 0.1 s
+    let text = [
+        ["Сегодня", "мы", "монтируем", "интервью.", "Сначала", "убираем", "лишние", "паузы."],
+        ["Потом", "ищем", "лучшие", "моменты.", "И", "собираем", "короткий", "ролик."],
+    ];
+    for (k, sentences) in text.iter().enumerate() {
+        let clip = &seq["audio"][0]["items"][k];
+        let item = clip["item"].as_u64().unwrap();
+        let start = clip["sourceIn"].as_i64().unwrap_or(0);
+        let words: Vec<Value> = sentences
+            .iter()
+            .enumerate()
+            .map(|(i, w)| {
+                let at = start + tick * (3 * i as i64 + 10 * (i as i64 / 4));
+                json!({"text": w, "start": at, "end": at + tick * 2})
+            })
+            .collect();
+        d.ok(
+            "engine.execute",
+            json!({"command": "transcript.set", "params": {"item": item, "transcript": {"language": "ru", "speakers": [], "words": words}}}),
+        );
+    }
+    d.frames(3);
+    // the Transcript toolbar opens the search dialog
+    d.click("text.transcript.highlights");
+    assert!(d.ids("highlights.").contains(&"highlights.go".to_string()));
+    d.click("highlights.mode.meaningful");
+    d.snapshot("highlights-dialog");
+    d.click("highlights.go");
+    assert!(d.ids("aiTask.consent").contains(&"aiTask.consent.send".to_string()), "asks before the transcript goes out");
+    d.snapshot("highlights-consent");
+    assert!(fake.sent().is_empty());
+    d.click("aiTask.consent.send");
+    let mut listed = false;
+    for _ in 0..400 {
+        d.frames(2);
+        if d.ids("highlights.item.").iter().any(|i| i == "highlights.item.1") {
+            listed = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(listed, "the results window lists the highlights");
+    let sent = fake.sent();
+    let body = sent[0].json().unwrap_or_default();
+    assert!(body["contents"][0]["parts"][0]["text"].as_str().unwrap().contains("meaningful self-contained ideas"));
+    d.snapshot("highlights-results");
+    let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
+    // the demo's own markers, and the two highlights: range markers in the Meaningful colour
+    let markers: Vec<Value> = seq["markers"].as_array().cloned().unwrap_or_default().into_iter().filter(|m| m["duration"] != 0).collect();
+    assert_eq!(markers.len(), 2, "{markers:?}");
+    assert!(markers.iter().all(|m| m["color"] == "Cerulean"));
+    assert!(markers.iter().any(|m| m["name"] == "Главная мысль интервью"));
+    // a title goes to its highlight
+    d.click("highlights.item.1");
+    let ph = d.ok("engine.execute", json!({"command": "state.inspect", "params": {}}));
+    assert!(ph.to_string().contains("playhead"));
+    // Subsequences: one per chosen highlight; untick the second
+    d.click("highlights.item.1.chosen");
+    d.click("highlights.subsequences");
+    assert!(d.ids("highlights.item.").is_empty(), "the window closes");
+    let project = d.ok("engine.execute", json!({"command": "project.inspect", "params": {}})).to_string();
+    // listed best first: the second (unticked) is the lower-scored one
+    assert!(project.contains("Main Edit · Главная мысль интервью") && !project.contains("· Как монтировать"), "{project}");
     let _ = std::fs::remove_dir_all(&dir);
 }

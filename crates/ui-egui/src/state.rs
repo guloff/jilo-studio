@@ -396,6 +396,29 @@ pub struct AiTaskUi {
     pub job: Option<u64>,
 }
 
+/// Markers ▸ Find Highlights… (`panels::highlights`): what the search looks for, and the
+/// highlights found with the ones chosen to assemble.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HighlightsUi {
+    /// The search dialog is open.
+    pub dialog: bool,
+    /// `viral`, `meaningful` or `facts`.
+    pub mode: String,
+    pub count: u32,
+    pub min_seconds: f32,
+    pub max_seconds: f32,
+    /// The highlights of the last search (`highlights.find` result items), shown while not empty.
+    pub found: Vec<serde_json::Value>,
+    pub chosen: Vec<bool>,
+}
+
+impl Default for HighlightsUi {
+    fn default() -> Self {
+        Self { dialog: false, mode: "viral".into(), count: 5, min_seconds: 15.0, max_seconds: 60.0, found: Vec::new(), chosen: Vec::new() }
+    }
+}
+
 /// Text panel ▸ Transcribe while it works: the background recognition (`transcript.recognize`), its
 /// parameters (`transcript.generate` applies the result with the same ones), a cloud recognition
 /// waiting for the user's consent, and the last message.
@@ -488,6 +511,9 @@ pub struct UiState {
     /// Text panel ▸ Remove filler words: the found fillers being chosen (`transcript.fillers`).
     #[serde(default)]
     pub fillers: Option<Vec<serde_json::Value>>,
+    /// Markers ▸ Find Highlights…: the search dialog and the highlights found.
+    #[serde(default)]
+    pub highlights: HighlightsUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -974,6 +1000,7 @@ impl Default for UiState {
             transcript_search: String::new(),
             transcribe: TranscribeUi::default(),
             fillers: None,
+            highlights: HighlightsUi::default(),
             ai_task: None,
             translate_track: None,
             translate_to: String::new(),

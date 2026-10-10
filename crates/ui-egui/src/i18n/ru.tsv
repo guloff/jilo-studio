@@ -3611,3 +3611,30 @@ mode	Edit	Монтаж
 	Roll Edit	Прокрутка монтажной точки
 	Trim In	Подрезать начало
 	Trim Out	Подрезать конец
+# Markers ▸ Find Highlights (11.6)
+	Find Highlights…	Найти хайлайты…
+	Find Highlights	Найти хайлайты
+	Assemble Highlights	Собрать хайлайты
+	Highlights as Subsequences	Хайлайты в подсеквенции
+	Find highlights…	Найти хайлайты…
+	{name} · words: {n}	{name} · слов: {n}
+	Look for	Что искать
+	Viral moments	Вирусные моменты
+	A strong hook, emotion or surprise: clips that work on their own.	Сильный крючок, эмоция или неожиданность: фрагменты, понятные без контекста.
+	Meaningful ideas	Осмысленные мысли
+	Complete thoughts with a setup and a conclusion.	Законченные мысли с завязкой и выводом.
+	Facts	Фактура
+	Numbers, names and definitions: precise, quotable passages.	Цифры, имена и определения: точные места, которые можно цитировать.
+	How many	Сколько
+	Length, seconds	Длина, секунды
+	The transcript goes to {provider}. Each highlight becomes a range marker on the sequence.	Расшифровка уходит в {provider}. Каждый хайлайт станет маркером-диапазоном на секвенции.
+	Each highlight is a range marker on the sequence. Click a title to go there.	Каждый хайлайт — маркер-диапазон на секвенции. Нажмите на заголовок, чтобы перейти к нему.
+	{start} – {end} · {n} s	{start} – {end} · {n} с
+	Add to Export Queue	В очередь экспорта
+	Subsequences	Подсеквенции
+	Highlights: {n} exports added to the queue	Хайлайты: в очередь экспорта добавлено {n}
+	Highlights: a new sequence is made	Хайлайты: создана новая секвенция
+	Highlights: {n} subsequences made	Хайлайты: создано подсеквенций — {n}
+	Finding highlights	Поиск хайлайтов
+	the transcript	расшифровку
+	Highlights Found	Найденные хайлайты

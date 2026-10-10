@@ -425,6 +425,10 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
             app.ui.mode = Mode::Export;
             return Ok(json!({"mode": "export"}));
         }
+        // Find Highlights… from the menu opens the search dialog; with params it searches directly.
+        "highlights.find" if params.as_object().is_none_or(|m| m.is_empty()) => {
+            return crate::panels::highlights::open(app);
+        }
         // Audio Gain from the menu or G opens the dialog; with params it applies directly.
         "clip.audioGain" if params.as_object().is_none_or(|m| m.is_empty()) => {
             filmcraft_engine::find_command("clip.audioGain").map_or(Ok(()), |c| (c.enabled)(&app.session))?;

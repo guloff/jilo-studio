@@ -3650,3 +3650,30 @@
 	{label}: done	{label}：完成
 	{name} · captions: {n}	{name} · 字幕：{n}
 	{voice} (download)	{voice}（下载）
+# Markers ▸ Find Highlights (11.6)
+	Find Highlights…	查找精彩片段…
+	Find Highlights	查找精彩片段
+	Assemble Highlights	汇编精彩片段
+	Highlights as Subsequences	精彩片段转为子序列
+	Find highlights…	查找精彩片段…
+	{name} · words: {n}	{name} · 词数：{n}
+	Look for	查找内容
+	Viral moments	爆款时刻
+	A strong hook, emotion or surprise: clips that work on their own.	强烈的开场、情绪或惊喜：可独立成片的片段。
+	Meaningful ideas	有意义的观点
+	Complete thoughts with a setup and a conclusion.	有铺垫、有结论的完整想法。
+	Facts	事实
+	Numbers, names and definitions: precise, quotable passages.	数字、名称和定义：精确、可引用的段落。
+	How many	数量
+	Length, seconds	时长（秒）
+	The transcript goes to {provider}. Each highlight becomes a range marker on the sequence.	文字稿将发送到 {provider}。每个精彩片段都会成为序列上的范围标记。
+	Each highlight is a range marker on the sequence. Click a title to go there.	每个精彩片段都是序列上的范围标记。点击标题即可跳转。
+	{start} – {end} · {n} s	{start} – {end} · {n} 秒
+	Add to Export Queue	添加到导出队列
+	Subsequences	子序列
+	Highlights: {n} exports added to the queue	精彩片段：已向队列添加 {n} 个导出
+	Highlights: a new sequence is made	精彩片段：已创建新序列
+	Highlights: {n} subsequences made	精彩片段：已创建 {n} 个子序列
+	Finding highlights	正在查找精彩片段
+	the transcript	文字稿
+	Highlights Found	找到的精彩片段

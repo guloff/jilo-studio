@@ -3618,3 +3618,30 @@
 	Transcribing	Transcribiendo
 	Uzbek	Uzbeko
 	Persian	Persa
+# Markers ▸ Find Highlights (11.6)
+	Find Highlights…	Buscar momentos destacados…
+	Find Highlights	Buscar momentos destacados
+	Assemble Highlights	Montar momentos destacados
+	Highlights as Subsequences	Momentos destacados como subsecuencias
+	Find highlights…	Buscar momentos destacados…
+	{name} · words: {n}	{name} · palabras: {n}
+	Look for	Buscar
+	Viral moments	Momentos virales
+	A strong hook, emotion or surprise: clips that work on their own.	Un gancho fuerte, emoción o sorpresa: clips que funcionan por sí solos.
+	Meaningful ideas	Ideas con sentido
+	Complete thoughts with a setup and a conclusion.	Ideas completas, con planteamiento y conclusión.
+	Facts	Datos
+	Numbers, names and definitions: precise, quotable passages.	Cifras, nombres y definiciones: pasajes precisos y citables.
+	How many	Cuántos
+	Length, seconds	Duración, segundos
+	The transcript goes to {provider}. Each highlight becomes a range marker on the sequence.	La transcripción se envía a {provider}. Cada momento destacado se convierte en un marcador de rango en la secuencia.
+	Each highlight is a range marker on the sequence. Click a title to go there.	Cada momento destacado es un marcador de rango en la secuencia. Haz clic en un título para ir a él.
+	{start} – {end} · {n} s	{start} – {end} · {n} s
+	Add to Export Queue	Añadir a la cola de exportación
+	Subsequences	Subsecuencias
+	Highlights: {n} exports added to the queue	Momentos destacados: {n} exportaciones añadidas a la cola
+	Highlights: a new sequence is made	Momentos destacados: se ha creado una secuencia nueva
+	Highlights: {n} subsequences made	Momentos destacados: {n} subsecuencias creadas
+	Finding highlights	Buscando momentos destacados
+	the transcript	la transcripción
+	Highlights Found	Momentos destacados encontrados

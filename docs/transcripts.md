@@ -119,6 +119,25 @@ measured in 10-second blocks with FilmCraft's own detector (`filmcraft_audio_dsp
 ffmpeg. Each pause keeps `keepSeconds` (0.15 s) at both ends, is snapped to frames and ripple-deleted,
 all in one undo step; a sequence that is silent everywhere is left alone.
 
+## Highlights
+
+Markers ▸ Find Highlights… (also the Transcript toolbar; `highlights.find`) looks through the
+sequence transcript for the best fragments with the text engine of Settings ▸ AI, as Jilo Studio
+does: `viral` (a hook that works on its own as a short), `meaningful` (complete thoughts) or `facts`
+(numbers, names, definitions), `count` 1–20 (5), `minSeconds` 5–180 (15), `maxSeconds` up to 600
+(60). The transcript goes as cues (`[start-end] text`, a new cue after a 0.7 s pause, at a phrase end
+past 15 characters, at most 7 s), titles and reasons come back in the transcript's language. The
+answer is checked in code: best score first, boundaries snapped to whole cues (±0.5 s), cut to
+`maxSeconds` at a cue end, and reversed, out-of-transcript, too short or overlapping fragments
+dropped. Each highlight becomes a range marker (name = title, comment = score and reason; orange,
+blue or green by mode) in one undo step. Nothing is sent before the user's one-time consent for the
+provider; the interface searches in the background (status bar and Progress panel, with Cancel).
+
+The results window lists the highlights (click a title to go there) and assembles the chosen ones
+with `highlights.assemble {markers, as}`: `subsequences` (one sequence per highlight, in the
+sequence's bin), `sequence` (all of them end to end) or `queue` (one export queue item per highlight,
+named after it, next to the project unless `path` is given). Each is one undo step.
+
 ## Limits
 
 - Transcription runs synchronously inside the command (no background job or progress bar yet).

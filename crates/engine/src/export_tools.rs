@@ -344,7 +344,7 @@ pub fn default_export_dir(s: &Session) -> PathBuf {
     crate::temp_dir()
 }
 
-fn file_safe(n: &str) -> String {
+pub(crate) fn file_safe(n: &str) -> String {
     let s: String = n.chars().map(|c| if c.is_alphanumeric() || " -_().".contains(c) { c } else { '_' }).collect();
     let s = s.trim().to_string();
     if s.is_empty() { "Export".into() } else { s }

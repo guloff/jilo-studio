@@ -2899,6 +2899,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::ai::commands());
     v.extend(crate::silence_tools::commands());
     v.extend(crate::translate::commands());
+    v.extend(crate::highlights::commands());
     v.extend(crate::keyboard::commands());
     v.extend(crate::project_panel::commands());
     v.extend(crate::media_browser::commands());

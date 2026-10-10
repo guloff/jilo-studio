@@ -47,7 +47,7 @@ pub fn sequence_words(s: &Session) -> Vec<SeqWord> {
     }
 }
 
-fn has_transcript(s: &Session) -> std::result::Result<(), String> {
+pub(crate) fn has_transcript(s: &Session) -> std::result::Result<(), String> {
     has_seq(s)?;
     if sequence_words(s).is_empty() { Err("the sequence has no transcript (Transcribe first)".into()) } else { Ok(()) }
 }
