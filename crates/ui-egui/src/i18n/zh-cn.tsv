@@ -267,9 +267,11 @@
 	Clear Selected Marker	清除所选标记
 	Click to select all clips to the left in all tracks. Shift-click for a single track.	单击可选中所有轨道左侧的全部剪辑。按住 Shift 单击仅作用于单个轨道。
 	Click to select all clips to the right in all tracks. Shift-click for a single track.	单击可选中所有轨道右侧的全部剪辑。按住 Shift 单击仅作用于单个轨道。
-	Click to select, or click in empty space and drag to marquee select. Use Shift, Opt, and Cmd for other options.	单击可选中剪辑，或在空白区域拖动框选。配合 Shift、Alt 和 Ctrl 可使用其他选项。
+	Click to select, or click in empty space and drag to marquee select. Use Shift, Opt, and Cmd for other options.	单击可选中剪辑，或在空白区域拖动框选。配合 Shift、Opt 和 Cmd 可使用其他选项。
+	Click to select, or click in empty space and drag to marquee select. Use Shift, Alt, and Ctrl for other options.	单击可选中剪辑，或在空白区域拖动框选。配合 Shift、Alt 和 Ctrl 可使用其他选项。
 	Click to split a clip. Shift-click to split all tracks.	单击可在该处切断剪辑。按住 Shift 单击可切断所有轨道。
-	Click to zoom in; Opt-click to zoom out.	单击可放大；按住 Alt 单击可缩小。
+	Click to zoom in; Opt-click to zoom out.	单击可放大；按住 Opt 单击可缩小。
+	Click to zoom in; Alt-click to zoom out.	单击可放大；按住 Alt 单击可缩小。
 	Clip	剪辑
 	Clip Channel Format:	剪辑声道格式：
 	Clip Name	剪辑名称
@@ -414,6 +416,8 @@
 	Drag an edit point to roll it: the out of one clip and the in of the next move together.	拖动编辑点进行滚动修剪：前一剪辑的出点与后一剪辑的入点将协同移动。
 	Drag the edge of a music clip to remix it to the new duration at musically matching beats.	拖动音乐剪辑边缘，在节拍匹配处自动重混到新的持续时间。
 	Drag to scroll the timeline.	拖动可平移滚动时间线。
+	Drag: move · Alt-click: smooth/corner · Cmd-click: delete	拖动：移动 · Alt-单击：平滑/拐角 · Cmd-单击：删除
+	Drag: move · Alt-click: smooth/corner · Ctrl-click: delete	拖动：移动 · Alt-单击：平滑/拐角 · Ctrl-单击：删除
 	Drop Shadow	投影
 	Duplicate	复制
 	Duration:	持续时间：
