@@ -3765,3 +3765,6 @@
 	Unsaved changes, if there were any, are offered for recovery separately.	Los cambios sin guardar, si los había, se ofrecen para recuperar por separado.
 	Copy Report	Copiar informe
 	The report is copied	Informe copiado
+# Settings ▸ General ▸ daily update check
+	Check for updates once a day	Buscar actualizaciones una vez al día
+	The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once.	La comprobación pregunta a GitHub por la última versión de FilmCraft y no envía nada más; cada versión nueva se ofrece una vez.

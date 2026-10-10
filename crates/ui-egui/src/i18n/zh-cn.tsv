@@ -3796,3 +3796,6 @@
 	Unsaved changes, if there were any, are offered for recovery separately.	如有未保存的更改，将另行提供恢复。
 	Copy Report	复制报告
 	The report is copied	报告已复制
+# Settings ▸ General ▸ daily update check
+	Check for updates once a day	每天检查一次更新
+	The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once.	检查只会向 GitHub 查询 FilmCraft 的最新版本，不发送其他内容；每个新版本只提示一次。

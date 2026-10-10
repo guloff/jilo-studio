@@ -3760,3 +3760,6 @@ mode	Edit	Монтаж
 	Unsaved changes, if there were any, are offered for recovery separately.	Несохранённые изменения, если они были, предлагаются к восстановлению отдельно.
 	Copy Report	Скопировать отчёт
 	The report is copied	Отчёт скопирован
+# Settings ▸ General ▸ daily update check
+	Check for updates once a day	Проверять обновления раз в день
+	The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once.	Проверка спрашивает у GitHub последнюю версию FilmCraft и больше ничего не отправляет; о каждой новой версии сообщается один раз.

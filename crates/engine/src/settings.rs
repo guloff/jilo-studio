@@ -56,6 +56,12 @@ pub struct GeneralPrefs {
     pub show_compatibility_issues: bool,
     pub show_project_bin_in_tab: bool,
     pub show_mask_tracker_preview: bool,
+    /// Ask GitHub for the latest release once a day (Help ▸ Check for Updates… does it on request).
+    pub check_for_updates: bool,
+    /// When the daily check last ran (unix seconds; not shown in the dialog).
+    pub last_update_check: i64,
+    /// The release the daily check last offered, so each one is offered once (not shown).
+    pub update_offered: String,
     /// Most recently opened / saved projects (newest first; not shown in the dialog).
     pub recent_projects: Vec<String>,
 }
@@ -79,6 +85,9 @@ impl Default for GeneralPrefs {
             show_compatibility_issues: true,
             show_project_bin_in_tab: true,
             show_mask_tracker_preview: true,
+            check_for_updates: false,
+            last_update_check: 0,
+            update_offered: String::new(),
             recent_projects: Vec::new(),
         }
     }
@@ -857,6 +866,8 @@ static CATEGORIES: &[Category] = &[
             b("general.showCompatibilityIssues", "Show system compatibility issues at startup", false),
             b("general.showProjectBinInTab", "Show \"Project:\" and \"Bin:\" in Project panel tab", false),
             b("general.showMaskTrackerPreview", "Show Mask Tracker Preview", false),
+            b("general.checkForUpdates", "Check for updates once a day", true),
+            Row::Note("The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once."),
         ],
     },
     Category {

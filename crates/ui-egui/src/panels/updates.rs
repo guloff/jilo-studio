@@ -1,7 +1,9 @@
 //! Help ▸ Check for Updates…: the check runs in the background (`app.checkUpdates`, a job in the
 //! status bar), then a window says what it found — a newer release with its notes and a Download
 //! button that opens the release's GitHub page, or that this version is the latest, or why the
-//! check failed. Nothing is checked unless asked.
+//! check failed. Nothing is checked unless asked, or — with Settings ▸ General ▸ Check for updates
+//! once a day — once a day in the background, which says nothing unless a newer release is out and
+//! offers each release once.
 
 use egui::RichText;
 use serde_json::{Value, json};
@@ -15,18 +17,49 @@ pub fn start(app: &mut FilmcraftApp) -> Result<Value, String> {
     }
     let r = app.session.execute("app.checkUpdates", json!({})).map_err(|e| e.to_string())?;
     app.ui.updates.job = r["job"].as_u64();
+    app.ui.updates.auto = false;
     app.ui.updates.result = None;
     app.ui.status = tl!("Checking for updates…").to_string();
     Ok(json!({"checking": true}))
 }
 
+/// The daily check: looked at once at startup and then hourly; runs when a day has passed.
+fn daily(app: &mut FilmcraftApp) {
+    let now = web_time::Instant::now();
+    if app.ui.updates.job.is_some() || app.ui.updates.next_look.is_some_and(|t| now < t) {
+        return;
+    }
+    app.ui.updates.next_look = Some(now + std::time::Duration::from_secs(3600));
+    let unix = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
+    if !filmcraft_engine::updates::daily_check_due(&app.session.prefs.general, unix) {
+        return;
+    }
+    // recorded before the check, so a failing network is not asked again for a day
+    let _ = app.session.execute("prefs.set", json!({"key": "general.lastUpdateCheck", "value": unix}));
+    if let Ok(r) = app.session.execute("app.checkUpdates", json!({})) {
+        app.ui.updates.job = r["job"].as_u64();
+        app.ui.updates.auto = true;
+    }
+}
+
 pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+    daily(app);
     if let Some(id) = app.ui.updates.job
         && app.session.jobs.iter().find(|j| j.id == id).is_none_or(|j| j.to_json()["finished"] == true)
     {
         app.ui.updates.job = None;
-        app.ui.updates.result = app.session.execute("app.updateStatus", json!({})).ok();
-        app.ui.status.clear();
+        let r = app.session.execute("app.updateStatus", json!({})).ok();
+        if app.ui.updates.auto {
+            // the daily check speaks only of a newer release, once per release
+            let latest = r.as_ref().and_then(|v| (v["newer"] == true).then(|| v["latest"].as_str().unwrap_or_default().to_string()));
+            if let Some(latest) = latest.filter(|l| *l != app.session.prefs.general.update_offered) {
+                let _ = app.session.execute("prefs.set", json!({"key": "general.updateOffered", "value": latest}));
+                app.ui.updates.result = r;
+            }
+        } else {
+            app.ui.updates.result = r;
+            app.ui.status.clear();
+        }
     }
     if app.ui.updates.result.is_some() {
         window(app, ctx);

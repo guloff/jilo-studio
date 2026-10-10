@@ -694,3 +694,46 @@ fn updates_are_checked_on_request_and_shown_in_a_window() {
     d.click("updates.ok");
     assert!(d.ids("updates.").is_empty());
 }
+
+/// Settings ▸ General ▸ Check for updates once a day: a newer release is offered by itself, once.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn the_daily_check_offers_a_newer_release_once() {
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url == filmcraft_engine::updates::RELEASES_API,
+        |_| {
+            Ok(Response::json(
+                200,
+                &json!({"tag_name": "v9.2.0", "html_url": format!("{}/tag/v9.2.0", filmcraft_engine::updates::RELEASES_PAGE), "body": "Notes"}),
+            ))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_transport = Some(fake.clone());
+    s.prefs.general.check_for_updates = true;
+    let mut d = Driver::new(s);
+    let mut shown = false;
+    for _ in 0..400 {
+        d.frames(2);
+        if d.ids("updates.").iter().any(|i| i == "updates.download") {
+            shown = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(shown, "the daily check offers the newer release");
+    assert_eq!(fake.sent().len(), 1);
+    assert_eq!(d.harness.state().session.prefs.general.update_offered, "9.2.0");
+    assert!(d.harness.state().session.prefs.general.last_update_check > 0);
+    d.click("updates.later");
+    // a day later the same release is not offered again
+    d.harness.state_mut().session.prefs.general.last_update_check = 1;
+    d.harness.state_mut().ui.updates.next_look = None;
+    for _ in 0..60 {
+        d.frames(2);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(fake.sent().len(), 2, "checked again after a day");
+    assert!(d.ids("updates.").is_empty(), "but the release it offered is not offered twice");
+}

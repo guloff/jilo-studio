@@ -137,6 +137,11 @@ pub fn read_release(current: &str, status: u16, body: &[u8]) -> UpdateCheck {
     c
 }
 
+/// Whether the daily check is due: on, and a day since the last one (`now`, unix seconds).
+pub fn daily_check_due(prefs: &crate::settings::GeneralPrefs, now: i64) -> bool {
+    prefs.check_for_updates && (now - prefs.last_update_check >= 86_400 || prefs.last_update_check > now)
+}
+
 /// Ask GitHub (in the calling thread).
 fn check(transport: &dyn filmcraft_ai::transport::Transport, current: &str) -> UpdateCheck {
     let mut req = filmcraft_ai::transport::Request::get(RELEASES_API);

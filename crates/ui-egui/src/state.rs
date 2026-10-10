@@ -489,6 +489,10 @@ pub struct FacePicker {
 #[derive(Clone, Debug, Default)]
 pub struct UpdatesUi {
     pub job: Option<u64>,
+    /// The running check is the daily one (quiet unless a newer release is out).
+    pub auto: bool,
+    /// When the daily check next looks whether it is due.
+    pub next_look: Option<web_time::Instant>,
     /// `app.updateStatus` once the check has ended: the window shows it.
     pub result: Option<serde_json::Value>,
 }
