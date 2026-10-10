@@ -171,6 +171,8 @@ pub enum Dialog {
     SequenceSettings,
     /// "Save changes before quitting?" (closing the window or Quit with unsaved changes, #266).
     QuitConfirm,
+    /// Set Transition Duration (double-click a transition in the Timeline).
+    TransitionDuration,
 }
 
 #[derive(Default)]
