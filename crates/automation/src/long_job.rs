@@ -1,8 +1,10 @@
-//! Long exports over MCP (docs/automation.md § Long exports): `file.exportMedia` with `wait: true`
-//! runs as a background engine job; the server reports its progress as MCP
-//! `notifications/progress` (when the request carried a `progressToken`) and stops it on
-//! `notifications/cancelled`, deleting the partial output. The session lock is only held for
-//! short polls, so other requests are answered while the export runs.
+//! Long commands over MCP (docs/automation.md § Long jobs): a command that takes `wait` called with
+//! `wait: true` (exports, renders, proxies, transcription, scene detection, narration, batches…),
+//! and a cloud AI task or a face analysis (which take `background`), run as a background engine job;
+//! the server reports its progress as MCP `notifications/progress` (when the request carried a
+//! `progressToken`) and stops it on `notifications/cancelled` (an export's partial output is
+//! deleted). The session lock is only held for short polls, so other requests are answered while
+//! the job runs, and in bridge mode the app keeps repainting.
 
 use std::path::Path;
 use std::time::{Duration, SystemTime};
@@ -14,15 +16,47 @@ use serde_json::{Value, json};
 
 use crate::server::FilmcraftMcp;
 
-/// Engine commands that block until a render is written when called with `wait: true`.
-pub const LONG_COMMANDS: &[&str] = &["file.exportMedia"];
+/// Commands whose work runs as a job with `background: true`, and which applies its result when
+/// called again with the same parameters (the answer is cached).
+pub const BACKGROUND_COMMANDS: &[&str] = &["captions.translate", "highlights.find", "clip.autoZoom", "youtube.generate", "clip.reframeToFace"];
+
+/// How a long command is run as a job.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    /// It takes `wait`: called with `wait: false`, it starts a job and returns `{job, …}`.
+    Wait,
+    /// It takes `background`: called with `background: true`, it starts a job; called again
+    /// without it, it applies the result.
+    Background,
+}
+
+/// How `command_run {id, params}` runs as a job, if it is a long call.
+pub fn kind(id: &str, params: &Value) -> Option<Kind> {
+    if BACKGROUND_COMMANDS.contains(&id) && params.get("background").is_none() {
+        return Some(Kind::Background);
+    }
+    let takes_wait = filmcraft_engine::find_command(id).is_some_and(|c| c.params.contains("\"wait\""));
+    (takes_wait && params.get("wait").and_then(Value::as_bool) == Some(true)).then_some(Kind::Wait)
+}
 
 /// How often the job is polled (and at most how often progress is reported).
 const POLL: Duration = Duration::from_millis(100);
 
 /// Whether `command_run {id, params}` is a long call this module runs.
 pub fn is_long(id: &str, params: &Value) -> bool {
-    LONG_COMMANDS.contains(&id) && params.get("wait").and_then(Value::as_bool) == Some(true)
+    kind(id, params).is_some()
+}
+
+/// `params` changed to start the job instead of waiting for it.
+pub fn start_params(kind: Kind, params: &Value) -> Value {
+    let mut p = params.clone();
+    if let Some(o) = p.as_object_mut() {
+        match kind {
+            Kind::Wait => o.insert("wait".into(), json!(false)),
+            Kind::Background => o.insert("background".into(), json!(true)),
+        };
+    }
+    p
 }
 
 /// Sends `notifications/progress` for one request; progress only ever increases.
@@ -48,19 +82,22 @@ impl Reporter {
 }
 
 impl FilmcraftMcp {
-    /// Run `id` (a [`LONG_COMMANDS`] entry, `wait: true`) as a job, reporting progress and
-    /// honouring cancellation.
-    pub(crate) async fn run_long(&self, id: &str, mut params: Value, context: &RequestContext<RoleServer>) -> CallToolResult {
+    /// Run `id` (a [`kind`] call) as a job, reporting progress and honouring cancellation.
+    pub(crate) async fn run_long(&self, id: &str, params: Value, context: &RequestContext<RoleServer>) -> CallToolResult {
         let started = SystemTime::now();
-        if let Some(p) = params.as_object_mut() {
-            p.insert("wait".into(), json!(false));
-        }
-        let start = match self.run(id, params).await {
-            Ok(v) => v,
-            Err(e) => return CallToolResult::error(vec![Content::text(e.to_string())]),
+        let Some(kind) = kind(id, &params) else {
+            return match self.run(id, params).await {
+                Ok(v) => CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&v).unwrap_or_default())]),
+                Err(e) => CallToolResult::error(vec![Content::text(e.to_string())]),
+            };
         };
+        let start = match self.run(id, start_params(kind, &params)).await {
+            Ok(v) => v,
+            Err(e) => return CallToolResult::error(vec![Content::text(with_consent_note(&e.to_string()))]),
+        };
+        // done at once (cached, offline, or nothing to do): that is the answer
         let Some(job) = start.get("job").and_then(Value::as_u64) else {
-            return CallToolResult::error(vec![Content::text(format!("{id} started no job: {start}"))]);
+            return CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&start).unwrap_or_default())]);
         };
         let path = start.get("path").and_then(Value::as_str).unwrap_or_default().to_string();
         let mut rep = Reporter { peer: context.peer.clone(), token: context.meta.get_progress_token(), last: 0.0 };
@@ -74,12 +111,27 @@ impl FilmcraftMcp {
             if finished {
                 let result = state.map(|j| j["result"].clone()).unwrap_or(Value::Null);
                 if let Some(e) = result.get("error").and_then(Value::as_str) {
-                    return CallToolResult::error(vec![Content::text(format!("export failed: {e}"))]);
+                    return CallToolResult::error(vec![Content::text(format!("{id} failed: {e}"))]);
                 }
-                let mut out = start;
-                if let Some(o) = out.as_object_mut() {
-                    o.insert("result".into(), result);
-                }
+                let out = match kind {
+                    // the answer is waiting in the cache: the same call applies it
+                    Kind::Background => match self.run(id, params).await {
+                        Ok(v) => v,
+                        Err(e) => return CallToolResult::error(vec![Content::text(e.to_string())]),
+                    },
+                    Kind::Wait => {
+                        let mut out = start;
+                        if let Some(o) = out.as_object_mut() {
+                            o.insert("result".into(), result);
+                            if id == "batch.start"
+                                && let Ok(st) = self.run("batch.status", json!({})).await
+                            {
+                                o.insert("batch".into(), st);
+                            }
+                        }
+                        out
+                    }
+                };
                 return CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&out).unwrap_or_default())]);
             }
             tokio::select! {
@@ -87,7 +139,7 @@ impl FilmcraftMcp {
                 _ = tokio::time::sleep(POLL) => {}
             }
         }
-        // Cancelled: stop the encode at the next batch, wait for the worker, delete the partial file.
+        // Cancelled: stop the job at its next step, wait for the worker, delete an export's partial file.
         let _ = self.run("jobs.cancel", json!({"job": job})).await;
         for _ in 0..600 {
             if self.job_state(job).await.is_none_or(|j| j["finished"].as_bool() == Some(true)) {
@@ -95,7 +147,9 @@ impl FilmcraftMcp {
             }
             tokio::time::sleep(POLL).await;
         }
-        remove_partial(&path, started);
+        if !path.is_empty() {
+            remove_partial(&path, started);
+        }
         CallToolResult::error(vec![Content::text("cancelled")])
     }
 
@@ -103,6 +157,15 @@ impl FilmcraftMcp {
     async fn job_state(&self, job: u64) -> Option<Value> {
         let jobs = self.run("jobs.list", json!({})).await.ok()?;
         jobs.as_array()?.iter().find(|j| j["id"].as_u64() == Some(job)).cloned()
+    }
+}
+
+/// The engine's request for the user's consent to a cloud provider, with what it means for an agent.
+pub fn with_consent_note(e: &str) -> String {
+    if e.contains("CONFIRM_CLOUD") {
+        format!("{e} Over MCP: ask the user in your conversation and pass confirm: true only after they agree; never decide it for them.")
+    } else {
+        e.to_string()
     }
 }
 

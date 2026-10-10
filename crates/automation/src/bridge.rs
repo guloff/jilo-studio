@@ -39,20 +39,17 @@ impl BridgeClient {
         Ok(Self { addr, data_dir, conn: Mutex::new(None), next_id: AtomicU64::new(1) })
     }
 
-    /// Run engine command `id` in the app. A blocking export (`file.exportMedia` with
-    /// `wait: true`, see [`crate::long_job::LONG_COMMANDS`]) is started as an app job and polled
-    /// here until it finishes, so the app keeps repainting (its status bar shows the progress) and
-    /// answering other requests, and no request waits on the control server's 60 s reply limit
-    /// (#91, #92). The reply is the same as a blocking export's: `{job, path, result}`, or the
-    /// export's error.
-    pub async fn execute(&self, id: &str, mut params: Value) -> Result<Value, AutomationError> {
-        if !crate::long_job::is_long(id, &params) {
+    /// Run engine command `id` in the app. A long call ([`crate::long_job::kind`]: a command that
+    /// takes `wait` called with `wait: true`, a cloud AI task or a face analysis) is started as an
+    /// app job and polled here until it finishes, so the app keeps repainting (its status bar shows
+    /// the progress) and answering other requests, and no request waits on the control server's
+    /// 60 s reply limit (#91, #92). The reply is a blocking call's: `{job, …, result}`, the applied
+    /// result of an AI task, or the job's error.
+    pub async fn execute(&self, id: &str, params: Value) -> Result<Value, AutomationError> {
+        let Some(kind) = crate::long_job::kind(id, &params) else {
             return self.call("engine.execute", json!({"command": id, "params": params})).await;
-        }
-        if let Some(p) = params.as_object_mut() {
-            p.insert("wait".into(), json!(false));
-        }
-        let mut start = self.call("engine.execute", json!({"command": id, "params": params})).await?;
+        };
+        let mut start = self.call("engine.execute", json!({"command": id, "params": crate::long_job::start_params(kind, &params)})).await?;
         let Some(job) = start.get("job").and_then(Value::as_u64) else { return Ok(start) };
         let result = loop {
             tokio::time::sleep(JOB_POLL).await;
@@ -65,7 +62,11 @@ impl BridgeClient {
             }
         };
         if let Some(e) = result.get("error").and_then(Value::as_str) {
-            return Err(AutomationError::App(format!("export failed: {e}")));
+            return Err(AutomationError::App(format!("{id} failed: {e}")));
+        }
+        if kind == crate::long_job::Kind::Background {
+            // the answer is cached: the same call applies it
+            return self.call("engine.execute", json!({"command": id, "params": params})).await;
         }
         if let Some(o) = start.as_object_mut() {
             o.insert("result".into(), result);
@@ -238,7 +239,7 @@ mod tests {
         let (addr, _) = fake_app(json!({"error": "encode: disk full"})).await;
         let b = BridgeClient::new(addr).unwrap();
         let e = b.execute("file.exportMedia", json!({"path": "/tmp/out.mov", "wait": true})).await.unwrap_err();
-        assert!(e.to_string().contains("export failed: encode: disk full"), "{e}");
+        assert!(e.to_string().contains("file.exportMedia failed: encode: disk full"), "{e}");
     }
 
     /// Everything else is forwarded unchanged.

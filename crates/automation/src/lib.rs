@@ -12,6 +12,7 @@
 
 pub mod bridge;
 pub mod long_job;
+pub mod schema;
 pub mod server;
 
 pub use bridge::BridgeClient;

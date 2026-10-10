@@ -28,14 +28,16 @@ cargo build --release -p filmcraft-cli -p filmcraft
 
 | Tool | Modes | Purpose |
 |---|---|---|
-| `command_list` | both | every command: id, label, menu, shortcut, params, enabled now (`filter`, `enabled_only`) |
+| `command_list` | both | every command: id, label, menu, shortcut, params, a JSON Schema of the params (`schema`), enabled now (`filter`, `enabled_only`); in bridge mode also the app's own menu commands (views, tools, panels, workspaces, settings pages, help), marked `ui: true` |
 | `command_run` | both | run a command `{id, params}`; edits are undoable |
 | `command_batch` | both | run several commands in order `{steps: [{id, params}], stop_on_error}` → `{completed, failed, results}` |
 | `doc_inspect` | both | the project tree and the active sequence in one call (`project_inspect` + `sequence_inspect`) |
 | `render_preview` | both | same as `render_frame` |
 | `project_inspect` | both | bins and items with ids, types, durations; active sequence |
 | `sequence_inspect` | both | the active sequence: tracks, clips (`start` / `end` and `sourceIn` / `sourceOut` in ticks, frames, `speed`, `reverse`: the clip plays its `sourceIn` to `sourceOut` stretch backward, `gainDb`, `audioStream`: the media's audio stream the clip plays, `sourceChannels`: its source channels for left / right, empty for the first two), effects, transitions, markers (name and `comment`), playhead, selection |
-| `media_import` | both | import files by absolute path (`text`, one path per line) |
+| `media_import` | both | import files by absolute path (`paths`, optional `bin`, `image_sequence`) |
+| `jobs_list` | both | background jobs: exports, renders, transcription, AI tasks, face analysis, batches, downloads (progress, status, result) |
+| `job_cancel` | both | stop a job by id |
 | `render_frame` | both | PNG of the program frame at `seconds` (headless renders; bridge screenshots the Program monitor). Read-only: the playhead and selection are left as they were |
 | `ui_inspect` | bridge | UI state: tool, workspace, panels, zoom, playback, fps |
 | `ui_elements` | bridge | on-screen interactive elements with id, label and rect (`prefix` filter) |
@@ -67,15 +69,39 @@ driven one app can drive the others.
 - **Errors.** A failing command is an `isError` result with the engine's message. A line that is not
   JSON gets a `-32700` parse error (id `null`) and the server keeps serving. A command that panics is
   reported as `internal error: …`, and the session stays usable.
-- **Resources.** `filmcraft://document` (the project tree and active sequence, as `doc_inspect`) and
-  `filmcraft://commands` (the command catalog, as `command_list`), both `application/json`. For MCP
+- **Resources.** `filmcraft://document` (the project tree and active sequence, as `doc_inspect`),
+  `filmcraft://commands` (the command catalog, as `command_list`), `filmcraft://jobs` (as
+  `jobs_list`) and `filmcraft://history` (the undo history), all `application/json`. For MCP
   2026-07-28 clients such as current Claude Code, list and read results carry the `ttlMs` and
   `cacheScope` hints that revision requires.
 
-### Long exports: progress and cancellation
+### Cloud AI features and consent
 
-`command_run {"id": "file.exportMedia", "params": {…, "wait": true}}` in headless mode blocks until
-the file is written. It uses the MCP progress and cancellation utilities, so a client can show
+Transcription with a cloud engine, caption translation, highlights, auto zoom by meaning, YouTube
+texts and batches with those steps send audio or text to Google or OpenAI with the user's API key
+(Settings ▸ AI). The first time a provider would receive something, the command fails with
+`CONFIRM_CLOUD: <provider> would receive <what>…`. Over MCP the agent asks the user in its
+conversation and repeats the call with `confirm: true` only after they agree; it never decides that
+for them (the server's instructions and the error say so). A provider the user has agreed to, in the
+app or through an agent, is not asked about again.
+
+### Long jobs: progress and cancellation
+
+Long work runs as a background job, with MCP progress and cancellation:
+
+- a command that takes `wait`, called with `wait: true`: `file.exportMedia`, the `sequence.render*`
+  commands, `media.createProxies`, `file.projectManager`, `clip.sceneEditDetection`, `masks.track`,
+  the export queue, `transcript.recognize`, `tts.render`, `tts.downloadVoices`, `batch.start`,
+  `app.checkUpdates`, `ai.test`;
+- a cloud AI task or a face analysis, always (unless the call passes `background` itself):
+  `captions.translate`, `highlights.find`, `clip.autoZoom`, `youtube.generate`,
+  `clip.reframeToFace`. The job fetches the answer (or finds the faces); when it ends the server
+  repeats the call, which applies the result as one undo step, and returns that.
+
+The rest of this section describes an export; the other jobs behave the same way (a batch's result
+also carries `batch`, its `batch.status`). In headless mode
+`command_run {"id": "file.exportMedia", "params": {…, "wait": true}}` blocks until the file is
+written. It uses the MCP progress and cancellation utilities, so a client can show
 progress and stop it:
 
 - The export runs as the same background job `jobs.list` shows. The session is locked only for short
@@ -95,7 +121,15 @@ progress and stop it:
   ignore the token.
 - Bridge mode works the same way: the export runs as an app job (the app stays responsive and shows
   "Exporting… NN%" in its status bar) and the call returns when it is written, however long it
-  takes. `filmcraft-cli --bridge … exec file.exportMedia … wait=true` blocks the same way.
+  takes. `filmcraft-cli --bridge … exec file.exportMedia … wait=true` blocks the same way, and so do
+  the other long jobs above.
+
+### What only the bridge can do
+
+Headless mode has the engine alone. Playback, views, tools, workspaces, panels, settings pages and
+the help menu belong to the app's window: they are `ui: true` commands of the bridge's
+`command_list`, run with `command_run` like any other, and the `ui_*` tools drive the rest of the
+window. Preferences themselves are engine commands in both modes (`prefs.get`, `prefs.set`).
 
 ## 2. Control channel
 

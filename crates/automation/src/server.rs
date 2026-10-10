@@ -140,6 +140,12 @@ pub struct TypeParams {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+pub struct JobParams {
+    /// Job id (from `jobs_list`, or the `job` a command returned).
+    pub job: u64,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct MediaImportParams {
     /// Absolute paths to media files (MP4/MOV, WAV/MP3/FLAC/AIFF/Ogg, PNG/JPEG/…).
     pub paths: Vec<String>,
@@ -290,6 +296,35 @@ impl FilmcraftMcp {
         Ok(json!({"project": project, "sequence": sequence}))
     }
 
+    /// The command catalog: every engine command with a JSON Schema of its parameters (from its
+    /// parameter doc), plus, in bridge mode, the app's own menu commands (views, tools, panels,
+    /// workspaces, settings pages, help), marked `ui: true`.
+    async fn catalog(&self) -> Result<Value, AutomationError> {
+        let mut list = self.run("command.list", json!({})).await?.as_array().cloned().unwrap_or_default();
+        for c in &mut list {
+            let schema = crate::schema::params_schema(c["params"].as_str().unwrap_or_default());
+            if let Some(o) = c.as_object_mut() {
+                o.insert("schema".into(), schema);
+            }
+        }
+        if let Some(b) = self.bridge_client()
+            && let Ok(items) = b.call("ui.menu.list", json!({})).await
+        {
+            let known: std::collections::HashSet<String> = list.iter().filter_map(|c| c["id"].as_str().map(str::to_string)).collect();
+            for it in items.as_array().into_iter().flatten() {
+                let Some(id) = it["id"].as_str() else { continue };
+                if known.contains(id) {
+                    continue;
+                }
+                list.push(json!({
+                    "id": id, "label": it["label"], "menu": it["path"], "shortcut": it["shortcut"], "enabled": it["enabled"],
+                    "params": "{}", "schema": {"type": "object", "additionalProperties": true}, "ui": true,
+                }));
+            }
+        }
+        Ok(Value::Array(list))
+    }
+
     fn bridge_client(&self) -> Option<Arc<BridgeClient>> {
         match &*self.backend {
             Backend::Bridge(b) => Some(b.clone()),
@@ -311,11 +346,11 @@ impl FilmcraftMcp {
 impl FilmcraftMcp {
     #[tool(
         title = "List commands",
-        description = "List every command (id, label, menu path, shortcut, parameter doc, enabled now). Menus, shortcuts, panels and timeline gestures all map to these ids.",
+        description = "List every command (id, label, menu path, shortcut, parameter doc, a JSON Schema of its parameters, enabled now). Menus, shortcuts, panels and timeline gestures all map to these ids; in bridge mode the app's own menu commands (views, tools, panels, settings) are listed too, marked ui: true.",
         annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false)
     )]
     async fn command_list(&self, Parameters(p): Parameters<ListParams>) -> Result<CallToolResult, McpError> {
-        let r = self.run("command.list", json!({})).await.map(|v| {
+        let r = self.catalog().await.map(|v| {
             let f = p.filter.unwrap_or_default().to_ascii_lowercase();
             let only = p.enabled_only.unwrap_or(false);
             Value::Array(
@@ -340,7 +375,25 @@ impl FilmcraftMcp {
         annotations(read_only_hint = false, destructive_hint = true, idempotent_hint = false, open_world_hint = false)
     )]
     async fn command_run(&self, Parameters(p): Parameters<RunParams>) -> Result<CallToolResult, McpError> {
-        wrap(self.run(&p.id, p.params.unwrap_or(json!({}))).await)
+        wrap(self.run(&p.id, p.params.unwrap_or(json!({}))).await.map_err(|e| AutomationError::Other(crate::long_job::with_consent_note(&e.to_string()))))
+    }
+
+    #[tool(
+        title = "List jobs",
+        description = "Background jobs (exports, renders, transcription, AI tasks, face analysis, batches, downloads): id, label, progress, status, finished, result or error.",
+        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn jobs_list(&self) -> Result<CallToolResult, McpError> {
+        wrap(self.run("jobs.list", json!({})).await)
+    }
+
+    #[tool(
+        title = "Cancel a job",
+        description = "Stop a background job at its next step (an export's partial file is kept as written; command_run with wait: true deletes it when cancelled).",
+        annotations(read_only_hint = false, destructive_hint = false, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn job_cancel(&self, Parameters(p): Parameters<JobParams>) -> Result<CallToolResult, McpError> {
+        wrap(self.run("jobs.cancel", json!({"job": p.job})).await)
     }
 
     #[tool(
@@ -590,11 +643,13 @@ impl FilmcraftMcp {
     }
 }
 
-const INSTRUCTIONS: &str = "FilmCraft video editor (Premiere Pro-class). Every edit is an engine command: `command_list` to discover ids/params, `command_run` to execute (undoable; `command_batch` runs several). `doc_inspect` (or `project_inspect`/`sequence_inspect`) returns ids you can pass to commands; `render_preview` shows the result. In bridge mode the `ui_*` tools drive the live app: `ui_elements` lists clickable ids, `ui_click`/`ui_drag`/`ui_key` operate it, `ui_screenshot` shows it. Time is in ticks: 254016000000 per second (commands also accept `seconds`, `frame` or `timecode`).";
+const INSTRUCTIONS: &str = "FilmCraft video editor (Premiere Pro-class). Every edit is an engine command: `command_list` to discover ids/params, `command_run` to execute (undoable; `command_batch` runs several). `doc_inspect` (or `project_inspect`/`sequence_inspect`) returns ids you can pass to commands; `render_preview` shows the result. In bridge mode the `ui_*` tools drive the live app: `ui_elements` lists clickable ids, `ui_click`/`ui_drag`/`ui_key` operate it, `ui_screenshot` shows it. Time is in ticks: 254016000000 per second (commands also accept `seconds`, `frame` or `timecode`). Long work runs as a job with progress and cancellation: pass `wait: true` to commands that take it (exports, renders, proxies, transcription), and AI tasks and face reframing run as jobs by themselves; `jobs_list` / `job_cancel` follow others. Cloud AI features send audio or text to Google or OpenAI: when a command answers CONFIRM_CLOUD, ask the user in your conversation and pass `confirm: true` only after they agree; never decide it for them.";
 
 /// Resources: the project (as `doc_inspect`) and the command catalog (as `command_list`).
 const DOCUMENT_URI: &str = "filmcraft://document";
 const COMMANDS_URI: &str = "filmcraft://commands";
+const JOBS_URI: &str = "filmcraft://jobs";
+const HISTORY_URI: &str = "filmcraft://history";
 
 /// MCP 2026-07-28 clients (current Claude Code) require `ttlMs` and `cacheScope` on list and read
 /// results; rmcp fills `resultType` and leaves the cache hints to the server, as the generated
@@ -648,7 +703,15 @@ impl ServerHandler for FilmcraftMcp {
                 .with_mime_type("application/json"),
             Resource::new(COMMANDS_URI, "commands")
                 .with_title("Command catalog")
-                .with_description("Every command with id, label, menu path, shortcut, params and enabled state (same as command_list).")
+                .with_description("Every command with id, label, menu path, shortcut, params, a JSON Schema of them and enabled state (same as command_list).")
+                .with_mime_type("application/json"),
+            Resource::new(JOBS_URI, "jobs")
+                .with_title("Background jobs")
+                .with_description("Running and finished jobs with progress and results (same as jobs_list).")
+                .with_mime_type("application/json"),
+            Resource::new(HISTORY_URI, "history")
+                .with_title("Edit history")
+                .with_description("The undo history: each edit's name, the current position.")
                 .with_mime_type("application/json"),
         ]);
         if let Some((ttl, scope)) = cache_hints(&context, 600_000) {
@@ -664,7 +727,9 @@ impl ServerHandler for FilmcraftMcp {
     ) -> Result<rmcp::model::ReadResourceResponse, McpError> {
         let v = match request.uri.as_str() {
             DOCUMENT_URI => self.document().await,
-            COMMANDS_URI => self.run("command.list", json!({})).await,
+            COMMANDS_URI => self.catalog().await,
+            JOBS_URI => self.run("jobs.list", json!({})).await,
+            HISTORY_URI => self.run("history.list", json!({})).await,
             other => return Err(McpError::resource_not_found(format!("resource not found: {other}"), None)),
         }
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -727,6 +792,28 @@ mod tests {
         let after = m.run("sequence.inspect", json!({})).await.unwrap();
         assert_eq!(after["playhead"], before["playhead"]);
         assert_eq!(after["selection"], before["selection"]);
+    }
+
+    /// A face analysis is a job over MCP: `command_run clip.reframeToFace` returns the framing it
+    /// applied, the job shows in `jobs_list`, and the catalog carries parameter schemas.
+    #[tokio::test]
+    async fn a_face_analysis_runs_as_a_job_and_the_catalog_has_schemas() {
+        let mut s = demo();
+        s.face_detector =
+            Some(std::sync::Arc::new(|_: &[u8], _, _| Ok(vec![filmcraft_engine::reframe::FaceBox { x: 0.2, y: 0.2, w: 0.1, h: 0.1, confidence: 0.9 }])));
+        let clip = s.active_sequence().unwrap().video_tracks[0].items[0].id.0;
+        let mut c = Client::start(s);
+        c.init().await;
+        let r = c.call(1, "command_run", json!({"id": "clip.reframeToFace", "params": {"clips": [clip]}})).await;
+        let text = r["result"]["content"][0]["text"].as_str().unwrap();
+        let v: Value = serde_json::from_str(text).unwrap();
+        assert_eq!(v["clips"], 1, "{v}");
+        let jobs = c.call(2, "jobs_list", json!({})).await;
+        assert!(jobs["result"]["content"][0]["text"].as_str().unwrap().contains("Finding faces"), "{jobs}");
+        let list = c.call(3, "command_list", json!({"filter": "reframeToFace"})).await;
+        let l: Value = serde_json::from_str(list["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
+        let schema = &l.as_array().unwrap().iter().find(|c| c["id"] == "clip.reframeToFace").unwrap()["schema"];
+        assert_eq!(schema["properties"]["target"]["enum"], json!(["speaker", "group", "face"]));
     }
 
     /// One request/response exchange over `serve_io`, as an MCP client sees it.
@@ -852,7 +939,7 @@ mod tests {
         assert!(init["result"]["instructions"].as_str().unwrap().contains("doc_inspect"), "{init}");
         let r = c.ask(json!({"jsonrpc":"2.0","id":1,"method":"resources/list"})).await;
         let uris: Vec<&str> = r["result"]["resources"].as_array().unwrap().iter().filter_map(|x| x["uri"].as_str()).collect();
-        assert_eq!(uris, [DOCUMENT_URI, COMMANDS_URI], "{r}");
+        assert_eq!(uris, [DOCUMENT_URI, COMMANDS_URI, JOBS_URI, HISTORY_URI], "{r}");
         let r = c.ask(json!({"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":DOCUMENT_URI}})).await;
         assert_eq!(r["result"]["contents"][0]["mimeType"], "application/json", "{r}");
         let v: Value = serde_json::from_str(r["result"]["contents"][0]["text"].as_str().unwrap()).unwrap();
