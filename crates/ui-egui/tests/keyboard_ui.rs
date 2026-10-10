@@ -238,3 +238,29 @@ fn delete_key_clears_the_selected_timeline_clip() {
     d.key("Cmd+Z");
     assert!(items(&mut d).iter().any(|i| i["clip"].as_u64() == Some(clip)), "and undo brings it back");
 }
+
+#[test]
+fn delete_follows_the_focused_panel_not_the_project_selection() {
+    // #404: with something selected in the Project panel, Delete in the focused Timeline must
+    // clear the timeline clip and leave the Project panel's item alone (and the other way round).
+    let mut d = Driver::new();
+    let items = |d: &mut Driver| d.exec("sequence.inspect", json!({}))["video"][0]["items"].as_array().unwrap().clone();
+    let media = |d: &mut Driver| d.app().session.project.items.values().filter(|i| i.as_media().is_some()).count();
+    let pick = d.app().session.project.items.values().find(|i| i.as_media().is_some()).map(|i| i.id.0).unwrap();
+    d.exec("project.select", json!({"items": [pick]}));
+    let before = media(&mut d);
+    for key in ["Delete", "Backspace"] {
+        let first = items(&mut d)[0].clone();
+        let (clip, start) = (first["clip"].as_u64().unwrap(), first["start"].as_i64().unwrap());
+        d.exec("playhead.set", json!({"time": start + 1_000_000_000}));
+        d.focus("Timeline");
+        d.key("D");
+        d.key(key);
+        assert!(!items(&mut d).iter().any(|i| i["clip"].as_u64() == Some(clip)), "{key} cleared the timeline clip");
+        assert_eq!(media(&mut d), before, "{key} in the Timeline left the Project panel's item");
+    }
+    d.focus("Project");
+    d.exec("project.select", json!({"items": [pick]}));
+    d.key("Backspace");
+    assert_ne!(media(&mut d), before, "Backspace in the Project panel clears its item");
+}
