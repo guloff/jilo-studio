@@ -453,7 +453,7 @@ fn translate_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
         app.ui.translate_track = None;
         let to = app.ui.translate_to.clone();
         crate::panels::ai_tasks::start(app, "captions.translate", json!({"track": track, "to": to}), "Translating captions", "the caption text");
-    } else if cancel || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+    } else if cancel || crate::widgets::escape_closes(ctx) {
         app.ui.translate_track = None;
     }
 }
@@ -502,7 +502,7 @@ fn fillers_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
             Ok(v) => app.ui.status = tlf!("Removed {n} filler words", n = v["removed"].as_u64().unwrap_or(0)),
             Err(e) => app.ui.status = e.to_string(),
         }
-    } else if !cancel && !ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+    } else if !cancel && !crate::widgets::escape_closes(ctx) {
         app.ui.fillers = Some(list);
     }
 }
@@ -694,7 +694,7 @@ fn consent_dialog(app: &mut FilmcraftApp, ctx: &egui::Context, seconds: f64) {
         let mut p = params;
         p["confirm"] = json!(true);
         start_recognition(app, p);
-    } else if cancel || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+    } else if cancel || crate::widgets::escape_closes(ctx) {
         app.ui.transcribe.confirm = None;
     }
 }

@@ -88,7 +88,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
         if ok {
             task.confirmed = true;
             launch(app, task);
-        } else if !cancel && !ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        } else if !cancel && !crate::widgets::escape_closes(ctx) {
             app.ui.ai_task = Some(task);
         }
         return;

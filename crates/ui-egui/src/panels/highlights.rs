@@ -108,7 +108,7 @@ fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
         h.dialog = false;
         let params = json!({"mode": h.mode, "count": h.count, "minSeconds": h.min_seconds.round(), "maxSeconds": h.max_seconds.round()});
         crate::panels::ai_tasks::start(app, "highlights.find", params, "Finding highlights", "the transcript");
-    } else if cancel || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+    } else if cancel || crate::widgets::escape_closes(ctx) {
         app.ui.highlights.dialog = false;
     }
 }
