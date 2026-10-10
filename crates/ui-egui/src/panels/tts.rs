@@ -108,7 +108,7 @@ fn start(app: &mut FilmcraftApp, cmd: &str, params: serde_json::Value, play: boo
         Ok(r) => match r["job"].as_u64() {
             Some(job) => {
                 app.ui.tts.pending = Some(Pending { cmd: cmd.to_string(), params, play, job });
-                app.ui.status = "Synthesizing narration…".into();
+                app.ui.status = tl!("Synthesizing narration…").into();
             }
             None => run_now(app, cmd, params, play),
         },
@@ -125,8 +125,8 @@ fn run_now(app: &mut FilmcraftApp, cmd: &str, params: serde_json::Value, play: b
                 }
             } else {
                 app.ui.status = match cmd {
-                    "tts.create" => format!("Narration added on {}", r["track"].as_str().unwrap_or("an audio track")),
-                    _ => "Narration updated".into(),
+                    "tts.create" => tlf!("Narration added on {track}", track = r["track"].as_str().unwrap_or(tl!("an audio track"))),
+                    _ => tl!("Narration updated").into(),
                 };
             }
         }
@@ -145,7 +145,7 @@ fn poll(app: &mut FilmcraftApp) {
             }
             Some(Err(e)) => {
                 app.ui.tts.pending = None;
-                app.ui.status = format!("Text to Speech: {e}");
+                app.ui.status = tlf!("Text to Speech: {e}", e);
             }
         }
     }
@@ -154,8 +154,8 @@ fn poll(app: &mut FilmcraftApp) {
     {
         app.ui.tts.download_job = None;
         app.ui.status = match r {
-            Ok(()) => "Natural voices installed".into(),
-            Err(e) => format!("Download of the natural voices failed: {e}"),
+            Ok(()) => tl!("Natural voices installed").into(),
+            Err(e) => tlf!("Download of the natural voices failed: {e}", e),
         };
     }
 }
@@ -229,11 +229,11 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         let w = ui.available_width();
         // mode line: editing a clip, or writing a new narration
         ui.horizontal(|ui| {
-            let mode = if editing.is_some() { "Editing the selected narration" } else { "New narration" };
+            let mode = if editing.is_some() { tl!("Editing the selected narration") } else { tl!("New narration") };
             ui.label(egui::RichText::new(mode).color(t.text_dim).size(11.5));
             if editing.is_some() {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let b = ui.small_button("New");
+                    let b = ui.small_button(tl!("New"));
                     auto.add("tts.new", visible(ui, b.rect), "New narration");
                     if b.clicked() {
                         actions.push(Action::New);
@@ -242,24 +242,24 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             }
         });
         ui.add_space(6.0);
-        label(ui, &t, "Language");
-        let lang_name = filmcraft_tts::LANGUAGES.iter().find(|(id, _)| *id == d.language).map_or(d.language.as_str(), |(_, n)| n);
+        label(ui, &t, tl!("Language"));
+        let lang_name = filmcraft_tts::LANGUAGES.iter().find(|(id, _)| *id == d.language).map_or(d.language.as_str(), |(_, n)| crate::i18n::t(n));
         let cb = egui::ComboBox::from_id_salt("tts-language").selected_text(lang_name).width(w).show_ui(ui, |ui| {
             for (id, name) in filmcraft_tts::LANGUAGES {
-                if ui.selectable_label(d.language == *id, *name).clicked() {
+                if ui.selectable_label(d.language == *id, crate::i18n::t(name)).clicked() {
                     d.language = id.to_string();
                 }
             }
         });
         auto.add("tts.language", visible(ui, cb.response.rect), "Language");
         ui.add_space(10.0);
-        label(ui, &t, "Voice");
+        label(ui, &t, tl!("Voice"));
         let voice_name = voices.iter().find(|v| v.id == d.voice).map_or(d.voice.as_str(), |v| v.name);
         let cb = egui::ComboBox::from_id_salt("tts-voice").selected_text(voice_name).width(w).show_ui(ui, |ui| {
-            for (engine, heading) in [("neural", "Natural voices"), ("basic", "Basic voices (built in)")] {
+            for (engine, heading) in [("neural", tl!("Natural voices")), ("basic", tl!("Basic voices (built in)"))] {
                 ui.label(egui::RichText::new(heading).color(t.text_faint).size(11.0));
                 for v in voices.iter().filter(|v| v.language == d.language && v.engine == engine) {
-                    let label = if v.engine == "neural" && !v.installed { format!("{} (download)", v.name) } else { v.name.to_string() };
+                    let label = if v.engine == "neural" && !v.installed { tlf!("{voice} (download)", voice = v.name) } else { v.name.to_string() };
                     let r = ui.selectable_label(d.voice == v.id, label).on_hover_text(v.description);
                     if r.clicked() {
                         d.voice = v.id.to_string();
@@ -277,7 +277,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     Some((frac, status)) => {
                         ui.label(egui::RichText::new(status).color(t.text).size(11.5));
                         ui.add(egui::ProgressBar::new(*frac).show_percentage());
-                        let b = ui.small_button("Cancel");
+                        let b = ui.small_button(tl!("Cancel"));
                         auto.add("tts.download.cancel", visible(ui, b.rect), "Cancel download");
                         if b.clicked() {
                             actions.push(Action::CancelDownload);
@@ -285,20 +285,20 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     }
                     None if d.confirm_download => {
                         let mb = filmcraft_tts::catalog::size() as f64 / 1e6;
-                        ui.label(egui::RichText::new(format!("Download the natural voices? {mb:.0} MB, once.")).color(t.text).size(12.0).strong());
+                        ui.label(egui::RichText::new(tlf!("Download the natural voices? {mb} MB, once.", mb = format!("{mb:.0}"))).color(t.text).size(12.0).strong());
                         ui.label(
-                            egui::RichText::new(format!(
-                                "From {} and github.com/cmusphinx/cmudict (pronunciations). Licence: {}. Every file is checked against a pinned SHA-256.",
-                                filmcraft_tts::catalog::SOURCE,
-                                filmcraft_tts::catalog::LICENSE
+                            egui::RichText::new(tlf!(
+                                "From {source} and github.com/cmusphinx/cmudict (pronunciations). Licence: {license}. Every file is checked against a pinned SHA-256.",
+                                source = filmcraft_tts::catalog::SOURCE,
+                                license = filmcraft_tts::catalog::LICENSE
                             ))
                             .color(t.text_dim)
                             .size(11.0),
                         );
                         ui.horizontal(|ui| {
-                            let ok = ui.button("Download");
+                            let ok = ui.button(tl!("Download"));
                             auto.add("tts.download.confirm", visible(ui, ok.rect), "Download");
-                            let no = ui.button("Cancel");
+                            let no = ui.button(tl!("Cancel"));
                             if ok.clicked() {
                                 actions.push(Action::Download);
                             }
@@ -308,8 +308,8 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         });
                     }
                     None => {
-                        ui.label(egui::RichText::new("Natural voices need a one-time download.").color(t.text).size(11.5));
-                        let b = ui.button(format!("Download natural voices ({:.0} MB)…", filmcraft_tts::catalog::size() as f64 / 1e6));
+                        ui.label(egui::RichText::new(tl!("Natural voices need a one-time download.")).color(t.text).size(11.5));
+                        let b = ui.button(tlf!("Download natural voices ({mb} MB)…", mb = format!("{:.0}", filmcraft_tts::catalog::size() as f64 / 1e6)));
                         auto.add("tts.download", visible(ui, b.rect), "Download natural voices");
                         if b.clicked() {
                             d.confirm_download = true;
@@ -323,28 +323,28 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         let (r, resp) = ui.allocate_exact_size(vec2(130.0, 22.0), Sense::click());
         let col = if resp.hovered() { t.accent_hover } else { t.accent };
         icons::paint(ui.painter(), Rect::from_center_size(pos2(r.min.x + 8.0, r.center().y), vec2(14.0, 14.0)), Icon::Play, col);
-        ui.painter().text(pos2(r.min.x + 22.0, r.center().y), Align2::LEFT_CENTER, "Hear this voice", Tokens::semibold(12.0), col);
+        ui.painter().text(pos2(r.min.x + 22.0, r.center().y), Align2::LEFT_CENTER, tl!("Hear this voice"), Tokens::semibold(12.0), col);
         auto.add("tts.hearVoice", visible(ui, r), "Hear this voice");
         if resp.clicked() && voice_ready && !busy {
             actions.push(Action::Run("tts.preview", json!({"sample": true, "voice": d.voice, "pitch": d.pitch.id(), "pace": d.pace}), true));
         }
         ui.add_space(8.0);
-        let (hr, open) = crate::widgets::section_header(ui, egui::Id::new("tts-advanced"), "Advanced", d.advanced_open, &t, true);
+        let (hr, open) = crate::widgets::section_header(ui, egui::Id::new("tts-advanced"), tl!("Advanced"), d.advanced_open, &t, true);
         auto.add("tts.advanced", visible(ui, hr.rect), "Advanced");
         d.advanced_open = open;
         if open {
             ui.add_space(4.0);
-            label(ui, &t, "Vocal pitch");
-            let cb = egui::ComboBox::from_id_salt("tts-pitch").selected_text(d.pitch.label()).width(w).show_ui(ui, |ui| {
+            label(ui, &t, tl!("Vocal pitch"));
+            let cb = egui::ComboBox::from_id_salt("tts-pitch").selected_text(crate::i18n::t(d.pitch.label())).width(w).show_ui(ui, |ui| {
                 for p in VocalPitch::ALL {
-                    if ui.selectable_label(d.pitch == p, p.label()).clicked() {
+                    if ui.selectable_label(d.pitch == p, crate::i18n::t(p.label())).clicked() {
                         d.pitch = p;
                     }
                 }
             });
             auto.add("tts.pitch", visible(ui, cb.response.rect), "Vocal pitch");
             ui.add_space(10.0);
-            label(ui, &t, "Pace");
+            label(ui, &t, tl!("Pace"));
             ui.spacing_mut().slider_width = w - 56.0;
             let s = ui.add(egui::Slider::new(&mut d.pace, filmcraft_tts::MIN_PACE..=filmcraft_tts::MAX_PACE).step_by(0.05).fixed_decimals(2).suffix("×"));
             auto.add("tts.pace", visible(ui, s.rect), "Pace");
@@ -356,12 +356,12 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         }
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Text").color(t.text).size(12.5).strong());
+            ui.label(egui::RichText::new(tl!("Text")).color(t.text).size(12.5).strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let (ir, i) = ui.allocate_exact_size(vec2(14.0, 14.0), Sense::hover());
                 icons::paint(ui.painter(), ir, Icon::Info, t.text_faint);
-                i.on_hover_text("Add pause inserts [pause 1s]. Change the number for a longer or shorter pause, e.g. [pause 500ms] or [pause 2s].");
-                let b = ui.small_button("Add pause");
+                i.on_hover_text(tl!("Add pause inserts [pause 1s]. Change the number for a longer or shorter pause, e.g. [pause 500ms] or [pause 2s]."));
+                let b = ui.small_button(tl!("Add pause"));
                 auto.add("tts.addPause", visible(ui, b.rect), "Add pause");
                 if b.clicked() {
                     if !d.text.is_empty() && !d.text.ends_with(' ') {
@@ -374,7 +374,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         });
         ui.add_space(4.0);
         let te = egui::TextEdit::multiline(&mut d.text)
-            .hint_text("Type what you want the voice to say")
+            .hint_text(tl!("Type what you want the voice to say"))
             .desired_width(w)
             .desired_rows(8)
             .char_limit(filmcraft_tts::MAX_TEXT_BYTES);
@@ -388,13 +388,13 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let natural = filmcraft_tts::catalog::find(&d.voice).is_some();
     let can_say = filmcraft_tts::check_text(&d.text).is_ok() && (!natural || installed) && !busy;
     let pr = Rect::from_min_size(pos2(rect.min.x + PAD, fy), vec2(half, 28.0));
-    if button(ui, &t, pr, Icon::Play, if busy { "Synthesizing…" } else { "Preview" }, false, can_say, "tts-preview").clicked() && can_say {
+    if button(ui, &t, pr, Icon::Play, if busy { tl!("Synthesizing…") } else { tl!("Preview") }, false, can_say, "tts-preview").clicked() && can_say {
         actions.push(Action::Run("tts.preview", d.params(), true));
     }
     auto.add("tts.preview", pr, "Preview");
     let sr = Rect::from_min_size(pos2(pr.max.x + 10.0, fy), vec2(half, 28.0));
     let can_save = can_say && app.session.active_sequence().is_some();
-    if button(ui, &t, sr, Icon::Plus, if editing.is_some() { "Save" } else { "Add to timeline" }, true, can_save, "tts-save").clicked() && can_save {
+    if button(ui, &t, sr, Icon::Plus, if editing.is_some() { tl!("Save") } else { tl!("Add to timeline") }, true, can_save, "tts-save").clicked() && can_save {
         let mut p = d.params();
         match editing {
             Some(c) => {

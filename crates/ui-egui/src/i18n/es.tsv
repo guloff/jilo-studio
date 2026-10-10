@@ -3525,3 +3525,32 @@
 	Text to Speech	Texto a voz
 	Tts	Texto a voz
 	Edit Narration	Editar narración
+# Text to Speech panel
+	English (United States)	Inglés (Estados Unidos)
+	Extra high	Muy alto
+	Extra low	Muy bajo
+	Add pause	Añadir pausa
+	Add pause inserts [pause 1s]. Change the number for a longer or shorter pause, e.g. [pause 500ms] or [pause 2s].	Añadir pausa inserta [pause 1s]. Cambia el número para una pausa más larga o más corta, p. ej. [pause 500ms] o [pause 2s].
+	Add to timeline	Añadir a la línea de tiempo
+	Basic voices (built in)	Voces básicas (integradas)
+	Download	Descargar
+	Download natural voices ({mb} MB)…	Descargar voces naturales ({mb} MB)…
+	Download of the natural voices failed: {e}	La descarga de las voces naturales falló: {e}
+	Download the natural voices? {mb} MB, once.	¿Descargar las voces naturales? {mb} MB, una sola vez.
+	Editing the selected narration	Editando la narración seleccionada
+	Hear this voice	Escuchar esta voz
+	Narration added on {track}	Narración añadida en {track}
+	Narration updated	Narración actualizada
+	Natural voices	Voces naturales
+	Natural voices installed	Voces naturales instaladas
+	Natural voices need a one-time download.	Las voces naturales requieren una única descarga.
+	New narration	Nueva narración
+	Pace	Ritmo
+	Synthesizing narration…	Sintetizando la narración…
+	Synthesizing…	Sintetizando…
+	Text to Speech: {e}	Texto a voz: {e}
+	Type what you want the voice to say	Escribe lo que quieres que diga la voz
+	Vocal pitch	Tono de voz
+	an audio track	una pista de audio
+	{voice} (download)	{voice} (descarga)
+	From {source} and github.com/cmusphinx/cmudict (pronunciations). Licence: {license}. Every file is checked against a pinned SHA-256.	De {source} y github.com/cmusphinx/cmudict (pronunciaciones). Licencia: {license}. Cada archivo se comprueba con un SHA-256 fijado.

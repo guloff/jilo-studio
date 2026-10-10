@@ -584,6 +584,9 @@ mod tests {
         }
         crate::panels::timeline::CLIP_MENU.iter().flat_map(|g| g.iter()).for_each(|(l, _)| push(&mut out, l));
         crate::panels::project::NEW_ITEMS.iter().for_each(|(l, _)| push(&mut out, l));
+        // Text to Speech: vocal pitches and language names
+        filmcraft_project::narration::VocalPitch::ALL.iter().for_each(|p| push(&mut out, p.label()));
+        filmcraft_tts::LANGUAGES.iter().for_each(|(_, n)| push(&mut out, n));
         // section headers keyed by their English name (collapsed state), translated when drawn
         let sections = [
             // Lumetri Color
