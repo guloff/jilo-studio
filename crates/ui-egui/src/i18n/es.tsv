@@ -1036,6 +1036,10 @@
 	Corner Radius	Radio de esquina
 	Polygon Sides	Lados del polígono
 	Fill	Relleno
+	Fill Type	Tipo de relleno
+	Solid	Sólido
+	Linear Gradient	Degradado lineal
+	Gradient Angle	Ángulo del degradado
 	Stroke	Trazo
 	Stroke 2	Trazo 2
 	Background	Fondo
