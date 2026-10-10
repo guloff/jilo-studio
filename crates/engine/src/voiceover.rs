@@ -389,6 +389,13 @@ fn record_dir(s: &Session, p: &Value) -> String {
     if let Some(d) = str_p(p, "dir") {
         return d.to_string();
     }
+    captured_dir(s, "Voice-over Recordings")
+}
+
+/// Where FilmCraft writes media it makes (voice-over takes, pasted images): Project Settings ▸
+/// Scratch Disks ▸ Captured Audio and Video, else next to the project file, else (unsaved project)
+/// `fallback` in the data directory or the system temporary directory.
+pub(crate) fn captured_dir(s: &Session, fallback: &str) -> String {
     if let Some(d) = s.project.settings.scratch.captured.clone().filter(|d| !d.is_empty()) {
         return d;
     }
@@ -396,7 +403,7 @@ fn record_dir(s: &Session, p: &Value) -> String {
         return d.to_string_lossy().into_owned();
     }
     let base = s.prefs_path.as_ref().and_then(|p| p.parent()).map(|d| d.to_path_buf()).unwrap_or_else(|| crate::temp_dir().join("FilmCraft"));
-    base.join("Voice-over Recordings").to_string_lossy().into_owned()
+    base.join(fallback).to_string_lossy().into_owned()
 }
 
 fn stop(s: &mut Session, p: &Value) -> Result<Value> {
