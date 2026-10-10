@@ -9,6 +9,7 @@
 //! * [`sync`] — offset between two recordings of one event (GCC-PHAT, sample-accurate).
 //! * [`resample`] — streaming, block-invariant rate conversion for playback on a device at another rate.
 //! * [`channels`] — channel layouts, ITU-R BS.775 up/downmix, 5.1 mixdown types, the 5.1 panner.
+//! * [`silence`] — silences and speech by level (pauses, checking recognised speech).
 //!
 //! Conventions: audio is **planar f32** (`&mut [&mut [f32]]`, one slice per channel, all the same
 //! length). `process` never allocates; all buffers are sized at construction. Parameters may be
@@ -29,6 +30,7 @@ pub mod loudness;
 pub mod oversample;
 pub mod remix;
 pub mod resample;
+pub mod silence;
 mod smooth;
 pub mod sync;
 

@@ -11,11 +11,15 @@
 //! - [`diarize`]: speaker labelling by clustering per-chunk MFCC statistics (classical, no model).
 //! - [`mel`]: the log-mel front end shared by Whisper and diarization.
 //! - [`vad`]: energy-based tightening of word bounds (keeps pauses out of words).
+//! - [`cues`]: tidying cloud-recognised cues (text-first word alignment, cue limits, overlaps).
+//! - [`chunked`]: recognising a long recording window by window, checked against the sound.
 //!
 //! See `docs/transcripts.md` for the user-facing behaviour and accuracy numbers.
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
 
+pub mod chunked;
+pub mod cues;
 pub mod diarize;
 pub mod mel;
 pub mod models;

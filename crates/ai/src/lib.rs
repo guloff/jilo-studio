@@ -9,6 +9,8 @@
 //!   lists, key checks, and the providers' error answers mapped onto [`AiError`].
 //! - [`generate_json`]: one provider-neutral call for the text features (translation, highlights,
 //!   YouTube texts) that also switches to the replacement of a retired model.
+//! - [`speech`]: recognising one window of audio (Gemini inline audio with a schema; OpenAI
+//!   `whisper-1` with segment and word times).
 //! - [`keys`]: API keys in `<data dir>/ai.json` (owner-only, written atomically) or the
 //!   environment. Keys never appear in errors, `Debug` output, projects or logs.
 //!
@@ -22,6 +24,7 @@ pub mod base64;
 pub mod gemini;
 pub mod keys;
 pub mod openai;
+pub mod speech;
 pub mod transport;
 
 use std::sync::Arc;
