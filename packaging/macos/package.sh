@@ -12,6 +12,8 @@
 #   MACOS_KEYCHAIN        keychain holding the identity (optional)
 # Notarization (env, with a real identity): either
 #   MACOS_NOTARY_PROFILE  a `xcrun notarytool store-credentials` keychain profile (local machines), or
+#   APPLE_API_KEY, APPLE_API_KEY_ID, APPLE_API_ISSUER  an App Store Connect API key: the path of its
+#                         .p8 file, its key id and the issuer id (nothing stored in the keychain), or
 #   APPLE_ID, APPLE_PASSWORD (app-specific password), APPLE_TEAM_ID (all three; CI)
 set -euo pipefail
 # shellcheck source=../env.sh
@@ -52,6 +54,8 @@ if [ "$IDENTITY" = "-" ]; then
   warn "macOS: ad-hoc signing (no MACOS_SIGN_IDENTITY); artifacts are not notarized"
 elif [ -n "${MACOS_NOTARY_PROFILE:-}" ]; then
   NOTARIZE=1
+elif [ -n "${APPLE_API_KEY:-}" ] && [ -n "${APPLE_API_KEY_ID:-}" ] && [ -n "${APPLE_API_ISSUER:-}" ]; then
+  NOTARIZE=1
 elif [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_PASSWORD:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ]; then
   NOTARIZE=1
 else
@@ -88,10 +92,12 @@ sign() {
 
 notarize() {
   local file="$1" out id status
-  # credentials: the keychain profile, else the Apple ID triple
+  # credentials: the keychain profile, else an App Store Connect API key, else the Apple ID triple
   local cred=()
   if [ -n "${MACOS_NOTARY_PROFILE:-}" ]; then
     cred=(--keychain-profile "$MACOS_NOTARY_PROFILE")
+  elif [ -n "${APPLE_API_KEY:-}" ]; then
+    cred=(--key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER")
   else
     cred=(--apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID")
   fi

@@ -29,6 +29,9 @@ User-facing names say **Jilo Studio**. Release files are lowercase:
    bash packaging/macos/package.sh
    ```
 
+   Instead of a keychain profile, an App Store Connect API key can notarize: `APPLE_API_KEY` (the
+   path of its `.p8` file), `APPLE_API_KEY_ID` and `APPLE_API_ISSUER`.
+
    Without `MACOS_SIGN_IDENTITY` the script signs ad-hoc (for local testing only; Gatekeeper rejects
    it on other Macs). With an identity and a notary profile it notarizes and staples the app and the
    DMG, and notarizes the CLI zip.
