@@ -242,6 +242,11 @@ async fn main() {
 }
 
 async fn cli() {
+    // before the arguments are parsed, which reads `--help` as an option (#357)
+    if matches!(std::env::args().nth(1).as_deref(), Some("--help" | "-h")) {
+        out!("{HELP}");
+        return;
+    }
     if matches!(std::env::args().nth(1).as_deref(), Some("--version" | "-V")) {
         outln!("filmcraft-cli {}", env!("CARGO_PKG_VERSION"));
         return;
