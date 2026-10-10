@@ -3677,3 +3677,7 @@
 	Finding highlights	正在查找精彩片段
 	the transcript	文字稿
 	Highlights Found	找到的精彩片段
+# Export: FLAC (PR #613)
+	FLAC (lossless)	FLAC（无损）
+	Compression Level	压缩级别
+	0 fastest, 8 smallest	0 最快，8 最小
