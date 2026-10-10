@@ -43,3 +43,7 @@ display_name = "Bloxy"
 
 [people.liangforstudy]
 sync_github_name = true
+
+[people.ReReddo]
+display_name = "ReReddo"
+sync_github_name = false
