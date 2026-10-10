@@ -109,6 +109,24 @@ impl std::ops::Sub for GopStats {
     }
 }
 
+/// The sample to start decoding sample `i` from: its sync sample, or — when `i` is a leading
+/// picture of an open GOP (shown before its random-access picture, as iPhone HEVC's RASL pictures
+/// are) — an earlier one, since such a picture needs the previous GOP's pictures as references and
+/// a decoder started at its own random-access picture drops it. `pts` and `sync` are the track's
+/// presentation times and sync-sample lookup.
+pub fn open_gop_start(i: usize, pts: impl Fn(usize) -> Option<i64>, sync: impl Fn(usize) -> usize) -> usize {
+    let mut key = sync(i);
+    let Some(want) = pts(i) else { return key };
+    while key > 0 && pts(key).is_some_and(|p| want < p) {
+        let earlier = sync(key - 1);
+        if earlier >= key {
+            break;
+        }
+        key = earlier;
+    }
+    key
+}
+
 /// A container's video sample table, in decode (file) order.
 pub trait VideoSamples {
     fn count(&self) -> usize;
@@ -763,6 +781,23 @@ impl GopCache {
 
 #[cfg(test)]
 mod tests {
+    /// An open GOP as an iPhone writes it, in decode order: I0 P B B | CRA4 RASL RASL P …: the two
+    /// pictures decoded after the CRA but shown before it start from the previous GOP.
+    #[test]
+    fn leading_pictures_of_an_open_gop_start_from_the_previous_gop() {
+        let pts = [0i64, 30, 10, 20, 60, 40, 50, 90, 70, 80];
+        let sync = |k: usize| if k >= 4 { 4 } else { 0 };
+        let at = |i: usize| super::open_gop_start(i, |k| pts.get(k).copied(), sync);
+        assert_eq!(at(4), 4, "the random-access picture itself");
+        assert_eq!(at(5), 0, "a leading picture (shown at 40 < 60)");
+        assert_eq!(at(6), 0);
+        assert_eq!(at(7), 4, "a trailing picture");
+        assert_eq!(at(2), 0);
+        assert_eq!(at(99), 4, "past the end: the sync sample, no panic");
+        // a sync lookup that does not move back cannot loop
+        assert_eq!(super::open_gop_start(5, |k| pts.get(k).copied(), |_| 4), 4);
+    }
+
     use super::*;
     use crate::video::DecodedFrame;
     use std::collections::VecDeque;

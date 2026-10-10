@@ -382,7 +382,8 @@ impl VideoSamples for Mp4Video<'_> {
         self.src.file.tracks[self.track].samples[i].pts
     }
     fn sync_before(&self, i: usize) -> usize {
-        self.src.file.tracks[self.track].sync_sample_before(i)
+        let t = &self.src.file.tracks[self.track];
+        crate::gop::open_gop_start(i, |k| t.samples.get(k).map(|s| s.pts), |k| t.sync_sample_before(k))
     }
     fn sample_at(&self, t: i64) -> Option<usize> {
         self.src.file.tracks[self.track].sample_at_presentation_time(t)
