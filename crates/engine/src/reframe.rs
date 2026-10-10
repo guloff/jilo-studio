@@ -8,7 +8,10 @@
 //! faces (a speaker, not someone passing); `group` — everyone steady in frame (a face with a
 //! neighbour within two frames on either side), framed by the group's middle; `face` — the face
 //! nearest a point (`x`, `y`, fractions of the picture) at `seconds`, followed forward and backward.
-//! Between frames a face may move `TRACK_JUMP` of the width; farther, the frame holds. The smoothing
+//! A face may move `TRACK_SPEED` of the width a second (at least `TRACK_JUMP` between two analysed
+//! frames, the reach growing while it is lost), so someone walking across the shot is followed;
+//! farther, the frame holds, and a speaker lost for `REACQUIRE` seconds is picked up again
+//! wherever the nearest face is (a chosen face is never swapped for someone else). The smoothing
 //! is a moving average over `smoothing` seconds (1.5, 0–6) with a dead zone (a nod moves nothing),
 //! and the keys are thinned while the straight line between neighbours stays within 0.4 % of the
 //! frame width. Scale keys a clip already has (Auto Zoom) keep their zooms relative to the new
@@ -62,8 +65,13 @@ pub struct TrackPoint {
     pub found: bool,
 }
 
-/// How far a face may move between two analysed frames, in fractions of the width.
+/// How far a face may move in a second, in fractions of the width: someone walking across the
+/// shot (a test of a walk in a room moved up to 0.16 a second).
+pub const TRACK_SPEED: f64 = 0.3;
+/// The least a face may move between two analysed frames, in fractions of the width.
 pub const TRACK_JUMP: f64 = 0.06;
+/// Seconds after which a lost face is looked for anywhere in the picture.
+pub const REACQUIRE: f64 = 1.0;
 /// Head movement smaller than this (fractions of the width) moves nothing.
 pub const DEAD_ZONE: f64 = 0.012;
 /// Keys are dropped while the straight line between neighbours stays this close (fractions of the
@@ -79,6 +87,38 @@ fn nearest(faces: &[FaceBox], p: (f64, f64), aspect: f64, limit: f64) -> Option<
     faces.iter().map(FaceBox::centre).map(|c| (c, distance(c, p, aspect))).filter(|(_, d)| *d < limit).min_by(|a, b| a.1.total_cmp(&b.1)).map(|(c, _)| c)
 }
 
+/// How far a face may have moved in `dt` seconds.
+fn jump(dt: f64) -> f64 {
+    (TRACK_SPEED * dt.abs()).max(TRACK_JUMP)
+}
+
+/// Follow a face from `cur` (last found at `last`) through the samples `idx`, in that order: the
+/// nearest face within reach of the time since it was last found (so the reach grows while it is
+/// lost; a chosen face's for a second at most), else — with `reacquire`, missed on an earlier frame too and lost for `REACQUIRE`
+/// seconds — the nearest face anywhere, else the place holds. A chosen face is not swapped for
+/// someone else that way: it may only be looking away.
+fn follow(s: &[&FaceSample], idx: impl Iterator<Item = usize>, mut cur: (f64, f64), mut last: f64, aspect: f64, reacquire: bool) -> Vec<TrackPoint> {
+    let mut missed = 0;
+    idx.map(|i| {
+        let t = s[i].time;
+        // a chosen face's reach grows for a second at most: never as far as someone else
+        let lost = if reacquire { (t - last).abs() } else { (t - last).abs().min(REACQUIRE) };
+        let mut n = nearest(&s[i].faces, cur, aspect, jump(lost));
+        if n.is_none() && reacquire && missed > 0 && (t - last).abs() >= REACQUIRE {
+            n = nearest(&s[i].faces, cur, aspect, f64::INFINITY);
+        }
+        if let Some(n) = n {
+            cur = n;
+            last = t;
+            missed = 0;
+        } else {
+            missed += 1;
+        }
+        TrackPoint { time: t, x: cur.0, y: cur.1, found: n.is_some() }
+    })
+    .collect()
+}
+
 fn sorted(samples: &[FaceSample]) -> Vec<&FaceSample> {
     let mut v: Vec<&FaceSample> = samples.iter().collect();
     v.sort_by(|a, b| a.time.total_cmp(&b.time));
@@ -91,30 +131,22 @@ pub fn track_speaker(samples: &[FaceSample], aspect: f64) -> Vec<TrackPoint> {
     let Some(start) = s.iter().position(|x| !x.faces.is_empty()) else { return Vec::new() };
     let persistence = |face: &FaceBox| {
         let mut cur = face.centre();
+        let mut last = s[start].time;
         let mut hits = 0;
         for x in s.iter().skip(start + 1).take(10) {
-            if let Some(n) = nearest(&x.faces, cur, aspect, TRACK_JUMP) {
+            if let Some(n) = nearest(&x.faces, cur, aspect, jump(x.time - last)) {
                 cur = n;
+                last = x.time;
                 hits += 1;
             }
         }
         hits
     };
     let seed = s[start].faces.iter().max_by(|a, b| persistence(a).cmp(&persistence(b)).then(a.w.total_cmp(&b.w))).map(FaceBox::centre);
-    let Some(mut cur) = seed else { return Vec::new() };
-    s.iter()
-        .enumerate()
-        .map(|(i, x)| {
-            if i < start {
-                return TrackPoint { time: x.time, x: cur.0, y: cur.1, found: false };
-            }
-            let n = nearest(&x.faces, cur, aspect, TRACK_JUMP);
-            if let Some(n) = n {
-                cur = n;
-            }
-            TrackPoint { time: x.time, x: cur.0, y: cur.1, found: n.is_some() }
-        })
-        .collect()
+    let Some(cur) = seed else { return Vec::new() };
+    let mut out: Vec<TrackPoint> = s[..start].iter().map(|x| TrackPoint { time: x.time, x: cur.0, y: cur.1, found: false }).collect();
+    out.extend(follow(&s, start..s.len(), cur, s[start].time, aspect, true));
+    out
 }
 
 /// The track of the face nearest `point` at media second `time` (Jilo Studio's `trackFrom`).
@@ -122,21 +154,10 @@ pub fn track_from(samples: &[FaceSample], time: f64, point: (f64, f64), aspect: 
     let s = sorted(samples);
     let Some(seed_i) = (0..s.len()).min_by(|a, b| (s[*a].time - time).abs().total_cmp(&(s[*b].time - time).abs())) else { return Vec::new() };
     let Some(seed) = nearest(&s[seed_i].faces, point, aspect, f64::INFINITY) else { return Vec::new() };
-    let walk = |idx: Vec<usize>| {
-        let mut cur = seed;
-        idx.into_iter()
-            .map(|i| {
-                let n = nearest(&s[i].faces, cur, aspect, TRACK_JUMP);
-                if let Some(n) = n {
-                    cur = n;
-                }
-                TrackPoint { time: s[i].time, x: cur.0, y: cur.1, found: n.is_some() }
-            })
-            .collect::<Vec<_>>()
-    };
-    let mut back = walk((0..seed_i).rev().collect());
+    let at = s[seed_i].time;
+    let mut back = follow(&s, (0..seed_i).rev(), seed, at, aspect, false);
     back.reverse();
-    back.extend(walk((seed_i..s.len()).collect()));
+    back.extend(follow(&s, seed_i..s.len(), seed, at, aspect, false));
     back
 }
 
@@ -536,12 +557,30 @@ mod tests {
         assert_eq!(t.len(), 9);
         assert!(t.iter().all(|p| p.found));
         assert!((t[0].x - 0.60).abs() < 1e-9 && (t[8].x - 0.68).abs() < 1e-9);
-        // the other face teleports: no frame follows it
+        // the face is gone for a frame: the place holds
         let mut s2 = samples.clone();
-        s2[6].faces = vec![face(0.2, 0.4, 0.1), face(0.95, 0.4, 0.1)];
+        s2[6].faces = vec![face(0.2, 0.4, 0.1)];
         let t = track_from(&s2, 4.0, (0.65, 0.4), 16.0 / 9.0);
         assert!(!t[6].found && (t[6].x - 0.65).abs() < 1e-9);
         assert!(track_from(&[sample(0.0, vec![])], 0.0, (0.5, 0.5), 1.0).is_empty());
+    }
+
+    /// Someone walking across the shot (0.12 of the width every half second, as in a test of a walk
+    /// in a room) is followed, and picked up again after being lost.
+    #[test]
+    fn a_walk_across_the_shot_is_followed_and_picked_up_again() {
+        let walk: Vec<FaceSample> = (0..12).map(|i| sample(i as f64 * 0.5, vec![face(0.1 + 0.07 * i as f64, 0.2, 0.07)])).collect();
+        let t = track_speaker(&walk, 16.0 / 9.0);
+        assert!(t.iter().all(|p| p.found), "{t:?}");
+        assert!((t[11].x - 0.87).abs() < 1e-9);
+        // gone for a second and a half, back on the other side
+        let mut gap = walk.clone();
+        for g in &mut gap[4..7] {
+            g.faces.clear();
+        }
+        gap[7].faces = vec![face(0.9, 0.2, 0.07)];
+        let t = track_speaker(&gap, 16.0 / 9.0);
+        assert!(!t[4].found && !t[6].found && t[7].found && (t[7].x - 0.9).abs() < 1e-9, "{t:?}");
     }
 
     #[test]

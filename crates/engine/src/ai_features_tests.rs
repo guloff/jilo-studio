@@ -696,7 +696,8 @@ fn a_clip_is_reframed_on_its_speaker_in_one_undo_step() {
     // the face picked at the right edge: held there, the layer's right edge on the frame's
     s.set_playhead(filmcraft_time::Tick::ZERO);
     s.execute("clip.reframeToFace", json!({"clips": [clip], "target": "face", "x": 0.85, "y": 0.5})).unwrap();
-    let (pos, _, _) = motion_at(&s, clip, 6.0);
+    // (until the speaker walks up to where it was, at 6.5 s)
+    let (pos, _, _) = motion_at(&s, clip, 3.0);
     assert!((pos.x - (1080.0 - cover * 960.0)).abs() < 0.1, "{pos:?}");
     s.undo();
     s.undo();
