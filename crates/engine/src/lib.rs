@@ -63,6 +63,7 @@ pub mod transcript;
 pub mod translate;
 pub mod trim;
 pub mod voiceover;
+pub mod youtube;
 
 use std::sync::Arc;
 

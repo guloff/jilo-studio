@@ -441,6 +441,24 @@ impl Default for AutoZoomUi {
     }
 }
 
+/// Sequence ▸ YouTube Title, Description and Chapters… (`panels::youtube`).
+#[derive(Clone, Debug, Default)]
+pub struct YouTubeUi {
+    pub open: bool,
+    /// The kept texts (`youtube.texts`); None: the form that writes them.
+    pub data: Option<serde_json::Value>,
+    /// The form is shown over kept texts (Write Again).
+    pub rewrite: bool,
+    /// Language of the texts ("" = the transcript's).
+    pub language: String,
+    pub keep_chapters: bool,
+    /// The editable fields (saved with `youtube.set` when they change).
+    pub text: String,
+    pub tags: String,
+    pub hashtags: String,
+    pub title: usize,
+}
+
 /// Text panel ▸ Transcribe while it works: the background recognition (`transcript.recognize`), its
 /// parameters (`transcript.generate` applies the result with the same ones), a cloud recognition
 /// waiting for the user's consent, and the last message.
@@ -539,6 +557,9 @@ pub struct UiState {
     /// Clip ▸ Auto Zoom…: the dialog and its choices.
     #[serde(default)]
     pub auto_zoom: AutoZoomUi,
+    /// Sequence ▸ YouTube Title, Description and Chapters…: the window and the texts being edited.
+    #[serde(skip)]
+    pub youtube: YouTubeUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -1027,6 +1048,7 @@ impl Default for UiState {
             fillers: None,
             highlights: HighlightsUi::default(),
             auto_zoom: AutoZoomUi::default(),
+            youtube: YouTubeUi::default(),
             ai_task: None,
             translate_track: None,
             translate_to: String::new(),

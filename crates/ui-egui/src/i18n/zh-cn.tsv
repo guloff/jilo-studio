@@ -3702,3 +3702,27 @@
 	Add Zooms	添加缩放
 	Auto zoom: {n} zooms on {clips} clips	自动缩放：{clips} 个剪辑上 {n} 处缩放
 	Finding zoom moments	正在查找缩放时刻
+# Sequence ▸ YouTube texts and chapters (11.8)
+	YouTube Title, Description and Chapters…	YouTube 标题、描述和章节…
+	YouTube title, description and chapters…	YouTube 标题、描述和章节…
+	YouTube Texts	YouTube 文本
+	Edit YouTube Texts	编辑 YouTube 文本
+	YouTube	YouTube
+	Same as the transcript	与文字稿相同
+	Three title options, a description, chapters, tags and hashtags, written from the transcript.	根据文字稿撰写三个标题备选、描述、章节、标签和话题标签。
+	Replace the chapter markers ({n})	替换章节标记（{n}）
+	The transcript goes to {provider}. The chapters become chapter markers: move them to move a chapter.	文字稿将发送到 {provider}。章节会成为章节标记：移动标记即可移动章节。
+	Write Texts	撰写文本
+	Copied: {what}	已复制：{what}
+	Copy adds the chapters and hashtags below to the text.	复制时会在文本后附上下方的章节和话题标签。
+	Chapters	章节
+	YouTube shows chapters only in videos of at least 30 seconds.	YouTube 仅在至少 30 秒的视频中显示章节。
+	YouTube shows chapters from three, each at least 10 seconds long: add chapter markers (Markers ▸ Add Chapter Marker).	YouTube 需要至少三个章节、每个不短于 10 秒才会显示：请添加章节标记（标记 ▸ 添加章节标记）。
+	From the sequence's chapter markers: move one to move its chapter.	来自序列的章节标记：移动标记即可移动对应章节。
+	Tags	标签
+	Separated by commas · {n}/500	以逗号分隔 · {n}/500
+	Hashtags	话题标签
+	Copy All	全部复制
+	Write Again…	重新撰写…
+	Copied: the title, the description with chapters and the tags	已复制：标题、含章节的描述和标签
+	Writing YouTube texts	正在撰写 YouTube 文本

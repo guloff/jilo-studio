@@ -3672,3 +3672,27 @@
 	Add Zooms	Añadir zooms
 	Auto zoom: {n} zooms on {clips} clips	Zoom automático: {n} zooms en {clips} clips
 	Finding zoom moments	Buscando momentos para el zoom
+# Sequence ▸ YouTube texts and chapters (11.8)
+	YouTube Title, Description and Chapters…	Título, descripción y capítulos para YouTube…
+	YouTube title, description and chapters…	Título, descripción y capítulos para YouTube…
+	YouTube Texts	Textos para YouTube
+	Edit YouTube Texts	Editar textos para YouTube
+	YouTube	YouTube
+	Same as the transcript	Como la transcripción
+	Three title options, a description, chapters, tags and hashtags, written from the transcript.	Tres títulos posibles, una descripción, capítulos, etiquetas y hashtags, escritos a partir de la transcripción.
+	Replace the chapter markers ({n})	Reemplazar los marcadores de capítulo ({n})
+	The transcript goes to {provider}. The chapters become chapter markers: move them to move a chapter.	La transcripción se envía a {provider}. Los capítulos se convierten en marcadores de capítulo: muévelos para mover un capítulo.
+	Write Texts	Escribir textos
+	Copied: {what}	Copiado: {what}
+	Copy adds the chapters and hashtags below to the text.	Copiar añade al texto los capítulos y hashtags de abajo.
+	Chapters	Capítulos
+	YouTube shows chapters only in videos of at least 30 seconds.	YouTube solo muestra capítulos en vídeos de al menos 30 segundos.
+	YouTube shows chapters from three, each at least 10 seconds long: add chapter markers (Markers ▸ Add Chapter Marker).	YouTube muestra capítulos a partir de tres, de al menos 10 segundos cada uno: añade marcadores de capítulo (Marcadores ▸ Añadir marcador de capítulo).
+	From the sequence's chapter markers: move one to move its chapter.	Según los marcadores de capítulo de la secuencia: mueve uno para mover su capítulo.
+	Tags	Etiquetas
+	Separated by commas · {n}/500	Separadas por comas · {n}/500
+	Hashtags	Hashtags
+	Copy All	Copiar todo
+	Write Again…	Escribir de nuevo…
+	Copied: the title, the description with chapters and the tags	Copiado: el título, la descripción con capítulos y las etiquetas
+	Writing YouTube texts	Escribiendo textos para YouTube

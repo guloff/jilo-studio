@@ -152,6 +152,23 @@ clip's own scale; `style` `cut` holds it for the phrase, `smooth` eases in and o
 The clips' Scale keyframes are replaced in one undo step; the cloud is used only with `meaning`,
 after the one-time consent, in the background like the other cloud tasks.
 
+## YouTube texts and chapters
+
+Sequence ▸ YouTube Title, Description and Chapters… (also the Transcript toolbar;
+`youtube.generate`) writes, as Jilo Studio does, three title options (≤ 100 characters), a description
+(≤ 5000), tags (the field ≤ 500, commas and quotes counted), three hashtags and chapters from the
+sequence transcript, sent in blocks of at least 8 s (`[second] text`) to the text engine of
+Settings ▸ AI, in the transcript's language or `language`. Angle brackets are removed (YouTube refuses
+them). The chapters are checked in code: each starts on a cue (one closer than 10 s to the previous
+moves on to the first cue 10 s later), the first at 0:00, none leaving less than 10 s to the end.
+They become the sequence's chapter markers (replacing those there unless `replaceChapters` is
+false), so they follow the edit, go into exported MP4/MOV files as a chapter track and can be moved
+by hand. The texts are kept with the sequence (`youtube.texts` reads them, `youtube.set` edits them
+with the same checks, one undo step). The description assembled for YouTube adds the chapters of the
+current chapter markers when YouTube will take them (at least 3, each ≥ 10 s, a video of ≥ 30 s) and
+the hashtags; past the limit the text is shortened, not the chapters. The window copies each field
+or everything at once.
+
 ## Limits
 
 - Transcription runs synchronously inside the command (no background job or progress bar yet).

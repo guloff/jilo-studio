@@ -3667,3 +3667,27 @@ mode	Edit	Монтаж
 	Add Zooms	Добавить зумы
 	Auto zoom: {n} zooms on {clips} clips	Авто-зум: {n} зумов на клипах: {clips}
 	Finding zoom moments	Поиск моментов для зума
+# Sequence ▸ YouTube texts and chapters (11.8)
+	YouTube Title, Description and Chapters…	Название, описание и главы для YouTube…
+	YouTube title, description and chapters…	Название, описание и главы для YouTube…
+	YouTube Texts	Тексты для YouTube
+	Edit YouTube Texts	Правка текстов для YouTube
+	YouTube	YouTube
+	Same as the transcript	Как в расшифровке
+	Three title options, a description, chapters, tags and hashtags, written from the transcript.	Три варианта названия, описание, главы, теги и хэштеги — по расшифровке.
+	Replace the chapter markers ({n})	Заменить маркеры-главы ({n})
+	The transcript goes to {provider}. The chapters become chapter markers: move them to move a chapter.	Расшифровка уходит в {provider}. Главы станут маркерами-главами: сдвиньте маркер, чтобы сдвинуть главу.
+	Write Texts	Написать тексты
+	Copied: {what}	Скопировано: {what}
+	Copy adds the chapters and hashtags below to the text.	При копировании к тексту добавятся главы и хэштеги ниже.
+	Chapters	Главы
+	YouTube shows chapters only in videos of at least 30 seconds.	YouTube показывает главы только в роликах от 30 секунд.
+	YouTube shows chapters from three, each at least 10 seconds long: add chapter markers (Markers ▸ Add Chapter Marker).	YouTube показывает главы, если их не меньше трёх и каждая не короче 10 секунд: добавьте маркеры-главы (Маркеры ▸ Добавить маркер главы).
+	From the sequence's chapter markers: move one to move its chapter.	По маркерам-главам секвенции: сдвиньте маркер, чтобы сдвинуть главу.
+	Tags	Теги
+	Separated by commas · {n}/500	Через запятую · {n}/500
+	Hashtags	Хэштеги
+	Copy All	Копировать всё
+	Write Again…	Написать заново…
+	Copied: the title, the description with chapters and the tags	Скопировано: название, описание с главами и теги
+	Writing YouTube texts	Пишем тексты для YouTube

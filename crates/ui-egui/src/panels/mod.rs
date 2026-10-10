@@ -110,6 +110,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, p: PanelKind, rect: Rect)
 
 pub mod source_drag;
 pub mod source_range;
+pub mod youtube;
 
 #[derive(Clone, Debug)]
 enum DragPayload {

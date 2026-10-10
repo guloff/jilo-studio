@@ -440,3 +440,93 @@ fn zooms_by_meaning_follow_the_quoted_phrase() {
     assert_eq!(scale_at(&s, clip, 25.0).0, 100.0);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ---------- YouTube texts and chapters ----------
+
+#[test]
+fn youtube_fields_follow_youtube_rules() {
+    use crate::youtube::*;
+    assert_eq!(clean_line("  <b>Как   монтировать</b>  ", 100), "bКак монтировать/b");
+    assert_eq!(clean_line("абвгд", 3), "абв");
+    assert_eq!(clean_text("Абзац  один\r\n\n\n\nАбзац <два>", 5000), "Абзац один\n\nАбзац два");
+    let tags = normalise_tags(["#монтаж", "Монтаж", "видео, редактор", "", "rust"]);
+    assert_eq!(tags, ["монтаж", "видео редактор", "rust"]);
+    assert_eq!(tags_length(&tags), 6 + 1 + (14 + 2) + 1 + 4);
+    let long: Vec<String> = (0..100).map(|i| format!("tag{i:03}")).collect();
+    assert!(tags_length(&normalise_tags(long.iter().map(String::as_str))) <= TAGS_LIMIT);
+    assert_eq!(normalise_hashtags(["#Монтаж видео", "#монтажвидео", "Rust", "#a", "#b"]), ["#Монтажвидео", "#Rust", "#a"]);
+    assert_eq!(format_chapter_time(75.9, 600.0), "1:15");
+    assert_eq!(format_chapter_time(3725.0, 4000.0), "1:02:05");
+    assert_eq!(format_chapter_time(5.0, 4000.0), "0:00:05");
+}
+
+#[test]
+fn chapters_follow_youtube_rules() {
+    use crate::youtube::{ChapterProblem, pick_chapter_cues, timed_chapters};
+    let marks = |v: &[(f64, &str)]| v.iter().map(|(t, n)| (*t, n.to_string())).collect::<Vec<_>>();
+    // the first goes to 0:00, a chapter 4 s after another is left out, so is a 6 s tail
+    let (c, p) = timed_chapters(&marks(&[(3.4, "A"), (7.0, "B"), (20.9, "C"), (40.0, "D"), (55.0, "E")]), 61.0);
+    assert_eq!(c, marks(&[(0.0, "A"), (20.0, "C"), (40.0, "D")]));
+    assert!(p.is_empty());
+    assert_eq!(timed_chapters(&marks(&[(0.0, "A"), (15.0, "B")]), 61.0).1, [ChapterProblem::TooFew]);
+    assert_eq!(timed_chapters(&marks(&[(0.0, "A"), (10.0, "B"), (20.0, "C")]), 25.0).1, [ChapterProblem::VideoTooShort]);
+    // requested times to cues: too close moves on to a cue 10 s later, a short tail is not taken
+    let starts: Vec<f64> = (0..10).map(|i| i as f64 * 6.0).collect();
+    assert_eq!(pick_chapter_cues(&[30.0, 0.0, 5.0, 55.0, f64::NAN], &starts, 60.0), [0, 2, 5]);
+    assert!(pick_chapter_cues(&[], &starts, 60.0).is_empty());
+}
+
+#[test]
+fn youtube_texts_are_written_kept_and_chapters_become_markers() {
+    let (mut s, fake, dir) = transcribed("yt");
+    s.execute("markers.addChapter", json!({"time": 0, "name": "old"})).unwrap();
+    gemini(&fake, |prompt, user| {
+        assert!(prompt.contains("in Russian") && prompt.contains("lasts 60 seconds") && prompt.contains("between 3 and"), "{prompt}");
+        assert!(user.starts_with("[0] слово00") && user.contains("\n[12] слово20"), "{user}");
+        json!({
+            "titles": ["Как <монтировать> быстрее", "  ", "Монтаж за минуту"],
+            "description": "Первый абзац.\n\n\n\nВторой абзац.",
+            "chapters": [{"start": 30, "title": "Середина"}, {"start": 0, "title": "Вступление"}, {"start": 5, "title": "Почти сразу"}, {"start": 55, "title": "Хвост"}],
+            "tags": ["монтаж", "Монтаж", "#видео"],
+            "hashtags": ["#монтаж", "видео", "rust", "лишний"]
+        })
+    });
+    let e = s.execute("youtube.generate", json!({})).unwrap_err();
+    assert!(e.to_string().contains("CONFIRM_CLOUD"), "{e}");
+    let undo = s.history.undo.len();
+    let r = s.execute("youtube.generate", json!({"confirm": true})).unwrap();
+    assert_eq!(s.history.undo.len(), undo + 1);
+    assert_eq!(r["titles"], json!(["Как монтировать быстрее", "Монтаж за минуту"]));
+    assert_eq!(r["tags"], json!(["монтаж", "видео"]));
+    assert_eq!(r["hashtags"], json!(["#монтаж", "#видео", "#rust"]));
+    let chapters: Vec<(f64, String)> =
+        r["chapters"].as_array().unwrap().iter().map(|c| (c["time"].as_f64().unwrap(), c["title"].as_str().unwrap().to_string())).collect();
+    assert_eq!(chapters, [(0.0, "Вступление".to_string()), (12.0, "Почти сразу".to_string()), (30.0, "Середина".to_string())]);
+    assert_eq!(r["problems"], json!([]));
+    assert_eq!(r["description"], "Первый абзац.\n\nВторой абзац.\n\n0:00 Вступление\n0:12 Почти сразу\n0:30 Середина\n\n#монтаж #видео #rust");
+    let q = s.active_sequence().unwrap();
+    let names: Vec<&str> = q.markers.iter().filter(|m| m.kind == filmcraft_project::MarkerKind::Chapter).map(|m| m.name.as_str()).collect();
+    assert_eq!(names, ["Вступление", "Почти сразу", "Середина"], "the old chapter marker is replaced");
+    // the texts stay with the sequence; a moved chapter marker moves the chapter
+    let id = q.markers.iter().find(|m| m.name == "Середина").unwrap().id;
+    s.edit_sequence("move", |q, _, _| {
+        q.markers.iter_mut().find(|m| m.id == id).unwrap().start = filmcraft_time::Tick::from_seconds_f64(41.5);
+        Ok(())
+    })
+    .unwrap();
+    let t = s.execute("youtube.texts", json!({})).unwrap();
+    assert!(t["description"].as_str().unwrap().contains("0:41 Середина"), "{t}");
+    assert!(t["all"].as_str().unwrap().starts_with("Как монтировать быстрее\n\nПервый абзац."));
+    // edits go through the same checks, one undo step
+    let r = s.execute("youtube.set", json!({"text": "Новый <текст>", "tags": "a, b, a"})).unwrap();
+    assert_eq!((r["text"].clone(), r["tags"].clone()), (json!("Новый текст"), json!(["a", "b"])));
+    s.undo();
+    assert_eq!(s.execute("youtube.texts", json!({})).unwrap()["text"], "Первый абзац.\n\nВторой абзац.");
+    // without a transcript: refused before anything is sent
+    let sent = fake.sent().len();
+    s.execute("file.newSequence", json!({"name": "empty", "audio": 1})).unwrap();
+    assert!(s.execute("youtube.generate", json!({})).unwrap_err().to_string().contains("no transcript"));
+    assert!(s.execute("youtube.texts", json!({})).is_err());
+    assert_eq!(fake.sent().len(), sent);
+    let _ = std::fs::remove_dir_all(&dir);
+}

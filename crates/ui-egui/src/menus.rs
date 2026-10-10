@@ -425,6 +425,10 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
             app.ui.mode = Mode::Export;
             return Ok(json!({"mode": "export"}));
         }
+        // YouTube… from the menu opens the window (its texts, or the form that writes them).
+        "youtube.generate" if params.as_object().is_none_or(|m| m.is_empty()) => {
+            return crate::panels::youtube::open(app);
+        }
         // Auto Zoom… from the menu opens the dialog; with params it zooms directly.
         "clip.autoZoom" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::autozoom::open(app);

@@ -449,3 +449,71 @@ fn auto_zoom_by_meaning_keys_the_scale_on_the_quoted_words() {
     d.snapshot("autozoom-done");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Sequence ▸ YouTube: the form, the consent, the texts window with copy buttons, an edit kept with
+/// the sequence, and the chapters as chapter markers.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn youtube_texts_are_written_shown_and_edited() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-youtube-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |_| {
+            let answer = json!({
+                "titles": ["Как смонтировать интервью за вечер", "Монтаж интервью: паузы и лучшие моменты", "Быстрый монтаж разговорного видео"],
+                "description": "Показываю, как быстро смонтировать интервью: убрать лишние паузы и найти лучшие моменты.\n\nВсё делаем по расшифровке, без ручной перемотки.",
+                "chapters": [{"start": 0, "title": "Вступление"}, {"start": 4, "title": "Лучшие моменты"}],
+                "tags": ["монтаж интервью", "монтаж видео", "расшифровка", "паузы"],
+                "hashtags": ["#монтаж", "#интервью", "#видео"]
+            });
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": answer.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "gemini", "key": "k"})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
+    d.frames(2);
+    d.click("text.tab.Transcript");
+    russian_transcript(&mut d);
+    d.frames(3);
+    d.click("text.transcript.youtube");
+    assert!(d.ids("youtube.").contains(&"youtube.generate".to_string()), "no texts yet: the form");
+    d.snapshot("youtube-form");
+    d.click("youtube.generate");
+    assert!(d.ids("aiTask.consent").contains(&"aiTask.consent.send".to_string()));
+    assert!(fake.sent().is_empty());
+    d.click("aiTask.consent.send");
+    let mut shown = false;
+    for _ in 0..400 {
+        d.frames(2);
+        if d.ids("youtube.").iter().any(|i| i == "youtube.copyAll") {
+            shown = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(shown, "the texts window opens when they are written");
+    d.snapshot("youtube-texts");
+    let t = d.ok("engine.execute", json!({"command": "youtube.texts", "params": {}}));
+    assert_eq!(t["titles"][1], "Монтаж интервью: паузы и лучшие моменты");
+    // the demo is 26 s: YouTube would not show its chapters, but they are chapter markers
+    assert_eq!(t["problems"], json!(["videoTooShort"]));
+    let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
+    let chapters: Vec<&str> = seq["markers"].as_array().unwrap().iter().filter(|m| m["kind"] == "Chapter").filter_map(|m| m["name"].as_str()).collect();
+    assert_eq!(chapters, ["Вступление"], "the second asked chapter is under 10 s from the first, so it moves on to no cue");
+    // choose the second title and copy everything
+    d.click("youtube.title.1");
+    let before = d.harness.state().ui.status.clone();
+    d.click("youtube.copyAll");
+    let after = d.harness.state().ui.status.clone();
+    assert!(after != before && !after.is_empty(), "the status bar says what was copied: {after}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
