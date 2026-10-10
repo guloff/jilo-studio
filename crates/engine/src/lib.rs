@@ -26,6 +26,7 @@ pub mod graphics;
 mod import_duplicates;
 pub mod interchange;
 pub mod keyboard;
+mod marker_export;
 pub mod masks;
 pub mod media_browser;
 pub mod media_pool;
