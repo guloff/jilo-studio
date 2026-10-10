@@ -117,6 +117,12 @@ fn transcribed(name: &str) -> (Session, Arc<FakeTransport>, std::path::PathBuf) 
     let wav = crate::previews::write_wav_f32(&vec![0.0; rate as usize * 120], rate);
     let item = crate::commands::import_bytes(&mut s, "/talk.wav", wav.into(), None).unwrap();
     s.execute("timeline.place", json!({"item": item.0, "audioTrack": "A1", "seconds": 0.0})).unwrap();
+    s.execute("transcript.set", json!({"item": item.0, "transcript": {"language": "ru", "speakers": [], "words": sentence_words()}})).unwrap();
+    (s, fake, dir)
+}
+
+/// Ten sentences of five one-second words ("слово00 … слово04."), a 1 s pause after each.
+fn sentence_words() -> Vec<Value> {
     let tick = |x: f64| filmcraft_time::Tick::from_seconds_f64(x).0;
     let mut words = Vec::new();
     for sentence in 0..10 {
@@ -126,8 +132,7 @@ fn transcribed(name: &str) -> (Session, Arc<FakeTransport>, std::path::PathBuf) 
             words.push(json!({"text": text, "start": tick(t), "end": tick(t + 0.9)}));
         }
     }
-    s.execute("transcript.set", json!({"item": item.0, "transcript": {"language": "ru", "speakers": [], "words": words}})).unwrap();
-    (s, fake, dir)
+    words
 }
 
 #[test]
@@ -282,5 +287,156 @@ fn highlights_assemble_into_subsequences_a_sequence_or_the_export_queue() {
     for bad in [json!({}), json!({"markers": []}), json!({"markers": [999999]}), json!({"markers": ids, "as": "zip"})] {
         assert!(s.execute("highlights.assemble", bad.clone()).is_err(), "{bad}");
     }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---------- auto zooms ----------
+
+/// `transcribed` with a picture on V1 for the whole minute and a sound that is loud during the
+/// third and seventh sentences (12–16.9 s, 36–40.9 s) and quiet elsewhere.
+fn talking_head(name: &str) -> (Session, Arc<FakeTransport>, std::path::PathBuf, u64) {
+    let (mut s, fake, dir) = session(name);
+    let rate = 16_000u32;
+    let mut pcm = Vec::with_capacity(rate as usize * 120);
+    for i in 0..rate as usize * 60 {
+        let t = i as f64 / f64::from(rate);
+        let loud = (12.0..16.9).contains(&t) || (36.0..40.9).contains(&t);
+        let v = ((t * 220.0 * std::f64::consts::TAU).sin() * if loud { 0.6 } else { 0.1 }) as f32;
+        pcm.push(v);
+        pcm.push(v);
+    }
+    let item = crate::commands::import_bytes(&mut s, "/loud.wav", crate::previews::write_wav_f32(&pcm, rate).into(), None).unwrap();
+    s.execute("timeline.place", json!({"item": item.0, "audioTrack": "A1", "seconds": 0.0})).unwrap();
+    s.execute("transcript.set", json!({"item": item.0, "transcript": {"language": "ru", "speakers": [], "words": sentence_words()}})).unwrap();
+    let png = dir.join("face.png");
+    image::RgbaImage::from_pixel(64, 36, image::Rgba([40, 120, 200, 255])).save(&png).unwrap();
+    let r = s.execute("file.import", json!({"paths": [png.to_string_lossy()]})).unwrap();
+    let pic = r["items"][0].as_u64().unwrap();
+    let r =
+        s.execute("timeline.place", json!({"item": pic, "track": "V1", "seconds": 0.0, "duration": filmcraft_time::Tick::from_seconds_f64(60.0).0})).unwrap();
+    let clip = r["clips"][0].as_u64().unwrap();
+    s.state.selection.clear();
+    (s, fake, dir, clip)
+}
+
+/// The clip's Scale at sequence second `t`, and its keyframe count.
+fn scale_at(s: &Session, clip: u64, t: f64) -> (f64, usize) {
+    let (_, it) = s.active_sequence().unwrap().find_item(filmcraft_project::ClipId(clip)).unwrap();
+    let p = &it.effect("motion").unwrap().params["scale"];
+    (p.f64_at(it.effect_time_at(filmcraft_time::Tick::from_seconds_f64(t))), p.keyframes.len())
+}
+
+#[test]
+fn loud_moments_stand_out_from_the_median_and_keep_their_distance() {
+    use crate::autozoom::{Moment, pick_loud_moments};
+    use crate::highlights::Cue;
+    let cues: Vec<Cue> = (0..8).map(|i| Cue { start: i as f64 * 3.0, end: i as f64 * 3.0 + 2.5, text: String::new() }).collect();
+    let level = |a: f64, _: f64| match a as i64 {
+        6 => 0.9,
+        9 => 0.8, // loud, but within 6 s of the louder one at 6 s
+        18 => 0.5,
+        _ => 0.1,
+    };
+    assert_eq!(pick_loud_moments(&cues, level, 6.0, 10), [Moment { start: 6.0, end: 8.5 }, Moment { start: 18.0, end: 20.5 }]);
+    assert_eq!(pick_loud_moments(&cues, level, 6.0, 1), [Moment { start: 6.0, end: 8.5 }]);
+    assert!(pick_loud_moments(&cues, |_, _| 0.3, 6.0, 10).is_empty(), "nothing louder than the rest");
+    assert!(pick_loud_moments(&[], level, 6.0, 10).is_empty());
+}
+
+#[test]
+fn a_quoted_phrase_is_found_in_the_words_of_its_cue() {
+    let (s, _, dir) = transcribed("az-quote");
+    let words = crate::transcript::sequence_words(&s);
+    let spans = crate::highlights::cue_spans(&words);
+    let cue = |i: usize| words.get(spans[i].1.clone()).unwrap();
+    // the 2nd and 3rd words of the second sentence, whatever the case and punctuation
+    assert_eq!(crate::autozoom::phrase_time(cue(1), "Слово11, СЛОВО12"), Some((7.0, 8.9)));
+    // a changed tail still finds the head
+    assert_eq!(crate::autozoom::phrase_time(cue(1), "слово12 слово13 слово14 и ещё что-то"), Some((8.0, 10.9)));
+    assert_eq!(crate::autozoom::phrase_time(cue(1), "нет такого"), None);
+    // the model's moments: by quote (anywhere), by time without one, too close ones dropped
+    let raw = vec![
+        json!({"start": 30.0, "end": 31.0, "quote": "слово52 слово53"}), // its cue is 30–34.9, the quote too
+        json!({"start": 1.0, "end": 9.0, "quote": "слово42"}),           // the quote is at 26 s, not at 1 s
+        json!({"start": 50.2, "end": 50.4, "quote": ""}),                // the word at 50 s; at least 0.8 s
+        json!({"start": 51.0, "end": 52.0, "quote": ""}),                // within 6 s of the last one
+    ];
+    let m = crate::autozoom::snap_zoom_moments(&raw, &spans, &words, 6.0, 10);
+    let got: Vec<(f64, f64)> = m.iter().map(|m| (m.start, m.end)).collect();
+    assert_eq!(got, [(26.0, 26.9), (32.0, 33.9), (50.0, 50.9)], "{got:?}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn zoom_keys_cut_or_ease_in_and_out() {
+    use crate::autozoom::{Style, zoom_keys};
+    use filmcraft_project::Interpolation::{Bezier, Hold};
+    let t = filmcraft_time::Tick::from_seconds_f64;
+    let cut = zoom_keys(100.0, 115.0, &[(t(2.0), t(4.0))], t(0.0), t(10.0), Style::Cut);
+    let shape: Vec<(f64, f64, _)> = cut.iter().map(|k| (k.time.seconds(), k.value.as_f64().unwrap(), k.interp)).collect();
+    assert_eq!(shape, [(0.0, 100.0, Hold), (2.0, 115.0, Hold), (4.0, 100.0, Hold)]);
+    let smooth = zoom_keys(100.0, 115.0, &[(t(2.0), t(4.0)), (t(4.2), t(4.6))], t(0.0), t(10.0), Style::Smooth);
+    let shape: Vec<(f64, f64, _)> = smooth.iter().map(|k| ((k.time.seconds() * 100.0).round() / 100.0, k.value.as_f64().unwrap(), k.interp)).collect();
+    assert_eq!(
+        shape,
+        [
+            (0.0, 100.0, Hold),
+            (2.0, 100.0, Bezier),
+            (2.35, 115.0, Hold),
+            (4.0, 115.0, Bezier),
+            // back by the next zoom's start, which a 0.2 s ramp leads into
+            (4.2, 100.0, Bezier),
+            (4.4, 115.0, Hold),
+            (4.6, 115.0, Bezier),
+            (4.8, 100.0, Hold)
+        ]
+    );
+}
+
+#[test]
+fn loud_phrases_zoom_the_picture_in_one_undo_step() {
+    let (mut s, fake, dir, clip) = talking_head("az-loud");
+    let undo = s.history.undo.len();
+    let r = s.execute("clip.autoZoom", json!({})).unwrap();
+    assert!(fake.sent().is_empty(), "loudness is measured offline");
+    assert_eq!(r["moments"], json!([{"start": 12.0, "end": 16.0}, {"start": 36.0, "end": 40.0}]), "{r}");
+    assert_eq!(r["clips"], 1);
+    assert_eq!(s.history.undo.len(), undo + 1);
+    assert_eq!(scale_at(&s, clip, 5.0), (100.0, 5));
+    assert_eq!(scale_at(&s, clip, 13.0).0, 115.0);
+    assert_eq!(scale_at(&s, clip, 20.0).0, 100.0);
+    assert_eq!(scale_at(&s, clip, 39.0).0, 115.0);
+    // again, smooth and stronger: the keys are replaced, not added to
+    s.execute("clip.autoZoom", json!({"style": "smooth", "intensity": 1.3})).unwrap();
+    assert_eq!(scale_at(&s, clip, 14.0), (130.0, 9));
+    let eased = scale_at(&s, clip, 12.1).0;
+    assert!(eased > 100.0 && eased < 130.0, "{eased}");
+    s.undo();
+    assert_eq!(scale_at(&s, clip, 14.0), (115.0, 5));
+    s.undo();
+    assert_eq!(scale_at(&s, clip, 14.0), (100.0, 0));
+    // hostile parameters
+    for bad in [json!({"method": "magic"}), json!({"style": "zoomy"}), json!({"clips": [999_999]})] {
+        assert!(s.execute("clip.autoZoom", bad.clone()).is_err(), "{bad}");
+    }
+    let r = s.execute("clip.autoZoom", json!({"intensity": 99, "minGap": -5})).unwrap();
+    assert_eq!(scale_at(&s, clip, 13.0).0, 160.0, "intensity clamps to 1.6 ({r})");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn zooms_by_meaning_follow_the_quoted_phrase() {
+    let (mut s, fake, dir, clip) = talking_head("az-meaning");
+    gemini(&fake, |prompt, user| {
+        assert!(prompt.contains("punch-in zooms") && prompt.contains("up to 10 moments"), "{prompt}");
+        assert!(user.starts_with("[0.00-4.90] слово00"), "{user}");
+        json!({"moments": [{"start": 24.0, "end": 26.0, "quote": "слово43 слово44"}]})
+    });
+    let e = s.execute("clip.autoZoom", json!({"method": "meaning"})).unwrap_err();
+    assert!(e.to_string().contains("CONFIRM_CLOUD"), "{e}");
+    let r = s.execute("clip.autoZoom", json!({"method": "meaning", "confirm": true})).unwrap();
+    assert_eq!(r["moments"], json!([{"start": 27.0, "end": 28.9}]), "at the quoted words, not the model's time: {r}");
+    assert_eq!(scale_at(&s, clip, 27.5).0, 115.0);
+    assert_eq!(scale_at(&s, clip, 25.0).0, 100.0);
     let _ = std::fs::remove_dir_all(&dir);
 }

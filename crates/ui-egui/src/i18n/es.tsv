@@ -3653,3 +3653,22 @@
 	Finding highlights	Buscando momentos destacados
 	the transcript	la transcripción
 	Highlights Found	Momentos destacados encontrados
+# Clip ▸ Auto Zoom (11.7)
+	Auto Zoom…	Zoom automático…
+	Auto Zoom	Zoom automático
+	Auto zoom…	Zoom automático…
+	Zooms go on the selected clips: {n}	Los zooms van en los clips seleccionados: {n}
+	Zooms go on the clips of V1: {n}	Los zooms van en los clips de V1: {n}
+	Find stressed phrases	Buscar frases enfáticas
+	By loudness	Por volumen
+	The louder phrases of the sequence mix, on this computer.	Las frases más fuertes de la mezcla de la secuencia, en este ordenador.
+	By meaning	Por sentido
+	The text engine picks the stressed phrases; the zoom lands on the quoted words.	El motor de texto elige las frases enfáticas; el zoom cae en las palabras citadas.
+	Zoom amount	Cantidad de zoom
+	Jump	Salto
+	At least, seconds apart	Separación mínima, segundos
+	The transcript goes to {provider}. The zooms are Scale keyframes in Effect Controls.	La transcripción se envía a {provider}. Los zooms son fotogramas clave de Escala en Controles de efectos.
+	Nothing is sent. The zooms are Scale keyframes in Effect Controls.	No se envía nada. Los zooms son fotogramas clave de Escala en Controles de efectos.
+	Add Zooms	Añadir zooms
+	Auto zoom: {n} zooms on {clips} clips	Zoom automático: {n} zooms en {clips} clips
+	Finding zoom moments	Buscando momentos para el zoom

@@ -314,12 +314,13 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let hits: Vec<std::ops::Range<usize>> = filmcraft_edit::transcript::search(&words, &app.ui.transcript_search);
     let mut x = bar.min.x + sw + 10.0;
     let range = sel.map(|(a, b)| json!({"from": a.min(b), "to": a.max(b)}));
-    let tools: [(Icon, &str, &str, bool, &str, Value); 5] = [
+    let tools: [(Icon, &str, &str, bool, &str, Value); 6] = [
         (Icon::Razor, "text.transcript.extract", tl!("Extract selected text"), sel.is_some(), "transcript.extract", range.clone().unwrap_or_default()),
         (Icon::Trash, "text.transcript.lift", tl!("Lift selected text"), sel.is_some(), "transcript.lift", range.unwrap_or_default()),
         (Icon::Link, "text.transcript.removeFillers", tl!("Remove filler words"), true, "transcript.removeFillers", json!({})),
         (Icon::Captions, "text.transcript.createCaptions", tl!("Create captions"), true, "transcript.createCaptions", json!({})),
         (Icon::Sparkle, "text.transcript.highlights", tl!("Find highlights…"), app.ui.ai_task.is_none(), "highlights.find", json!({})),
+        (Icon::Zoom, "text.transcript.autoZoom", tl!("Auto zoom…"), app.ui.ai_task.is_none(), "clip.autoZoom", json!({})),
     ];
     for (icon, id, label, enabled, cmd, params) in tools {
         let r = Rect::from_min_size(pos2(x, bar.min.y), vec2(24.0, 24.0));
@@ -330,8 +331,9 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             if cmd.ends_with("extract") || cmd.ends_with("lift") {
                 app.ui.transcript_sel = None;
             }
-            if cmd == "highlights.find" {
-                if let Err(e) = crate::panels::highlights::open(app) {
+            if cmd == "highlights.find" || cmd == "clip.autoZoom" {
+                let opened = if cmd == "clip.autoZoom" { crate::panels::autozoom::open(app) } else { crate::panels::highlights::open(app) };
+                if let Err(e) = opened {
                     app.ui.status = e;
                 }
                 continue;

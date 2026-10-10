@@ -3648,3 +3648,22 @@ mode	Edit	Монтаж
 # Export: CRF (PR #600)
 	CRF (constant quality)	CRF (постоянное качество)
 	Quality (CRF)	Качество (CRF)
+# Clip ▸ Auto Zoom (11.7)
+	Auto Zoom…	Авто-зум…
+	Auto Zoom	Авто-зум
+	Auto zoom…	Авто-зум…
+	Zooms go on the selected clips: {n}	Зумы на выделенных клипах: {n}
+	Zooms go on the clips of V1: {n}	Зумы на клипах V1: {n}
+	Find stressed phrases	Как искать ударные фразы
+	By loudness	По громкости
+	The louder phrases of the sequence mix, on this computer.	Самые громкие фразы в миксе секвенции — на этом компьютере.
+	By meaning	По смыслу
+	The text engine picks the stressed phrases; the zoom lands on the quoted words.	Текстовый движок выбирает ударные фразы; зум ложится точно на процитированные слова.
+	Zoom amount	Сила зума
+	Jump	Рывком
+	At least, seconds apart	Интервал не меньше, с
+	The transcript goes to {provider}. The zooms are Scale keyframes in Effect Controls.	Расшифровка уходит в {provider}. Зумы — ключевые кадры «Масштаба» в Параметрах эффектов.
+	Nothing is sent. The zooms are Scale keyframes in Effect Controls.	Ничего не отправляется. Зумы — ключевые кадры «Масштаба» в Параметрах эффектов.
+	Add Zooms	Добавить зумы
+	Auto zoom: {n} zooms on {clips} clips	Авто-зум: {n} зумов на клипах: {clips}
+	Finding zoom moments	Поиск моментов для зума

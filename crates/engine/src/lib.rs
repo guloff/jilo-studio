@@ -14,6 +14,7 @@ pub mod aaf_omf;
 pub mod ai;
 pub mod ai_tasks;
 pub mod autosave;
+pub mod autozoom;
 pub mod captions;
 pub mod clip_ops;
 pub mod color;

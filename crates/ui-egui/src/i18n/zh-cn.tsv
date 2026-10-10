@@ -3683,3 +3683,22 @@
 	0 fastest, 8 smallest	0 最快，8 最小
 # Export: CRF (PR #600)
 	Quality (CRF)	质量（CRF）
+# Clip ▸ Auto Zoom (11.7)
+	Auto Zoom…	自动缩放…
+	Auto Zoom	自动缩放
+	Auto zoom…	自动缩放…
+	Zooms go on the selected clips: {n}	缩放应用于所选剪辑：{n}
+	Zooms go on the clips of V1: {n}	缩放应用于 V1 上的剪辑：{n}
+	Find stressed phrases	查找重点语句
+	By loudness	按响度
+	The louder phrases of the sequence mix, on this computer.	序列混音中较响的语句，在此电脑上计算。
+	By meaning	按语义
+	The text engine picks the stressed phrases; the zoom lands on the quoted words.	文本引擎挑选重点语句；缩放会落在引用的词上。
+	Zoom amount	缩放程度
+	Jump	跳切
+	At least, seconds apart	最小间隔（秒）
+	The transcript goes to {provider}. The zooms are Scale keyframes in Effect Controls.	文字稿将发送到 {provider}。缩放是“效果控件”中的“缩放”关键帧。
+	Nothing is sent. The zooms are Scale keyframes in Effect Controls.	不发送任何内容。缩放是“效果控件”中的“缩放”关键帧。
+	Add Zooms	添加缩放
+	Auto zoom: {n} zooms on {clips} clips	自动缩放：{clips} 个剪辑上 {n} 处缩放
+	Finding zoom moments	正在查找缩放时刻

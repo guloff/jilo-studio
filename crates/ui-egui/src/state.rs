@@ -419,6 +419,28 @@ impl Default for HighlightsUi {
     }
 }
 
+/// Clip ▸ Auto Zoom… (`panels::autozoom`): how the stressed phrases are found and how the
+/// picture zooms on them.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AutoZoomUi {
+    /// The dialog is open.
+    pub dialog: bool,
+    /// `loudness` (offline) or `meaning` (the text engine).
+    pub method: String,
+    /// Zoom in percent of the clip's own scale (102–160).
+    pub percent: f32,
+    /// `cut` or `smooth`.
+    pub style: String,
+    pub min_gap: f32,
+}
+
+impl Default for AutoZoomUi {
+    fn default() -> Self {
+        Self { dialog: false, method: "loudness".into(), percent: 115.0, style: "cut".into(), min_gap: 6.0 }
+    }
+}
+
 /// Text panel ▸ Transcribe while it works: the background recognition (`transcript.recognize`), its
 /// parameters (`transcript.generate` applies the result with the same ones), a cloud recognition
 /// waiting for the user's consent, and the last message.
@@ -514,6 +536,9 @@ pub struct UiState {
     /// Markers ▸ Find Highlights…: the search dialog and the highlights found.
     #[serde(default)]
     pub highlights: HighlightsUi,
+    /// Clip ▸ Auto Zoom…: the dialog and its choices.
+    #[serde(default)]
+    pub auto_zoom: AutoZoomUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -1001,6 +1026,7 @@ impl Default for UiState {
             transcribe: TranscribeUi::default(),
             fillers: None,
             highlights: HighlightsUi::default(),
+            auto_zoom: AutoZoomUi::default(),
             ai_task: None,
             translate_track: None,
             translate_to: String::new(),

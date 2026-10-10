@@ -138,6 +138,20 @@ with `highlights.assemble {markers, as}`: `subsequences` (one sequence per highl
 sequence's bin), `sequence` (all of them end to end) or `queue` (one export queue item per highlight,
 named after it, next to the project unless `path` is given). Each is one undo step.
 
+## Auto zooms
+
+Clip ▸ Auto Zoom… (also the Transcript toolbar; `clip.autoZoom`) punches the picture in on stressed
+phrases, as Jilo Studio does, with Scale keyframes on the clips' Motion effect (the selected video
+clips, else V1's). The phrases come from the sequence transcript: `loudness` (the default, offline)
+takes cues of at least 0.4 s louder than the median cue ×1.02 in the sequence mix, loudest first;
+`meaning` asks the text engine of Settings ▸ AI for stressed phrases with a verbatim 2–8-word
+quote and places each on the quoted words (by its first three words if the tail changed), so two
+stresses of one long cue stay apart. A zoom lasts 0.8–4 s; `minGap` 2–60 s (6) keeps them apart and
+caps the count at the sequence length divided by it. `intensity` 1.02–1.6 (1.15) multiplies the
+clip's own scale; `style` `cut` holds it for the phrase, `smooth` eases in and out over up to 0.35 s.
+The clips' Scale keyframes are replaced in one undo step; the cloud is used only with `meaning`,
+after the one-time consent, in the background like the other cloud tasks.
+
 ## Limits
 
 - Transcription runs synchronously inside the command (no background job or progress bar yet).

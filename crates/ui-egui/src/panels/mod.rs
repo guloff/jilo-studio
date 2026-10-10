@@ -3,6 +3,7 @@
 
 pub mod ai_tasks;
 pub mod audio_fx_editor;
+pub mod autozoom;
 pub mod clip_dialogs;
 pub mod color_dialogs;
 pub mod dialogs;

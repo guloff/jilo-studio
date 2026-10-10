@@ -96,28 +96,34 @@ const CUE_MAX_SECONDS: f64 = 7.0;
 /// The sequence transcript as cues: a new cue after a pause, at the end of a phrase once the cue
 /// is long enough, and at the latest every seven seconds.
 pub fn cues_from_words(words: &[SeqWord]) -> Vec<Cue> {
-    let mut out: Vec<Cue> = Vec::new();
-    let mut cur: Option<Cue> = None;
-    for w in words {
+    cue_spans(words).into_iter().map(|(c, _)| c).collect()
+}
+
+/// [`cues_from_words`] with the range of `words` each cue holds.
+pub fn cue_spans(words: &[SeqWord]) -> Vec<(Cue, std::ops::Range<usize>)> {
+    let mut out: Vec<(Cue, std::ops::Range<usize>)> = Vec::new();
+    let mut cur: Option<(Cue, std::ops::Range<usize>)> = None;
+    for (i, w) in words.iter().enumerate() {
         let (a, b) = (w.start.seconds(), w.end.seconds().max(w.start.seconds()));
         let text = w.text.trim();
         if text.is_empty() {
             continue;
         }
-        if let Some(c) = cur.as_mut() {
+        if let Some((c, r)) = cur.as_mut() {
             if a - c.end > CUE_PAUSE || b - c.start > CUE_MAX_SECONDS {
                 out.extend(cur.take());
             } else {
                 c.text.push(' ');
                 c.text.push_str(text);
                 c.end = b;
+                r.end = i + 1;
                 if c.text.chars().count() >= CUE_PHRASE_CHARS && text.ends_with(['.', '!', '?', '…']) {
                     out.extend(cur.take());
                 }
                 continue;
             }
         }
-        cur = Some(Cue { start: a, end: b, text: text.to_string() });
+        cur = Some((Cue { start: a, end: b, text: text.to_string() }, i..i + 1));
     }
     out.extend(cur);
     out

@@ -93,6 +93,35 @@ impl Driver {
     }
 }
 
+/// Russian transcripts for the media of the demo's first two A1 clips: sentences of four words, a
+/// pause after each.
+fn russian_transcript(d: &mut Driver) {
+    // Russian transcripts for the media of the first two A1 clips: sentences of four words, a pause after each
+    let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
+    let tick = filmcraft_time::TICKS_PER_SECOND / 10; // 0.1 s
+    let text = [
+        ["Сегодня", "мы", "монтируем", "интервью.", "Сначала", "убираем", "лишние", "паузы."],
+        ["Потом", "ищем", "лучшие", "моменты.", "И", "собираем", "короткий", "ролик."],
+    ];
+    for (k, sentences) in text.iter().enumerate() {
+        let clip = &seq["audio"][0]["items"][k];
+        let item = clip["item"].as_u64().unwrap();
+        let start = clip["sourceIn"].as_i64().unwrap_or(0);
+        let words: Vec<Value> = sentences
+            .iter()
+            .enumerate()
+            .map(|(i, w)| {
+                let at = start + tick * (3 * i as i64 + 10 * (i as i64 / 4));
+                json!({"text": w, "start": at, "end": at + tick * 2})
+            })
+            .collect();
+        d.ok(
+            "engine.execute",
+            json!({"command": "transcript.set", "params": {"item": item, "transcript": {"language": "ru", "speakers": [], "words": words}}}),
+        );
+    }
+}
+
 fn mmss(t: f64) -> String {
     format!("{:02}:{:06.3}", (t / 60.0) as u64, t % 60.0)
 }
@@ -309,30 +338,7 @@ fn highlights_are_found_listed_and_assembled() {
     d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
     d.frames(2);
     d.click("text.tab.Transcript");
-    // Russian transcripts for the media of the first two A1 clips: sentences of four words, a pause after each
-    let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
-    let tick = filmcraft_time::TICKS_PER_SECOND / 10; // 0.1 s
-    let text = [
-        ["Сегодня", "мы", "монтируем", "интервью.", "Сначала", "убираем", "лишние", "паузы."],
-        ["Потом", "ищем", "лучшие", "моменты.", "И", "собираем", "короткий", "ролик."],
-    ];
-    for (k, sentences) in text.iter().enumerate() {
-        let clip = &seq["audio"][0]["items"][k];
-        let item = clip["item"].as_u64().unwrap();
-        let start = clip["sourceIn"].as_i64().unwrap_or(0);
-        let words: Vec<Value> = sentences
-            .iter()
-            .enumerate()
-            .map(|(i, w)| {
-                let at = start + tick * (3 * i as i64 + 10 * (i as i64 / 4));
-                json!({"text": w, "start": at, "end": at + tick * 2})
-            })
-            .collect();
-        d.ok(
-            "engine.execute",
-            json!({"command": "transcript.set", "params": {"item": item, "transcript": {"language": "ru", "speakers": [], "words": words}}}),
-        );
-    }
+    russian_transcript(&mut d);
     d.frames(3);
     // the Transcript toolbar opens the search dialog
     d.click("text.transcript.highlights");
@@ -375,5 +381,71 @@ fn highlights_are_found_listed_and_assembled() {
     let project = d.ok("engine.execute", json!({"command": "project.inspect", "params": {}})).to_string();
     // listed best first: the second (unticked) is the lower-scored one
     assert!(project.contains("Main Edit · Главная мысль интервью") && !project.contains("· Как монтировать"), "{project}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Clip ▸ Auto Zoom: the dialog, by meaning with the consent for the transcript, and Scale
+/// keyframes on the V1 clips where the quoted words are said.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn auto_zoom_by_meaning_keys_the_scale_on_the_quoted_words() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-autozoom-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |_| {
+            let answer = json!({"moments": [{"start": 0.0, "end": 1.0, "quote": "лишние паузы"}, {"start": 6.0, "end": 7.0, "quote": "лучшие моменты"}]});
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": answer.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "gemini", "key": "k"})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
+    d.frames(2);
+    d.click("text.tab.Transcript");
+    russian_transcript(&mut d);
+    d.frames(3);
+    // the demo's clips are short: zooms 2 s apart (the stresses are 2.8 s apart)
+    d.harness.state_mut().ui.auto_zoom.min_gap = 2.0;
+    d.click("text.transcript.autoZoom");
+    assert!(d.ids("autoZoom.").contains(&"autoZoom.go".to_string()));
+    d.click("autoZoom.method.meaning");
+    d.click("autoZoom.style.smooth");
+    d.snapshot("autozoom-dialog");
+    d.click("autoZoom.go");
+    assert!(d.ids("aiTask.consent").contains(&"aiTask.consent.send".to_string()), "asks before the transcript goes out");
+    assert!(fake.sent().is_empty());
+    d.click("aiTask.consent.send");
+    let scale_keys = |d: &mut Driver| {
+        let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
+        seq["video"][0]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|it| {
+                let motion = it["effects"].as_array().unwrap().iter().find(|e| e["effect"] == "motion").cloned().unwrap_or_default();
+                motion["params"]["scale"]["keyframes"].as_u64().unwrap_or(0) as usize
+            })
+            .collect::<Vec<usize>>()
+    };
+    let mut keyed = Vec::new();
+    for _ in 0..400 {
+        d.frames(2);
+        keyed = scale_keys(&mut d);
+        if keyed.iter().any(|n| *n > 0) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    // a zoom in each of the first two clips (one quote each), smooth: 5 keys apiece; the rest untouched
+    assert_eq!(&keyed[..3], &[5, 5, 0], "{keyed:?}");
+    d.snapshot("autozoom-done");
     let _ = std::fs::remove_dir_all(&dir);
 }
