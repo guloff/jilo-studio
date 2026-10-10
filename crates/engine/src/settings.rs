@@ -741,6 +741,7 @@ static CATEGORIES: &[Category] = &[
                     ("es", "Español"),
                     ("pt-br", "Português (Brasil)"),
                     ("zh-cn", "简体中文"),
+                    ("uk", "Українська"),
                 ]),
                 true,
             ),
