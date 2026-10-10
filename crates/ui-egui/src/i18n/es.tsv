@@ -40,7 +40,6 @@
 	Apply Default Transitions to Selection	Aplicar transiciones predeterminadas a la selección
 	Apply Video Transition	Aplicar transición de video
 	Arrange	Organizar
-	ArtCraft Website	Sitio web de ArtCraft
 	Assembly	Ensamblaje
 	Attach Proxies…	Adjuntar proxies…
 	Audio Channels…	Canales de audio…
@@ -136,7 +135,6 @@
 	Fill frame	Rellenar fotograma
 	FilmCraft Help…	Ayuda de FilmCraft…
 	FilmCraft on GitHub	FilmCraft en GitHub
-	FilmCraft on getartcraft.com	FilmCraft en getartcraft.com
 	Find Next	Buscar siguiente
 	Find…	Buscar…
 	Fit	Ajustar
@@ -180,7 +178,6 @@
 	Insert Frame Hold Segment	Insertar segmento de fotograma congelado
 	Install Motion Graphics Template…	Instalar plantilla de animación…
 	Interpret Footage…	Interpretar material…
-	Join the ArtCraft Discord…	Únete al Discord de ArtCraft…
 	Keyboard Shortcuts…	Atajos de teclado…
 	Label	Etiqueta
 	Labels…	Etiquetas…
@@ -370,7 +367,6 @@
 	Master volume: use the Audio Track Mixer	Volumen maestro: usa el mezclador de pistas de audio
 	Search	Buscar
 	Quick Export	Exportación rápida
-	Join the ArtCraft Discord (discord.gg/artcraft)	Únete al Discord de ArtCraft (discord.gg/artcraft)
 	Cancel	Cancelar
 	OK	Aceptar
 	Interpret Footage	Interpretar material
@@ -409,8 +405,6 @@
 	Delete Audio Tracks	Eliminar pistas de audio
 	All Empty Tracks	Todas las pistas vacías
 	Version {version}	Versión {version}
-	A clean-room, pure-Rust non-linear video editor. Part of the ArtCraft family.	Un editor de video no lineal en Rust puro, desarrollado en sala limpia. Parte de la familia ArtCraft.
-	Join the ArtCraft Discord	Únete al Discord de ArtCraft
 	Source code on GitHub	Código fuente en GitHub
 	Report an issue	Informar de un problema
 	MIT OR Apache-2.0. Fonts: Inter, Noto Serif and JetBrains Mono (SIL OFL 1.1).	MIT OR Apache-2.0. Fuentes: Inter, Noto Serif y JetBrains Mono (SIL OFL 1.1).
@@ -451,8 +445,6 @@
 	A cut sequence with transitions, effects and music	Una secuencia montada con transiciones, efectos y música
 	Bars and Tone	Barras y tono
 	SMPTE HD bars with 1 kHz reference tone	Barras SMPTE HD con tono de referencia de 1 kHz
-	Community	Comunidad
-	Join us on Discord	Únete a nosotros en Discord
 	OMF Export Settings	Ajustes de exportación OMF
 	AAF Export Settings	Ajustes de exportación AAF
 	OMF Title:	Título OMF:
@@ -3582,3 +3574,9 @@
 	Translation, Highlights and YouTube Texts	Traducción, momentos destacados y textos para YouTube
 	Whisper on this computer (offline)	Whisper en este ordenador (sin conexión)
 	Whisper runs on this computer and sends nothing. The cloud engines send audio or text to Google or OpenAI only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper funciona en este ordenador y no envía nada. Los motores en la nube envían audio o texto a Google u OpenAI solo cuando ejecutas una función de IA con ellos; FilmCraft te avisa antes de la primera vez.
+# Jilo Studio: the website and the credit to FilmCraft (ArtCraft links are not in this build)
+	FilmCraft Website	Sitio web de FilmCraft
+	Based on FilmCraft by the ArtCraft Team	Basado en FilmCraft, del equipo de ArtCraft
+	A non-linear video editor for the Mac, written in Rust.	Un editor de vídeo no lineal para Mac, escrito en Rust.
+	Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.	Basado en {upstream}, del equipo de ArtCraft. No está hecho ni respaldado por el equipo de ArtCraft.
+	The name and icon of this app belong to Rustam Gulov.	El nombre y el icono de esta aplicación pertenecen a Rustam Gulov.

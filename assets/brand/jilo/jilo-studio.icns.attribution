@@ -1,0 +1,8 @@
+asset:        jilo-studio.icns
+title:        Jilo Studio macOS app icon, every size of the macOS icon set
+author:       Rustam Gulov (Jilo Studio owner)
+source:       original work (Jilo Studio, ~/Documents/Projects/AppDevelopment/JiloStudio Web/packages/desktop/assets/icon.svg and its build)
+license:      LicenseRef-Jilo-Trademark — the Jilo name and icon are the owner's marks, usable unmodified for Jilo Studio; not covered by the project's MIT OR Apache-2.0 license (assets/brand/jilo/LICENSE-brand.txt)
+license-file: assets/brand/jilo/LICENSE-brand.txt
+added:        2026-10-10 by Claude (agent) for Rustam Gulov
+notes:        Replaces the ArtCraft marks, which modified FilmCraft builds must not carry (docs/brand/LICENSE-brand.txt).

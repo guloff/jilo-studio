@@ -32,7 +32,7 @@ serde_json = { workspace = true }
 log = { workspace = true }
 rayon = { workspace = true }
 web-time = "1"
-# ArtCraft wordmark (PNG) for the About dialog and Home screen.
+# The Jilo Studio mark (PNG) for the About dialog and Home screen.
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 # Thread/process CPU clocks for frame-job profiling (safe wrappers; see frames.rs).

@@ -119,17 +119,17 @@ fn open_recent(app: &mut FilmcraftApp, ctx: &egui::Context, path: &str) {
 fn community(app: &mut FilmcraftApp, ui: &mut egui::Ui, origin: egui::Pos2) {
     let t = app.tokens;
     let ctx = ui.ctx().clone();
-    // ArtCraft wordmark (first-party trademark, docs/brand/), then the section title.
-    let logo = crate::brand::paint_wordmark(ui, origin, 15.0, app.ui.dark);
-    let tx = logo.map_or(origin.x, |r| r.max.x + 12.0);
-    ui.painter().text(pos2(tx, origin.y), Align2::LEFT_CENTER, tl!("Community"), Tokens::semibold(15.0), t.text);
+    // Jilo Studio wordmark (the owner's marks, assets/brand/jilo/), then the project links: the
+    // website first and accented, then GitHub, issues and the FilmCraft credit.
+    crate::brand::paint_wordmark(ui, origin, 15.0, app.ui.dark);
     let mut x = origin.x;
-    for (i, (id, label, url)) in crate::links::ALL.iter().take(4).enumerate() {
+    for (i, (id, label, _)) in crate::links::ALL.iter().enumerate() {
         let primary = i == 0;
-        let label = if primary { tl!("Join us on Discord") } else { crate::i18n::t(label) };
+        let url = crate::links::url_for(id).unwrap_or_default();
+        let label = crate::i18n::t(label);
         let g = ui.painter().layout_no_wrap(label.to_string(), Tokens::ui(13.0), t.text);
         let r = Rect::from_min_size(pos2(x, origin.y + 18.0), vec2(g.size().x + 44.0, 34.0));
-        let resp = ui.interact(r, egui::Id::new(("imp-link", *id)), Sense::click()).on_hover_text(*url);
+        let resp = ui.interact(r, egui::Id::new(("imp-link", *id)), Sense::click()).on_hover_text(url);
         app.auto.add(&format!("import.link.{}", id.trim_start_matches("help.")), r, label);
         let (bg, fg) = if primary {
             (if resp.hovered() { t.accent_hover } else { t.accent }, Color32::WHITE)
@@ -137,7 +137,7 @@ fn community(app: &mut FilmcraftApp, ui: &mut egui::Ui, origin: egui::Pos2) {
             (if resp.hovered() { t.hover } else { t.tl_header_bg }, t.text)
         };
         ui.painter().rect_filled(r, 8.0, bg);
-        let icon = [crate::icons::Icon::Chat, crate::icons::Icon::Globe, crate::icons::Icon::Globe, crate::icons::Icon::Code][i];
+        let icon = if primary { crate::icons::Icon::Globe } else { crate::icons::Icon::Code };
         crate::icons::paint(ui.painter(), Rect::from_center_size(pos2(r.min.x + 20.0, r.center().y), vec2(16.0, 16.0)), icon, fg);
         ui.painter().galley(pos2(r.min.x + 34.0, r.center().y - g.size().y / 2.0), g, fg);
         if resp.clicked() {

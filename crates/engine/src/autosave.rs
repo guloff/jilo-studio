@@ -490,7 +490,8 @@ pub fn portable_data_dir(exe_dir: &Path) -> Option<PathBuf> {
 
 /// The data directory. `FILMCRAFT_DATA_DIR` overrides; a portable install ([`PORTABLE_MARKER`] next
 /// to the executable) uses `<exe dir>/data`; otherwise the per-user directory:
-/// macOS `~/Library/Application Support/FilmCraft`, Windows `%APPDATA%\FilmCraft`,
+/// macOS `~/Library/Application Support/com.rustamguloff.jilostudio` (Jilo Studio; named by its
+/// bundle id so it never mixes with the Electron Jilo Studio's `Jilo Studio` folder), Windows `%APPDATA%\FilmCraft`,
 /// elsewhere `$XDG_DATA_HOME/filmcraft` or `~/.local/share/filmcraft`.
 pub fn default_data_dir() -> Option<PathBuf> {
     let env = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
@@ -501,7 +502,7 @@ pub fn default_data_dir() -> Option<PathBuf> {
         return Some(d);
     }
     if cfg!(target_os = "macos") {
-        return env("HOME").map(|h| h.join("Library/Application Support/FilmCraft"));
+        return env("HOME").map(|h| h.join("Library/Application Support/com.rustamguloff.jilostudio"));
     }
     if cfg!(windows) {
         return env("APPDATA").map(|h| h.join("FilmCraft"));

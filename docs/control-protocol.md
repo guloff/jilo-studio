@@ -27,7 +27,7 @@ connection must first present the app's token:
 Any other request before it, or a wrong token, gets an error reply and the connection is closed. The
 token is `FILMCRAFT_CONTROL_TOKEN` when set (for a harness that starts both the app and the client);
 otherwise the app makes a random one at start and writes it to `control-<port>.token` in its data
-directory (`~/Library/Application Support/FilmCraft` on macOS, `--data-dir` / `FILMCRAFT_DATA_DIR`
+directory (`~/Library/Application Support/com.rustamguloff.jilostudio` on macOS, `--data-dir` / `FILMCRAFT_DATA_DIR`
 override), readable by the user only. `filmcraft-cli --bridge` and `filmcraft-cli mcp --bridge` read it
 from there on every connection (pass the same `--data-dir` if the app got one). If the app can't make
 the file, it does not start the control server. `FILMCRAFT_CONTROL_NO_AUTH=1` turns authentication off

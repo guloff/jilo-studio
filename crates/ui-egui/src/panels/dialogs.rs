@@ -392,7 +392,7 @@ fn delete_tracks(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
     keep
 }
 
-/// Help ▸ About FilmCraft, in three tabs: About (version and the ArtCraft community links),
+/// Help ▸ About Jilo Studio, in three tabs: About (version, project links and the FilmCraft credit),
 /// Contributors and Models (the credits compiled in from `contributors/contributors.json`, see
 /// `crate::credits` and docs/contributors.md).
 ///
@@ -427,23 +427,28 @@ fn about(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
     }
 }
 
-/// About ▸ About: version, licence and the ArtCraft community links. Joining the Discord is the
-/// first, accented button.
+/// About ▸ About: version, licence, the project links (the website is the first, accented button)
+/// and the credit to FilmCraft, which Jilo Studio is based on.
 ///
-/// Automation ids: `about.discord`, `about.website`, `about.appPage`, `about.github`,
-/// `about.reportIssue`.
+/// Automation ids: `about.website`, `about.github`, `about.reportIssue`, `about.upstream`.
 fn about_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
     use crate::icons::{self, Icon};
     use crate::links;
     let t = app.tokens;
     ui.set_width(380.0);
-    // ArtCraft wordmark (first-party trademark, docs/brand/).
+    // Jilo Studio wordmark (the owner's marks, assets/brand/jilo/).
     let (r, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 30.0), egui::Sense::hover());
     crate::brand::paint_wordmark(ui, egui::pos2(r.min.x, r.center().y), 20.0, app.ui.dark);
     ui.add_space(6.0);
-    ui.heading("FilmCraft");
     ui.label(tlf!("Version {version}", version = env!("CARGO_PKG_VERSION")));
-    ui.label(tl!("A clean-room, pure-Rust non-linear video editor. Part of the ArtCraft family."));
+    ui.label(tl!("A non-linear video editor for the Mac, written in Rust."));
+    ui.label(
+        egui::RichText::new(tlf!(
+            "Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.",
+            upstream = crate::brand::UPSTREAM_NAME
+        ))
+        .color(t.text_dim),
+    );
     ui.add_space(10.0);
     let mut link = |ui: &mut egui::Ui, id: &str, icon: Icon, label: &str, url: &str, primary: bool| {
         let size = egui::vec2(ui.available_width(), if primary { 36.0 } else { 28.0 });
@@ -472,12 +477,12 @@ fn about_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
             links::open(ui.ctx(), url);
         }
     };
-    link(ui, "discord", Icon::Chat, tl!("Join the ArtCraft Discord"), links::DISCORD, true);
+    link(ui, "website", Icon::Globe, crate::i18n::t("FilmCraft Website"), links::website(), true);
     ui.add_space(6.0);
-    link(ui, "website", Icon::Globe, "getartcraft.com", links::WEBSITE, false);
-    link(ui, "appPage", Icon::Globe, tl!("FilmCraft on getartcraft.com"), links::APP_PAGE, false);
     link(ui, "github", Icon::Code, tl!("Source code on GitHub"), links::GITHUB, false);
     link(ui, "reportIssue", Icon::Code, tl!("Report an issue"), links::ISSUES, false);
+    link(ui, "upstream", Icon::Code, crate::i18n::t("Based on FilmCraft by the ArtCraft Team"), links::UPSTREAM, false);
     ui.add_space(10.0);
     ui.label(egui::RichText::new(tl!("MIT OR Apache-2.0. Fonts: Inter, Noto Serif and JetBrains Mono (SIL OFL 1.1).")).small().color(t.text_dim));
+    ui.label(egui::RichText::new(tl!("The name and icon of this app belong to Rustam Gulov.")).small().color(t.text_dim));
 }

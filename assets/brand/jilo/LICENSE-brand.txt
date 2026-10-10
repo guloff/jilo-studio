@@ -1,0 +1,15 @@
+Jilo brand assets: license
+
+The Jilo and Jilo Studio names and the Jilo Studio icon (the "Jilo Marks"), including every file in
+this directory, belong to Rustam Gulov. They identify Jilo Studio, his video editor for the Mac.
+They are not covered by the project's MIT OR Apache-2.0 license.
+
+Permission is granted to use the Jilo Marks, unmodified, inside copies and builds of Jilo Studio
+and to refer to Jilo Studio. If you distribute a modified version under your own name, remove the
+Jilo Marks (or replace them with your own) and do not present it as Jilo Studio. You may say, in
+plain text, that your work is based on Jilo Studio.
+
+Jilo Studio is based on FilmCraft by the ArtCraft team (https://github.com/storytold/filmcraft).
+It is not made, sponsored or endorsed by the ArtCraft team.
+
+Contact: rustamguloff@gmail.com

@@ -22,7 +22,6 @@
 	4-Color Gradient	4 色渐变
 	5.1	5.1
 	A boxed label with a round pointer; move the label and the pointer follows.	带圆形指针的方框标签；移动标签时指针随之跟随。
-	A clean-room, pure-Rust non-linear video editor. Part of the ArtCraft family.	一款纯 Rust、净室设计的非线性视频编辑器。ArtCraft 家族成员。
 	A cut sequence with transitions, effects and music	带有过渡、效果和音乐的剪辑序列
 	A news-style line that crawls in from the right and leaves at the left.	新闻资讯风格的滚动条，从右侧滑入并从左侧滑出。
 	A rounded tag that fits its text, with a status dot.	贴合文本大小的圆角标签，带有状态指示圆点。
@@ -115,7 +114,6 @@
 	Apply to Selected Clips	应用到所选剪辑
 	Apply Video Transition	应用视频过渡
 	Arrange	排列
-	ArtCraft Website	ArtCraft 网站
 	Aspect	宽高比
 	Assembly	组装
 	Attach Proxies…	附加代理…
@@ -301,7 +299,6 @@
 	Color…	颜色…
 	Column order	列顺序
 	Comment	注释
-	Community	社区
 	Comparison View	对比视图
 	Composite Video	复合视频
 	Consolidate Duplicates	合并重复项
@@ -515,7 +512,6 @@
 	Film Emulation	胶片模拟
 	Film Roll	胶卷滚动
 	FilmCraft Help…	FilmCraft 帮助…
-	FilmCraft on getartcraft.com	getartcraft.com 上的 FilmCraft
 	FilmCraft on GitHub	GitHub 上的 FilmCraft
 	Filter and EQ	滤波与均衡
 	Final Cut Pro XML…	Final Cut Pro XML…
@@ -661,11 +657,7 @@
 	Iris Diamond	菱形光圈
 	Iris Round	圆形光圈
 	items	项
-	Join the ArtCraft Discord	加入 ArtCraft Discord
-	Join the ArtCraft Discord (discord.gg/artcraft)	加入 ArtCraft Discord (discord.gg/artcraft)
-	Join the ArtCraft Discord…	加入 ArtCraft Discord…
 	Join Through Edits	结合全通编辑
-	Join us on Discord	加入我们的 Discord
 	just now	刚刚
 	Justify	两端对齐
 	Kaleidoscope	万花筒
@@ -1458,3 +1450,9 @@
 	Next Appearance Mode	下一个外观模式
 	Export Markers as CSV…	将标记导出为 CSV…
 	Text to Speech	文本转语音
+# Jilo Studio: the website and the credit to FilmCraft (ArtCraft links are not in this build)
+	FilmCraft Website	FilmCraft 网站
+	Based on FilmCraft by the ArtCraft Team	基于 ArtCraft 团队的 FilmCraft
+	A non-linear video editor for the Mac, written in Rust.	用 Rust 编写的 Mac 非线性视频编辑器。
+	Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.	基于 ArtCraft 团队的 {upstream}。并非由 ArtCraft 团队制作或认可。
+	The name and icon of this app belong to Rustam Gulov.	本应用的名称和图标归 Rustam Gulov 所有。

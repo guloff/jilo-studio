@@ -31,7 +31,6 @@
 	Apply Default Transitions to Selection	Aplicar transições padrão à seleção
 	Apply Video Transition	Aplicar transição de vídeo
 	Arrange	Organizar
-	ArtCraft Website	Site do ArtCraft
 	Assembly	Montagem
 	Attach Proxies…	Anexar proxies…
 	Audio Channels…	Canais de áudio…
@@ -127,7 +126,6 @@
 	Fill frame	Preencher quadro
 	FilmCraft Help…	Ajuda do FilmCraft…
 	FilmCraft on GitHub	FilmCraft no GitHub
-	FilmCraft on getartcraft.com	FilmCraft no getartcraft.com
 	Find Next	Localizar próximo
 	Find…	Localizar…
 	Fit	Ajustar
@@ -171,7 +169,6 @@
 	Insert Frame Hold Segment	Inserir segmento de quadro congelado
 	Install Motion Graphics Template…	Instalar modelo de gráficos de movimento…
 	Interpret Footage…	Interpretar clipes…
-	Join the ArtCraft Discord…	Entre no Discord do ArtCraft…
 	Keyboard Shortcuts…	Atalhos de teclado…
 	Label	Rótulo
 	Labels…	Rótulos…
@@ -355,3 +352,6 @@
 
 # System appearance mode menu command.
 	Next Appearance Mode	Próximo modo de aparência
+# Jilo Studio: the website and the credit to FilmCraft (ArtCraft links are not in this build)
+	FilmCraft Website	Site do FilmCraft
+	Based on FilmCraft by the ArtCraft Team	Baseado no FilmCraft, da equipe ArtCraft

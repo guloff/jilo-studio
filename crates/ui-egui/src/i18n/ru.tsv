@@ -33,7 +33,6 @@
 	Apply Default Transitions to Selection	Применить переходы по умолчанию к выделению
 	Apply Video Transition	Применить видеопереход
 	Arrange	Упорядочить
-	ArtCraft Website	Сайт ArtCraft
 	Assembly	Сборка
 	Attach Proxies…	Прикрепить прокси…
 	Audio Channels…	Аудиоканалы…
@@ -129,7 +128,6 @@
 	Fill frame	Заполнить кадр
 	FilmCraft Help…	Справка FilmCraft…
 	FilmCraft on GitHub	FilmCraft на GitHub
-	FilmCraft on getartcraft.com	FilmCraft на getartcraft.com
 	Find Next	Найти далее
 	Find…	Найти…
 	Fit	Вписать
@@ -173,7 +171,6 @@
 	Insert Frame Hold Segment	Вставить фрагмент стоп-кадра
 	Install Motion Graphics Template…	Установить шаблон анимированной графики…
 	Interpret Footage…	Интерпретировать материал…
-	Join the ArtCraft Discord…	Присоединиться к Discord ArtCraft…
 	Keyboard Shortcuts…	Сочетания клавиш…
 	Label	Метка
 	Labels…	Метки…
@@ -363,7 +360,6 @@
 	Master volume: use the Audio Track Mixer	Общая громкость: используйте микшер аудиодорожек
 	Search	Поиск
 	Quick Export	Быстрый экспорт
-	Join the ArtCraft Discord (discord.gg/artcraft)	Присоединиться к Discord ArtCraft (discord.gg/artcraft)
 	Cancel	Отмена
 	OK	ОК
 	Interpret Footage	Интерпретировать материал
@@ -402,8 +398,6 @@
 	Delete Audio Tracks	Удалить аудиодорожки
 	All Empty Tracks	Все пустые дорожки
 	Version {version}	Версия {version}
-	A clean-room, pure-Rust non-linear video editor. Part of the ArtCraft family.	Нелинейный видеоредактор на чистом Rust, созданный по методу «чистой комнаты». Часть семейства ArtCraft.
-	Join the ArtCraft Discord	Присоединиться к Discord ArtCraft
 	Source code on GitHub	Исходный код на GitHub
 	Report an issue	Сообщить о проблеме
 	MIT OR Apache-2.0. Fonts: Inter, Noto Serif and JetBrains Mono (SIL OFL 1.1).	MIT OR Apache-2.0. Шрифты: Inter, Noto Serif и JetBrains Mono (SIL OFL 1.1).
@@ -444,8 +438,6 @@
 	A cut sequence with transitions, effects and music	Смонтированная секвенция с переходами, эффектами и музыкой
 	Bars and Tone	Цветные полосы и тон
 	SMPTE HD bars with 1 kHz reference tone	Полосы SMPTE HD с опорным тоном 1 кГц
-	Community	Сообщество
-	Join us on Discord	Присоединяйтесь к нам в Discord
 	OMF Export Settings	Настройки экспорта OMF
 	AAF Export Settings	Настройки экспорта AAF
 	OMF Title:	Заголовок OMF:
@@ -3574,3 +3566,9 @@ mode	Edit	Монтаж
 	Translation, Highlights and YouTube Texts	Перевод, хайлайты и тексты для YouTube
 	Whisper on this computer (offline)	Whisper на этом компьютере (офлайн)
 	Whisper runs on this computer and sends nothing. The cloud engines send audio or text to Google or OpenAI only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper работает на этом компьютере и ничего не отправляет. Облачные движки отправляют звук или текст в Google или OpenAI только когда вы запускаете с ними функцию ИИ; перед первым разом FilmCraft предупредит.
+# Jilo Studio: the website and the credit to FilmCraft (ArtCraft links are not in this build)
+	FilmCraft Website	Сайт FilmCraft
+	Based on FilmCraft by the ArtCraft Team	Основано на FilmCraft от команды ArtCraft
+	A non-linear video editor for the Mac, written in Rust.	Нелинейный видеоредактор для Mac, написанный на Rust.
+	Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.	Основано на {upstream} от команды ArtCraft. Не создано и не одобрено командой ArtCraft.
+	The name and icon of this app belong to Rustam Gulov.	Название и значок этого приложения принадлежат Рустаму Гулову.

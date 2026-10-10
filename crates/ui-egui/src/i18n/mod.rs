@@ -125,12 +125,15 @@ impl Language {
 
     /// Translate an English UI string; unknown strings come back unchanged.
     pub fn tr(self, text: &str) -> &str {
-        self.catalog().and_then(|c| c.plain(text)).unwrap_or(text)
+        // shown with this product's name (`brand::rebrand`): the catalogs keep upstream's wording
+        crate::brand::rebrand(self.catalog().and_then(|c| c.plain(text)).unwrap_or(text))
     }
 
     /// Does this language's catalog translate `text`? (English never does: it is the source.)
     pub fn has(self, text: &str) -> bool {
-        self.catalog().and_then(|c| c.plain(text)).is_some()
+        // text as shown (`brand::rebrand`) is looked up by its catalog wording
+        let source = crate::brand::unbrand(text);
+        self.catalog().and_then(|c| c.plain(&source)).is_some()
     }
 }
 
@@ -165,7 +168,7 @@ pub fn matches_query(text: &str, query: &str) -> bool {
 /// first column is that context); falls back to the context-free translation.
 pub fn tr_ctx<'a>(context: &str, text: &'a str) -> &'a str {
     let lang = current();
-    lang.catalog().and_then(|c| c.contextual(context, text)).unwrap_or_else(|| lang.tr(text))
+    lang.catalog().and_then(|c| c.contextual(context, text)).map(crate::brand::rebrand).unwrap_or_else(|| lang.tr(text))
 }
 
 /// Fill `{name}` placeholders. Unknown placeholders are left as written.
@@ -442,7 +445,9 @@ mod tests {
     fn portuguese_entries_are_menu_labels() {
         let app = crate::FilmcraftApp::new(filmcraft_engine::Session::default());
         let items = crate::menus::menu_items(&app);
-        let known = |text: &str| crate::menus::MENUS.contains(&text) || items.iter().any(|it| it.label == text || it.path.iter().any(|p| p == text));
+        let known = |text: &str| {
+            crate::menus::MENUS.contains(&text) || items.iter().any(|it| crate::brand::unbrand(&it.label) == text || it.path.iter().any(|p| p == text))
+        };
         let (entries, _) = catalog::parse_entries(include_str!("pt-br.tsv"));
         assert!(!entries.is_empty());
         for (_, en, _) in entries {
@@ -855,7 +860,9 @@ mod tests {
     fn ukrainian_entries_cover_the_original_menu_catalog() {
         let app = crate::FilmcraftApp::new(filmcraft_engine::Session::default());
         let items = crate::menus::menu_items(&app);
-        let known = |text: &str| crate::menus::MENUS.contains(&text) || items.iter().any(|it| it.label == text || it.path.iter().any(|p| p == text));
+        let known = |text: &str| {
+            crate::menus::MENUS.contains(&text) || items.iter().any(|it| crate::brand::unbrand(&it.label) == text || it.path.iter().any(|p| p == text))
+        };
         let (entries, _) = catalog::parse_entries(include_str!("uk.tsv"));
         for (_, en, _) in entries {
             assert!(known(&en) || en == "Settings", "not a menu label: {en}");

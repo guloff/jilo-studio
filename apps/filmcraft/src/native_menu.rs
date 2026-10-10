@@ -27,8 +27,8 @@ pub fn install(app: &FilmcraftApp, ctx: egui::Context) -> (Receiver<String>, Sho
     let mut native: Vec<(String, MenuItem)> = Vec::new();
     let mut titles: Vec<(String, Submenu)> = Vec::new();
     let bar = Menu::new();
-    let app_menu = Submenu::new("FilmCraft", true);
-    // FilmCraft ▸ Settings ▸ <category> (Premiere's app-menu layout; General is Cmd+,)
+    let app_menu = Submenu::new(filmcraft_ui_egui::brand::APP_NAME, true);
+    // Jilo Studio ▸ Settings ▸ <category> (Premiere's app-menu layout; General is Cmd+,)
     let settings = Submenu::new(app.ui.language.tr("Settings"), true);
     titles.push(("Settings".into(), settings.clone()));
     for it in items.iter().filter(|i| i.id.starts_with("app.settings.")) {
@@ -38,11 +38,10 @@ pub fn install(app: &FilmcraftApp, ctx: egui::Context) -> (Receiver<String>, Sho
         let _ = settings.append(&mi);
     }
     let quit_key = items.iter().find(|i| i.id == "app.quit").and_then(|i| i.shortcut.clone()).unwrap_or_else(|| "Cmd+Q".into());
-    let quit = MenuItem::with_id("app.quit", "Quit FilmCraft", true, accel(&quit_key));
+    let quit = MenuItem::with_id("app.quit", app.ui.language.tr("Quit FilmCraft"), true, accel(&quit_key));
     native.push(("app.quit".into(), quit.clone()));
     let _ = app_menu.append_items(&[
-        &MenuItem::with_id("app.about", "About FilmCraft", true, None),
-        &MenuItem::with_id("help.discord", "Join the ArtCraft Discord…", true, None),
+        &MenuItem::with_id("app.about", app.ui.language.tr("About FilmCraft"), true, None),
         &PredefinedMenuItem::separator(),
         &settings,
         &PredefinedMenuItem::separator(),

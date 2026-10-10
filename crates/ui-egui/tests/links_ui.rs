@@ -1,5 +1,6 @@
-//! Headless UI test of the community links: Help menu commands, the header Discord button, the
-//! About dialog and the Home (Import) screen.
+//! Headless UI test of the project links: Help menu commands, the About dialog and the Home
+//! (Import) screen. The ArtCraft Discord button and links are not in this build (Jilo Studio may
+//! not carry the ArtCraft marks).
 //!
 //! Set `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` to also render the window offscreen with wgpu and write
 //! `links-*.png` there; without it no GPU is needed.
@@ -88,27 +89,31 @@ fn community_links_everywhere() {
     let menu = d.ok("ui.menu.list", json!({}));
     let text = menu.to_string();
     for (id, label, _) in links::ALL {
-        assert!(text.contains(id) && text.contains(label), "Help menu lists {id}");
+        let shown = filmcraft_ui_egui::i18n::t(label);
+        assert!(text.contains(id) && text.contains(shown), "Help menu lists {id} as {shown}");
     }
-    // Header: the Discord button is always there.
-    assert_eq!(d.ids("header.discord"), vec!["header.discord".to_string()]);
+    assert!(text.contains("Jilo Studio on GitHub"), "the menus show the product name");
+    assert!(!text.contains("Discord") && !text.contains("getartcraft"), "no ArtCraft community links");
+    // Header: no Discord button.
+    assert!(d.ids("header.discord").is_empty());
     d.snapshot("header");
-    // About dialog: Discord first, then website, app page, GitHub, issues.
+    // About dialog: website first, then GitHub, issues and the FilmCraft credit.
     d.ok("engine.execute", json!({"command": "app.about", "params": {}}));
     d.frames(3);
     let about = d.ids("about.");
-    for id in ["about.discord", "about.website", "about.appPage", "about.github", "about.reportIssue"] {
+    for id in ["about.website", "about.github", "about.reportIssue", "about.upstream"] {
         assert!(about.iter().any(|a| a == id), "{id} in {about:?}");
     }
+    assert!(!about.iter().any(|a| a == "about.discord"));
     d.snapshot("about");
     d.ok("ui.key", json!({"key": "Escape"}));
     d.frames(3);
     assert!(d.ids("about.").is_empty(), "Escape closes About");
-    // Home screen (Import mode): community links.
+    // Home screen (Import mode): the project links.
     d.ok("engine.execute", json!({"command": "mode.import", "params": {}}));
     d.frames(3);
     let home = d.ids("import.link.");
-    for id in ["import.link.discord", "import.link.website", "import.link.appPage", "import.link.github"] {
+    for id in ["import.link.website", "import.link.github", "import.link.reportIssue", "import.link.upstream"] {
         assert!(home.iter().any(|a| a == id), "{id} in {home:?}");
     }
     d.snapshot("home");
