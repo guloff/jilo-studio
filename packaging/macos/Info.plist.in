@@ -7,13 +7,13 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>FilmCraft</string>
+  <string>Jilo Studio</string>
   <key>CFBundleName</key>
-  <string>FilmCraft</string>
+  <string>Jilo Studio</string>
   <key>CFBundleExecutable</key>
-  <string>FilmCraft</string>
+  <string>Jilo Studio</string>
   <key>CFBundleIdentifier</key>
-  <string>com.rustamguloff.filmcraft</string>
+  <string>com.rustamguloff.jilostudio</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -29,7 +29,7 @@
   <key>FilmCraftBuildCommit</key>
   <string>@BUILD_SHA@</string>
   <key>CFBundleIconFile</key>
-  <string>FilmCraft</string>
+  <string>JiloStudio</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.video</string>
   <!-- Must match MACOSX_DEPLOYMENT_TARGET in package.sh (and .cargo/config.toml). Our build
@@ -45,25 +45,25 @@
   <!-- Voice-over recording (Audio Track Mixer ▸ Record) opens the microphone. Without this key
        macOS terminates the app on the first microphone access. -->
   <key>NSMicrophoneUsageDescription</key>
-  <string>FilmCraft records voice-over from your microphone when you arm a track and press Record.</string>
+  <string>Jilo Studio records voice-over from your microphone when you arm a track and press Record.</string>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright © the FilmCraft authors. MIT OR Apache-2.0.</string>
+  <string>© 2026 Rustam Gulov. Based on FilmCraft © the FilmCraft authors. MIT OR Apache-2.0.</string>
 
-  <!-- What FilmCraft opens from Finder (double-click, Open With, a drop on the Dock icon): its
+  <!-- What Jilo Studio opens from Finder (double-click, Open With, a drop on the Dock icon): its
        projects as their owner, video / audio / images as an alternative (they are imported). -->
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
       <key>CFBundleTypeName</key>
-      <string>FilmCraft Project</string>
+      <string>Jilo Studio Project</string>
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
       <key>LSHandlerRank</key>
       <string>Owner</string>
       <key>CFBundleTypeIconFile</key>
-      <string>FilmCraft</string>
+      <string>JiloStudio</string>
       <key>LSItemContentTypes</key>
-      <array><string>com.rustamguloff.filmcraft.project</string></array>
+      <array><string>com.rustamguloff.jilostudio.project</string></array>
     </dict>
     <dict>
       <key>CFBundleTypeName</key>
@@ -88,16 +88,16 @@
   <array>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>com.rustamguloff.filmcraft.project</string>
+      <string>com.rustamguloff.jilostudio.project</string>
       <key>UTTypeDescription</key>
-      <string>FilmCraft Project</string>
+      <string>Jilo Studio Project</string>
       <key>UTTypeConformsTo</key>
       <array>
         <string>public.data</string>
         <string>public.json</string>
       </array>
       <key>UTTypeIconFile</key>
-      <string>FilmCraft</string>
+      <string>JiloStudio</string>
       <key>UTTypeTagSpecification</key>
       <dict>
         <key>public.filename-extension</key>

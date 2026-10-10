@@ -7,17 +7,17 @@ Finder scripting on CI, nothing extra installed in the signing job).
 
 | File | What |
 |---|---|
-| `background.svg` | Source of the background: the app icon (`assets/app-icon/filmcraft.svg`, linked, not copied) cropped as a cover on the FilmCraft colour field (`#8b5cf6`), Ink and Paper. Its text (Inter, JetBrains Mono) is outlined, so rendering it needs no fonts. No paper grain: noise doesn't compress, and this keeps `background.tiff` small. |
+| `background.svg` | Source of the background: the J and editing track of the Jilo Studio icon (`assets/brand/jilo/jilo-studio.svg`) as a cover on a black panel, Paper under both icons, an editing-track arrow in Jilo lime (`#c8ff00`). No text, so rendering it needs no fonts. No paper grain: noise doesn't compress, and this keeps `background.tiff` small. |
 | `background.tiff` | The background at 1x (660 × 400 px, 72 dpi) and 2x (1320 × 800 px, 144 dpi) in one HiDPI TIFF (16-colour palette, Deflate, sRGB). Goes to `.background/background.tiff`. |
-| `dmg-layout.DS_Store` | Finder's view settings for the volume: window size, icon size 128, FilmCraft.app at (326, 205), `Applications` at (574, 205), and the background. Goes to `.DS_Store` in the image; named so it isn't mistaken for (or ignored like) a Finder-generated `.DS_Store`. |
+| `dmg-layout.DS_Store` | Finder's view settings for the volume: window size, icon size 128, Jilo Studio.app at (326, 205), `Applications` at (574, 205), and the background. Goes to `.DS_Store` in the image; named so it isn't mistaken for (or ignored like) a Finder-generated `.DS_Store`. |
 | `generate.py` | Writes `background.tiff` and `dmg-layout.DS_Store` from the SVG and the layout above. |
 
 ## The volume name has no version
 
-The mounted volume is called `FilmCraft`, not `FilmCraft <version>`. The layout points at the background
+The mounted volume is called `Jilo Studio`, not `Jilo Studio <version>`. The layout points at the background
 through an alias that includes the volume name, and Finder resolves it by that name: with a
 versioned name the window keeps its size and icon positions but shows no background (tested).
-The DMG file name (`filmcraft-<version>-macos-<arch>.dmg`) still carries the version.
+The DMG file name (`jilo-studio-<version>-macos-<arch>.dmg`) still carries the version.
 
 ## Rules
 
@@ -32,7 +32,7 @@ Edit `background.svg` (or the layout constants in `generate.py`), then run, on a
 
 ```sh
 pip install 'pillow>=12' ds_store==1.3.3 mac_alias==2.2.3
-python3 packaging/macos/dmg/generate.py   # needs resvg on PATH
+python3 packaging/macos/dmg/generate.py   # needs resvg on PATH (or a shim over @resvg/resvg-js)
 ```
 
 Both outputs are byte-for-byte reproducible and carry nothing from the machine that ran it: the

@@ -1,8 +1,8 @@
 asset:        background.svg
-title:        FilmCraft macOS DMG window background
-author:       @XusBadia
+title:        Jilo Studio macOS DMG window background
+author:       Claude (agent) for Rustam Gulov, after the FilmCraft background by @XusBadia
 source:       original work
 license:      MIT OR Apache-2.0
 license-file: LICENSE-MIT, LICENSE-APACHE
-added:        2026-10-08 by @XusBadia
-notes:        Original work for this repository, derived from the FilmCraft app icon (assets/app-icon/filmcraft.svg, referenced via <image>, not copied). Text is outlined Inter / JetBrains Mono glyph paths. Used for the Finder window of the macOS DMG; packaging/macos/dmg/generate.py renders it to background.tiff. See packaging/macos/dmg/README.md.
+added:        2026-10-10 by Claude (agent) for Rustam Gulov
+notes:        Original work for this repository: the shapes of the Jilo Studio icon (assets/brand/jilo/jilo-studio.svg: the J and the editing track, without the plate) as a cover on a black panel, an editing-track arrow, no text. Layout and rules from the FilmCraft DMG background by @XusBadia. packaging/macos/dmg/generate.py renders it to background.tiff. See packaging/macos/dmg/README.md.
