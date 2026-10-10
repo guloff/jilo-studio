@@ -2927,6 +2927,8 @@
 	Sequence, {w}x{h}, {fps} fps, {rate} Hz	Secuencia, {w}x{h}, {fps} fps, {rate} Hz
 	Estimated file size: {size}	Tamaño de archivo estimado: {size}
 	Send to Queue	Enviar a la cola
+	Hardware Encoding	Codificación por hardware
+	Use the hardware encoder when available	Usar el codificador por hardware cuando esté disponible
 	Exporting {path}	Exportando {path}
 	Added to the export queue	Añadido a la cola de exportación
 	Preset Manager	Administrador de ajustes preestablecidos

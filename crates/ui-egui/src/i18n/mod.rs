@@ -38,6 +38,7 @@ pub enum Language {
     #[serde(rename = "zh-cn")]
     ZhCn,
     Uk,
+    Ru,
 }
 
 static JAPANESE: OnceLock<Catalog> = OnceLock::new();
@@ -45,9 +46,10 @@ static SPANISH: OnceLock<Catalog> = OnceLock::new();
 static PORTUGUESE: OnceLock<Catalog> = OnceLock::new();
 static CHINESE: OnceLock<Catalog> = OnceLock::new();
 static UKRAINIAN: OnceLock<Catalog> = OnceLock::new();
+static RUSSIAN: OnceLock<Catalog> = OnceLock::new();
 
 impl Language {
-    pub const ALL: [Self; 6] = [Self::En, Self::Ja, Self::Es, Self::PtBr, Self::ZhCn, Self::Uk];
+    pub const ALL: [Self; 7] = [Self::En, Self::Ja, Self::Es, Self::PtBr, Self::ZhCn, Self::Uk, Self::Ru];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -57,6 +59,7 @@ impl Language {
             Self::PtBr => "Português (Brasil)",
             Self::ZhCn => "简体中文",
             Self::Uk => "Українська",
+            Self::Ru => "Русский",
         }
     }
 
@@ -68,6 +71,7 @@ impl Language {
             "pt-br" => Some(Self::PtBr),
             "zh-cn" | "zh" => Some(Self::ZhCn),
             "uk" => Some(Self::Uk),
+            "ru" => Some(Self::Ru),
             _ => None,
         }
     }
@@ -76,8 +80,15 @@ impl Language {
     /// (BCP 47 or POSIX locale tags such as `es-419`, `pt_BR.UTF-8`, most preferred first) that the
     /// interface has, else English. Any Portuguese gets the Brazilian catalog, the only one there is.
     pub fn from_locales(tags: &[String]) -> Self {
-        const PRIMARY: [(&str, Language); 6] =
-            [("en", Language::En), ("ja", Language::Ja), ("es", Language::Es), ("pt", Language::PtBr), ("zh", Language::ZhCn), ("uk", Language::Uk)];
+        const PRIMARY: [(&str, Language); 7] = [
+            ("en", Language::En),
+            ("ja", Language::Ja),
+            ("es", Language::Es),
+            ("pt", Language::PtBr),
+            ("zh", Language::ZhCn),
+            ("uk", Language::Uk),
+            ("ru", Language::Ru),
+        ];
         tags.iter()
             .find_map(|tag| {
                 let primary = tag.split(['-', '_', '.', '@']).next().unwrap_or_default();
@@ -95,6 +106,7 @@ impl Language {
             Self::PtBr => "pt-br",
             Self::ZhCn => "zh-cn",
             Self::Uk => "uk",
+            Self::Ru => "ru",
         }
     }
 
@@ -107,6 +119,7 @@ impl Language {
             Self::PtBr => Some(PORTUGUESE.get_or_init(|| Catalog::parse(include_str!("pt-br.tsv")))),
             Self::ZhCn => Some(CHINESE.get_or_init(|| Catalog::parse(include_str!("zh-cn.tsv")))),
             Self::Uk => Some(UKRAINIAN.get_or_init(|| Catalog::parse(include_str!("uk.tsv")))),
+            Self::Ru => Some(RUSSIAN.get_or_init(|| Catalog::parse(include_str!("ru.tsv")))),
         }
     }
 
@@ -332,6 +345,7 @@ mod tests {
             ("pt-br", include_str!("pt-br.tsv")),
             ("zh-cn", include_str!("zh-cn.tsv")),
             ("uk", include_str!("uk.tsv")),
+            ("ru", include_str!("ru.tsv")),
         ] {
             let (entries, errors) = catalog::parse_entries(text);
             assert!(errors.is_empty(), "{code}: {errors:?}");
@@ -703,6 +717,28 @@ mod tests {
         out
     }
 
+    /// Russian is a full catalog like Spanish: every menu label, `tl!` literal and dynamic name.
+    #[test]
+    fn russian_translates_the_whole_interface() {
+        let app = crate::FilmcraftApp::new(filmcraft_engine::Session::default());
+        let mut need: Vec<String> = crate::menus::MENUS.iter().map(|m| m.to_string()).collect();
+        for it in crate::menus::menu_items(&app) {
+            need.push(it.label.clone());
+            need.extend(it.path.iter().cloned());
+        }
+        need.retain(|t| translatable(t));
+        need.extend(sources().iter().flat_map(|(_, text)| tl_literals(text)));
+        need.extend(dynamic_names());
+        let mut missing: Vec<String> = need.into_iter().filter(|t| !Language::Ru.has(t)).collect();
+        missing.sort();
+        missing.dedup();
+        assert!(missing.is_empty(), "untranslated Russian strings: {missing:#?}");
+        assert_eq!(Language::Ru.tr("File"), "Файл");
+        assert_eq!(Language::Ru.tr("мой клип.mp4"), "мой клип.mp4");
+        assert_eq!((Language::parse("ru"), Language::Ru.code(), Language::Ru.name()), (Some(Language::Ru), "ru", "Русский"));
+        assert_eq!(Language::from_locales(&["ru_RU.UTF-8".into()]), Language::Ru);
+    }
+
     #[test]
     fn spanish_translates_dynamic_names() {
         let mut missing: Vec<String> = dynamic_names().into_iter().filter(|n| !Language::Es.has(n)).collect();
@@ -767,6 +803,9 @@ mod tests {
         assert_eq!(l(&["pt-BR"]), Language::PtBr);
         for tag in ["uk", "uk-UA", "uk_UA.UTF-8", "UK-ua"] {
             assert_eq!(l(&[tag]), Language::Uk);
+        }
+        for tag in ["ru", "ru-RU", "ru_RU.UTF-8", "RU-by"] {
+            assert_eq!(l(&[tag]), Language::Ru);
         }
         assert_eq!(l(&["pt_PT.UTF-8@euro"]), Language::PtBr);
         assert_eq!(l(&["fr-FR", "de", "es-MX", "ja"]), Language::Es, "the first one the interface has");
@@ -837,13 +876,17 @@ mod tests {
         let mut output = ctx.run_ui(egui::RawInput::default(), |_| {});
         output.textures_delta.clear();
         let (entries, _) = catalog::parse_entries(include_str!("uk.tsv"));
+        let (russian, _) = catalog::parse_entries(include_str!("ru.tsv"));
         ctx.fonts_mut(|fonts| {
-            // Include the entire alphabet, even letters not yet used by a translated menu label.
-            let alphabet = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгґдеєжзиіїйклмнопрстуфхцчшщьюя";
+            // Include the entire alphabet, even letters not yet used by a translated menu label
+            // (Ukrainian, plus the Russian letters Ё Ъ Ы Э; the Russian catalog is checked too).
+            let alphabet = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгґдеєжзиіїйклмнопрстуфхцчшщьюяЁЪЫЭёъыэ";
             let chars: std::collections::BTreeSet<_> = alphabet
                 .chars()
                 .chain(Language::Uk.name().chars())
+                .chain(Language::Ru.name().chars())
                 .chain(entries.iter().flat_map(|(_, _, uk)| uk.chars()))
+                .chain(russian.iter().flat_map(|(_, _, ru)| ru.chars()))
                 .filter(|ch| !ch.is_ascii())
                 .collect();
             for family in crate::theme::font_families() {

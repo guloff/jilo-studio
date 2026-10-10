@@ -690,9 +690,9 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
             // without one keeps the built-in encoder.
             // H.265 has only the hardware encoder: choosing the format is the opt-in.
             if !hevc {
-                row(ui, t, "Hardware Encoding", |ui| {
+                row(ui, t, tl!("Hardware Encoding"), |ui| {
                     let mut on = s.hardware_encoding == HardwareEncoding::Auto;
-                    if check(ui, reg, "export.video.hardwareEncoding", &mut on, "Use the hardware encoder when available") {
+                    if check(ui, reg, "export.video.hardwareEncoding", &mut on, tl!("Use the hardware encoder when available")) {
                         s.hardware_encoding = if on { HardwareEncoding::Auto } else { HardwareEncoding::Off };
                     }
                 });
@@ -714,9 +714,9 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
             // macOS: the ProRes engine of Apple silicon Pro / Max chips (VideoToolbox); elsewhere,
             // and wherever it declines, the built-in encoder
             if cfg!(target_os = "macos") {
-                row(ui, t, "Hardware Encoding", |ui| {
+                row(ui, t, tl!("Hardware Encoding"), |ui| {
                     let mut on = s.hardware_encoding == HardwareEncoding::Auto;
-                    if check(ui, reg, "export.video.hardwareEncoding", &mut on, "Use the hardware encoder when available") {
+                    if check(ui, reg, "export.video.hardwareEncoding", &mut on, tl!("Use the hardware encoder when available")) {
                         s.hardware_encoding = if on { HardwareEncoding::Auto } else { HardwareEncoding::Off };
                     }
                 });
