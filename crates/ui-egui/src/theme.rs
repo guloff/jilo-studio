@@ -404,8 +404,10 @@ pub fn install(ctx: &egui::Context, t: &Tokens) {
     fonts.font_data.insert("jbmono".into(), Arc::new(FontData::from_static(filmcraft_text::fonts::JETBRAINS_MONO_REGULAR)));
     fonts.families.entry(FontFamily::Proportional).or_default().insert(0, "inter".into());
     fonts.families.entry(FontFamily::Monospace).or_default().insert(0, "jbmono".into());
-    fonts.families.insert(FontFamily::Name("semibold".into()), vec!["inter-semibold".into(), "inter".into()]);
-    fonts.families.insert(FontFamily::Name("medium".into()), vec!["inter-medium".into(), "inter".into()]);
+    // the heavier stacks fall back like the regular one (Inter, then egui's symbol and emoji fonts)
+    let regular = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
+    fonts.families.insert(FontFamily::Name("semibold".into()), std::iter::once("inter-semibold".to_string()).chain(regular.iter().cloned()).collect());
+    fonts.families.insert(FontFamily::Name("medium".into()), std::iter::once("inter-medium".to_string()).chain(regular.iter().cloned()).collect());
     // Japanese before Chinese: the two share code points, and Japanese text must keep Japanese
     // glyph forms; Chinese faces still cover the hanzi Japanese fonts lack
     add_craft_fonts(&mut fonts);
