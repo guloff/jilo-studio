@@ -232,6 +232,7 @@ project leaves the current work open. The list scrolls with the rest of the Home
 | Labels | the 16 label names and colours (timeline, Project panel, Edit ▸ Label), label defaults for imported movies / video / audio / stills and new sequences |
 | Media | Indeterminate Media Timebase (frame rate of stills), Default Media Scaling (Scale to / Set to frame size when a clip of another size is edited in), Enable proxies |
 | Media Analysis & Transcription | auto-transcribe imported clips (scope "all imported"), speech model, default language / auto-detect, speaker labelling (defaults of `transcript.generate`) |
+| AI | the engines of the AI features (speech recognition: Whisper on this computer by default, or Google Gemini / OpenAI; the text features: Gemini or OpenAI) and their models. API keys are saved, removed and checked here (`ai.setKey`, `ai.test`); they are kept in `<data dir>/ai.json` (owner-only) or come from `GEMINI_API_KEY` / `GOOGLE_API_KEY` / `OPENAI_API_KEY`, never in preferences, projects or logs |
 | Media Cache | location (`<data dir>/Media Cache` by default; unsaved projects' render previews live there), automatic deletion (older than N days / beyond N GB), Delete… (`mediaCache.clean {all?}`, `mediaCache.info`) |
 | Memory | frame cache budget of the monitors and thumbnails |
 | Playback | preroll / postroll (Play Around, trim loop), Step forward/back many |

@@ -1755,6 +1755,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "filmcraft-ai"
+version = "0.5.0"
+dependencies = [
+ "rustls",
+ "rustls-rustcrypto",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "ureq",
+]
+
+[[package]]
 name = "filmcraft-apv"
 version = "0.5.0"
 dependencies = [
@@ -1913,6 +1925,7 @@ dependencies = [
 name = "filmcraft-engine"
 version = "0.5.0"
 dependencies = [
+ "filmcraft-ai",
  "filmcraft-audio-dsp",
  "filmcraft-captions",
  "filmcraft-codecs",

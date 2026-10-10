@@ -42,6 +42,9 @@ pub struct SettingsDraft {
     /// Audio devices reported by the platform (Audio Hardware page).
     #[serde(default)]
     pub devices: Option<AudioDevices>,
+    /// `ai.status` when the AI page was shown (never holds a key).
+    #[serde(default)]
+    pub ai_status: Value,
 }
 
 /// Open the dialog on a category page.
@@ -603,6 +606,7 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
             );
         }
         "appearanceModes" => appearance_modes(app, ui, d),
+        "aiKeys" => ai_keys(app, ui, d),
         "autoSaveStatus" => {
             let status = app.session.execute("file.autoSaveStatus", json!({})).unwrap_or_default();
             if let Some(dir) = status["autoSaveDir"].as_str() {
@@ -622,6 +626,116 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
             }
         }
         _ => {}
+    }
+}
+
+/// Settings ▸ AI ▸ API keys: save, remove and check each provider's key, and pick a model from what
+/// the check found. A typed key stays in this widget's memory only until Save Key: it never goes
+/// into the draft (which OK applies to preferences) and is never shown again.
+fn ai_keys(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
+    let t = app.tokens;
+    if d.ai_status.is_null() {
+        d.ai_status = app.session.execute("ai.status", json!({})).unwrap_or(json!({}));
+    }
+    let status = d.ai_status.clone();
+    let mut refresh = false;
+    for p in status["providers"].as_array().cloned().unwrap_or_default() {
+        let id = p["id"].as_str().unwrap_or_default().to_string();
+        let name = p["name"].as_str().unwrap_or_default().to_string();
+        let (key_mem, job_mem, msg_mem) =
+            (egui::Id::new(("settings-ai-key", &id)), egui::Id::new(("settings-ai-job", &id)), egui::Id::new(("settings-ai-msg", &id)));
+        group(ui, &t, &name, |ui| {
+            let src = p["key"].as_str().map(str::to_string);
+            let state = match src.as_deref() {
+                None => tl!("No key").to_string(),
+                Some("file") => tl!("Saved on this computer").to_string(),
+                Some(s) => tlf!("From the environment variable {var}", var = s.trim_start_matches("env:")),
+            };
+            ui.horizontal(|ui| {
+                field_label(ui, tl!("API key"));
+                ui.label(RichText::new(state).size(12.5));
+            });
+            let mut typed: String = ui.data(|m| m.get_temp(key_mem)).unwrap_or_default();
+            ui.horizontal(|ui| {
+                field_label(ui, "");
+                let r = ui.add(egui::TextEdit::singleline(&mut typed).password(true).desired_width(220.0).hint_text(tl!("Paste a new key")));
+                app.auto.add(&format!("settings.ai.{id}.key"), r.rect, "API key");
+                if button(app, ui, &format!("settings.ai.{id}.save"), tl!("Save Key"), false) && !typed.trim().is_empty() {
+                    d.message = match app.session.execute("ai.setKey", json!({"provider": id, "key": typed.trim()})) {
+                        Ok(_) => tlf!("The {name} key is saved.", name),
+                        Err(e) => e.to_string(),
+                    };
+                    typed.clear();
+                    refresh = true;
+                }
+                if src.as_deref() == Some("file") && button(app, ui, &format!("settings.ai.{id}.remove"), tl!("Remove Key"), false) {
+                    d.message = match app.session.execute("ai.setKey", json!({"provider": id, "key": null})) {
+                        Ok(_) => tlf!("The {name} key is removed.", name),
+                        Err(e) => e.to_string(),
+                    };
+                    refresh = true;
+                }
+            });
+            ui.data_mut(|m| m.insert_temp(key_mem, typed));
+            ui.horizontal(|ui| {
+                field_label(ui, "");
+                if src.is_some() && button(app, ui, &format!("settings.ai.{id}.test"), tl!("Check Key"), false) {
+                    match app.session.execute("ai.test", json!({"provider": id})) {
+                        Ok(v) => ui.data_mut(|m| {
+                            m.insert_temp(job_mem, v["job"].as_u64());
+                            m.remove::<String>(msg_mem);
+                        }),
+                        Err(e) => d.message = e.to_string(),
+                    }
+                }
+                if button(app, ui, &format!("settings.ai.{id}.getKey"), tl!("Get a Key…"), false) {
+                    crate::links::open(ui.ctx(), p["keyUrl"].as_str().unwrap_or_default());
+                }
+            });
+            // the running check, then its result (kept until the next check)
+            if let Some(job) = ui.data(|m| m.get_temp::<Option<u64>>(job_mem)).flatten()
+                && let Some(j) = app.session.jobs.iter().find(|j| j.id == job).map(|j| j.to_json())
+            {
+                let text = j["status"].as_str().unwrap_or_default().to_string();
+                if j["finished"] == true {
+                    ui.data_mut(|m| {
+                        m.insert_temp(msg_mem, j["result"]["error"].as_str().map(str::to_string).unwrap_or(text));
+                        m.insert_temp::<Option<u64>>(job_mem, None);
+                    });
+                    refresh = true;
+                } else {
+                    note(ui, &t, &text);
+                    ui.ctx().request_repaint_after(std::time::Duration::from_millis(200));
+                }
+            }
+            if let Some(msg) = ui.data(|m| m.get_temp::<String>(msg_mem)) {
+                note(ui, &t, &msg);
+            }
+            // the models the last check found
+            for (key, label, list) in
+                [(format!("ai.{id}SpeechModel"), tl!("Speech model"), &p["speechModels"]), (format!("ai.{id}TextModel"), tl!("Text model"), &p["textModels"])]
+            {
+                let Some(list) = list.as_array().filter(|l| !l.is_empty()) else { continue };
+                let opts: Vec<(String, String)> =
+                    list.iter().map(|m| (m["id"].as_str().unwrap_or_default().to_string(), m["name"].as_str().unwrap_or_default().to_string())).collect();
+                ui.horizontal(|ui| {
+                    field_label(ui, label);
+                    let cur = choice_text(get(&d.values, &key));
+                    if let Some(v) = combo(app, ui, &format!("{key}.list"), &cur, &opts, 220.0) {
+                        put(&mut d.values, &key, json!(v));
+                    }
+                });
+            }
+        });
+    }
+    if let Some(path) = status["keysFile"].as_str() {
+        note(ui, &t, &tlf!("Keys are kept in {path}, readable only by your user account, and never in projects or logs.", path));
+    }
+    if status["network"] == false {
+        note(ui, &t, tl!("This build has no network access: the cloud engines are not available."));
+    }
+    if refresh {
+        d.ai_status = Value::Null;
     }
 }
 

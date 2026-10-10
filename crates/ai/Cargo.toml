@@ -1,0 +1,24 @@
+[package]
+name = "filmcraft-ai"
+description = "FilmCraft cloud AI providers (Google Gemini, OpenAI): a transport trait with a scripted fake for tests, JSON generation with schemas, retries, retired-model fallback, model lists, and API keys kept in the per-user data directory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Real HTTPS requests (pure-Rust TLS: rustls + RustCrypto, OS certificate verification). Without
+# it only an injected transport (tests, agents) can reach a provider.
+net = ["dep:ureq", "dep:rustls", "dep:rustls-rustcrypto"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ureq = { version = "3", default-features = false, features = ["rustls-no-provider", "platform-verifier"], optional = true }
+rustls = { version = "0.23", default-features = false, optional = true }
+rustls-rustcrypto = { version = "0.0.2-alpha", optional = true }

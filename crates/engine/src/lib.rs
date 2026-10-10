@@ -11,6 +11,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
 
 pub mod aaf_omf;
+pub mod ai;
 pub mod autosave;
 pub mod captions;
 pub mod clip_ops;
@@ -422,6 +423,15 @@ pub struct Session {
     /// Speech recogniser for `transcript.generate` (None = the Whisper model named by the command,
     /// feature `whisper`). Hosts and tests install one here.
     pub transcriber: Option<Arc<dyn filmcraft_speech::Transcriber>>,
+    /// How AI requests reach Gemini / OpenAI (None = HTTPS, feature `ai-net`). Tests install a
+    /// scripted `filmcraft_ai::transport::FakeTransport`.
+    pub ai_transport: Option<Arc<dyn filmcraft_ai::Transport>>,
+    /// The API key file (None = `<data dir>/ai.json`).
+    pub ai_keys_file: Option<std::path::PathBuf>,
+    /// Waiting between AI retries (None = real waits; tests skip them).
+    pub ai_sleep: Option<filmcraft_ai::SleepFn>,
+    /// Model lists found by the last key check of each provider (`ai.test`).
+    pub ai_models: ai::ModelCache,
     /// The Events panel log: failed commands, job results, auto-save errors, messages.
     pub log: panels::EventLog,
     /// Media Browser navigation (directory, back / forward history, selected files).
@@ -514,6 +524,10 @@ impl Session {
             export_queue: Default::default(),
             stepped: Vec::new(),
             transcriber: None,
+            ai_transport: None,
+            ai_keys_file: None,
+            ai_sleep: None,
+            ai_models: Default::default(),
             log: Default::default(),
             browser: Default::default(),
             exec_depth: 0,
@@ -1088,6 +1102,8 @@ const MAX_SUBCLIP_CHAIN: usize = 16;
 
 #[cfg(test)]
 mod aaf_omf_tests;
+#[cfg(test)]
+mod ai_tests;
 #[cfg(test)]
 mod audio_effects_tests;
 #[cfg(test)]

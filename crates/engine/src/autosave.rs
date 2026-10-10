@@ -155,6 +155,8 @@ pub struct Preferences {
     pub labels: settings::LabelPrefs,
     pub media: MediaPrefs,
     pub media_analysis: settings::MediaAnalysisPrefs,
+    /// Settings ▸ AI (engines and models; keys are in `ai.json`).
+    pub ai: settings::AiPrefs,
     pub media_cache: settings::MediaCachePrefs,
     pub memory: settings::MemoryPrefs,
     pub playback: PlaybackPrefs,
@@ -185,6 +187,7 @@ impl Default for Preferences {
             labels: Default::default(),
             media: Default::default(),
             media_analysis: Default::default(),
+            ai: Default::default(),
             media_cache: Default::default(),
             memory: Default::default(),
             playback: Default::default(),

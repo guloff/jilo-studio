@@ -3549,3 +3549,28 @@
 	From {source} and github.com/cmusphinx/cmudict (pronunciations). Licence: {license}. Every file is checked against a pinned SHA-256.	Из {source} и github.com/cmusphinx/cmudict (произношения). Лицензия: {license}. Каждый файл сверяется с зафиксированным SHA-256.
 # The Edit mode tab in the header (the Edit menu stays «Правка»)
 mode	Edit	Монтаж
+# Settings ▸ AI (cloud engines, API keys)
+	AI	ИИ
+	API key	Ключ API
+	Check Key	Проверить ключ
+	Engine	Движок
+	From the environment variable {var}	Из переменной окружения {var}
+	Gemini model	Модель Gemini
+	Get a Key…	Получить ключ…
+	Google Gemini (cloud)	Google Gemini (облако)
+	Keys are kept in {path}, readable only by your user account, and never in projects or logs.	Ключи хранятся в {path}, доступном только вашей учётной записи, и никогда не попадают в проекты и журналы.
+	No key	Ключа нет
+	OpenAI (cloud)	OpenAI (облако)
+	OpenAI model	Модель OpenAI
+	Paste a new key	Вставьте новый ключ
+	Remove Key	Удалить ключ
+	Save Key	Сохранить ключ
+	Saved on this computer	Сохранён на этом компьютере
+	Speech Recognition	Распознавание речи
+	Text model	Текстовая модель
+	The {name} key is removed.	Ключ {name} удалён.
+	The {name} key is saved.	Ключ {name} сохранён.
+	This build has no network access: the cloud engines are not available.	В этой сборке нет доступа к сети: облачные движки недоступны.
+	Translation, Highlights and YouTube Texts	Перевод, хайлайты и тексты для YouTube
+	Whisper on this computer (offline)	Whisper на этом компьютере (офлайн)
+	Whisper runs on this computer and sends nothing. The cloud engines send audio or text to Google or OpenAI only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper работает на этом компьютере и ничего не отправляет. Облачные движки отправляют звук или текст в Google или OpenAI только когда вы запускаете с ними функцию ИИ; перед первым разом FilmCraft предупредит.

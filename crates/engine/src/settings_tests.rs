@@ -80,6 +80,8 @@ fn categories_follow_premiere_order() {
             "labels",
             "media",
             "mediaAnalysis",
+            // our own: cloud AI engines and keys (not in Premiere)
+            "ai",
             "mediaCache",
             "memory",
             "playback",

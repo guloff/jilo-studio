@@ -403,6 +403,74 @@ impl Default for MediaAnalysisPrefs {
     }
 }
 
+/// Settings ▸ AI: which engine the AI features use. API keys are not here: they live in
+/// `<data dir>/ai.json` (`ai.setKey`), never in preferences or projects.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AiPrefs {
+    /// Speech recognition: `whisper` (on this computer, the default) | `gemini` | `openai`.
+    pub speech_engine: String,
+    /// Translation, highlights and YouTube texts: `gemini` | `openai`.
+    pub text_engine: String,
+    /// Model ids; empty = the provider's default.
+    pub gemini_speech_model: String,
+    pub gemini_text_model: String,
+    pub openai_speech_model: String,
+    pub openai_text_model: String,
+    /// Cloud providers the user has agreed to send material to (asked once per provider).
+    pub confirmed_providers: Vec<String>,
+}
+
+impl Default for AiPrefs {
+    fn default() -> Self {
+        use filmcraft_ai::Provider;
+        Self {
+            speech_engine: "whisper".into(),
+            text_engine: "gemini".into(),
+            gemini_speech_model: Provider::Gemini.default_speech_model().into(),
+            gemini_text_model: Provider::Gemini.default_text_model().into(),
+            openai_speech_model: Provider::OpenAi.default_speech_model().into(),
+            openai_text_model: Provider::OpenAi.default_text_model().into(),
+            confirmed_providers: Vec::new(),
+        }
+    }
+}
+
+impl AiPrefs {
+    /// The cloud provider for speech recognition (None: Whisper on this computer).
+    pub fn speech_provider(&self) -> Option<filmcraft_ai::Provider> {
+        filmcraft_ai::Provider::from_id(&self.speech_engine)
+    }
+
+    /// The provider of the text features.
+    pub fn text_provider(&self) -> filmcraft_ai::Provider {
+        filmcraft_ai::Provider::from_id(&self.text_engine).unwrap_or(filmcraft_ai::Provider::Gemini)
+    }
+
+    /// The speech model of `p` (its default when the field is empty).
+    pub fn speech_model(&self, p: filmcraft_ai::Provider) -> String {
+        let m = match p {
+            filmcraft_ai::Provider::Gemini => &self.gemini_speech_model,
+            filmcraft_ai::Provider::OpenAi => &self.openai_speech_model,
+        };
+        if m.trim().is_empty() { p.default_speech_model().to_string() } else { m.trim().to_string() }
+    }
+
+    /// The text model of `p` (its default when the field is empty).
+    pub fn text_model(&self, p: filmcraft_ai::Provider) -> String {
+        let m = match p {
+            filmcraft_ai::Provider::Gemini => &self.gemini_text_model,
+            filmcraft_ai::Provider::OpenAi => &self.openai_text_model,
+        };
+        if m.trim().is_empty() { p.default_text_model().to_string() } else { m.trim().to_string() }
+    }
+
+    /// Whether the user agreed to send material to `p`.
+    pub fn confirmed(&self, p: filmcraft_ai::Provider) -> bool {
+        self.confirmed_providers.iter().any(|c| c == p.id())
+    }
+}
+
 /// Settings ▸ Media Cache.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -705,6 +773,8 @@ const LANGUAGES: &[(&str, &str)] = &[
 ];
 const MODELS: &[(&str, &str)] =
     &[("whisper-tiny", "Whisper tiny (fastest)"), ("whisper-base", "Whisper base (balanced)"), ("whisper-small", "Whisper small (most accurate)")];
+const SPEECH_ENGINES: &[(&str, &str)] = &[("whisper", "Whisper on this computer (offline)"), ("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)")];
+const TEXT_ENGINES: &[(&str, &str)] = &[("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)")];
 const CACHE_MGMT: &[(&str, &str)] = &[
     ("never", "Do not delete cache files automatically"),
     ("olderThan", "Automatically delete cache files older than"),
@@ -985,6 +1055,32 @@ static CATEGORIES: &[Category] = &[
                     f("mediaAnalysis.whisperModel", "Speech model", Kind::Choice(MODELS), true),
                 ],
             ),
+        ],
+    },
+    Category {
+        id: "ai",
+        title: "AI",
+        rows: &[
+            Row::Note(
+                "Whisper runs on this computer and sends nothing. The cloud engines send audio or text to Google or OpenAI only when you run an AI feature with them; FilmCraft says so before the first time.",
+            ),
+            Row::Group(
+                "Speech Recognition",
+                &[
+                    f("ai.speechEngine", "Engine", Kind::Choice(SPEECH_ENGINES), false),
+                    f("ai.geminiSpeechModel", "Gemini model", Kind::Text, false),
+                    f("ai.openaiSpeechModel", "OpenAI model", Kind::Text, false),
+                ],
+            ),
+            Row::Group(
+                "Translation, Highlights and YouTube Texts",
+                &[
+                    f("ai.textEngine", "Engine", Kind::Choice(TEXT_ENGINES), false),
+                    f("ai.geminiTextModel", "Gemini model", Kind::Text, false),
+                    f("ai.openaiTextModel", "OpenAI model", Kind::Text, false),
+                ],
+            ),
+            Row::Custom("aiKeys"),
         ],
     },
     Category {

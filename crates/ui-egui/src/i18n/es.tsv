@@ -3557,3 +3557,28 @@
 	an audio track	una pista de audio
 	{voice} (download)	{voice} (descarga)
 	From {source} and github.com/cmusphinx/cmudict (pronunciations). Licence: {license}. Every file is checked against a pinned SHA-256.	De {source} y github.com/cmusphinx/cmudict (pronunciaciones). Licencia: {license}. Cada archivo se comprueba con un SHA-256 fijado.
+# Settings ▸ AI (cloud engines, API keys)
+	AI	IA
+	API key	Clave de API
+	Check Key	Comprobar clave
+	Engine	Motor
+	From the environment variable {var}	De la variable de entorno {var}
+	Gemini model	Modelo de Gemini
+	Get a Key…	Obtener una clave…
+	Google Gemini (cloud)	Google Gemini (en la nube)
+	Keys are kept in {path}, readable only by your user account, and never in projects or logs.	Las claves se guardan en {path}, que solo puede leer tu cuenta de usuario, y nunca en proyectos ni registros.
+	No key	Sin clave
+	OpenAI (cloud)	OpenAI (en la nube)
+	OpenAI model	Modelo de OpenAI
+	Paste a new key	Pega una clave nueva
+	Remove Key	Quitar clave
+	Save Key	Guardar clave
+	Saved on this computer	Guardada en este ordenador
+	Speech Recognition	Reconocimiento de voz
+	Text model	Modelo de texto
+	The {name} key is removed.	Se ha quitado la clave de {name}.
+	The {name} key is saved.	Se ha guardado la clave de {name}.
+	This build has no network access: the cloud engines are not available.	Esta compilación no tiene acceso a la red: los motores en la nube no están disponibles.
+	Translation, Highlights and YouTube Texts	Traducción, momentos destacados y textos para YouTube
+	Whisper on this computer (offline)	Whisper en este ordenador (sin conexión)
+	Whisper runs on this computer and sends nothing. The cloud engines send audio or text to Google or OpenAI only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper funciona en este ordenador y no envía nada. Los motores en la nube envían audio o texto a Google u OpenAI solo cuando ejecutas una función de IA con ellos; FilmCraft te avisa antes de la primera vez.
