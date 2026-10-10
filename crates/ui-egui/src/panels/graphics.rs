@@ -593,7 +593,8 @@ pub fn monitor_overlay(app: &mut FilmcraftApp, ui: &mut egui::Ui, pic: Rect, fra
         }
         if resp.drag_stopped() {
             ui.data_mut(|dd| dd.remove::<DragState>(drag_id));
-            let moved = (cur - d.start).length() > 2.0;
+            // egui ends a drag on Escape: that stop abandons it (#580)
+            let moved = (cur - d.start).length() > 2.0 && !ui.input(|i| i.key_pressed(egui::Key::Escape));
             match d.kind {
                 DragKind::Move if moved => {
                     if let Some(v) = v {
@@ -1589,18 +1590,15 @@ pub fn properties(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     for (id, r, label) in autos {
         app.auto.add(&id, r, &label);
     }
-    for (cmd, p) in actions {
-        if let Err(e) = app.session.execute(&cmd, p) {
-            app.ui.status = e.to_string();
-        }
-    }
+    // a dragged value is one undo step, as in Effect Controls
+    crate::panels::effect_controls::run(app, ui.ctx(), actions);
 }
 
 /// Text Properties (the wrench in the Text section): Text Layer Type and Text Styling.
 pub fn dialogs(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.text_props_dialog.clone() else { return };
     let mut elems: Vec<(String, Rect, &str)> = Vec::new();
-    let mut close = ctx.input(|i| i.key_pressed(egui::Key::Escape));
+    let mut close = crate::widgets::escape_closes(ctx);
     let mut ok = false;
     let name = |paragraph: bool| if paragraph { tl!("Paragraph Text") } else { tl!("Point Text") };
     let id = egui::Id::new("gfx-text-properties");

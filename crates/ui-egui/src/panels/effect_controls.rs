@@ -558,7 +558,10 @@ pub(crate) fn param_row(
                 let off = drag_off.unwrap_or(0.0) + resp.drag_delta().x;
                 ui.data_mut(|d| d.insert_temp(id, off));
             }
-            if resp.drag_stopped() {
+            // egui ends a drag on Escape: that stop abandons it (#580)
+            if resp.drag_stopped() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                ui.data_mut(|d| d.remove::<f32>(id));
+            } else if resp.drag_stopped() {
                 let off = drag_off.unwrap_or(0.0);
                 ui.data_mut(|d| d.remove::<f32>(id));
                 let new_tl =
@@ -845,15 +848,16 @@ pub fn properties_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     run(app, ui.ctx(), actions);
 }
 
-/// Run the panel's actions. Parameter changes made while the mouse button is down (a drag) share
-/// one undo step, which the first change of each press begins (#201); typed values and clicks stay
-/// separate steps. A drag value only changes once the mouse moves, after the press frame, so the
-/// press that already began a step is remembered by its start time.
-fn run(app: &mut FilmcraftApp, ctx: &egui::Context, actions: Vec<(String, Value)>) {
+/// Run the panel's actions (also the Properties and Lumetri Color panels'). Parameter changes made
+/// while the mouse button is down (a drag) share one undo step, which the first change of each
+/// press begins (#201); typed values and clicks stay separate steps. A drag value only changes once
+/// the mouse moves, after the press frame, so the press that already began a step is remembered by
+/// its start time.
+pub(crate) fn run(app: &mut FilmcraftApp, ctx: &egui::Context, actions: Vec<(String, Value)>) {
     let (down, press) = ctx.input(|i| (i.pointer.any_down(), i.pointer.press_start_time()));
     let key = egui::Id::new("effect-controls-drag-step");
     for (cmd, mut p) in actions {
-        if cmd == "effects.setParam" && down {
+        if matches!(cmd.as_str(), "effects.setParam" | "graphics.set") && down {
             let begun = ctx.data(|d| d.get_temp::<Option<f64>>(key)).flatten();
             p["merge"] = json!(true);
             p["begin"] = json!(begun != press);
@@ -982,7 +986,9 @@ pub(crate) fn graph_rows(
                 let nx = hdx + hr.drag_delta().x;
                 ui.data_mut(|d| d.insert_temp(hid, nx));
             }
-            if hr.drag_stopped() {
+            if hr.drag_stopped() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                ui.data_mut(|d| d.remove::<f32>(hid));
+            } else if hr.drag_stopped() {
                 ui.data_mut(|d| d.remove::<f32>(hid));
                 let ni = ((infl * seg + hdx * side) / seg.max(1.0)).clamp(0.01, 1.0);
                 let key = if side > 0.0 { "outInfluence" } else { "inInfluence" };
@@ -995,7 +1001,10 @@ pub(crate) fn graph_rows(
             ui.data_mut(|d| d.insert_temp(id, ny));
             p.text(c + vec2(8.0, -10.0), Align2::LEFT_BOTTOM, format!("{:.dec$}", v_of(c.y)), Tokens::ui(10.5), t.hot_text);
         }
-        if resp.drag_stopped() {
+        // egui ends a drag on Escape: that stop abandons it (#580)
+        if resp.drag_stopped() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            ui.data_mut(|d| d.remove::<f32>(id));
+        } else if resp.drag_stopped() {
             ui.data_mut(|d| d.remove::<f32>(id));
             let nv = v_of(c.y);
             let nv = if let ParamKind::Float { min, max, .. } = pd.kind { nv.clamp(min, max) } else { nv };
