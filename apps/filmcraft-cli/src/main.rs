@@ -464,6 +464,9 @@ async fn cli() {
             diag(format_args!("rendered {}x{} in {:.1} ms → {out}", img.w, img.h, dt.as_secs_f64() * 1000.0));
         }
         "mcp" => {
+            if let Some(opt) = a.unknown_opt(&["--bridge", "--project", "--demo", "--data-dir"]) {
+                usage(format!("unknown mcp option `{opt}`"));
+            }
             let server = match a.opt("--bridge") {
                 Some(addr) => filmcraft_automation::FilmcraftMcp::bridge_with_data_dir(addr, a.opt("--data-dir").map(std::path::PathBuf::from))
                     .unwrap_or_else(|e| fail(e)),
