@@ -485,6 +485,14 @@ pub struct FacePicker {
     pub error: Option<String>,
 }
 
+/// Help ▸ Check for Updates… (`panels::updates`): the check running and what it found.
+#[derive(Clone, Debug, Default)]
+pub struct UpdatesUi {
+    pub job: Option<u64>,
+    /// `app.updateStatus` once the check has ended: the window shows it.
+    pub result: Option<serde_json::Value>,
+}
+
 /// Sequence ▸ YouTube Title, Description and Chapters… (`panels::youtube`).
 #[derive(Clone, Debug, Default)]
 pub struct YouTubeUi {
@@ -638,6 +646,9 @@ pub struct UiState {
     /// Clip ▸ Reframe to Face…: the dialog and its choices.
     #[serde(default)]
     pub reframe: ReframeUi,
+    /// Help ▸ Check for Updates…: the check and its window.
+    #[serde(skip)]
+    pub updates: UpdatesUi,
     /// Sequence ▸ YouTube Title, Description and Chapters…: the window and the texts being edited.
     #[serde(skip)]
     pub youtube: YouTubeUi,
@@ -1133,6 +1144,7 @@ impl Default for UiState {
             highlights: HighlightsUi::default(),
             auto_zoom: AutoZoomUi::default(),
             reframe: ReframeUi::default(),
+            updates: UpdatesUi::default(),
             youtube: YouTubeUi::default(),
             batch: BatchUi::default(),
             ai_task: None,

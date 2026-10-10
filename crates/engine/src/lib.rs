@@ -64,6 +64,7 @@ pub mod sync;
 pub mod transcript;
 pub mod translate;
 pub mod trim;
+pub mod updates;
 pub mod voiceover;
 pub mod youtube;
 
@@ -457,6 +458,8 @@ pub struct Session {
     pub face_detector: Option<reframe::FaceDetector>,
     /// Faces found per clip's media range, for this session.
     pub face_cache: reframe::FaceCache,
+    /// The last Help ▸ Check for Updates… of this session (`app.updateStatus`).
+    pub update_check: updates::UpdateState,
     /// The Events panel log: failed commands, job results, auto-save errors, messages.
     pub log: panels::EventLog,
     /// Media Browser navigation (directory, back / forward history, selected files).
@@ -558,6 +561,7 @@ impl Session {
             batch: None,
             face_detector: None,
             face_cache: Default::default(),
+            update_check: Default::default(),
             log: Default::default(),
             browser: Default::default(),
             exec_depth: 0,

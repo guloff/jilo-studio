@@ -643,3 +643,54 @@ fn a_clip_is_reframed_on_a_face_picked_on_the_frame() {
     }
     d.snapshot("reframe-done");
 }
+
+/// Help ▸ Check for Updates…: the check in the background, the window with a newer release and its
+/// notes, and the up-to-date answer.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn updates_are_checked_on_request_and_shown_in_a_window() {
+    let fake = Arc::new(FakeTransport::new());
+    let page = format!("{}/tag/v9.1.0", filmcraft_engine::updates::RELEASES_PAGE);
+    let tag = Arc::new(std::sync::Mutex::new("v9.1.0".to_string()));
+    let t = tag.clone();
+    fake.route(
+        |r| r.url == filmcraft_engine::updates::RELEASES_API,
+        move |_| {
+            let body = json!({
+                "tag_name": t.lock().unwrap().clone(),
+                "html_url": page.clone(),
+                "body": "• Reframe to Face with Apple Vision\n• Highlights, Auto Zoom, YouTube chapters\n• 3 GB less memory at launch",
+                "published_at": "2026-10-20T10:00:00Z",
+            });
+            Ok(Response::json(200, &body))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_transport = Some(fake.clone());
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    d.frames(2);
+    assert!(fake.sent().is_empty(), "nothing is checked unless asked");
+    let wait = |d: &mut Driver, id: &str| {
+        for _ in 0..400 {
+            d.frames(2);
+            if d.ids("updates.").iter().any(|i| i == id) {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        panic!("no {id}");
+    };
+    d.ok("ui.menu.invoke", json!({"id": "app.checkUpdates"}));
+    wait(&mut d, "updates.download");
+    assert_eq!(fake.sent().len(), 1);
+    d.snapshot("updates-available");
+    d.click("updates.later");
+    assert!(d.ids("updates.").is_empty());
+    *tag.lock().unwrap() = format!("v{}", env!("CARGO_PKG_VERSION"));
+    d.ok("ui.menu.invoke", json!({"id": "app.checkUpdates"}));
+    wait(&mut d, "updates.ok");
+    d.snapshot("updates-latest");
+    d.click("updates.ok");
+    assert!(d.ids("updates.").is_empty());
+}

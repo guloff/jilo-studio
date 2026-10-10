@@ -47,6 +47,15 @@ User-facing names say **Jilo Studio**. Release files are lowercase:
 
    Pre-releases (`-rc.N`) get `--prerelease`.
 
+## How the app finds a release
+
+Help ▸ Check for Updates… (`app.checkUpdates`, `crates/engine/src/updates.rs`) asks GitHub for the
+latest release of `guloff/jilo-studio` (`/releases/latest`: drafts and pre-releases are not offered)
+and compares its tag, `vX.Y.Z`, with the running version. A newer release shows its notes (the
+release body, as plain text) and a Download button that opens the release page. The app checks
+only when asked and downloads nothing itself; so the tag must carry the version number, and the notes
+are what users read before they download.
+
 ## What gets built
 
 `packaging/macos/package.sh` builds `filmcraft` and `filmcraft-cli` in release mode for

@@ -3739,3 +3739,18 @@ mode	Edit	Монтаж
 	Reframed {clips} clips: {keys} keyframes	Кадрировано клипов: {clips}, ключей: {keys}
 	No faces in {names}	Нет лиц в {names}
 	Faces at Playhead	Лица под курсором
+# Help ▸ Check for Updates (12.D1)
+	Check for Updates…	Проверить обновления…
+	Update Status	Состояние обновления
+	Checking for updates…	Проверка обновлений…
+	Checking for updates	Проверка обновлений
+	Software Update	Обновление программы
+	Could not check for updates	Не удалось проверить обновления
+	{app} {version} is the latest version.	{app} {version} — последняя версия.
+	No release is published on GitHub yet.	На GitHub пока не опубликовано ни одной версии.
+	{app} {version} is available	Доступна версия {app} {version}
+	You have {version}.	У вас установлена {version}.
+	What's new	Что нового
+	Download opens the release page on GitHub; the new version replaces this one in Applications.	«Скачать» откроет страницу версии на GitHub; новая версия заменяет эту в папке «Программы».
+	Download…	Скачать…
+	Later	Позже

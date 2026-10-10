@@ -3775,3 +3775,18 @@
 	Reframed {clips} clips: {keys} keyframes	已重新构图 {clips} 个剪辑：{keys} 个关键帧
 	No faces in {names}	{names} 中没有人脸
 	Faces at Playhead	播放指示器处的人脸
+# Help ▸ Check for Updates (12.D1)
+	Check for Updates…	检查更新…
+	Update Status	更新状态
+	Checking for updates…	正在检查更新…
+	Checking for updates	正在检查更新
+	Software Update	软件更新
+	Could not check for updates	无法检查更新
+	{app} {version} is the latest version.	{app} {version} 是最新版本。
+	No release is published on GitHub yet.	GitHub 上尚未发布任何版本。
+	{app} {version} is available	{app} {version} 现已推出
+	You have {version}.	你当前的版本为 {version}。
+	What's new	新功能
+	Download opens the release page on GitHub; the new version replaces this one in Applications.	“下载”会打开 GitHub 上的发布页面；新版本将替换“应用程序”中的此版本。
+	Download…	下载…
+	Later	稍后

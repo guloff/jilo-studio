@@ -3744,3 +3744,18 @@
 	Reframed {clips} clips: {keys} keyframes	Clips encuadrados: {clips}, fotogramas clave: {keys}
 	No faces in {names}	Sin caras en {names}
 	Faces at Playhead	Caras en el cabezal
+# Help ▸ Check for Updates (12.D1)
+	Check for Updates…	Buscar actualizaciones…
+	Update Status	Estado de la actualización
+	Checking for updates…	Buscando actualizaciones…
+	Checking for updates	Buscando actualizaciones
+	Software Update	Actualización de software
+	Could not check for updates	No se pudieron buscar actualizaciones
+	{app} {version} is the latest version.	{app} {version} es la versión más reciente.
+	No release is published on GitHub yet.	Aún no hay ninguna versión publicada en GitHub.
+	{app} {version} is available	{app} {version} está disponible
+	You have {version}.	Tienes la {version}.
+	What's new	Novedades
+	Download opens the release page on GitHub; the new version replaces this one in Applications.	Descargar abre la página de la versión en GitHub; la nueva versión sustituye a esta en Aplicaciones.
+	Download…	Descargar…
+	Later	Más tarde
