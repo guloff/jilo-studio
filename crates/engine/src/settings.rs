@@ -37,7 +37,7 @@ pub struct GeneralPrefs {
     /// `system` (the default: the operating system's preferred language when the interface has it,
     /// otherwise English).
     pub interface_language: String,
-    /// "At Startup": `showHome` (FilmCraft: the demo project), `openMostRecent`, `emptyProject`.
+    /// "At Startup": `showHome` (Import / Recent Projects), `openMostRecent`, `emptyProject`.
     pub at_startup: String,
     /// "When Opening a Project": `showOpenDialog` | `showHome`.
     pub when_opening_project: String,
