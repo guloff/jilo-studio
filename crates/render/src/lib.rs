@@ -668,6 +668,32 @@ pub fn render_item(project: &Project, item: ItemId, t: Tick, scale: f32, sources
     }
 }
 
+/// [`render_item`] for an EDR monitor: the image in a working space that keeps the item's HDR
+/// (PQ / HLG media decode into the matching HDR working space, a sequence renders in its own
+/// pipeline), with that pipeline, for [`colorman::to_edr`]. SDR media decode as for `render_item`.
+pub fn render_item_edr(project: &Project, item: ItemId, t: Tick, scale: f32, sources: &dyn SourceProvider) -> Option<(Image, filmcraft_color::ColorPipeline)> {
+    use filmcraft_color::{ColorPipeline, Curve, WorkingSpace};
+    let pi = project.item(item)?;
+    match &pi.kind {
+        ItemKind::Sequence(s) => {
+            Some((render_seq(project, s, t, RenderOptions { scale, working_output: true, ..Default::default() }, sources), s.settings.color))
+        }
+        _ => {
+            let src = sources.source(item)?;
+            let f = src.video_frame(FrameRequest { time: t, scale }).ok()?;
+            let full_w = src.info().video.as_ref().map_or(f.width, |v| v.width) as f32;
+            let n = decimation(f.width as f32, full_w * scale);
+            let working = match colorman::source_space(project, item, &f).curve() {
+                Curve::Pq => WorkingSpace::Rec2100Pq,
+                Curve::Hlg => WorkingSpace::Rec2100Hlg,
+                _ => WorkingSpace::Rec709,
+            };
+            let pipe = if working.is_hdr() { ColorPipeline { working, wide_gamut: false, auto_tone_map: false } } else { ColorPipeline::REC709 };
+            Some((colorman::decode(project, item, &f, n, &pipe), pipe))
+        }
+    }
+}
+
 /// A shared, clonable source map for tests and simple hosts.
 #[derive(Default, Clone)]
 pub struct SourceMap(pub std::collections::HashMap<ItemId, SharedSource>);

@@ -149,6 +149,18 @@ fn main() -> eframe::Result {
         event_loop_builder: agent_event_loop(control_port.is_some()),
         ..Default::default()
     };
+    // Settings ▸ Color ▸ Extended Dynamic Range Monitoring (macOS): a half-float extended-sRGB
+    // window surface, so the monitors can show HDR above SDR white. Read before the window exists
+    // (the surface format is fixed for the session): the setting applies after a restart.
+    #[cfg(target_os = "macos")]
+    let options = {
+        let mut options = options;
+        let prefs = data_dir.clone().or_else(default_data_dir).map(|d| filmcraft_engine::autosave::Preferences::load(&d.join("preferences.json")));
+        if prefs.is_some_and(|p| p.color.extended_dynamic_range) {
+            options.wgpu_options.hdr_surface = Some((eframe::wgpu::TextureFormat::Rgba16Float, eframe::wgpu::SurfaceColorSpace::ExtendedSrgb));
+        }
+        options
+    };
     // Before eframe creates the wgpu instance: leave OpenGL out on Windows (see graphics.rs).
     #[cfg(target_os = "windows")]
     let options = {
@@ -266,6 +278,7 @@ fn main() -> eframe::Result {
             filmcraft_platform::open_documents::set_waker(Box::new(move || repaint.request_repaint()));
             app.hooks.opened_documents = Some(Box::new(filmcraft_platform::open_documents::take));
             app.hooks.note_recent_document = Some(Box::new(filmcraft_platform::open_documents::note_recent));
+            app.hooks.edr_headroom = Some(Box::new(filmcraft_platform::display::edr_headroom));
             app.hooks.system_languages = Some(Box::new(|| sys_locale::get_locales().collect()));
             // Settings ▸ Appearance ▸ Appearance Mode ▸ Sync with system on Linux desktops whose
             // compositor reports no theme to winit (no polling: see appearance.rs).

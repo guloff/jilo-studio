@@ -189,7 +189,7 @@ fn preset_texture(app: &mut FilmcraftApp, ctx: &egui::Context, p: &filmcraft_ren
     }
     let h = (w * 9 / 16).max(1);
     let img = filmcraft_render::lumetri_presets::thumbnail(p, w, h);
-    let rgba = crate::frames::Rgba { w: img.w, h: img.h, px: img.over_black_rgba8() };
+    let rgba = crate::frames::Rgba { w: img.w, h: img.h, px: img.over_black_rgba8(), hdr: None };
     let key = crate::frames::FrameKey {
         target: crate::frames::Target::Item(filmcraft_project::ItemId(u64::MAX)),
         frame: 0,

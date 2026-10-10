@@ -584,9 +584,13 @@ frame (Y'CbCr/RGB + metadata) ─► source colour space: Interpret Footage over
   (MaxCLL/MaxFALL 0 = unknown, they are not measured) plus the matching H.264 SEI. `sdr: true`
   exports the tone-mapped SDR picture instead; render previews always do.
 - **Monitors / display colour management.** The monitors are SDR (sRGB-encoded RGBA8 textures):
-  HDR sequences are shown tone mapped. macOS EDR (extended-range `CAMetalLayer` output) is not
-  wired up: there is no `platform` crate yet and eframe/wgpu do not expose an EDR surface, so HDR
-  values above SDR white are never sent to the display. The scopes of an HDR sequence show the
+  HDR sequences are shown tone mapped. On macOS, Settings ▸ Color ▸ Extended Dynamic Range
+  Monitoring (read at startup) asks egui-wgpu (patched, `vendor/egui-wgpu`) for an `Rgba16Float`
+  extended-sRGB window surface, which wgpu turns into an EDR `CAMetalLayer`. Sequence and item
+  frames then also carry a half-float picture (`colorman::to_edr`: BT.709 linear, HDR Graphics
+  White at 1.0, highlights rolled off towards the screen's current headroom from `NSScreen`), and
+  the monitors show it through a native half-float texture; HDR media in the Source monitor decode
+  into an HDR working space for it (`render_item_edr`). The scopes of an HDR sequence show the
   working-space values (waveform in cd/m² on a PQ scale, BT.2020 vectorscope).
 - **LUTs.** Lumetri Input LUT and Creative Look reference `lib:<id>` (the project's LUT library,
   `Project::luts`, embedded `.cube`/`.3dl` text) or `builtin:<id>` (code-generated camera

@@ -183,7 +183,11 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
         };
         let size_key = (scale * 1000.0) as u32;
         let channel = display.is_channel();
-        let use_gpu = which == Which::Program && app.gpu.is_some() && !channel && !crate::panels::menu_dialogs::software_renderer(app);
+        // EDR monitors show an HDR sequence from the CPU path (its half-float picture); the GPU
+        // compositor resolves to 8-bit SDR (and an HDR pipeline renders on the CPU anyway)
+        let edr_hdr = app.frames.edr().is_some()
+            && matches!(target, Target::Sequence(s) if app.session.project.sequence(s).is_some_and(|q| q.settings.color.working.is_hdr()));
+        let use_gpu = which == Which::Program && app.gpu.is_some() && !channel && !edr_hdr && !crate::panels::menu_dialogs::software_renderer(app);
         let cpu_target = target;
         let target = match (use_gpu, target) {
             (true, Target::Sequence(s)) => Target::SequencePlan(s),
@@ -456,7 +460,10 @@ fn cpu_texture(
             let tex = if mode.is_channel() {
                 app.texture_for_mapped(ctx, name, k, &img, |i| monitor_view::channel_view(i, mode))
             } else {
-                app.texture_for(ctx, name, k, &img)
+                match app.texture_for_edr(name, k, &img) {
+                    Some(t) => t,
+                    None => app.texture_for(ctx, name, k, &img),
+                }
             };
             (Some(tex), Some(k))
         }
@@ -913,7 +920,7 @@ mod tests {
     use crate::frames::Rgba;
 
     fn flat(w: usize, h: usize, rgba: [u8; 4]) -> Rgba {
-        Rgba { w, h, px: rgba.iter().copied().cycle().take(w * h * 4).collect() }
+        Rgba { w, h, px: rgba.iter().copied().cycle().take(w * h * 4).collect(), hdr: None }
     }
 
     #[test]
@@ -934,7 +941,7 @@ mod tests {
 
     #[test]
     fn eyedropper_rejects_empty_and_truncated_frames() {
-        assert_eq!(sample_rgb(&Rgba { w: 0, h: 0, px: vec![] }, (0.5, 0.5)), None);
-        assert_eq!(sample_rgb(&Rgba { w: 4, h: 4, px: vec![0; 10] }, (0.5, 0.5)), None);
+        assert_eq!(sample_rgb(&Rgba { w: 0, h: 0, px: vec![], hdr: None }, (0.5, 0.5)), None);
+        assert_eq!(sample_rgb(&Rgba { w: 4, h: 4, px: vec![0; 10], hdr: None }, (0.5, 0.5)), None);
     }
 }

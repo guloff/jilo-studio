@@ -1668,6 +1668,7 @@
 	Exclusion	Исключение
 	Exponential Fade	Экспоненциальное затухание
 	Extended Dynamic Range Monitoring	Мониторинг расширенного динамического диапазона
+	Extended Dynamic Range Monitoring shows HDR above SDR white on EDR displays (macOS); it takes effect after FilmCraft restarts.	Мониторинг расширенного динамического диапазона показывает HDR ярче белого SDR на EDR-экранах (macOS); вступает в силу после перезапуска FilmCraft.
 	FFT Filter	FFT-фильтр
 	Fade	Затухание
 	Fade Out	Затухание в конце

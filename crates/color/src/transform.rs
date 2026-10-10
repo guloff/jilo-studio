@@ -299,6 +299,11 @@ impl OutputTransform {
     pub fn display(pipe: &ColorPipeline) -> Self {
         Self::new(pipe, ColorSpace::Rec709)
     }
+    /// For EDR monitors (macOS extended dynamic range): BT.709 linear like [`Self::display`], but
+    /// HDR is not tone mapped: highlights stay above 1.0 in working units (1.0 = 203 cd/m²).
+    pub fn display_edr(pipe: &ColorPipeline) -> Self {
+        Self { tone: None, ..Self::new(pipe, ColorSpace::Rec709) }
+    }
     /// For export/encode into `target` (Rec709, Rec2100Pq or Rec2100Hlg).
     pub fn new(pipe: &ColorPipeline, target: ColorSpace) -> Self {
         let wg = pipe.working_gamut();

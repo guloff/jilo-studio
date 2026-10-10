@@ -112,6 +112,8 @@ pub struct HostHooks {
     pub opened_documents: Option<Box<dyn Fn() -> Vec<String>>>,
     /// Tell the OS a project was opened or saved (macOS: the Dock icon's recent documents).
     pub note_recent_document: Option<Box<dyn Fn(&str)>>,
+    /// The display's current EDR headroom (largest value shown, SDR white = 1.0; macOS).
+    pub edr_headroom: Option<Box<dyn Fn() -> f32>>,
     pub pick_save: Option<Box<dyn FnMut(&str) -> Option<String>>>,
     pub pick_open_project: Option<Box<dyn FnMut() -> Option<String>>>,
     /// Save dialog with a filter: (filter name, extensions, suggested file name) → path.
@@ -311,6 +313,8 @@ pub struct FilmcraftApp {
     pub discard_on_exit: bool,
     /// GPU compositor (when running on wgpu): device state + compositor + the egui texture it feeds.
     pub gpu: Option<GpuState>,
+    /// EDR monitors (macOS): set when the window's surface is half-float extended sRGB.
+    pub edr: Option<EdrState>,
     /// Preview render job being watched (job id, where to start playing when it completes).
     watched_render: Option<(u64, Tick)>,
     /// Settings last applied to the UI (theme, tooltips, frame cache, audio device).
@@ -320,6 +324,21 @@ pub struct FilmcraftApp {
     pub workspaces: dock::WorkspacePrefs,
     /// Workspace names and the current one, as last handed to the native menu.
     menu_workspaces: (Vec<String>, String),
+}
+
+/// The EDR monitor path (macOS): the window's render state and each monitor's half-float texture.
+pub struct EdrState {
+    pub render_state: eframe::egui_wgpu::RenderState,
+    textures: HashMap<String, EdrTexture>,
+}
+
+/// A monitor's half-float texture and the frame it holds.
+struct EdrTexture {
+    key: FrameKey,
+    texture: eframe::wgpu::Texture,
+    id: egui::TextureId,
+    /// The monitor shows this texture (not its SDR one) at the moment.
+    shown: bool,
 }
 
 pub struct GpuState {
@@ -365,6 +384,11 @@ pub fn gpu_compositor_unsupported(adapter: &eframe::wgpu::Adapter) -> Option<Str
 impl FilmcraftApp {
     /// Enable the GPU compositor on the eframe wgpu device.
     pub fn set_wgpu(&mut self, rs: eframe::egui_wgpu::RenderState) {
+        // EDR monitors need the half-float extended-sRGB surface the host asked for (macOS)
+        if rs.target_format == eframe::wgpu::TextureFormat::Rgba16Float && rs.target_color_space == eframe::wgpu::SurfaceColorSpace::ExtendedSrgb {
+            self.edr = Some(EdrState { render_state: rs.clone(), textures: HashMap::new() });
+            log::info!("EDR monitors: half-float extended-sRGB window surface");
+        }
         if let Some(why) = gpu_compositor_unsupported(&rs.adapter) {
             log::warn!("GPU compositor disabled ({why}); compositing on the CPU");
             return;
@@ -397,6 +421,58 @@ impl FilmcraftApp {
             g.render_state.renderer.write().free_texture(&id);
         }
         self.ui.status = tl!("Graphics problem: switched to software compositing").into();
+    }
+
+    /// A monitor texture from a frame's half-float EDR picture (`Rgba::hdr`), when the monitors run
+    /// in EDR mode; `None` otherwise (the caller shows the SDR picture).
+    pub fn texture_for_edr(&mut self, name: &str, key: FrameKey, img: &frames::Rgba) -> Option<egui::TextureId> {
+        use eframe::wgpu;
+        let hdr = img.hdr.as_ref()?;
+        let e = self.edr.as_mut()?;
+        if hdr.len() != img.w * img.h * 4 || img.w == 0 || img.h == 0 {
+            return None;
+        }
+        if let Some(t) = e.textures.get_mut(name)
+            && t.key == key
+        {
+            t.shown = true;
+            return Some(t.id);
+        }
+        let (device, queue) = (&e.render_state.device, &e.render_state.queue);
+        let size = wgpu::Extent3d { width: img.w as u32, height: img.h as u32, depth_or_array_layers: 1 };
+        let reuse = e.textures.get(name).filter(|t| t.texture.size() == size).map(|t| t.texture.clone());
+        let texture = reuse.clone().unwrap_or_else(|| {
+            device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("filmcraft_edr_monitor"),
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba16Float,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            })
+        });
+        let bytes: Vec<u8> = hdr.iter().flat_map(|v| v.to_le_bytes()).collect();
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            &bytes,
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(img.w as u32 * 8), rows_per_image: Some(img.h as u32) },
+            size,
+        );
+        let mut renderer = e.render_state.renderer.write();
+        let id = match (e.textures.get(name), reuse) {
+            (Some(t), Some(_)) => t.id,
+            (Some(t), None) => {
+                let view = texture.create_view(&Default::default());
+                renderer.update_egui_texture_from_wgpu_texture(device, &view, wgpu::FilterMode::Linear, t.id);
+                t.id
+            }
+            (None, _) => renderer.register_native_texture(device, &texture.create_view(&Default::default()), wgpu::FilterMode::Linear),
+        };
+        drop(renderer);
+        e.textures.insert(name.to_string(), EdrTexture { key, texture, id, shown: true });
+        Some(id)
     }
 
     /// Composite a plan on the GPU and return the egui texture showing it.
@@ -499,6 +575,7 @@ impl FilmcraftApp {
             quit_confirmed: false,
             discard_on_exit: false,
             gpu: None,
+            edr: None,
             watched_render: None,
             applied_prefs: None,
             workspace_restored: false,
@@ -1012,6 +1089,9 @@ impl FilmcraftApp {
 
     /// Upload a rendered frame into a named texture (only when the key changed).
     pub fn texture_for(&mut self, ctx: &egui::Context, name: &str, key: FrameKey, img: &frames::Rgba) -> egui::TextureId {
+        if let Some(t) = self.edr.as_mut().and_then(|e| e.textures.get_mut(name)) {
+            t.shown = false;
+        }
         if let Some((k, tex)) = self.textures.get_mut(name) {
             if *k != key {
                 tex.set(egui::ColorImage::from_rgba_unmultiplied([img.w, img.h], &img.px), TextureOptions::LINEAR);
@@ -1034,6 +1114,9 @@ impl FilmcraftApp {
         img: &frames::Rgba,
         map: impl FnOnce(&frames::Rgba) -> frames::Rgba,
     ) -> egui::TextureId {
+        if let Some(t) = self.edr.as_mut().and_then(|e| e.textures.get_mut(name)) {
+            t.shown = false;
+        }
         if let Some((k, tex)) = self.textures.get_mut(name) {
             if *k != key {
                 let m = map(img);
@@ -1050,11 +1133,22 @@ impl FilmcraftApp {
     }
 
     pub fn texture_existing(&self, name: &str) -> Option<(egui::TextureId, egui::Vec2)> {
+        if let Some(t) = self.edr_shown(name) {
+            let s = t.texture.size();
+            return Some((t.id, egui::vec2(s.width as f32, s.height as f32)));
+        }
         self.textures.get(name).map(|(_, t)| (t.id(), t.size_vec2()))
+    }
+
+    fn edr_shown(&self, name: &str) -> Option<&EdrTexture> {
+        self.edr.as_ref()?.textures.get(name).filter(|t| t.shown)
     }
 
     /// The frame a named texture shows.
     pub fn texture_key(&self, name: &str) -> Option<FrameKey> {
+        if let Some(t) = self.edr_shown(name) {
+            return Some(t.key);
+        }
         self.textures.get(name).map(|(k, _)| *k)
     }
 
@@ -1230,6 +1324,19 @@ impl FilmcraftApp {
             Err(e) => e.clone(),
         };
         r
+    }
+
+    /// EDR monitors: while the window's surface is EDR and Settings ▸ Color ▸ Extended Dynamic Range
+    /// Monitoring is on, frames carry a half-float picture for the display's current headroom.
+    fn update_edr(&mut self) {
+        let c = &self.session.prefs.color;
+        let edr = (self.edr.is_some() && c.extended_dynamic_range).then(|| {
+            let white = c.hdr_graphics_white.parse().unwrap_or(203.0);
+            filmcraft_render::colorman::Edr::new(white, self.hooks.edr_headroom.as_ref().map_or(1.0, |f| f()))
+        });
+        if self.frames.edr() != edr {
+            self.frames.set_edr(edr);
+        }
     }
 
     /// Files the OS asked to open: the last project opens (asking to save edits first, as Recent
@@ -1515,6 +1622,7 @@ impl FilmcraftApp {
         self.sync_timeline_view();
         self.handle_drops(&ctx);
         self.handle_opened_documents(&ctx);
+        self.update_edr();
         if let Some(rx) = self.command_inbox.take() {
             while let Ok(id) = rx.try_recv() {
                 if let Err(e) = menus::invoke(self, &ctx, &id, json!({})) {

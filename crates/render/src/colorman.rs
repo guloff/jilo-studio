@@ -86,6 +86,65 @@ pub fn to_display(img: &mut Image, pipe: &ColorPipeline) {
     img.map_rgb(|c, _, _| o.apply(c));
 }
 
+/// How the monitors show HDR on an extended-dynamic-range display (macOS EDR).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Edr {
+    /// Working units (1.0 = 203 cd/m²) → display units (1.0 = SDR white): 203 / HDR graphics white.
+    pub white_scale: f32,
+    /// The largest value the display shows now (≥ 1; e.g. 2–16 on an XDR display).
+    pub headroom: f32,
+}
+
+impl Edr {
+    /// `graphics_white_nits`: the Settings ▸ Color ▸ HDR Graphics White (100, 203 or 300).
+    pub fn new(graphics_white_nits: f32, headroom: f32) -> Edr {
+        let white = if graphics_white_nits.is_finite() && graphics_white_nits > 0.0 { graphics_white_nits } else { 203.0 };
+        let headroom = if headroom.is_finite() { headroom.max(1.0) } else { 1.0 };
+        Edr { white_scale: (filmcraft_color::REFERENCE_WHITE_NITS as f32) / white, headroom }
+    }
+}
+
+/// A rendered working-space image (premultiplied, over black) → half-float RGBA for an EDR monitor:
+/// BT.709 linear with SDR white at 1.0 and, for an HDR pipeline, highlights above 1.0 rolled off
+/// towards the display's headroom; encoded with the (extended) sRGB curve, as the monitor surface
+/// (extended sRGB) expects. An SDR pipeline stays within 0–1.
+pub fn to_edr(img: &Image, pipe: &ColorPipeline, edr: Edr) -> Vec<u16> {
+    use rayon::prelude::*;
+    let hdr = pipe.working.is_hdr();
+    let o = OutputTransform::display_edr(pipe);
+    let identity = o.is_identity();
+    let (top, knee) = if hdr { (edr.headroom, 0.75 * edr.headroom) } else { (1.0, 1.0) };
+    let shoulder = |c: [f32; 3]| -> [f32; 3] {
+        let m = c[0].max(c[1]).max(c[2]);
+        if m <= knee || m <= 0.0 {
+            return c;
+        }
+        let span = (top - knee).max(1e-6);
+        let to = knee + span * (1.0 - (-(m - knee) / span).exp());
+        c.map(|v| v * to / m)
+    };
+    let enc = |v: f32| -> u16 {
+        let a = v.abs();
+        let e = if a <= 0.003_130_8 { 12.92 * a } else { 1.055 * a.powf(1.0 / 2.4) - 0.055 };
+        half::f16::from_f32(e.copysign(v)).to_bits()
+    };
+    let mut out = vec![0u16; img.w * img.h * 4];
+    out.par_chunks_mut(img.w.max(1) * 4).zip(img.px.par_chunks(img.w.max(1) * 4)).for_each(|(o_row, s_row)| {
+        for (d, s) in o_row.as_chunks_mut::<4>().0.iter_mut().zip(s_row.as_chunks::<4>().0) {
+            let mut c = [s[0], s[1], s[2]];
+            if !identity {
+                c = o.apply(c);
+            }
+            if hdr {
+                c = c.map(|v| v * edr.white_scale);
+            }
+            let c = shoulder(c).map(|v| v.min(top));
+            *d = [enc(c[0]), enc(c[1]), enc(c[2]), half::f16::ONE.to_bits()];
+        }
+    });
+    out
+}
+
 pub fn display_transform(pipe: &ColorPipeline) -> Arc<OutputTransform> {
     static C: OnceLock<Mutex<HashMap<ColorPipeline, Arc<OutputTransform>>>> = OnceLock::new();
     let c = C.get_or_init(Default::default);
@@ -96,6 +155,33 @@ pub fn display_transform(pipe: &ColorPipeline) -> Arc<OutputTransform> {
 mod tests {
     use super::*;
     use filmcraft_color::{ColorInfo, Primaries, Transfer, WorkingSpace};
+
+    fn f16(bits: u16) -> f32 {
+        half::f16::from_bits(bits).to_f32()
+    }
+
+    #[test]
+    fn edr_keeps_sdr_white_at_one_and_lifts_hdr_highlights_up_to_the_headroom() {
+        let pq = ColorPipeline { working: WorkingSpace::Rec2100Pq, wide_gamut: false, auto_tone_map: true };
+        // working units: 1.0 = 203 cd/m² (graphics white), 4.93 ≈ 1000 cd/m²
+        let img = Image { w: 4, h: 1, px: vec![1.0, 1.0, 1.0, 1.0, 4.93, 4.93, 4.93, 1.0, 100.0, 100.0, 100.0, 1.0, 0.18, 0.18, 0.18, 1.0] };
+        let out = to_edr(&img, &pq, Edr::new(203.0, 8.0));
+        let px = |i: usize| [f16(out[4 * i]), f16(out[4 * i + 1]), f16(out[4 * i + 2]), f16(out[4 * i + 3])];
+        assert!((px(0)[0] - 1.0).abs() < 2e-3, "graphics white is SDR white: {:?}", px(0));
+        let enc = |v: f32| 1.055 * v.powf(1.0 / 2.4) - 0.055;
+        assert!((px(1)[1] - enc(4.93)).abs() < 0.02, "1000 cd/m² passes below the knee: {:?}", px(1));
+        assert!(px(2)[2] <= enc(8.0) + 1e-3 && px(2)[2] > enc(7.0), "the headroom bounds the peak: {:?}", px(2));
+        assert_eq!(px(0)[3], 1.0);
+        // graphics white 100 cd/m²: everything twice as bright relative to SDR white
+        let brighter = to_edr(&img, &pq, Edr::new(100.0, 8.0));
+        assert!(f16(brighter[0]) > enc(1.9) && f16(brighter[0]) < enc(2.1));
+        // SDR pipeline: clipped to the SDR range, with the same curve as the 8-bit monitors
+        let sdr = to_edr(&img, &ColorPipeline::REC709, Edr::new(203.0, 8.0));
+        assert!((f16(sdr[4]) - 1.0).abs() < 2e-3 && (f16(sdr[12]) - filmcraft_color::linear_to_srgb(0.18)).abs() < 2e-3);
+        // a display without headroom never goes past 1.0; hostile parameters are sanitised
+        let flat = to_edr(&img, &pq, Edr::new(f32::NAN, f32::NAN));
+        assert!(flat.iter().all(|b| f16(*b) <= 1.0 + 1e-3));
+    }
 
     fn frame(rgb: [u8; 3], color: ColorInfo) -> VideoFrame {
         let mut f = VideoFrame::rgba8(2, 2, [rgb[0], rgb[1], rgb[2], 255].repeat(4));

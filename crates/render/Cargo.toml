@@ -20,6 +20,8 @@ filmcraft-audio-dsp = { workspace = true }
 filmcraft-captions = { workspace = true }
 filmcraft-text = { workspace = true }
 rayon = { workspace = true }
+# EDR monitor frames are half-float RGBA (`colorman::to_edr`).
+half = { version = "2", default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

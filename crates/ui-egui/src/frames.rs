@@ -75,6 +75,10 @@ pub struct Rgba {
     pub w: usize,
     pub h: usize,
     pub px: Vec<u8>,
+    /// The same picture for an EDR monitor (macOS extended dynamic range): half-float RGBA,
+    /// extended-sRGB encoded, HDR highlights above 1.0 (`filmcraft_render::colorman::to_edr`). Set
+    /// only while the monitors run in EDR mode; `px` stays the SDR picture (scopes, eyedropper).
+    pub hdr: Option<Arc<[u16]>>,
 }
 
 struct Job {
@@ -112,6 +116,8 @@ struct Shared {
     workers: usize,
     /// Always-on counters for `perf.stats`.
     stats: Mutex<FrameStats>,
+    /// EDR monitors (macOS): when set, sequence and item frames also carry a half-float picture.
+    edr: Mutex<Option<filmcraft_render::colorman::Edr>>,
 }
 
 /// Cumulative frame-job statistics (`perf.stats`): cheap enough to keep on all the time.
@@ -422,6 +428,7 @@ impl FrameServer {
             render_cost: Mutex::new(0.0),
             workers: workers.max(1),
             stats: Mutex::new(FrameStats::default()),
+            edr: Mutex::new(None),
         });
         let repaint: Arc<Mutex<Option<Box<dyn Fn() + Send + Sync>>>> = Arc::new(Mutex::new(None));
         #[cfg(not(target_arch = "wasm32"))]
@@ -449,6 +456,16 @@ impl FrameServer {
             let ctx = ctx.clone();
             *g = Some(Box::new(move || ctx.request_repaint()));
         }
+    }
+
+    /// Render frames for EDR monitors too (`Rgba::hdr`), with the display's current headroom;
+    /// `None` keeps SDR only. Frames already cached keep what they were rendered with.
+    pub fn set_edr(&self, edr: Option<filmcraft_render::colorman::Edr>) {
+        *self.shared.edr.lock().unwrap_or_else(|e| e.into_inner()) = edr;
+    }
+
+    pub fn edr(&self) -> Option<filmcraft_render::colorman::Edr> {
+        *self.shared.edr.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Collect a [`JobRecord`] per finished job (benchmarks); `take_records` drains them.
@@ -836,7 +853,8 @@ fn run_job(sh: &Shared, job: &Job, pool: &Arc<MediaPool>, services: &Arc<dyn Ser
                         }
                         pv
                     } else {
-                        let (img, pv) = render_job(job, pool, services, previews);
+                        let edr = *sh.edr.lock().unwrap_or_else(|e| e.into_inner());
+                        let (img, pv) = render_job(job, pool, services, previews, edr);
                         loading = filmcraft_media::pending::take();
                         if !job.cancel.load(Ordering::Relaxed) && !loading {
                             sh.done.lock().unwrap_or_else(|e| e.into_inner()).insert(job.key, Arc::new(img));
@@ -931,7 +949,13 @@ fn plan_job(job: &Job, seq: ItemId, pool: &Arc<MediaPool>, services: &Arc<dyn Se
 }
 
 /// Render a job to RGBA8; the flag says whether it came from a render preview.
-fn render_job(job: &Job, pool: &Arc<MediaPool>, services: &Arc<dyn Services>, previews: &PreviewStore) -> (Rgba, bool) {
+fn render_job(
+    job: &Job,
+    pool: &Arc<MediaPool>,
+    services: &Arc<dyn Services>,
+    previews: &PreviewStore,
+    edr: Option<filmcraft_render::colorman::Edr>,
+) -> (Rgba, bool) {
     if let Target::Sequence(seq) | Target::SequencePlan(seq) = job.key.target
         && let Some(f) = preview_frame(job, seq, pool, previews)
         && let Some(q) = job.project.sequence(seq)
@@ -948,9 +972,18 @@ fn render_job(job: &Job, pool: &Arc<MediaPool>, services: &Arc<dyn Services>, pr
                 o.composite_onto(&mut img.px, w, h);
             }
         }
-        return (Rgba { w: img.w, h: img.h, px: img.over_black_rgba8() }, true);
+        return (Rgba { w: img.w, h: img.h, px: img.over_black_rgba8(), hdr: None }, true);
     }
     let provider = provider(job, pool, services);
+    if let Some(edr) = edr
+        && let Some((img, pipe)) = render_edr(job, &provider)
+    {
+        // the SDR picture (scopes, eyedropper, SDR fallback) from the same working image
+        let hdr: Arc<[u16]> = filmcraft_render::colorman::to_edr(&img, &pipe, edr).into();
+        let mut sdr = img;
+        filmcraft_render::colorman::to_display(&mut sdr, &pipe);
+        return (Rgba { w: sdr.w, h: sdr.h, px: sdr.over_black_rgba8(), hdr: Some(hdr) }, false);
+    }
     let opts = filmcraft_render::RenderOptions { scale: job.scale, captions: true, ..Default::default() };
     let img = match job.key.target {
         Target::Sequence(seq) | Target::SequencePlan(seq) => Some(filmcraft_render::render_sequence(&job.project, seq, job.time, opts, &provider)),
@@ -964,10 +997,23 @@ fn render_job(job: &Job, pool: &Arc<MediaPool>, services: &Arc<dyn Services>, pr
         }
     };
     let rgba = match img {
-        Some(img) => Rgba { w: img.w, h: img.h, px: img.over_black_rgba8() },
-        None => Rgba { w: 1, h: 1, px: vec![0, 0, 0, 255] },
+        Some(img) => Rgba { w: img.w, h: img.h, px: img.over_black_rgba8(), hdr: None },
+        None => Rgba { w: 1, h: 1, px: vec![0, 0, 0, 255], hdr: None },
     };
     (rgba, false)
+}
+
+/// A sequence or item frame in its working space (with the pipeline it is in), for EDR monitors.
+fn render_edr(job: &Job, provider: &dyn filmcraft_render::SourceProvider) -> Option<(filmcraft_render::Image, filmcraft_color::ColorPipeline)> {
+    match job.key.target {
+        Target::Sequence(seq) | Target::SequencePlan(seq) => {
+            let pipe = job.project.sequence(seq)?.settings.color;
+            let opts = filmcraft_render::RenderOptions { scale: job.scale, captions: true, working_output: true, ..Default::default() };
+            Some((filmcraft_render::render_sequence(&job.project, seq, job.time, opts, provider), pipe))
+        }
+        Target::Item(item) => filmcraft_render::render_item_edr(&job.project, item, job.time, job.scale, provider),
+        Target::MulticamGrid(..) | Target::MulticamAngle(..) => None,
+    }
 }
 
 #[cfg(test)]

@@ -338,7 +338,7 @@ pub fn channel_view(img: &Rgba, mode: DisplayMode) -> Rgba {
         };
         px.extend_from_slice(&[v, v, v, 255]);
     }
-    Rgba { w: img.w, h: img.h, px }
+    Rgba { w: img.w, h: img.h, px, hdr: None }
 }
 
 /// The on-screen picture rect: fitted, or magnified about the area centre plus the (clamped) pan.
@@ -876,7 +876,7 @@ mod tests {
 
     #[test]
     fn channel_view_greyscales() {
-        let img = Rgba { w: 2, h: 1, px: vec![200, 100, 50, 255, 255, 255, 255, 0] };
+        let img = Rgba { w: 2, h: 1, px: vec![200, 100, 50, 255, 255, 255, 255, 0], hdr: None };
         assert_eq!(channel_view(&img, DisplayMode::Red).px, vec![200, 200, 200, 255, 0, 0, 0, 255]);
         assert_eq!(channel_view(&img, DisplayMode::Green).px[..4], [100, 100, 100, 255]);
         assert_eq!(channel_view(&img, DisplayMode::Alpha).px, vec![255, 255, 255, 255, 0, 0, 0, 255]);

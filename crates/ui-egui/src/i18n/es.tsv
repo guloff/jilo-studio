@@ -1675,6 +1675,7 @@
 	Exclusion	Exclusión
 	Exponential Fade	Fundido exponencial
 	Extended Dynamic Range Monitoring	Monitorización de rango dinámico ampliado
+	Extended Dynamic Range Monitoring shows HDR above SDR white on EDR displays (macOS); it takes effect after FilmCraft restarts.	La monitorización de rango dinámico ampliado muestra el HDR por encima del blanco SDR en pantallas EDR (macOS); se aplica al reiniciar FilmCraft.
 	FFT Filter	Filtro FFT
 	Fade	Fundido
 	Fade Out	Fundido de salida

@@ -869,11 +869,12 @@ static CATEGORIES: &[Category] = &[
                 "Display Color Settings",
                 &[
                     b("color.displayColorManagement", "Display Color Management", false),
-                    b("color.extendedDynamicRange", "Extended Dynamic Range Monitoring", false),
-                    f("color.hdrGraphicsWhite", "HDR Graphics White (Nits)", Kind::Choice(HDR_WHITE), false),
+                    b("color.extendedDynamicRange", "Extended Dynamic Range Monitoring", cfg!(target_os = "macos")),
+                    f("color.hdrGraphicsWhite", "HDR Graphics White (Nits)", Kind::Choice(HDR_WHITE), cfg!(target_os = "macos")),
                 ],
             ),
             Row::Note("For color management parameters, go to the Settings tab in the Lumetri Color panel."),
+            Row::Note("Extended Dynamic Range Monitoring shows HDR above SDR white on EDR displays (macOS); it takes effect after FilmCraft restarts."),
         ],
     },
     Category {
