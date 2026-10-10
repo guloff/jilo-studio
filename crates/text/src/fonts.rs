@@ -199,9 +199,13 @@ impl Face {
             .as_ref()
             .map(FaceBytes::get)
     }
-    /// A copy of the font file's bytes (None if it is missing or unreadable).
+    /// A copy of the font file's bytes (None if it is missing or unreadable). A file the face has
+    /// not read yet is read for the copy only, so its bytes are not held twice.
     pub fn data(&self) -> Option<Vec<u8>> {
-        self.bytes().map(<[u8]>::to_vec)
+        match (self.bytes.get(), &self.info.data) {
+            (None, FaceData::File(p)) => std::fs::read(p).ok(),
+            _ => self.bytes().map(<[u8]>::to_vec),
+        }
     }
     /// The parsed font (None if the file is missing or unreadable).
     pub fn font(&self) -> Option<FontRef<'_>> {
@@ -220,6 +224,18 @@ impl Face {
     }
     pub fn has_char(&self, c: char) -> bool {
         self.glyph(c).is_some()
+    }
+    /// Whether the face has every character of `text`, without keeping a font file it had not
+    /// read yet in memory: for looking through all the installed fonts once, where caching each
+    /// file (hundreds, several of them tens of megabytes) would hold gigabytes for the session.
+    pub fn covers_transient(&self, text: &str) -> bool {
+        let covers =
+            |b: &[u8]| FontRef::from_index(b, self.info.index).is_ok_and(|f| text.chars().all(|c| f.charmap().map(c).is_some_and(|g| g.to_u32() != 0)));
+        match (self.bytes.get(), &self.info.data) {
+            (Some(b), _) => b.as_ref().is_some_and(|b| covers(b.get())),
+            (None, FaceData::File(p)) => std::fs::read(p).is_ok_and(|v| covers(&v)),
+            (None, _) => self.bytes().is_some_and(covers),
+        }
     }
     /// Height of the glyph's vertical origin above its baseline, in pixels.
     /// OpenType VORG takes precedence; TrueType uses the ink top plus vmtx's top bearing.
@@ -507,6 +523,27 @@ mod tests {
         // Inter Bold Italic: nearest is Italic (400) → synth bold
         let bi = resolve("Inter", "Bold Italic");
         assert!(face(bi.face).info.italic && bi.synth_bold && !bi.synth_italic);
+    }
+
+    /// Looking a font file through (coverage, a copy of its bytes) does not keep it in memory.
+    #[test]
+    fn a_font_file_is_checked_without_being_kept() {
+        let dir = std::env::temp_dir().join(format!("filmcraft-fonts-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("Inter.ttf");
+        std::fs::write(&path, face(resolve("Inter", "Regular").face).data().unwrap()).unwrap();
+        let mut info = face(resolve("Inter", "Regular").face).info.clone();
+        info.data = FaceData::File(path.clone());
+        let f = Face { id: usize::MAX, info, bytes: OnceLock::new(), shaper: OnceLock::new() };
+        assert!(f.covers_transient("Abc 123"));
+        assert!(!f.covers_transient("Abc 中文"));
+        assert!(f.data().is_some_and(|d| d.len() > 1000));
+        assert!(f.bytes.get().is_none(), "nothing kept");
+        assert!(f.has_char('A'));
+        assert!(f.bytes.get().is_some() && f.covers_transient("A") && !f.covers_transient("中"), "read once, then from memory");
+        std::fs::remove_file(&path).unwrap();
+        assert!(!Face { bytes: OnceLock::new(), shaper: OnceLock::new(), ..f }.covers_transient("A"), "a missing file covers nothing");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

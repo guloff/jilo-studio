@@ -10,6 +10,10 @@ const PREFERRED: &[&str] = &[
     "Microsoft YaHei UI",
     "Microsoft YaHei",
     "PingFang SC",
+    // macOS keeps PingFang among downloadable assets; these are in /System/Library/Fonts
+    "Hiragino Sans GB",
+    "Heiti SC",
+    "Songti SC",
     "Noto Sans CJK SC",
     "Noto Sans SC",
     "Source Han Sans SC",
@@ -33,7 +37,8 @@ fn system_font() -> Option<Arc<FontData>> {
         }
         filmcraft_text::fonts::scan_system();
         let faces: Vec<_> = filmcraft_text::fonts::all_faces().into_iter().filter(|f| f.info.origin == "system" && !f.info.italic).collect();
-        let covers = |f: &filmcraft_text::fonts::Face| SAMPLE.chars().all(|c| f.has_char(c));
+        // without keeping the files read: the fallback below may look through every installed font
+        let covers = |f: &filmcraft_text::fonts::Face| f.covers_transient(SAMPLE);
         let by_weight = |f: &&Arc<filmcraft_text::fonts::Face>| f.info.weight.abs_diff(400);
         let preferred = PREFERRED.iter().find_map(|name| faces.iter().filter(|f| f.info.family.eq_ignore_ascii_case(name) && covers(f)).min_by_key(by_weight));
         let face = preferred.or_else(|| faces.iter().filter(|f| covers(f)).min_by_key(by_weight))?;
