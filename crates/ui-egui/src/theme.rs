@@ -282,12 +282,16 @@ fn craft_font_name(f: &filmcraft_text::fonts::CraftFont) -> String {
     format!("craft:{} {}", f.family, f.style)
 }
 
-/// Append the Japanese craft-fonts (empty unless built with `CRAFT_FONTS_DIR`) as the last fallbacks
-/// of every font family, after the app's own fonts: BIZ UDPGothic first (bold before regular in
-/// the "semibold" and "medium" families), then the other Japanese faces.
+/// Append the Japanese and Chinese craft-fonts (empty unless built with `CRAFT_FONTS_DIR`) as the last fallbacks
+/// of every font family, after the app's own fonts: Japanese faces first so Japanese keeps Japanese glyph shapes,
+/// then the Simplified Chinese (Hans) faces.
 fn add_craft_fonts(fonts: &mut FontDefinitions) {
     let jpan: Vec<_> = filmcraft_text::fonts::craft_japanese().collect();
     for f in &jpan {
+        fonts.font_data.insert(craft_font_name(f), Arc::new(FontData::from_static(f.bytes)));
+    }
+    let hans: Vec<_> = filmcraft_text::fonts::craft_chinese().collect();
+    for f in &hans {
         fonts.font_data.insert(craft_font_name(f), Arc::new(FontData::from_static(f.bytes)));
     }
     for (family, stack) in fonts.families.iter_mut() {
@@ -295,6 +299,7 @@ fn add_craft_fonts(fonts: &mut FontDefinitions) {
         let mut order = jpan.clone();
         order.sort_by_key(|f| (!f.family.contains("Gothic"), (f.style == "Bold") != heavy));
         stack.extend(order.iter().map(|f| craft_font_name(f)));
+        stack.extend(hans.iter().map(|f| craft_font_name(f)));
     }
 }
 
