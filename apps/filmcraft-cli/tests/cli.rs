@@ -35,6 +35,9 @@ fn long_help_matches_help_command() {
     let short_help = cli(&["-h"]);
     assert!(short_help.status.success());
     assert_eq!(short_help.stdout, reference.stdout);
+    let sub_help = cli(&["export", "--help"]);
+    assert!(sub_help.status.success(), "export --help failed: {}", String::from_utf8_lossy(&sub_help.stderr));
+    assert_eq!(sub_help.stdout, reference.stdout);
 }
 
 #[test]

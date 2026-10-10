@@ -1250,7 +1250,7 @@ pub struct Project {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub source_graphics: BTreeMap<ItemId, SourceGraphic>,
     /// Narrations (Text to Speech): the script and voice settings each generated WAV item was
-    /// made from, keyed by that item. Schema v13.
+    /// made from, keyed by that item. Schema v14.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub narrations: BTreeMap<ItemId, Narration>,
 }

@@ -420,6 +420,29 @@ fn gpu_hook_scenarios() {
         let r = rx.recv_timeout(std::time::Duration::from_secs(60)).unwrap_or_else(|_| panic!("{name}: export with a rayon-using renderer hung"));
         r.unwrap();
     }
+    // 5. A renderer that panics is dropped, not put back: the export still completes, every
+    //    frame comes from the CPU (byte-equal to Off), and no renderer is used after its panic.
+    crate::reset_frame_renderers_for_tests();
+    PANICS.store(0, std::sync::atomic::Ordering::SeqCst);
+    crate::register_frame_renderer(|| FAKES.with(std::cell::Cell::get).then(|| Box::new(PanickingRenderer) as Box<dyn FrameRenderer>));
+    let (p, seq, m) = project();
+    let mk12 = |path: &String, gpu: crate::GpuRendering| {
+        let mut s = ExportSettings { format: Format::PngSequence, path: path.clone(), ..Default::default() };
+        s.range = Some(TimeRange::new(Tick::ZERO, FrameRate::FPS_24.tick_of(12)));
+        s.gpu_rendering = gpu;
+        export(&p, seq, &s, &m, &Progress::default()).unwrap()
+    };
+    mk12(&tmp("panic-off.png"), crate::GpuRendering::Off);
+    mk12(&tmp("panic-auto.png"), crate::GpuRendering::Auto);
+    for f in ["000", "005", "011"] {
+        assert_eq!(
+            std::fs::read(tmp(&format!("panic-off{f}.png"))).unwrap(),
+            std::fs::read(tmp(&format!("panic-auto{f}.png"))).unwrap(),
+            "frame {f}: a panicking GPU renderer falls back to the CPU"
+        );
+    }
+    // at most one panic per pooled renderer (4): none is used again after it panicked
+    assert!(PANICS.load(std::sync::atomic::Ordering::SeqCst) <= 4, "renderer reused after a panic: {}", PANICS.load(std::sync::atomic::Ordering::SeqCst));
     crate::reset_frame_renderers_for_tests();
     crate::register_frame_renderer(|| None);
 }
@@ -446,6 +469,24 @@ impl FrameRenderer for RayonRenderer {
             })
             .sum();
         (n == 120).then(|| filmcraft_render::render_sequence(project, seq, t, opts, sources))
+    }
+}
+
+static PANICS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+struct PanickingRenderer;
+
+impl FrameRenderer for PanickingRenderer {
+    fn render(
+        &mut self,
+        _project: &Project,
+        _seq: ItemId,
+        _t: Tick,
+        _opts: filmcraft_render::RenderOptions,
+        _sources: &dyn SourceProvider,
+    ) -> Option<filmcraft_render::Image> {
+        PANICS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        panic!("GPU renderer failure (test)");
     }
 }
 
