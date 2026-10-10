@@ -61,6 +61,39 @@ pub fn version(tag: &str) -> Option<[u64; 3]> {
     any.then_some(out)
 }
 
+/// Release notes (GitHub Markdown) as plain text for the window: headings without their `#`,
+/// list items as bullets, links as their text, no emphasis or code marks.
+pub fn plain(md: &str) -> String {
+    let link = |l: &str| {
+        // [text](url) → text
+        let mut out = String::with_capacity(l.len());
+        let mut rest = l;
+        while let Some(a) = rest.find('[') {
+            let Some(b) = rest[a..].find("](").map(|b| a + b) else { break };
+            let Some(c) = rest[b..].find(')').map(|c| b + c) else { break };
+            out.push_str(&rest[..a]);
+            out.push_str(&rest[a + 1..b]);
+            rest = &rest[c + 1..];
+        }
+        out.push_str(rest);
+        out
+    };
+    md.lines()
+        .map(|l| {
+            let t = l.trim_end();
+            let lead = t.len() - t.trim_start().len();
+            let body = t.trim_start();
+            let body = if body.starts_with('#') { body.trim_start_matches('#').trim_start().to_string() } else { body.to_string() };
+            let body = match body.strip_prefix("- ").or_else(|| body.strip_prefix("* ")) {
+                Some(item) => format!("{}• {item}", " ".repeat(lead)),
+                None => format!("{}{body}", " ".repeat(lead)),
+            };
+            link(&body).replace("**", "").replace('`', "")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// Read GitHub's answer (`status`, `body`) for a build of version `current`.
 pub fn read_release(current: &str, status: u16, body: &[u8]) -> UpdateCheck {
     let mut c = UpdateCheck { current: current.to_string(), url: RELEASES_PAGE.to_string(), ..Default::default() };
@@ -94,7 +127,7 @@ pub fn read_release(current: &str, status: u16, body: &[u8]) -> UpdateCheck {
     if let Some(u) = v["html_url"].as_str().filter(|u| u.starts_with(&format!("{RELEASES_PAGE}/")) && !u.contains(['\n', ' ', '"'])) {
         c.url = u.to_string();
     }
-    let notes = v["body"].as_str().unwrap_or_default().replace("\r\n", "\n");
+    let notes = plain(&v["body"].as_str().unwrap_or_default().replace("\r\n", "\n"));
     c.notes = if notes.chars().count() > NOTES_MAX {
         format!("{}…", notes.chars().take(NOTES_MAX).collect::<String>().trim_end())
     } else {
@@ -202,7 +235,7 @@ mod tests {
     fn a_release_is_read_and_compared_with_this_build() {
         let page = format!("{RELEASES_PAGE}/tag/v0.6.0");
         let c = read_release("0.5.0", 200, &release("v0.6.0", &page));
-        assert_eq!((c.latest.as_deref(), c.newer, c.url.as_str(), c.notes.as_str()), (Some("0.6.0"), true, page.as_str(), "Fixes.\n- Faster export"));
+        assert_eq!((c.latest.as_deref(), c.newer, c.url.as_str(), c.notes.as_str()), (Some("0.6.0"), true, page.as_str(), "Fixes.\n• Faster export"));
         assert_eq!(c.published.as_deref(), Some("2026-10-20T10:00:00Z"));
         assert!(!read_release("0.6.0", 200, &release("v0.6.0", &page)).newer, "the same version");
         assert!(!read_release("0.7.0", 200, &release("v0.6.0", &page)).newer, "an older release");
@@ -212,6 +245,17 @@ mod tests {
         // long notes are cut
         let long = json!({"tag_name": "v1.0.0", "body": "é".repeat(10_000)}).to_string();
         assert!(read_release("0.5.0", 200, long.as_bytes()).notes.chars().count() <= NOTES_MAX + 1);
+    }
+
+    #[test]
+    fn notes_lose_their_markdown() {
+        let md = "## What's new\n\n- **Faster** export, see [the docs](https://x.y/z)\n  * nested `code`\nPlain line";
+        assert_eq!(plain(md), "What's new\n\n• Faster export, see the docs\n  • nested code\nPlain line");
+        assert_eq!(plain("[unclosed (x"), "[unclosed (x");
+        assert_eq!(plain(""), "");
+        let notes = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/releases/0.6.0.md")).unwrap();
+        let p = plain(&notes);
+        assert!(!p.contains("##") && !p.contains("**") && p.contains("• Reframe to Face"), "{p}");
     }
 
     #[test]

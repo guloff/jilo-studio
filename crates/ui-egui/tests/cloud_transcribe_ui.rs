@@ -659,7 +659,7 @@ fn updates_are_checked_on_request_and_shown_in_a_window() {
             let body = json!({
                 "tag_name": t.lock().unwrap().clone(),
                 "html_url": page.clone(),
-                "body": "• Reframe to Face with Apple Vision\n• Highlights, Auto Zoom, YouTube chapters\n• 3 GB less memory at launch",
+                "body": include_str!("../../../docs/releases/0.6.0.md"),
                 "published_at": "2026-10-20T10:00:00Z",
             });
             Ok(Response::json(200, &body))
