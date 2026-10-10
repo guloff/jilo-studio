@@ -101,6 +101,57 @@ fn prores_export_roundtrip() {
     assert!(f[0] > 240 && f[1] < 15 && f[2] < 15, "{:?}", &f[..4]);
 }
 
+/// ProRes 4444 / 4444 XQ (#342): 12-bit 4:4:4 pictures, with the alpha channel when asked (the
+/// half-size red matte is transparent around itself); MXF refuses 4444.
+#[test]
+fn prores_4444_export_keeps_alpha() {
+    let (p, seq, m) = project();
+    let mut p = (*p).clone();
+    if let Some(m) = p.sequence_mut(seq).unwrap().video_tracks[0].items[0].effect_mut("motion") {
+        m.param_mut("scale").unwrap().value = filmcraft_project::ParamValue::Float(50.0);
+    }
+    let p = Arc::new(p);
+    for (profile, label, alpha) in [("4444", "ProRes 4444", true), ("4444", "ProRes 4444", false), ("4444xq", "ProRes 4444 XQ", true)] {
+        let path = tmp(&format!("pr_{profile}_{alpha}.mov"));
+        let s = ExportSettings { format: Format::ProRes, path: path.clone(), prores_profile: profile.into(), alpha, ..Default::default() };
+        export(&p, seq, &s, &m, &Progress::default()).unwrap();
+        let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
+        let src = filmcraft_codecs::open_bytes("pr.mov", bytes).unwrap();
+        let codec = src.info().video.as_ref().unwrap().codec.clone();
+        assert!(codec.contains(label), "{profile}: {codec}");
+        let f = src.video_frame(FrameRequest::full(Tick(TICKS_PER_SECOND / 3))).unwrap();
+        let filmcraft_frame::PixelData::Yuv16 { chroma, bits, alpha: a, .. } = &f.data else { panic!("{profile}: {}", f.format_label()) };
+        assert_eq!((*chroma, *bits), (filmcraft_frame::Chroma::C444, 12), "{profile}");
+        assert_eq!(a.is_some(), alpha, "{profile}: alpha plane");
+        if let Some(a) = a {
+            let (w, h) = (f.width as usize, f.height as usize);
+            assert_eq!(a[0], 0, "{profile}: transparent corner");
+            assert_eq!(a[(h / 2) * w + w / 2], 4095, "{profile}: opaque centre");
+        }
+        let px = f.to_rgba8();
+        let c = ((f.height as usize / 2) * f.width as usize + f.width as usize / 2) * 4;
+        assert!(px[c] > 240 && px[c + 1] < 15 && px[c + 2] < 15, "{profile}: {:?}", &px[c..c + 4]);
+        if let Some(ffprobe) = filmcraft_testkit::ffprobe_or_skip("export prores 4444") {
+            let out = std::process::Command::new(ffprobe)
+                .args(["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=profile,pix_fmt", "-of", "default=nw=1"])
+                .arg(&path)
+                .output()
+                .unwrap();
+            let txt = String::from_utf8_lossy(&out.stdout);
+            let fmt = if alpha { "yuva444p12le" } else { "yuv444p12le" };
+            assert!(txt.contains(fmt), "{profile} alpha {alpha}: {txt}");
+        }
+    }
+    let mxf = ExportSettings {
+        format: Format::MxfOp1a,
+        mxf_video_codec: crate::MxfVideoCodec::ProRes,
+        prores_profile: "4444".into(),
+        path: tmp("pr.mxf"),
+        ..Default::default()
+    };
+    assert!(matches!(mxf.validate(), Err(ExportError::Unsupported(_))), "MXF refuses 4444");
+}
+
 #[test]
 fn dnxhr_export_roundtrip() {
     let (p, seq, m) = project();

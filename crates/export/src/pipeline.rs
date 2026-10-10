@@ -176,7 +176,7 @@ impl Pipeline {
             geom,
             opts,
             hdr_out,
-            alpha: settings.alpha && matches!(settings.format, Format::PngSequence | Format::TiffSequence),
+            alpha: settings.alpha && (matches!(settings.format, Format::PngSequence | Format::TiffSequence) || crate::prores_4444(settings) && !hdr_out),
             out_tf,
             effects,
             overlay,

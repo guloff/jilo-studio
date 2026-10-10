@@ -539,6 +539,10 @@ impl ExportSettings {
                         Profile::Proxy => ", ProRes 422 Proxy",
                         Profile::Lt => ", ProRes 422 LT",
                         Profile::Standard => ", ProRes 422",
+                        Profile::P4444 if self.alpha => ", ProRes 4444 with alpha",
+                        Profile::P4444 => ", ProRes 4444",
+                        Profile::P4444Xq if self.alpha => ", ProRes 4444 XQ with alpha",
+                        Profile::P4444Xq => ", ProRes 4444 XQ",
                         _ => ", ProRes 422 HQ",
                     }
                 }

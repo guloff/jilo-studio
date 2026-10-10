@@ -606,7 +606,7 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
             }
         });
     }
-    if matches!(s.format, Format::PngSequence | Format::TiffSequence) {
+    if matches!(s.format, Format::PngSequence | Format::TiffSequence) || filmcraft_export::prores_4444(s) && !s.format.is_mxf() {
         row(ui, t, tl!("Alpha"), |ui| {
             check(ui, reg, "export.video.alpha", &mut s.alpha, tl!("Include Alpha Channel"));
         });
@@ -700,10 +700,14 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
         }
         Format::ProRes => {
             row(ui, t, tl!("Profile"), |ui| {
-                let keys = ["proxy", "lt", "standard", "hq"];
-                let labels = ["Apple ProRes 422 Proxy", "Apple ProRes 422 LT", "Apple ProRes 422", "Apple ProRes 422 HQ"];
+                // 4444 / 4444 XQ in QuickTime only (MXF here carries ProRes 422)
+                let all = ["proxy", "lt", "standard", "hq", "4444", "4444xq"];
+                let all_labels =
+                    ["Apple ProRes 422 Proxy", "Apple ProRes 422 LT", "Apple ProRes 422", "Apple ProRes 422 HQ", "Apple ProRes 4444", "Apple ProRes 4444 XQ"];
+                let n = if s.format.is_mxf() { 4 } else { 6 };
+                let (keys, labels) = (&all[..n], &all_labels[..n]);
                 let cur = keys.iter().position(|k| *k == s.prores_profile).unwrap_or(3);
-                if let Some(i) = combo(ui, reg, "export.video.proresProfile", labels[cur], &opts(&labels), 220.0) {
+                if let Some(i) = combo(ui, reg, "export.video.proresProfile", labels[cur], &opts(labels), 220.0) {
                     s.prores_profile = keys[i].into();
                 }
             });
