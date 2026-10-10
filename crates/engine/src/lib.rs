@@ -12,6 +12,7 @@
 
 pub mod aaf_omf;
 pub mod ai;
+pub mod ai_tasks;
 pub mod autosave;
 pub mod captions;
 pub mod clip_ops;
@@ -56,6 +57,7 @@ pub mod silence_tools;
 pub mod source_monitor;
 pub mod sync;
 pub mod transcript;
+pub mod translate;
 pub mod trim;
 pub mod voiceover;
 
@@ -437,6 +439,8 @@ pub struct Session {
     /// Transcripts recognised in the background (`transcript.recognize`), waiting for
     /// `transcript.generate`.
     pub recognition_cache: recognition::RecognitionCache,
+    /// Answers of cloud text features fetched in the background, waiting to be applied.
+    pub ai_task_cache: ai_tasks::TaskCache,
     /// The Events panel log: failed commands, job results, auto-save errors, messages.
     pub log: panels::EventLog,
     /// Media Browser navigation (directory, back / forward history, selected files).
@@ -534,6 +538,7 @@ impl Session {
             ai_sleep: None,
             ai_models: Default::default(),
             recognition_cache: Default::default(),
+            ai_task_cache: Default::default(),
             log: Default::default(),
             browser: Default::default(),
             exec_depth: 0,
@@ -1108,6 +1113,8 @@ const MAX_SUBCLIP_CHAIN: usize = 16;
 
 #[cfg(test)]
 mod aaf_omf_tests;
+#[cfg(test)]
+mod ai_features_tests;
 #[cfg(test)]
 mod ai_tests;
 #[cfg(test)]

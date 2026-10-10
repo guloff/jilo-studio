@@ -129,6 +129,11 @@ pub fn target_seconds(s: &Session, p: &Value) -> f64 {
 /// Make sure the user agreed to send audio to `provider`: Settings ▸ AI remembers it; `confirm:
 /// true` gives (and records) it.
 pub fn ensure_consent(s: &mut Session, provider: Provider, p: &Value, cmd: &str, seconds: f64) -> Result<()> {
+    ensure_consent_for(s, provider, p, cmd, &format!("{} of audio", minutes(seconds)))
+}
+
+/// [`ensure_consent`] for sending `what` (text of the transcript, captions…).
+pub fn ensure_consent_for(s: &mut Session, provider: Provider, p: &Value, cmd: &str, what: &str) -> Result<()> {
     if s.prefs.ai.confirmed(provider) {
         return Ok(());
     }
@@ -138,14 +143,7 @@ pub fn ensure_consent(s: &mut Session, provider: Provider, p: &Value, cmd: &str,
         s.execute("prefs.set", json!({"key": "ai.confirmedProviders", "value": list}))?;
         return Ok(());
     }
-    Err(bad(
-        cmd,
-        format!(
-            "CONFIRM_CLOUD: {} would receive {} of audio. Ask the user, then pass confirm: true (asked once per provider).",
-            provider.name(),
-            minutes(seconds)
-        ),
-    ))
+    Err(bad(cmd, format!("CONFIRM_CLOUD: {} would receive {what}. Ask the user, then pass confirm: true (asked once per provider).", provider.name())))
 }
 
 fn minutes(seconds: f64) -> String {
@@ -222,10 +220,7 @@ pub fn recognize(s: &mut Session, p: &Value) -> Result<Value> {
     if sources.is_empty() {
         return Err(EngineError::Other("none of the clips has audio to transcribe".into()));
     }
-    let label = match &plan.engine {
-        EngineChoice::Local(m) => format!("Transcribing with {m}"),
-        EngineChoice::Cloud { provider, .. } => format!("Transcribing with {} (cloud)", provider.name()),
-    };
+    let label = "Transcribing".to_string();
     let engine = plan.engine.describe();
     let job = crate::narration::new_job(s, label);
     job.progress.total.store(1000 * sources.len() as u64, Ordering::Relaxed);
@@ -250,7 +245,7 @@ fn run_job(
         if prog.cancel.load(Ordering::Relaxed) {
             return Err("stopped".into());
         }
-        *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = "Reading the audio…".into();
+        *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("{}: reading the audio…", plan.engine.describe());
         let Some(audio) = source_audio(src, *dur) else { continue };
         let base = 1000 * n as u64;
         let mut progress = |f: f32, status: &str| {

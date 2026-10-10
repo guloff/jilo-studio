@@ -16,14 +16,24 @@ use serde_json::{Value, json};
 struct Driver {
     harness: Harness<'static, FilmcraftApp>,
     tx: Sender<ControlRequest>,
+    snapshots: Option<std::path::PathBuf>,
 }
 
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
         let app = FilmcraftApp::new(session).with_control(rx);
-        let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
-        let mut d = Driver { harness, tx };
+        // FILMCRAFT_UI_SNAPSHOT_DIR=<dir>: also render the window with wgpu and write ai-*.png there
+        let snapshots = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
+        let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
+        if snapshots.is_some() {
+            b = b.wgpu();
+        }
+        let harness = b.build_eframe(move |_cc| app);
+        let mut d = Driver { harness, tx, snapshots };
+        if let Ok(lang) = std::env::var("FILMCRAFT_UI_SNAPSHOT_LANG") {
+            d.ok("engine.execute", json!({"command": "prefs.set", "params": {"key": "general.interfaceLanguage", "value": lang}}));
+        }
         d.frames(4);
         d
     }
@@ -59,6 +69,18 @@ impl Driver {
     fn ids(&mut self, prefix: &str) -> Vec<String> {
         let v = self.ok("ui.elements", json!({"prefix": prefix}));
         v.as_array().unwrap().iter().filter_map(|e| e["id"].as_str().map(str::to_string)).collect()
+    }
+
+    fn snapshot(&mut self, name: &str) {
+        let Some(dir) = self.snapshots.clone() else { return };
+        self.frames(3);
+        match self.harness.render() {
+            Ok(img) => {
+                std::fs::create_dir_all(&dir).unwrap();
+                img.save(dir.join(format!("ai-{name}.png"))).unwrap();
+            }
+            Err(e) => eprintln!("snapshot {name} skipped: {e}"),
+        }
     }
 
     fn click(&mut self, id: &str) {
@@ -116,11 +138,13 @@ fn cloud_transcription_asks_once_runs_in_the_background_and_adds_the_transcript(
     d.click("text.transcript.engine.gemini");
     d.click("text.transcript.language");
     d.click("text.transcript.language.tg");
+    d.snapshot("transcribe-empty");
     let prefs = d.ok("engine.execute", json!({"command": "prefs.get", "params": json!({"key": "ai.speechEngine"})}));
     assert_eq!(prefs, "gemini", "{prefs}");
     // Transcribe asks before anything is sent
     d.click("text.transcript.generate");
     assert!(d.ids("transcribe.consent").contains(&"transcribe.consent.send".to_string()));
+    d.snapshot("transcribe-consent");
     assert!(fake.sent().is_empty(), "nothing goes out before the user agrees");
     // Cancel leaves everything as it was
     d.click("transcribe.consent.cancel");
@@ -140,6 +164,7 @@ fn cloud_transcription_asks_once_runs_in_the_background_and_adds_the_transcript(
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     assert!(added, "the transcript was added");
+    d.snapshot("transcribe-done");
     assert!(!fake.sent().is_empty());
     let t = d.ok("engine.execute", json!({"command": "transcript.inspect", "params": json!({})}));
     assert_eq!(t["items"][0]["language"], "tg");
@@ -175,6 +200,7 @@ fn filler_words_are_chosen_in_a_dialog() {
     d.click("text.transcript.removeFillers");
     let ids = d.ids("fillers.");
     assert!(ids.contains(&"fillers.item.э".to_string()) && ids.contains(&"fillers.item.ну".to_string()), "{ids:?}");
+    d.snapshot("fillers");
     // choose "ну" too, then remove
     d.click("fillers.item.ну");
     d.click("fillers.remove");
@@ -182,4 +208,59 @@ fn filler_words_are_chosen_in_a_dialog() {
     let t = d.ok("engine.execute", json!({"command": "transcript.inspect", "params": {}}));
     let left: Vec<&str> = t["words"].as_array().unwrap().iter().filter_map(|w| w["text"].as_str()).collect();
     assert_eq!(left, ["Сегодня", "мы", "монтируем"]);
+}
+
+/// Captions ▸ Translate: the language, the consent for the caption text, the background job, the
+/// new track.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn captions_are_translated_from_the_captions_tab() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-translate-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |r| {
+            let b = r.json().unwrap_or_default();
+            let user: Value = serde_json::from_str(b["contents"][0]["parts"][1]["text"].as_str().unwrap_or("{}")).unwrap_or_default();
+            let items: Vec<Value> = user["items"].as_array().cloned().unwrap_or_default().iter().map(|i| json!({"id": i["id"], "text": "Привет"})).collect();
+            let answer = json!({"items": items});
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": answer.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "gemini", "key": "k"})).unwrap();
+    s.execute("captions.newTrack", json!({"language": "en", "name": "English"})).unwrap();
+    s.execute("captions.add", json!({"text": "Hello", "seconds": 1.0})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
+    d.frames(2);
+    d.click("text.tab.Captions");
+    d.click("text.captions.translate");
+    d.snapshot("translate-dialog");
+    d.click("translate.to");
+    d.click("translate.to.ru");
+    d.click("translate.go");
+    assert!(d.ids("aiTask.consent").contains(&"aiTask.consent.send".to_string()), "asks before the text goes out");
+    d.snapshot("translate-consent");
+    assert!(fake.sent().is_empty());
+    d.click("aiTask.consent.send");
+    let mut tracks = 0;
+    for _ in 0..400 {
+        d.frames(2);
+        let q = d.ok("engine.execute", json!({"command": "captions.list", "params": {}}));
+        tracks = q["tracks"].as_array().map_or(0, Vec::len);
+        if tracks == 2 {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(tracks, 2, "the translated track was added");
+    d.snapshot("translate-done");
+    let _ = std::fs::remove_dir_all(&dir);
 }

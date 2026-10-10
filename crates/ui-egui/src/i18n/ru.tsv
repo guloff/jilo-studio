@@ -3589,3 +3589,19 @@ mode	Edit	Монтаж
 	Hesitations are chosen; words like “well” or “like” can carry meaning, so choose them yourself.	Мычание уже отмечено; слова вроде «ну» или «типа» бывают по делу, их отметьте сами.
 	No filler words found in this transcript.	В расшифровке нет слов-паразитов.
 	Removed {n} filler words	Удалено слов-паразитов: {n}
+# Cloud text features: consent, translation
+	A new caption track in this language, with the same timing and style.	Новая дорожка субтитров на этом языке, с тем же таймингом и стилем.
+	Send {what} to {provider}?	Отправить {what} в {provider}?
+	Translate Captions	Перевод субтитров
+	Translate captions…	Перевести субтитры…
+	Translate into	Перевести на
+	Translate	Перевести
+	You are asked once per provider; Settings ▸ AI changes the engine.	Разрешение спрашивается один раз для каждого провайдера; движок меняется в Настройках ▸ ИИ.
+	{label}: done	{label}: готово
+	{name} · captions: {n}	{name} · субтитров: {n}
+	{app} will send {what} to {provider} with your API key. {provider} handles it under its own terms.	{app} отправит {what} в {provider} с вашим ключом API. {provider} обрабатывает данные по своим правилам.
+	the caption text	текст субтитров
+	Translating captions	Перевод субтитров
+	Transcribing	Расшифровка
+	Uzbek	Узбекский
+	Persian	Персидский

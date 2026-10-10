@@ -79,3 +79,16 @@ Captions are set in Inter SemiBold (OFL, bundled) by the text engine (`crates/te
 kerning, bidi); italics/bold markup is not yet drawn differently. The captions of a nested sequence
 are part of the nest's picture: they are drawn wherever the nest is shown, in the Program monitor
 and in every export, whether or not the outer sequence shows or burns in its own.
+
+## Translating captions
+
+Text panel ▸ Captions ▸ Translate captions (`captions.translate {track, to}`) makes a new caption
+track in another language with the text engine of Settings ▸ AI (Gemini or OpenAI): the captions go
+in batches of 40 as `{"items": [{"id", "text"}]}`, translated for meaning in spoken style at about the
+original length, ids and order kept, nothing merged or split. The new track sits under the source,
+named "<language> (translated from <language>)", with the source's timing, speakers and style; a
+caption the engine skipped keeps its text. Nothing is sent before the user's one-time consent for
+the provider. The interface fetches the translation in the background (the status bar and the
+Progress panel show it, with Cancel) and adds the track in one undo step (`background: true`, then
+the same command again; see `filmcraft_engine::ai_tasks`).
+

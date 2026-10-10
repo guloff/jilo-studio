@@ -380,6 +380,22 @@ pub struct Eyedropper {
     pub mask: Option<usize>,
 }
 
+/// A cloud text feature started from the interface: its command and parameters, what it sends and
+/// what it does (for the consent and the progress window), its background job.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AiTaskUi {
+    pub command: String,
+    pub params: serde_json::Value,
+    pub label: String,
+    pub what: String,
+    /// Waiting for the user's consent.
+    pub confirm: bool,
+    /// The user agreed in this task's dialog.
+    pub confirmed: bool,
+    pub job: Option<u64>,
+}
+
 /// Text panel ▸ Transcribe while it works: the background recognition (`transcript.recognize`), its
 /// parameters (`transcript.generate` applies the result with the same ones), a cloud recognition
 /// waiting for the user's consent, and the last message.
@@ -457,6 +473,18 @@ pub struct UiState {
     /// Text panel ▸ Transcribe: the running recognition and a pending cloud consent.
     #[serde(default)]
     pub transcribe: TranscribeUi,
+    /// Text panel ▸ Captions ▸ Translate: the track whose language is being chosen.
+    #[serde(default)]
+    pub translate_track: Option<u64>,
+    /// … and the target language chosen last.
+    #[serde(default)]
+    pub translate_to: String,
+    /// A cloud text feature running from the interface (`panels::ai_tasks`).
+    #[serde(default)]
+    pub ai_task: Option<AiTaskUi>,
+    /// The last applied cloud task: (command, result), for the panel that shows it.
+    #[serde(skip)]
+    pub ai_task_result: Option<(String, serde_json::Value)>,
     /// Text panel ▸ Remove filler words: the found fillers being chosen (`transcript.fillers`).
     #[serde(default)]
     pub fillers: Option<Vec<serde_json::Value>>,
@@ -946,6 +974,10 @@ impl Default for UiState {
             transcript_search: String::new(),
             transcribe: TranscribeUi::default(),
             fillers: None,
+            ai_task: None,
+            translate_track: None,
+            translate_to: String::new(),
+            ai_task_result: None,
             play_after_render: true,
             mixer_fx_open: false,
             mixer_hidden: Vec::new(),

@@ -3597,3 +3597,19 @@
 	Hesitations are chosen; words like “well” or “like” can carry meaning, so choose them yourself.	Las vacilaciones ya están elegidas; palabras como «bueno» o «tipo» pueden tener sentido, así que elígelas tú.
 	No filler words found in this transcript.	No se han encontrado muletillas en esta transcripción.
 	Removed {n} filler words	Muletillas quitadas: {n}
+# Cloud text features: consent, translation
+	A new caption track in this language, with the same timing and style.	Una pista de subtítulos nueva en este idioma, con los mismos tiempos y estilo.
+	Send {what} to {provider}?	¿Enviar {what} a {provider}?
+	Translate Captions	Traducir subtítulos
+	Translate captions…	Traducir subtítulos…
+	Translate into	Traducir al
+	Translate	Traducir
+	You are asked once per provider; Settings ▸ AI changes the engine.	Se pregunta una vez por proveedor; el motor se cambia en Ajustes ▸ IA.
+	{label}: done	{label}: listo
+	{name} · captions: {n}	{name} · subtítulos: {n}
+	{app} will send {what} to {provider} with your API key. {provider} handles it under its own terms.	{app} enviará {what} a {provider} con tu clave de API. {provider} lo trata según sus propias condiciones.
+	the caption text	el texto de los subtítulos
+	Translating captions	Traduciendo subtítulos
+	Transcribing	Transcribiendo
+	Uzbek	Uzbeko
+	Persian	Persa

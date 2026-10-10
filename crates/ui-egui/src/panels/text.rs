@@ -139,7 +139,7 @@ fn captions(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let ph = app.session.playhead();
     let any_sel = !sel.is_empty();
     let under = track.caption_at(ph).filter(|c| c.start < ph).map(|c| c.id);
-    let tools: [(Icon, &str, &str, bool, &str, Value); 5] = [
+    let tools: [(Icon, &str, &str, bool, &str, Value); 6] = [
         (Icon::Plus, "text.captions.add", tl!("Add caption at playhead"), track.caption_at(ph).is_none(), "captions.add", json!({"track": track.id.0})),
         (
             Icon::Razor,
@@ -152,6 +152,14 @@ fn captions(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         (Icon::Link, "text.captions.merge", tl!("Merge selected captions"), sel.len() > 1, "captions.merge", json!({})),
         (Icon::Trash, "text.captions.delete", tl!("Delete selected captions"), any_sel, "captions.delete", json!({})),
         (Icon::Export, "text.captions.export", "Export captions…", !track.captions.is_empty(), "captions.export", json!({"track": track.id.0})),
+        (
+            Icon::Globe,
+            "text.captions.translate",
+            tl!("Translate captions…"),
+            !track.captions.is_empty() && app.ui.ai_task.is_none(),
+            "ui.translateMenu",
+            json!({"track": track.id.0}),
+        ),
     ];
     for (icon, id, label, enabled, cmd, params) in tools {
         let r = Rect::from_min_size(pos2(x, bar.min.y), vec2(24.0, 24.0));
@@ -159,10 +167,15 @@ fn captions(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             break;
         }
         if tool_button(app, ui, r, icon, id, label, enabled) {
+            if cmd == "ui.translateMenu" {
+                app.ui.translate_track = params["track"].as_u64();
+                continue;
+            }
             actions.push((cmd.into(), params));
         }
         x += 28.0;
     }
+    translate_dialog(app, ui.ctx());
 
     // ---- style strip
     let style_h = 30.0;
@@ -375,6 +388,67 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     });
     fillers_dialog(app, ui.ctx());
     run(app, ui, actions);
+}
+
+/// Target languages offered for caption translation.
+const TRANSLATE_LANGUAGES: [(&str, &str); 6] = [("ru", "Russian"), ("tg", "Tajik"), ("en", "English"), ("uz", "Uzbek"), ("fa", "Persian"), ("es", "Spanish")];
+
+/// Text panel ▸ Captions ▸ Translate captions: the target language, then a background translation
+/// into a new track (the status bar shows its progress).
+fn translate_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+    let Some(track) = app.ui.translate_track else { return };
+    let t = app.tokens;
+    let (mut go, mut cancel) = (false, false);
+    let w = 380.0;
+    if app.ui.translate_to.is_empty() {
+        app.ui.translate_to = "ru".into();
+    }
+    let source = app.session.active_sequence().and_then(|q| q.caption_tracks.iter().find(|c| c.id.0 == track)).map(|c| (c.name.clone(), c.captions.len()));
+    egui::Modal::new(egui::Id::new("translate-dialog")).frame(crate::dialog_style::frame(&t)).show(ctx, |ui| {
+        ui.set_width(w);
+        let bar = crate::dialog_style::header(ui, tl!("Translate Captions"), w);
+        app.auto.add("translate.dialog", bar, "Translate Captions");
+        egui::Frame::new().inner_margin(egui::Margin::symmetric(18, 14)).show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 10.0;
+            if let Some((name, n)) = &source {
+                ui.label(egui::RichText::new(tlf!("{name} · captions: {n}", name, n)).color(t.text_dim));
+            }
+            ui.horizontal(|ui| {
+                ui.label(tl!("Translate into"));
+                let cur = TRANSLATE_LANGUAGES.iter().find(|l| l.0 == app.ui.translate_to).map_or("", |l| l.1);
+                let mut items: Vec<(String, egui::Rect, &str)> = Vec::new();
+                let r = egui::ComboBox::from_id_salt("translate.to").width(180.0).selected_text(crate::i18n::t(cur)).show_ui(ui, |ui| {
+                    for (code, name) in TRANSLATE_LANGUAGES {
+                        let r = ui.selectable_label(app.ui.translate_to == code, crate::i18n::t(name));
+                        items.push((format!("translate.to.{code}"), r.rect, name));
+                        if r.clicked() {
+                            app.ui.translate_to = code.to_string();
+                        }
+                    }
+                });
+                app.auto.add("translate.to", r.response.rect, "Translate into");
+                for (id, rect, l) in items {
+                    app.auto.add(&id, rect, l);
+                }
+            });
+            ui.label(egui::RichText::new(tl!("A new caption track in this language, with the same timing and style.")).color(t.text_dim).small());
+            crate::dialog_style::actions(ui, |ui| {
+                let g = ui.add(crate::dialog_style::primary(tl!("Translate")));
+                app.auto.add("translate.go", g.rect, "Translate");
+                let c = ui.add(crate::dialog_style::secondary(tl!("Cancel")));
+                app.auto.add("translate.cancel", c.rect, "Cancel");
+                go = g.clicked();
+                cancel = c.clicked();
+            });
+        });
+    });
+    if go {
+        app.ui.translate_track = None;
+        let to = app.ui.translate_to.clone();
+        crate::panels::ai_tasks::start(app, "captions.translate", json!({"track": track, "to": to}), "Translating captions", "the caption text");
+    } else if cancel || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        app.ui.translate_track = None;
+    }
 }
 
 /// Text panel ▸ Remove filler words: the fillers found, hesitations chosen, discourse words not.
