@@ -354,7 +354,7 @@ pub fn commands() -> Vec<CommandSpec> {
         label: "Auto Zoom…",
         menu: &["Clip"],
         shortcut: None,
-        params: r#"{"method":"loudness|meaning"?,"intensity":1.02-1.6?,"style":"cut|smooth"?,"minGap":2-60?,"clips":[id]?,"engine":"gemini|openai"?,"model":str?,"confirm":bool?,"background":bool?}"#,
+        params: r#"{"method":"loudness|meaning"?,"intensity":1.02-1.6?,"style":"cut|smooth"?,"minGap":2-60?,"clips":[id]?,"engine":"gemini|openai|anthropic"?,"model":str?,"confirm":bool?,"background":bool?}"#,
         enabled: crate::transcript::has_transcript,
         run: auto_zoom,
         journal: true,

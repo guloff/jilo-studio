@@ -497,6 +497,19 @@ pub struct UpdatesUi {
     pub result: Option<serde_json::Value>,
 }
 
+/// File ▸ New ▸ Generate Image… (`panels::imagegen`).
+#[derive(Clone, Debug, Default)]
+pub struct ImageGenUi {
+    pub dialog: bool,
+    pub prompt: String,
+    /// `openai` | `gemini`.
+    pub engine: String,
+    /// `landscape` | `portrait` | `square`.
+    pub shape: String,
+    /// Put the picture on the timeline at the playhead.
+    pub place: bool,
+}
+
 /// Sequence ▸ YouTube Title, Description and Chapters… (`panels::youtube`).
 #[derive(Clone, Debug, Default)]
 pub struct YouTubeUi {
@@ -656,6 +669,9 @@ pub struct UiState {
     /// Whether the report was looked for (once per run).
     #[serde(skip)]
     pub crash_report_taken: bool,
+    /// File ▸ New ▸ Generate Image…: the dialog and its choices.
+    #[serde(skip)]
+    pub imagegen: ImageGenUi,
     /// Help ▸ Check for Updates…: the check and its window.
     #[serde(skip)]
     pub updates: UpdatesUi,
@@ -1155,6 +1171,7 @@ impl Default for UiState {
             auto_zoom: AutoZoomUi::default(),
             reframe: ReframeUi::default(),
             updates: UpdatesUi::default(),
+            imagegen: ImageGenUi::default(),
             crash_report: None,
             crash_report_taken: false,
             youtube: YouTubeUi::default(),

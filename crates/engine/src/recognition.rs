@@ -98,7 +98,9 @@ pub fn engine_choice(s: &Session, p: &Value, cmd: &str) -> Result<EngineChoice> 
     match id.as_str() {
         "" | "whisper" | "local" => Ok(EngineChoice::Local(str_p(p, "model").unwrap_or(&s.prefs.media_analysis.whisper_model).to_string())),
         other => {
-            let provider = Provider::from_id(other).ok_or_else(|| bad(cmd, format!("unknown engine `{other}` (whisper, gemini or openai)")))?;
+            let provider = Provider::from_id(other)
+                .filter(|p| p.does_speech())
+                .ok_or_else(|| bad(cmd, format!("unknown engine `{other}` (whisper, gemini, openai or elevenlabs)")))?;
             let model = str_p(p, "model").map(str::to_string).unwrap_or_else(|| s.prefs.ai.speech_model(provider));
             Ok(EngineChoice::Cloud { provider, model })
         }

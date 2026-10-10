@@ -3768,3 +3768,24 @@
 # Settings ▸ General ▸ daily update check
 	Check for updates once a day	Buscar actualizaciones una vez al día
 	The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once.	La comprobación pregunta a GitHub por la última versión de FilmCraft y no envía nada más; cada versión nueva se ofrece una vez.
+# Settings ▸ AI: Claude, ElevenLabs, image generation; File ▸ New ▸ Generate Image
+	A lighthouse on a cliff at dawn, soft mist, wide shot	Un faro en un acantilado al amanecer, niebla suave, plano general
+	Anthropic Claude (cloud)	Anthropic Claude (en la nube)
+	Claude model	Modelo de Claude
+	Describe the picture	Describe la imagen
+	ElevenLabs Scribe (cloud)	ElevenLabs Scribe (en la nube)
+	ElevenLabs model	Modelo de ElevenLabs
+	ElevenLabs voice model	Modelo de voz de ElevenLabs
+	Generate Image	Generar imagen
+	Generate Image…	Generar imagen…
+	Image Generation	Generación de imágenes
+	Image added: {name}	Imagen añadida: {name}
+	Put it on the timeline at the playhead	Ponerla en la línea de tiempo en el cabezal
+	Voices	Voces
+	Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper funciona en este ordenador y no envía nada. Los motores en la nube envían audio, texto o la descripción de una imagen a Google, OpenAI, Anthropic o ElevenLabs solo cuando usas una función de IA con ellos; FilmCraft lo avisa la primera vez.
+	The description goes to {provider}. The picture is saved with the project's media and imported as a still; undo removes it.	La descripción se envía a {provider}. La imagen se guarda con los medios del proyecto y se importa como imagen fija; deshacer la quita.
+	Generating an image	Generando una imagen
+	the picture's description	la descripción de la imagen
+	Landscape	Horizontal
+	Portrait	Vertical
+	Picture shape	Formato

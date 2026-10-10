@@ -19,6 +19,7 @@ pub mod frame_export;
 pub mod graphics;
 pub mod graphics_templates;
 pub mod highlights;
+pub mod imagegen;
 pub mod import_mode;
 pub mod interchange_export;
 pub mod keyboard;

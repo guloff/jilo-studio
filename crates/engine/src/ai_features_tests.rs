@@ -735,3 +735,56 @@ fn reframing_without_faces_or_a_face_finder_says_why() {
     assert!(s.execute("clip.facesAt", json!({"clips": [clip]})).is_err());
     assert_eq!(s.history.undo.len(), undo);
 }
+
+/// A real PNG of `w` × `h`, as an image engine answers.
+fn png_bytes(w: u32, h: u32) -> Vec<u8> {
+    let mut out = std::io::Cursor::new(Vec::new());
+    image::RgbaImage::from_pixel(w, h, image::Rgba([200, 60, 40, 255])).write_to(&mut out, image::ImageFormat::Png).unwrap();
+    out.into_inner()
+}
+
+#[test]
+fn a_generated_image_is_imported_and_placed_after_consent() {
+    let (mut s, fake, dir) = session("imagegen");
+    s.execute("ai.setKey", json!({"provider": "openai", "key": "k2"})).unwrap();
+    let b64 = filmcraft_ai::base64::encode(&png_bytes(64, 36));
+    fake.route(|r| r.url.ends_with("/images/generations"), move |_| Ok(Response::json(200, &json!({"data": [{"b64_json": b64}]}))));
+    let p = json!({"prompt": "a lighthouse at dawn", "dir": dir.to_string_lossy(), "place": true});
+    let e = s.execute("ai.generateImage", p.clone()).unwrap_err().to_string();
+    assert!(e.contains("CONFIRM_CLOUD"), "asks before the description goes out: {e}");
+    assert!(fake.sent().is_empty());
+    // in the background, then applied by the same call
+    let mut bg = p.clone();
+    bg["confirm"] = json!(true);
+    bg["background"] = json!(true);
+    let r = s.execute("ai.generateImage", bg).unwrap();
+    let job = r["job"].as_u64().unwrap();
+    for _ in 0..500 {
+        if s.jobs.iter().find(|j| j.id == job).is_some_and(|j| j.to_json()["finished"] == true) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    let undo = s.history.undo.len();
+    let r = s.execute("ai.generateImage", p.clone()).unwrap();
+    assert_eq!(fake.sent().len(), 1, "applying sends nothing again");
+    let body = fake.sent()[0].json().unwrap();
+    assert_eq!((body["model"].as_str(), body["size"].as_str()), (Some("gpt-image-1"), Some("1536x1024")), "the sequence is landscape");
+    let path = r["path"].as_str().unwrap();
+    assert!(path.ends_with(".png") && std::path::Path::new(path).exists(), "{r}");
+    let item = filmcraft_project::ItemId(r["item"].as_u64().unwrap());
+    assert!(s.project.item(item).is_some_and(|i| i.has_video()));
+    assert_eq!(r["clips"].as_array().map(Vec::len), Some(1), "placed at the playhead: {r}");
+    assert!(s.history.undo.len() > undo);
+    // hostile parameters
+    for bad in [
+        json!({}),
+        json!({"prompt": "  "}),
+        json!({"prompt": "x", "engine": "anthropic"}),
+        json!({"prompt": "x", "shape": "round"}),
+        json!({"prompt": "é".repeat(4001)}),
+    ] {
+        assert!(s.execute("ai.generateImage", bad.clone()).is_err(), "{bad}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -121,7 +121,7 @@ pub fn commands() -> Vec<CommandSpec> {
         label: "Translate Captions…",
         menu: &[],
         shortcut: None,
-        params: r#"{"track":id|"C1"?,"to":"ru|tg|en|…","engine":"gemini|openai"?,"model":str?,"confirm":bool?,"background":bool?}"#,
+        params: r#"{"track":id|"C1"?,"to":"ru|tg|en|…","engine":"gemini|openai|anthropic"?,"model":str?,"confirm":bool?,"background":bool?}"#,
         enabled: crate::commands::has_seq,
         run: translate,
         journal: true,

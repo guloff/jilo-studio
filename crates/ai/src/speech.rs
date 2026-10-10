@@ -253,6 +253,8 @@ pub fn transcribe(ctx: &Ctx, provider: Provider, key: &Secret, model: &str, req:
     match provider {
         Provider::Gemini => gemini_transcribe(ctx, key, model, req),
         Provider::OpenAi => openai_transcribe(ctx, key, model, req),
+        Provider::ElevenLabs => crate::elevenlabs::transcribe(ctx, key, model, req),
+        Provider::Anthropic => Err(AiError::Api(provider, "Claude does not recognise speech; choose Whisper, Gemini, OpenAI or ElevenLabs".into())),
     }
 }
 
@@ -261,7 +263,7 @@ pub fn transcribe(ctx: &Ctx, provider: Provider, key: &Secret, model: &str, req:
 pub fn max_window_seconds(provider: Provider) -> f64 {
     match provider {
         Provider::Gemini => 120.0,
-        Provider::OpenAi => 600.0,
+        Provider::OpenAi | Provider::ElevenLabs | Provider::Anthropic => 600.0,
     }
 }
 

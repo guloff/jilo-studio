@@ -188,10 +188,14 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
     // a retired cloud model was replaced: Settings ▸ AI remembers the replacement
     if let (crate::recognition::EngineChoice::Cloud { provider, .. }, Some(m)) = (&engine, cached.iter().find_map(|r| r.model_switched.clone())) {
         let k = match provider {
-            filmcraft_ai::Provider::Gemini => "ai.geminiSpeechModel",
-            filmcraft_ai::Provider::OpenAi => "ai.openaiSpeechModel",
+            filmcraft_ai::Provider::Gemini => Some("ai.geminiSpeechModel"),
+            filmcraft_ai::Provider::OpenAi => Some("ai.openaiSpeechModel"),
+            filmcraft_ai::Provider::ElevenLabs => Some("ai.elevenlabsSpeechModel"),
+            filmcraft_ai::Provider::Anthropic => None,
         };
-        s.execute("prefs.set", json!({"key": k, "value": m}))?;
+        if let Some(k) = k {
+            s.execute("prefs.set", json!({"key": k, "value": m}))?;
+        }
     }
     let report: Vec<Value> = cached
         .iter()

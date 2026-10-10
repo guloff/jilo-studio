@@ -78,7 +78,8 @@ real time.
 ### Cloud engines
 
 Settings ▸ AI (or `engine` on `transcript.generate` / `transcript.recognize`) can choose Google
-Gemini or OpenAI instead of Whisper (`filmcraft_engine::recognition`). Nothing is sent before the
+Gemini, OpenAI or ElevenLabs (Scribe, `scribe_v1`: a time for every word and speaker labels) instead
+of Whisper (`filmcraft_engine::recognition`). Nothing is sent before the
 user agreed for that provider (the Text panel asks once; agents pass `confirm: true`); the panel says
 how much audio would go out. The recording goes window by window as 16-bit mono 16 kHz WAV
 (Gemini: 2 minutes, OpenAI `whisper-1`: 10 minutes) with 3 s of overlap, 3 windows at a time; every
@@ -90,6 +91,30 @@ kept to 84 characters / 7 s, and the result becomes an ordinary transcript (`sou
 model's labels or FilmCraft's own labelling. `transcript.recognize` runs it as a background job
 (progress, Stop) and keeps the transcript until `transcript.generate` with the same settings adds it
 as one undo step; the report gives the windows, retries, uncovered seconds and seconds sent.
+
+### Providers
+
+Settings ▸ AI keeps one API key per provider (`<data dir>/ai.json`, owner-only, or the environment)
+and the engine of each kind of work:
+
+| Provider | Key (environment) | Speech | Texts | Images | Voices |
+|---|---|---|---|---|---|
+| Google Gemini | `GEMINI_API_KEY`, `GOOGLE_API_KEY` | yes | yes | `gemini-2.5-flash-image` | |
+| OpenAI | `OPENAI_API_KEY` | `whisper-1` | yes | `gpt-image-1` | |
+| Anthropic Claude | `ANTHROPIC_API_KEY` | | `claude-opus-5-5` (structured outputs; refusals answered by a fallback model) | | |
+| ElevenLabs | `ELEVENLABS_API_KEY`, `XI_API_KEY` | `scribe_v1` | | | `eleven_multilingual_v2` |
+
+"Texts" are caption translation, highlights, YouTube texts and zooms by meaning; every model can be
+changed in Settings ▸ AI. Each provider is asked about once before anything is sent to it.
+
+### Generated images
+
+File ▸ New ▸ Generate Image… (`ai.generateImage`) draws a picture from a description with the image
+engine of Settings ▸ AI (OpenAI or Gemini), in the sequence's shape (or `shape`), saves it with the
+project's media (Scratch Disks ▸ Captured, else next to the project), imports it as a still and,
+with `place`, puts it on the timeline at the playhead on the first free video track (a new one when
+none is free), scaled to the frame. It runs as a cloud task: consent, a job with progress and Stop,
+undoable.
 
 ### Testing
 

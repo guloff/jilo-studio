@@ -452,7 +452,7 @@ pub fn commands() -> Vec<CommandSpec> {
             label: "YouTube Title, Description and Chapters…",
             menu: &["Sequence"],
             shortcut: None,
-            params: r#"{"language":"ru|tg|en|…"?,"replaceChapters":bool=true,"engine":"gemini|openai"?,"model":str?,"confirm":bool?,"background":bool?}"#,
+            params: r#"{"language":"ru|tg|en|…"?,"replaceChapters":bool=true,"engine":"gemini|openai|anthropic"?,"model":str?,"confirm":bool?,"background":bool?}"#,
             enabled: crate::transcript::has_transcript,
             run: generate,
             journal: true,

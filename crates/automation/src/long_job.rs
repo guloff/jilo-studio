@@ -18,7 +18,8 @@ use crate::server::FilmcraftMcp;
 
 /// Commands whose work runs as a job with `background: true`, and which applies its result when
 /// called again with the same parameters (the answer is cached).
-pub const BACKGROUND_COMMANDS: &[&str] = &["captions.translate", "highlights.find", "clip.autoZoom", "youtube.generate", "clip.reframeToFace"];
+pub const BACKGROUND_COMMANDS: &[&str] =
+    &["captions.translate", "highlights.find", "clip.autoZoom", "youtube.generate", "clip.reframeToFace", "ai.generateImage"];
 
 /// How a long command is run as a job.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

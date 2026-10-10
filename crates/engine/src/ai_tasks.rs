@@ -36,7 +36,9 @@ impl TextEngine {
     /// the user's consent to send `what`.
     pub fn for_task(s: &mut Session, p: &Value, cmd: &str, what: &str) -> Result<Self> {
         let provider = match str_p(p, "engine") {
-            Some(e) => Provider::from_id(e).ok_or_else(|| crate::commands::bad(cmd, format!("unknown text engine `{e}` (gemini or openai)")))?,
+            Some(e) => Provider::from_id(e)
+                .filter(|p| p.does_text())
+                .ok_or_else(|| crate::commands::bad(cmd, format!("unknown text engine `{e}` (gemini, openai or anthropic)")))?,
             None => s.prefs.ai.text_provider(),
         };
         let model = str_p(p, "model").map(str::to_string).unwrap_or_else(|| s.prefs.ai.text_model(provider));

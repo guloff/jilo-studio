@@ -68,6 +68,10 @@ struct KeyFile {
     gemini_api_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     openai_api_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    anthropic_api_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    elevenlabs_api_key: Option<String>,
     /// Entries this version does not know are kept as they are.
     #[serde(flatten)]
     other: serde_json::Map<String, serde_json::Value>,
@@ -78,6 +82,8 @@ impl KeyFile {
         match p {
             Provider::Gemini => &mut self.gemini_api_key,
             Provider::OpenAi => &mut self.openai_api_key,
+            Provider::Anthropic => &mut self.anthropic_api_key,
+            Provider::ElevenLabs => &mut self.elevenlabs_api_key,
         }
     }
 }

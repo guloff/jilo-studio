@@ -28,6 +28,7 @@ pub mod export_tools;
 pub mod graphic_templates;
 pub mod graphics;
 pub mod highlights;
+pub mod imagegen;
 mod import_duplicates;
 pub mod interchange;
 pub mod keyboard;

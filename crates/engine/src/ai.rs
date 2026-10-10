@@ -85,8 +85,8 @@ pub(crate) fn ai_err(e: AiError) -> EngineError {
 }
 
 fn provider_p(cmd: &str, p: &Value) -> Result<Provider> {
-    let id = str_p(p, "provider").ok_or_else(|| bad(cmd, "`provider` is required (gemini or openai)"))?;
-    Provider::from_id(id).ok_or_else(|| bad(cmd, format!("unknown provider `{id}` (gemini or openai)")))
+    let id = str_p(p, "provider").ok_or_else(|| bad(cmd, "`provider` is required (gemini, openai, anthropic or elevenlabs)"))?;
+    Provider::from_id(id).ok_or_else(|| bad(cmd, format!("unknown provider `{id}` (gemini, openai, anthropic or elevenlabs)")))
 }
 
 fn models_json(m: &[ModelInfo]) -> Value {
@@ -107,6 +107,8 @@ fn status(s: &mut Session, _: &Value) -> Result<Value> {
                 "keyUrl": p.key_url(),
                 "speechModel": a.speech_model(p),
                 "textModel": a.text_model(p),
+                "imageModel": a.image_model(p),
+                "does": {"speech": p.does_speech(), "text": p.does_text(), "images": p.does_images(), "voices": p.does_voices()},
                 "confirmed": a.confirmed(p),
                 "speechModels": found.map(|m| models_json(&m.speech)),
                 "textModels": found.map(|m| models_json(&m.text)),
@@ -116,6 +118,7 @@ fn status(s: &mut Session, _: &Value) -> Result<Value> {
     Ok(json!({
         "speechEngine": a.speech_engine,
         "textEngine": a.text_engine,
+        "imageEngine": a.image_engine,
         "network": network_available() || s.ai_transport.is_some(),
         "keysFile": keys_path(s).map(|p| p.to_string_lossy().into_owned()),
         "providers": providers,
@@ -161,8 +164,9 @@ fn test(s: &mut Session, p: &Value) -> Result<Value> {
 fn check(c: &Ctx, provider: Provider, k: &Secret) -> std::result::Result<(String, ProviderModels), AiError> {
     let (msg, text) = filmcraft_ai::test_key(c, provider, k)?;
     let speech = match provider {
-        Provider::Gemini => text.clone(),
+        Provider::Gemini | Provider::ElevenLabs => text.clone(),
         Provider::OpenAi => filmcraft_ai::list_models(c, provider, k, ModelUse::Speech)?,
+        Provider::Anthropic => Vec::new(),
     };
     Ok((msg, ProviderModels { speech, text }))
 }
@@ -170,7 +174,7 @@ fn check(c: &Ctx, provider: Provider, k: &Secret) -> std::result::Result<(String
 pub fn commands() -> Vec<CommandSpec> {
     vec![
         spec("ai.status", "AI Status", "{}", status),
-        spec("ai.setKey", "Set AI Key", r#"{"provider":"gemini|openai","key":str|null}"#, set_key),
-        spec("ai.test", "Check AI Key", r#"{"provider":"gemini|openai","wait":bool?}"#, test),
+        spec("ai.setKey", "Set AI Key", r#"{"provider":"gemini|openai|anthropic|elevenlabs","key":str|null}"#, set_key),
+        spec("ai.test", "Check AI Key", r#"{"provider":"gemini|openai|anthropic|elevenlabs","wait":bool?}"#, test),
     ]
 }

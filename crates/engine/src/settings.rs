@@ -427,15 +427,24 @@ impl Default for MediaAnalysisPrefs {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AiPrefs {
-    /// Speech recognition: `whisper` (on this computer, the default) | `gemini` | `openai`.
+    /// Speech recognition: `whisper` (on this computer, the default) | `gemini` | `openai` |
+    /// `elevenlabs`.
     pub speech_engine: String,
-    /// Translation, highlights and YouTube texts: `gemini` | `openai`.
+    /// Translation, highlights and YouTube texts: `gemini` | `openai` | `anthropic`.
     pub text_engine: String,
+    /// Image generation: `openai` | `gemini`.
+    pub image_engine: String,
     /// Model ids; empty = the provider's default.
     pub gemini_speech_model: String,
     pub gemini_text_model: String,
     pub openai_speech_model: String,
     pub openai_text_model: String,
+    pub anthropic_text_model: String,
+    pub elevenlabs_speech_model: String,
+    pub openai_image_model: String,
+    pub gemini_image_model: String,
+    /// The ElevenLabs model that speaks narrations.
+    pub elevenlabs_voice_model: String,
     /// Cloud providers the user has agreed to send material to (asked once per provider).
     pub confirmed_providers: Vec<String>,
 }
@@ -446,10 +455,16 @@ impl Default for AiPrefs {
         Self {
             speech_engine: "whisper".into(),
             text_engine: "gemini".into(),
+            image_engine: "openai".into(),
             gemini_speech_model: Provider::Gemini.default_speech_model().into(),
             gemini_text_model: Provider::Gemini.default_text_model().into(),
             openai_speech_model: Provider::OpenAi.default_speech_model().into(),
             openai_text_model: Provider::OpenAi.default_text_model().into(),
+            anthropic_text_model: Provider::Anthropic.default_text_model().into(),
+            elevenlabs_speech_model: Provider::ElevenLabs.default_speech_model().into(),
+            openai_image_model: Provider::OpenAi.default_image_model().into(),
+            gemini_image_model: Provider::Gemini.default_image_model().into(),
+            elevenlabs_voice_model: filmcraft_ai::elevenlabs::DEFAULT_VOICE_MODEL.into(),
             confirmed_providers: Vec::new(),
         }
     }
@@ -458,30 +473,58 @@ impl Default for AiPrefs {
 impl AiPrefs {
     /// The cloud provider for speech recognition (None: Whisper on this computer).
     pub fn speech_provider(&self) -> Option<filmcraft_ai::Provider> {
-        filmcraft_ai::Provider::from_id(&self.speech_engine)
+        filmcraft_ai::Provider::from_id(&self.speech_engine).filter(|p| p.does_speech())
     }
 
     /// The provider of the text features.
     pub fn text_provider(&self) -> filmcraft_ai::Provider {
-        filmcraft_ai::Provider::from_id(&self.text_engine).unwrap_or(filmcraft_ai::Provider::Gemini)
+        filmcraft_ai::Provider::from_id(&self.text_engine).filter(|p| p.does_text()).unwrap_or(filmcraft_ai::Provider::Gemini)
+    }
+
+    /// The provider of image generation.
+    pub fn image_provider(&self) -> filmcraft_ai::Provider {
+        filmcraft_ai::Provider::from_id(&self.image_engine).filter(|p| p.does_images()).unwrap_or(filmcraft_ai::Provider::OpenAi)
     }
 
     /// The speech model of `p` (its default when the field is empty).
     pub fn speech_model(&self, p: filmcraft_ai::Provider) -> String {
+        use filmcraft_ai::Provider;
         let m = match p {
-            filmcraft_ai::Provider::Gemini => &self.gemini_speech_model,
-            filmcraft_ai::Provider::OpenAi => &self.openai_speech_model,
+            Provider::Gemini => &self.gemini_speech_model,
+            Provider::OpenAi => &self.openai_speech_model,
+            Provider::ElevenLabs => &self.elevenlabs_speech_model,
+            Provider::Anthropic => return String::new(),
         };
         if m.trim().is_empty() { p.default_speech_model().to_string() } else { m.trim().to_string() }
     }
 
     /// The text model of `p` (its default when the field is empty).
     pub fn text_model(&self, p: filmcraft_ai::Provider) -> String {
+        use filmcraft_ai::Provider;
         let m = match p {
-            filmcraft_ai::Provider::Gemini => &self.gemini_text_model,
-            filmcraft_ai::Provider::OpenAi => &self.openai_text_model,
+            Provider::Gemini => &self.gemini_text_model,
+            Provider::OpenAi => &self.openai_text_model,
+            Provider::Anthropic => &self.anthropic_text_model,
+            Provider::ElevenLabs => return String::new(),
         };
         if m.trim().is_empty() { p.default_text_model().to_string() } else { m.trim().to_string() }
+    }
+
+    /// The image model of `p` (its default when the field is empty).
+    pub fn image_model(&self, p: filmcraft_ai::Provider) -> String {
+        use filmcraft_ai::Provider;
+        let m = match p {
+            Provider::Gemini => &self.gemini_image_model,
+            Provider::OpenAi => &self.openai_image_model,
+            _ => return String::new(),
+        };
+        if m.trim().is_empty() { p.default_image_model().to_string() } else { m.trim().to_string() }
+    }
+
+    /// The ElevenLabs model that speaks narrations.
+    pub fn voice_model(&self) -> String {
+        let m = self.elevenlabs_voice_model.trim();
+        if m.is_empty() { filmcraft_ai::elevenlabs::DEFAULT_VOICE_MODEL.to_string() } else { m.to_string() }
     }
 
     /// Whether the user agreed to send material to `p`.
@@ -797,9 +840,14 @@ const MODELS: &[(&str, &str)] = &[
     ("whisper-small", "Whisper small (accurate)"),
     ("whisper-large-v3-turbo", "Whisper large-v3 turbo (most accurate; Russian, Tajik)"),
 ];
-pub const SPEECH_ENGINES: &[(&str, &str)] =
-    &[("whisper", "Whisper on this computer (offline)"), ("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)")];
-const TEXT_ENGINES: &[(&str, &str)] = &[("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)")];
+pub const SPEECH_ENGINES: &[(&str, &str)] = &[
+    ("whisper", "Whisper on this computer (offline)"),
+    ("gemini", "Google Gemini (cloud)"),
+    ("openai", "OpenAI (cloud)"),
+    ("elevenlabs", "ElevenLabs Scribe (cloud)"),
+];
+const TEXT_ENGINES: &[(&str, &str)] = &[("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)"), ("anthropic", "Anthropic Claude (cloud)")];
+const IMAGE_ENGINES: &[(&str, &str)] = &[("openai", "OpenAI (cloud)"), ("gemini", "Google Gemini (cloud)")];
 const CACHE_MGMT: &[(&str, &str)] = &[
     ("never", "Do not delete cache files automatically"),
     ("olderThan", "Automatically delete cache files older than"),
@@ -1089,7 +1137,7 @@ static CATEGORIES: &[Category] = &[
         title: "AI",
         rows: &[
             Row::Note(
-                "Whisper runs on this computer and sends nothing. The cloud engines send audio or text to Google or OpenAI only when you run an AI feature with them; FilmCraft says so before the first time.",
+                "Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.",
             ),
             Row::Group(
                 "Speech Recognition",
@@ -1097,6 +1145,7 @@ static CATEGORIES: &[Category] = &[
                     f("ai.speechEngine", "Engine", Kind::Choice(SPEECH_ENGINES), true),
                     f("ai.geminiSpeechModel", "Gemini model", Kind::Text, true),
                     f("ai.openaiSpeechModel", "OpenAI model", Kind::Text, true),
+                    f("ai.elevenlabsSpeechModel", "ElevenLabs model", Kind::Text, true),
                 ],
             ),
             Row::Group(
@@ -1105,8 +1154,18 @@ static CATEGORIES: &[Category] = &[
                     f("ai.textEngine", "Engine", Kind::Choice(TEXT_ENGINES), false),
                     f("ai.geminiTextModel", "Gemini model", Kind::Text, false),
                     f("ai.openaiTextModel", "OpenAI model", Kind::Text, false),
+                    f("ai.anthropicTextModel", "Claude model", Kind::Text, false),
                 ],
             ),
+            Row::Group(
+                "Image Generation",
+                &[
+                    f("ai.imageEngine", "Engine", Kind::Choice(IMAGE_ENGINES), true),
+                    f("ai.openaiImageModel", "OpenAI model", Kind::Text, true),
+                    f("ai.geminiImageModel", "Gemini model", Kind::Text, true),
+                ],
+            ),
+            Row::Group("Voices", &[f("ai.elevenlabsVoiceModel", "ElevenLabs voice model", Kind::Text, true)]),
             Row::Custom("aiKeys"),
         ],
     },

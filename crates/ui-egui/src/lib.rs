@@ -1728,6 +1728,7 @@ impl FilmcraftApp {
         panels::autozoom::show(self, &ctx);
         panels::reframe::show(self, &ctx);
         panels::updates::show(self, &ctx);
+        panels::imagegen::show(self, &ctx);
         panels::crash_report::show(self, &ctx);
         panels::youtube::show(self, &ctx);
         panels::batch::show(self, &ctx);

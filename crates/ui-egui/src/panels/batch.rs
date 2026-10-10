@@ -20,7 +20,12 @@ const STEPS: [(&str, &str, bool); 7] = [
     ("export", "Export each sequence", false),
 ];
 
-const SPEECH: [(&str, &str); 3] = [("whisper", "Whisper on this computer (offline)"), ("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)")];
+const SPEECH: [(&str, &str); 4] = [
+    ("whisper", "Whisper on this computer (offline)"),
+    ("gemini", "Google Gemini (cloud)"),
+    ("openai", "OpenAI (cloud)"),
+    ("elevenlabs", "ElevenLabs Scribe (cloud)"),
+];
 const LANGS: [(&str, &str); 4] = [("auto", "Auto-detect"), ("ru", "Russian"), ("tg", "Tajik"), ("en", "English")];
 
 /// Open the dialog for the Project panel's selection (sequences and clips).

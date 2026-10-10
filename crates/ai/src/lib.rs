@@ -1,6 +1,6 @@
 //! Cloud AI providers for FilmCraft's AI features (Settings ▸ AI).
 //!
-//! - [`Provider`]: Google Gemini and OpenAI. Nothing here runs unless a feature the user started
+//! - [`Provider`]: Google Gemini, OpenAI, Anthropic Claude (text) and ElevenLabs (speech and voices). Nothing here runs unless a feature the user started
 //!   asks for it; the local engines (Whisper, see `filmcraft-speech`) stay the default.
 //! - [`transport`]: the [`Transport`] trait every request goes through. [`transport::FakeTransport`]
 //!   answers from a script and records the requests, so tests never touch the network;
@@ -20,8 +20,11 @@
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
 
+pub mod anthropic;
 pub mod base64;
+pub mod elevenlabs;
 pub mod gemini;
+pub mod images;
 pub mod keys;
 pub mod openai;
 pub mod speech;
@@ -43,16 +46,21 @@ pub enum Provider {
     Gemini,
     #[serde(rename = "openai")]
     OpenAi,
+    Anthropic,
+    #[serde(rename = "elevenlabs")]
+    ElevenLabs,
 }
 
 impl Provider {
-    pub const ALL: [Provider; 2] = [Provider::Gemini, Provider::OpenAi];
+    pub const ALL: [Provider; 4] = [Provider::Gemini, Provider::OpenAi, Provider::Anthropic, Provider::ElevenLabs];
 
-    /// Stable id (`gemini`, `openai`), as in preferences and commands.
+    /// Stable id (`gemini`, `openai`, `anthropic`, `elevenlabs`), as in preferences and commands.
     pub fn id(self) -> &'static str {
         match self {
             Provider::Gemini => "gemini",
             Provider::OpenAi => "openai",
+            Provider::Anthropic => "anthropic",
+            Provider::ElevenLabs => "elevenlabs",
         }
     }
 
@@ -60,6 +68,8 @@ impl Provider {
         match s.trim().to_ascii_lowercase().as_str() {
             "gemini" | "google" => Some(Provider::Gemini),
             "openai" => Some(Provider::OpenAi),
+            "anthropic" | "claude" => Some(Provider::Anthropic),
+            "elevenlabs" | "eleven" => Some(Provider::ElevenLabs),
             _ => None,
         }
     }
@@ -69,6 +79,8 @@ impl Provider {
         match self {
             Provider::Gemini => "Google Gemini",
             Provider::OpenAi => "OpenAI",
+            Provider::Anthropic => "Anthropic Claude",
+            Provider::ElevenLabs => "ElevenLabs",
         }
     }
 
@@ -77,6 +89,8 @@ impl Provider {
         match self {
             Provider::Gemini => "https://aistudio.google.com/apikey",
             Provider::OpenAi => "https://platform.openai.com/api-keys",
+            Provider::Anthropic => "https://console.anthropic.com/settings/keys",
+            Provider::ElevenLabs => "https://elevenlabs.io/app/settings/api-keys",
         }
     }
 
@@ -85,23 +99,58 @@ impl Provider {
         match self {
             Provider::Gemini => &["GEMINI_API_KEY", "GOOGLE_API_KEY"],
             Provider::OpenAi => &["OPENAI_API_KEY"],
+            Provider::Anthropic => &["ANTHROPIC_API_KEY"],
+            Provider::ElevenLabs => &["ELEVENLABS_API_KEY", "XI_API_KEY"],
         }
     }
 
+    /// Whether it recognises speech (with word times).
+    pub fn does_speech(self) -> bool {
+        matches!(self, Provider::Gemini | Provider::OpenAi | Provider::ElevenLabs)
+    }
+
+    /// Whether it writes the text features' JSON answers (translation, highlights, YouTube texts).
+    pub fn does_text(self) -> bool {
+        matches!(self, Provider::Gemini | Provider::OpenAi | Provider::Anthropic)
+    }
+
+    /// Whether it generates images.
+    pub fn does_images(self) -> bool {
+        matches!(self, Provider::Gemini | Provider::OpenAi)
+    }
+
+    /// Whether it speaks text with its voices.
+    pub fn does_voices(self) -> bool {
+        matches!(self, Provider::ElevenLabs)
+    }
+
     /// The default model for speech recognition (OpenAI: `whisper-1`, the only one of its models
-    /// that returns word times).
+    /// that returns word times; empty for a provider that does not recognise speech).
     pub fn default_speech_model(self) -> &'static str {
         match self {
             Provider::Gemini => gemini::DEFAULT_MODEL,
             Provider::OpenAi => openai::DEFAULT_SPEECH_MODEL,
+            Provider::ElevenLabs => elevenlabs::DEFAULT_SPEECH_MODEL,
+            Provider::Anthropic => "",
         }
     }
 
-    /// The default model for the text features.
+    /// The default model for the text features (empty for a provider without them).
     pub fn default_text_model(self) -> &'static str {
         match self {
             Provider::Gemini => gemini::DEFAULT_MODEL,
             Provider::OpenAi => openai::DEFAULT_TEXT_MODEL,
+            Provider::Anthropic => anthropic::DEFAULT_TEXT_MODEL,
+            Provider::ElevenLabs => "",
+        }
+    }
+
+    /// The default model for image generation (empty for a provider without it).
+    pub fn default_image_model(self) -> &'static str {
+        match self {
+            Provider::Gemini => images::DEFAULT_GEMINI_MODEL,
+            Provider::OpenAi => images::DEFAULT_OPENAI_MODEL,
+            _ => "",
         }
     }
 }
@@ -293,6 +342,8 @@ pub fn list_models(ctx: &Ctx, provider: Provider, key: &Secret, usage: ModelUse)
     match provider {
         Provider::Gemini => gemini::list_models(ctx, key),
         Provider::OpenAi => openai::list_models(ctx, key, usage),
+        Provider::Anthropic => anthropic::list_models(ctx, key),
+        Provider::ElevenLabs => elevenlabs::list_models(ctx, key),
     }
 }
 
@@ -329,6 +380,8 @@ pub fn generate_json(ctx: &Ctx, provider: Provider, key: &Secret, model: &str, r
     let (value, model) = with_model_fallback(model, |m| match provider {
         Provider::Gemini => gemini::generate_json(ctx, key, m, req),
         Provider::OpenAi => openai::generate_json(ctx, key, m, req),
+        Provider::Anthropic => anthropic::generate_json(ctx, key, m, req),
+        Provider::ElevenLabs => Err(AiError::Api(provider, "ElevenLabs does not write texts; choose Gemini, OpenAI or Claude".into())),
     })?;
     Ok(JsonAnswer { value, model })
 }

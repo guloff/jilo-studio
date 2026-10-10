@@ -737,3 +737,55 @@ fn the_daily_check_offers_a_newer_release_once() {
     assert_eq!(fake.sent().len(), 2, "checked again after a day");
     assert!(d.ids("updates.").is_empty(), "but the release it offered is not offered twice");
 }
+
+/// File ▸ New ▸ Generate Image…: the dialog, the consent, the picture imported and placed.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn an_image_is_generated_from_a_description() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-imagegen-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::RgbaImage::from_fn(96, 54, |x, y| image::Rgba([(x * 2) as u8, 90, (y * 4) as u8, 255])).write_to(&mut png, image::ImageFormat::Png).unwrap();
+    let b64 = filmcraft_ai::base64::encode(png.get_ref());
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(|r| r.url.ends_with("/images/generations"), move |_| Ok(Response::json(200, &json!({"data": [{"b64_json": b64}]}))));
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "openai", "key": "k"})).unwrap();
+    s.path = Some(dir.join("Demo.fcproj").to_string_lossy().into_owned());
+    let items_before = s.project.items.len();
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "ai.generateImage"}));
+    d.frames(3);
+    d.harness.state_mut().ui.imagegen.prompt = "A lighthouse on a cliff at dawn, soft mist, wide shot".into();
+    d.frames(2);
+    d.snapshot("imagegen-dialog");
+    d.click("imagegen.go");
+    assert!(d.ids("aiTask.consent").contains(&"aiTask.consent.send".to_string()), "asks before the description goes out");
+    d.snapshot("imagegen-consent");
+    d.click("aiTask.consent.send");
+    let mut added = false;
+    for _ in 0..400 {
+        d.frames(2);
+        if d.harness.state().session.project.items.len() > items_before {
+            added = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(added, "the picture is imported");
+    assert_eq!(fake.sent().len(), 1);
+    for _ in 0..20 {
+        d.frames(2);
+    }
+    let app = d.harness.state();
+    let item = app.session.project.items.values().filter(|i| i.name.starts_with("Generated Image")).map(|i| i.id).next().expect("a generated still");
+    let placed = app.session.active_sequence().unwrap().video_tracks.iter().flat_map(|t| &t.items).any(|c| c.item == item);
+    assert!(placed, "the picture is on the timeline at the playhead");
+    d.snapshot("imagegen-done");
+    let _ = std::fs::remove_dir_all(&dir);
+}

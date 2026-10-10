@@ -3799,3 +3799,27 @@
 # Settings ▸ General ▸ daily update check
 	Check for updates once a day	每天检查一次更新
 	The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once.	检查只会向 GitHub 查询 FilmCraft 的最新版本，不发送其他内容；每个新版本只提示一次。
+# Settings ▸ AI: Claude, ElevenLabs, image generation; File ▸ New ▸ Generate Image
+	A lighthouse on a cliff at dawn, soft mist, wide shot	黎明时分悬崖上的灯塔，薄雾，远景
+	Anthropic Claude (cloud)	Anthropic Claude（云端）
+	Claude model	Claude 模型
+	Describe the picture	描述图片
+	ElevenLabs Scribe (cloud)	ElevenLabs Scribe（云端）
+	ElevenLabs model	ElevenLabs 模型
+	ElevenLabs voice model	ElevenLabs 语音模型
+	Engine	引擎
+	Generate Image	生成图片
+	Generate Image…	生成图片…
+	Image Generation	图片生成
+	Image added: {name}	已添加图片：{name}
+	Put it on the timeline at the playhead	放到时间轴的播放指示器处
+	Voices	语音
+	Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper 在本机运行，不发送任何内容。只有在你使用云端引擎运行 AI 功能时，才会把音频、文字或图片描述发送给 Google、OpenAI、Anthropic 或 ElevenLabs；FilmCraft 会在第一次时提示。
+	The description goes to {provider}. The picture is saved with the project's media and imported as a still; undo removes it.	描述将发送到 {provider}。图片会与项目媒体一起保存并作为静帧导入；撤销即可移除。
+	Generating an image	正在生成图片
+	the picture's description	图片描述
+	Landscape	横向
+	Portrait	纵向
+	Gemini model	Gemini 模型
+	OpenAI model	OpenAI 模型
+	Picture shape	画幅

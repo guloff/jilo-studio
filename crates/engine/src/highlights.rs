@@ -436,7 +436,7 @@ pub fn commands() -> Vec<CommandSpec> {
             label: "Find Highlights…",
             menu: &["Markers"],
             shortcut: None,
-            params: r#"{"mode":"viral|meaningful|facts"?,"count":1-20?,"minSeconds":5-180?,"maxSeconds":≤600?,"language":str?,"engine":"gemini|openai"?,"model":str?,"confirm":bool?,"background":bool?}"#,
+            params: r#"{"mode":"viral|meaningful|facts"?,"count":1-20?,"minSeconds":5-180?,"maxSeconds":≤600?,"language":str?,"engine":"gemini|openai|anthropic"?,"model":str?,"confirm":bool?,"background":bool?}"#,
             enabled: crate::transcript::has_transcript,
             run: find,
             journal: true,
