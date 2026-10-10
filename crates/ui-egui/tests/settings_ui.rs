@@ -251,7 +251,7 @@ fn view_menu_and_settings_name_each_color_theme_alike() {
     let menu = d.ok("ui.menu.list", json!({}));
     let menu_label = |id: &str| menu.as_array().unwrap().iter().find(|m| m["id"] == id).unwrap()["label"].as_str().unwrap().to_string();
     d.menu("app.settings.appearance");
-    // Settings shows the themes as the light and dark theme cards (#505)
+    // the theme cards' choices (the single Color Theme is no longer drawn)
     for (menu_id, id) in [
         ("view.theme.dark", "settings.appearance.darkTheme.darkest"),
         ("view.theme.medium", "settings.appearance.darkTheme.dark"),

@@ -564,6 +564,47 @@ fn hardware_decoding_setting_drives_the_decoder_switch() {
     assert!(settings::field("playback.hardwareDecoding").is_some_and(|f| f.wired && matches!(f.kind, Kind::Choice(_))));
 }
 
+/// Settings ▸ Timeline ▸ "Place files dropped onto the Timeline directly on the Timeline": on by default.
+#[test]
+fn drop_import_to_timeline_defaults_to_on() {
+    assert!(settings::TimelinePrefs::default().drop_import_to_timeline);
+    assert!(Preferences::default().timeline.drop_import_to_timeline);
+}
+
+/// The key is saved under `timeline.dropImportToTimeline`, read back by `prefs.get`, and persisted.
+#[test]
+fn drop_import_to_timeline_round_trips_through_prefs() {
+    let dir = tmp_dir("drop-import-to-timeline");
+    let path = dir.join("preferences.json");
+    let mut s = Session { prefs_path: Some(path.clone()), ..Session::default() };
+    set(&mut s, "timeline.dropImportToTimeline", json!(false));
+    assert!(!s.prefs.timeline.drop_import_to_timeline);
+    assert_eq!(s.execute("prefs.get", json!({"key": "timeline.dropImportToTimeline"})).unwrap(), json!(false));
+    assert!(!Preferences::load(&path).timeline.drop_import_to_timeline);
+    // a non-boolean is rejected and the stored value is kept
+    assert!(s.execute("prefs.set", json!({"key": "timeline.dropImportToTimeline", "value": "no"})).is_err());
+    assert!(!s.prefs.timeline.drop_import_to_timeline);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// Preferences files written before the key existed load it as on.
+#[test]
+fn drop_import_to_timeline_defaults_to_on_for_older_prefs() {
+    assert!(serde_json::from_value::<settings::TimelinePrefs>(json!({})).unwrap().drop_import_to_timeline);
+    let old = Preferences::from_value(json!({"version": 2, "timeline": {"stillImageDuration": 3}}));
+    assert!(old.timeline.drop_import_to_timeline);
+    assert_eq!(old.timeline.still_image_duration, 3.0);
+}
+
+/// The key is a Boolean field of the Timeline category in the settings registry.
+#[test]
+fn drop_import_to_timeline_is_in_the_settings_registry() {
+    let (cat, f) = settings::fields().into_iter().find(|(_, f)| f.key == "timeline.dropImportToTimeline").expect("registry field");
+    assert_eq!(cat, "timeline");
+    assert!(matches!(f.kind, Kind::Bool));
+    assert_eq!(settings::field("timeline.dropImportToTimeline").map(|f| f.key), Some("timeline.dropImportToTimeline"));
+}
+
 /// New users keep the dark Darkest theme (following the system is opt-in); a file saved before
 /// appearance modes keeps showing its Color Theme as a fixed Dark or Light mode.
 #[test]
@@ -610,6 +651,17 @@ fn appearance_choices_validate_and_legacy_theme_still_selects() {
     assert_eq!(s.prefs.appearance.dark_theme, "dark", "the dark choice is kept");
     set(&mut s, "appearance.colorTheme", json!("darkest"));
     assert_eq!((s.prefs.appearance.appearance_mode.as_str(), s.prefs.appearance.dark_theme.as_str()), ("dark", "darkest"));
+    // the legacy Color Theme follows the mode and theme choices, so clients reading it aren't stale
+    assert_eq!(s.prefs.appearance.color_theme, "darkest");
+    set(&mut s, "appearance.appearanceMode", json!("light"));
+    assert_eq!(s.prefs.appearance.color_theme, "light");
+    set(&mut s, "appearance.appearanceMode", json!("dark"));
+    set(&mut s, "appearance.darkTheme", json!("dark"));
+    assert_eq!(s.prefs.appearance.color_theme, "dark");
+    set(&mut s, "appearance.appearanceMode", json!("auto"));
+    assert_eq!(s.prefs.appearance.color_theme, "dark", "Auto: the dark theme");
+    set(&mut s, "appearance.colorTheme", json!("light"));
+    assert_eq!((s.prefs.appearance.appearance_mode.as_str(), s.prefs.appearance.color_theme.as_str()), ("light", "light"));
     // the header button's cycle
     let mut a = settings::AppearancePrefs::default();
     let mut seen = Vec::new();
@@ -618,45 +670,4 @@ fn appearance_choices_validate_and_legacy_theme_still_selects() {
         seen.push(a.appearance_mode.clone());
     }
     assert_eq!(seen, ["auto", "light", "dark", "auto"]);
-}
-
-/// Settings ▸ Timeline ▸ "Place files dropped onto the Timeline directly on the Timeline": on by default.
-#[test]
-fn drop_import_to_timeline_defaults_to_on() {
-    assert!(settings::TimelinePrefs::default().drop_import_to_timeline);
-    assert!(Preferences::default().timeline.drop_import_to_timeline);
-}
-
-/// The key is saved under `timeline.dropImportToTimeline`, read back by `prefs.get`, and persisted.
-#[test]
-fn drop_import_to_timeline_round_trips_through_prefs() {
-    let dir = tmp_dir("drop-import-to-timeline");
-    let path = dir.join("preferences.json");
-    let mut s = Session { prefs_path: Some(path.clone()), ..Session::default() };
-    set(&mut s, "timeline.dropImportToTimeline", json!(false));
-    assert!(!s.prefs.timeline.drop_import_to_timeline);
-    assert_eq!(s.execute("prefs.get", json!({"key": "timeline.dropImportToTimeline"})).unwrap(), json!(false));
-    assert!(!Preferences::load(&path).timeline.drop_import_to_timeline);
-    // a non-boolean is rejected and the stored value is kept
-    assert!(s.execute("prefs.set", json!({"key": "timeline.dropImportToTimeline", "value": "no"})).is_err());
-    assert!(!s.prefs.timeline.drop_import_to_timeline);
-    std::fs::remove_dir_all(dir).unwrap();
-}
-
-/// Preferences files written before the key existed load it as on.
-#[test]
-fn drop_import_to_timeline_defaults_to_on_for_older_prefs() {
-    assert!(serde_json::from_value::<settings::TimelinePrefs>(json!({})).unwrap().drop_import_to_timeline);
-    let old = Preferences::from_value(json!({"version": 2, "timeline": {"stillImageDuration": 3}}));
-    assert!(old.timeline.drop_import_to_timeline);
-    assert_eq!(old.timeline.still_image_duration, 3.0);
-}
-
-/// The key is a Boolean field of the Timeline category in the settings registry.
-#[test]
-fn drop_import_to_timeline_is_in_the_settings_registry() {
-    let (cat, f) = settings::fields().into_iter().find(|(_, f)| f.key == "timeline.dropImportToTimeline").expect("registry field");
-    assert_eq!(cat, "timeline");
-    assert!(matches!(f.kind, Kind::Bool));
-    assert_eq!(settings::field("timeline.dropImportToTimeline").map(|f| f.key), Some("timeline.dropImportToTimeline"));
 }

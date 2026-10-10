@@ -24,7 +24,7 @@ fn harness(show_header: bool, show_status_bar: bool) -> Harness<'static, Filmcra
     harness
 }
 
-/// Top and bottom edge of every registered element outside the header (its menu bar included).
+/// Top and bottom edge of every registered element outside the header (the menu bar, `menu.*`, is part of it).
 fn body_extent(h: &Harness<'static, FilmcraftApp>) -> (f32, f32) {
     let els = h.state().auto.query("");
     let body: Vec<_> = els.iter().filter(|e| !e.id.starts_with("header.") && !e.id.starts_with("menu.")).collect();

@@ -1449,29 +1449,21 @@ fn build() -> Vec<CommandSpec> {
                         }
                     }
                 } else {
-                    let has_video = sel.iter().any(|c| q.find_item(*c).is_some_and(|(tid, _)| q.video_tracks.iter().any(|t| t.id == tid)));
-                    let has_audio = sel.iter().any(|c| q.find_item(*c).is_some_and(|(tid, _)| q.audio_tracks.iter().any(|t| t.id == tid)));
-                    let v_clips: Vec<(ClipId, filmcraft_project::ItemId, filmcraft_time::TimeRange)> = sel
-                        .iter()
-                        .filter_map(|c| {
-                            let (tid, i) = q.find_item(*c)?;
-                            q.video_tracks.iter().any(|t| t.id == tid).then_some((*c, i.item, i.range()))
-                        })
-                        .collect();
-                    if has_video && has_audio && v_clips.len() > 1 {
-                        let audio_specs: Vec<(ClipId, filmcraft_project::ItemId, filmcraft_time::TimeRange)> = sel
-                            .iter()
-                            .filter_map(|c| {
-                                let (tid, i) = q.find_item(*c)?;
-                                q.audio_tracks.iter().any(|t| t.id == tid).then_some((*c, i.item, i.range()))
-                            })
-                            .collect();
+                    // each selected clip with its track kind, worked out once
+                    type Spec = (ClipId, filmcraft_project::ItemId, filmcraft_time::TimeRange);
+                    let (mut v_clips, mut audio_specs): (Vec<Spec>, Vec<Spec>) = (Vec::new(), Vec::new());
+                    for c in &sel {
+                        if let Some((tid, i)) = q.find_item(*c) {
+                            if q.video_tracks.iter().any(|t| t.id == tid) {
+                                v_clips.push((*c, i.item, i.range()));
+                            } else {
+                                audio_specs.push((*c, i.item, i.range()));
+                            }
+                        }
+                    }
+                    if !audio_specs.is_empty() && v_clips.len() > 1 {
                         let mut linked_audios = std::collections::HashSet::new();
                         for (vid, item_id, vrange) in &v_clips {
-                            let l = ctx.alloc();
-                            if let Some((_, vi)) = q.find_item_mut(*vid) {
-                                vi.link = Some(l);
-                            }
                             // Pair with overlapping audio clips from the same item, or overlapping audio clips if no same-item audio
                             let matching: Vec<ClipId> = audio_specs
                                 .iter()
@@ -1487,19 +1479,24 @@ fn build() -> Vec<CommandSpec> {
                                     .map(|(aid, _, _)| *aid)
                                     .collect()
                             };
+                            // a video clip with no audio partner stays unlinked: a one-member link would read as "linked"
+                            let l = (!to_link.is_empty()).then(|| ctx.alloc());
+                            if let Some((_, vi)) = q.find_item_mut(*vid) {
+                                vi.link = l;
+                            }
                             for aid in to_link {
                                 linked_audios.insert(aid);
                                 if let Some((_, ai)) = q.find_item_mut(aid) {
-                                    ai.link = Some(l);
+                                    ai.link = l;
                                 }
                             }
                         }
-                        // Any remaining selected audio clips get their own links
+                        // selected audio clips with no overlapping video stay unlinked
                         for (aid, _, _) in audio_specs {
                             if !linked_audios.contains(&aid)
                                 && let Some((_, ai)) = q.find_item_mut(aid)
                             {
-                                ai.link = Some(ctx.alloc());
+                                ai.link = None;
                             }
                         }
                     } else {
@@ -2393,8 +2390,16 @@ fn build() -> Vec<CommandSpec> {
                 .unwrap_or_default();
             let clips = with_links(s, &[c]);
             s.edit_sequence("Slip", |q, ctx, _| {
+                // clamp across all linked partners, then slip them by the common delta
+                let mut dd = d;
                 for c in &clips {
-                    edit::slip(q, *c, d, ctx)?;
+                    let x = edit::slip(&mut q.clone(), *c, dd, ctx)?;
+                    if x.abs() < dd.abs() {
+                        dd = x;
+                    }
+                }
+                for c in &clips {
+                    edit::slip(q, *c, dd, ctx)?;
                 }
                 Ok(())
             })?;
@@ -2581,13 +2586,14 @@ fn build() -> Vec<CommandSpec> {
             "Set Effect Parameter",
             [],
             None,
-            r##"{"clip":id,"effect":"motion"|index,"param":str,"mask":n?,"value":num|[x,y]|"#rrggbb"|bool|path,"time":ticks?,"merge":bool?,"begin":bool?}"##,
+            r##"{"clip":id,"effect":"motion"|index,"param":str,"mask":n?,"value":num|[x,y]|"#rrggbb"|bool|path|"option name" (a choice takes its index or its name),"time":ticks? (where the keyframe goes when the parameter is animated; a parameter that is not animated gets a new static value whatever the time),"keyframe":bool? (true: write a keyframe at `time` and animate the parameter),"merge":bool?,"begin":bool?}"##,
             has_seq,
             |s, p| {
                 let c = clip_p(p, "clip").ok_or_else(|| bad("effects.setParam", "need `clip`"))?;
                 let pid = str_p(p, "param").ok_or_else(|| bad("effects.setParam", "need `param`"))?.to_string();
                 let val = p.get("value").cloned().ok_or_else(|| bad("effects.setParam", "need `value`"))?;
                 let eff = p.get("effect").cloned().unwrap_or(json!("motion"));
+                let keyframe = bool_p(p, "keyframe").unwrap_or(false);
                 let ph = s.playhead();
                 let tl = time_p(s, p, "").unwrap_or(ph);
                 let pq = p.clone();
@@ -2596,7 +2602,7 @@ fn build() -> Vec<CommandSpec> {
                 if bool_p(p, "begin").unwrap_or(false) {
                     s.history.merge_key = None;
                 }
-                s.edit_sequence_as("Change Effect Parameter", merge.as_deref(), |q, _, _| {
+                let keyframes = s.edit_sequence_as("Change Effect Parameter", merge.as_deref(), |q, _, _| {
                     let (_, it) = q.find_item_mut(c).ok_or(filmcraft_edit::EditError::NoItem(c))?;
                     let mt = it.source_time_at(tl.clamp(it.start, (it.end() - Tick(1)).max(it.start)));
                     let e = match &eff {
@@ -2605,6 +2611,22 @@ fn build() -> Vec<CommandSpec> {
                         _ => None,
                     }
                     .ok_or_else(|| bad("effects.setParam", "no such effect on clip"))?;
+                    // the parameter's definition (a mask's own parameters have none)
+                    let def = if pq.get("mask").is_none_or(Value::is_null) { e.def().and_then(|d| d.param(&pid)) } else { None };
+                    // a choice takes its option name as well as its index, as transition parameters do
+                    let val = match (def.map(|d| &d.kind), &val) {
+                        (Some(filmcraft_project::ParamKind::Choice(opts)), Value::String(name)) => {
+                            let i = opts
+                                .iter()
+                                .position(|o| o.eq_ignore_ascii_case(name))
+                                .ok_or_else(|| bad("effects.setParam", format!("`{pid}` must be one of {opts:?}")))?;
+                            json!(i)
+                        }
+                        _ => val.clone(),
+                    };
+                    if keyframe && def.is_some_and(|d| !d.animatable) {
+                        return Err(bad("effects.setParam", format!("`{pid}` cannot be animated")));
+                    }
                     if eff == json!("opacity") || eff == json!("motion") {
                         e.enabled = true;
                     }
@@ -2616,10 +2638,16 @@ fn build() -> Vec<CommandSpec> {
                     }
                     let prm = crate::masks::target_param(e, &pq, &pid).ok_or_else(|| bad("effects.setParam", format!("no param `{pid}`")))?;
                     let v = json_to_param(&prm.value, &val).ok_or_else(|| bad("effects.setParam", "value has the wrong type"))?;
-                    prm.set_at(mt, v);
-                    Ok(())
+                    if keyframe {
+                        // the stopwatch and the value in one step
+                        prm.put_keyframe(mt, v);
+                    } else {
+                        prm.set_at(mt, v);
+                    }
+                    Ok(prm.keyframes.len())
                 })?;
-                Ok(Value::Null)
+                // 0 keyframes: the value is static (`time` was not used)
+                Ok(json!({"keyframes": keyframes}))
             }
         ),
         cmd!("effects.toggleAnimation", "Toggle Animation", [], None, r#"{"clip":id,"effect":str|index,"param":str,"mask":n?}"#, has_seq, |s, p| {

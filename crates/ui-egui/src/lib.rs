@@ -47,6 +47,7 @@ pub mod panels;
 pub mod perf;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod play_ahead;
+pub mod scrub;
 pub mod source_playback;
 pub mod state;
 pub mod theme;
@@ -245,6 +246,8 @@ pub struct FilmcraftApp {
     pub playback: Playback,
     pub source_playback: source_playback::SourcePlayback,
     pub audio: Option<Box<dyn AudioOut>>,
+    /// Audio during scrubbing (#211).
+    pub scrub: scrub::ScrubAudio,
     pub hooks: HostHooks,
     pub dialog: Option<Dialog>,
     pub file_dialogs: panels::file_dialogs::FileDialogState,
@@ -533,6 +536,7 @@ impl FilmcraftApp {
             playback: Playback { speed: 1.0, ..Default::default() },
             source_playback: Default::default(),
             audio: None,
+            scrub: Default::default(),
             hooks: HostHooks::default(),
             // Unsaved changes left by a session that died are offered first thing.
             dialog: recovery.then_some(Dialog::Recovery),
@@ -668,7 +672,7 @@ impl FilmcraftApp {
             if language == i18n::Language::Ja && !i18n::install_japanese_font(ctx) {
                 self.ui.language = i18n::Language::En;
                 self.ui.status = tl!("no Japanese font is installed on this system; the interface stays in English").into();
-            } else if language == i18n::Language::ZhCn && !i18n::install_chinese_font(ctx) {
+            } else if language == i18n::Language::ZhCn && !i18n::chinese_font_available() {
                 self.ui.language = i18n::Language::En;
                 self.ui.status = tl!("no Chinese font is installed on this system; the interface stays in English").into();
             } else {
@@ -1639,6 +1643,7 @@ impl FilmcraftApp {
         if self.ui.tts.pending.is_some() || self.ui.tts.download_job.is_some() {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
+        self.scrub_audio(&ctx);
         let t = self.tokens;
         let full = ui.max_rect();
         ui.painter().rect_filled(full, 0.0, t.app_bg);
@@ -1904,9 +1909,9 @@ impl eframe::App for FilmcraftApp {
             theme::install(ctx, &self.tokens);
             // theme::install replaces the fonts: add the system Japanese font back (or fall back to
             // English when a saved Japanese setting meets a system without one)
-            if (self.ui.language == i18n::Language::Ja && !i18n::install_japanese_font(ctx))
-                || (self.ui.language == i18n::Language::ZhCn && !i18n::install_chinese_font(ctx))
-            {
+            // (likewise Chinese without a Chinese face)
+            let japanese_missing = self.ui.language == i18n::Language::Ja && !i18n::install_japanese_font(ctx);
+            if japanese_missing || (self.ui.language == i18n::Language::ZhCn && !i18n::chinese_font_available()) {
                 self.ui.language = i18n::Language::En;
             }
             self.styled = true;
@@ -2221,6 +2226,9 @@ mod audio_recovery_tests {
 }
 
 /// A physical-pixel screen position as a point in the window's UI space, given the window's content origin in points.
+///
+/// Assumes the whole virtual screen uses the window's `pixels_per_point`: with monitors of mixed
+/// DPI the point can be off when the cursor and the window's origin are on different monitors.
 fn screen_px_to_ui(px: (i32, i32), pixels_per_point: f32, content_min: egui::Pos2) -> egui::Pos2 {
     let ppp = if pixels_per_point.is_finite() && pixels_per_point > 0.0 { pixels_per_point } else { 1.0 };
     egui::pos2(px.0 as f32 / ppp - content_min.x, px.1 as f32 / ppp - content_min.y)

@@ -110,6 +110,24 @@ struct Imp<'a, 'i, 'r> {
     in_progress: HashSet<String>,
     links: Vec<PendingLink>,
     xml_clip_ids: HashMap<(ItemId, String), ClipId>,
+    /// `(sequence key, file key)` pairs where some audio clip item of that file uses `sourcetrack/trackindex` > 1,
+    /// i.e. the file's channels are split onto mono tracks in that sequence (#463).
+    split_files: HashSet<(String, String)>,
+}
+
+/// The `(sequence key, file key)` an audio clip item belongs to, if it references a file.
+fn clip_seq_file(c: Node) -> Option<(String, String)> {
+    let seq = c.ancestors().skip(1).find(|a| a.has_tag_name("sequence"))?;
+    Some((node_key(seq), node_key(child(c, "file")?)))
+}
+
+/// The 1-based `sourcetrack/trackindex` of an audio clip item.
+fn audio_track_index(c: Node) -> Option<i64> {
+    let st = child(c, "sourcetrack")?;
+    if child_text(st, "mediatype").is_some_and(|m| m != "audio") {
+        return None;
+    }
+    child_i64(st, "trackindex")
 }
 
 /// `currentExplodedTrackIndex` / `totalExplodedTrackCount` of a Premiere audio track.
@@ -151,8 +169,9 @@ fn partner_clip<'a, 'i>(c: Node<'a, 'i>, track: Node<'a, 'i>) -> Option<Node<'a,
 /// two clip items (#371); a clip on a Premiere mono track takes its one channel. On any other
 /// track `sourcetrack/trackindex` above 1 picks the channel of a mono track split off a
 /// multichannel file (#463); index 1 is also what a stereo clip on a stereo track carries, so it
-/// keeps the default.
-fn source_channels(c: Node, tn: Node, partners: &[Node], mates: &[Node]) -> Vec<u16> {
+/// means channel 0 only when the file is `split` (another clip item of it in the sequence uses a
+/// higher index) and otherwise keeps the default.
+fn source_channels(c: Node, tn: Node, partners: &[Node], mates: &[Node], split: bool) -> Vec<u16> {
     if !partners.is_empty() {
         let mut chans = vec![source_channel(c)];
         chans.extend(mates.iter().map(|m| source_channel(*m)));
@@ -166,7 +185,7 @@ fn source_channels(c: Node, tn: Node, partners: &[Node], mates: &[Node]) -> Vec<
     if tn.attribute("premiereTrackType").is_some_and(|t| t.eq_ignore_ascii_case("mono")) {
         return source_channel(c).map(|ch| vec![ch]).unwrap_or_default();
     }
-    source_channel(c).filter(|ch| *ch > 0).map(|ch| vec![ch]).unwrap_or_default()
+    source_channel(c).filter(|ch| *ch > 0 || split).map(|ch| vec![ch]).unwrap_or_default()
 }
 
 fn node_key(n: Node) -> String {
@@ -193,9 +212,15 @@ pub(crate) fn import(text_in: &str, opts: &ImportOptions, report: &mut Report) -
         in_progress: HashSet::new(),
         links: Vec::new(),
         xml_clip_ids: HashMap::new(),
+        split_files: HashSet::new(),
     };
     for n in root.descendants().filter(|n| n.is_element()) {
         match n.tag_name().name() {
+            "clipitem" if audio_track_index(n).is_some_and(|i| i > 1) => {
+                if let Some(key) = clip_seq_file(n) {
+                    imp.split_files.insert(key);
+                }
+            }
             "file" if elements(n).next().is_some() => {
                 imp.files.entry(node_key(n)).or_insert(n);
             }
@@ -427,7 +452,8 @@ impl<'a, 'i> Imp<'a, 'i, '_> {
                             for m in &mates {
                                 self.xml_clip_ids.insert((seq_id, node_key(*m)), ti_item.id);
                             }
-                            ti_item.source_channels = source_channels(c, tn, partners, &mates);
+                            let split = clip_seq_file(c).is_some_and(|k| self.split_files.contains(&k));
+                            ti_item.source_channels = source_channels(c, tn, partners, &mates, split);
                         }
                         if !refs.is_empty() {
                             self.links.push(PendingLink { seq: seq_id, kind, track: ti, clip: ti_item.id, refs });

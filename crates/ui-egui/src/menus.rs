@@ -186,8 +186,9 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         if id == "app.language.japanese" && !crate::i18n::install_japanese_font(ctx) {
             return Err("no Japanese font is installed on this system (for example Noto Sans CJK JP); the interface stays in English".into());
         }
-        if id == "app.language.chinese" && !crate::i18n::install_chinese_font(ctx) {
-            return Err("no Chinese font is installed on this system (for example Microsoft YaHei or PingFang SC); the interface stays in English".into());
+        // Chinese needs the Chinese fallback theme::install adds (craft-fonts or a system face)
+        if id == "app.language.chinese" && !crate::i18n::chinese_font_available() {
+            return Err("no Chinese font is installed on this system (for example Noto Sans CJK SC or Microsoft YaHei); the interface stays in English".into());
         }
         let language = match id {
             "app.language.japanese" => crate::i18n::Language::Ja,

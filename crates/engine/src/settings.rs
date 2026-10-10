@@ -89,7 +89,10 @@ impl Default for GeneralPrefs {
 #[serde(rename_all = "camelCase", default)]
 pub struct AppearancePrefs {
     /// Legacy single "Color Theme": `darkest` | `dark` | `light`. Setting it (old settings files,
-    /// automation, View ▸ Appearance) selects that theme and fixes the mode to its family.
+    /// automation, View ▸ Appearance) selects that theme and fixes the mode to its family. It is
+    /// kept in line with the fields below ([`AppearancePrefs::sync_color_theme`]): the light or
+    /// dark theme of a fixed mode, and the dark theme in Auto (whose shown theme depends on the
+    /// system; read `appearanceMode` for that).
     pub color_theme: String,
     /// "Appearance Mode": `auto` (follow the operating system) | `dark` (default) | `light`.
     pub appearance_mode: String,
@@ -138,6 +141,13 @@ impl AppearancePrefs {
             self.dark_theme = theme.into();
             self.appearance_mode = "dark".into();
         }
+    }
+
+    /// Bring the legacy `color_theme` in line with the mode and theme choices, so clients that
+    /// still read it get the theme a fixed mode shows (the dark theme in Auto).
+    pub fn sync_color_theme(&mut self) {
+        let theme = self.shown_theme(None).to_string();
+        self.color_theme = theme;
     }
 
     /// The mode after this one in the header button's cycle: Auto, Light, Dark, Auto…
@@ -1138,7 +1148,7 @@ static CATEGORIES: &[Category] = &[
             b("playback.draftDecode", "Draft decoding at reduced playback resolution (H.264: faster, some frames less filtered)", true),
             f("playback.hardwareDecoding", "Hardware decoding", Kind::Choice(HW_DECODE), true),
             Row::Note(
-                "Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API for H.264 and HEVC on Linux) for the streams it supports, and FilmCraft's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.",
+                "Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API or NVDEC for H.264 and HEVC on Linux) for the streams it supports, and FilmCraft's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.",
             ),
         ],
     },
