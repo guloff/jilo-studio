@@ -149,3 +149,37 @@ fn cloud_transcription_asks_once_runs_in_the_background_and_adds_the_transcript(
     assert_eq!(confirmed, json!(["gemini"]));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Remove filler words: the dialog lists the transcript's fillers with hesitations chosen, and
+/// removes only what stays chosen.
+#[test]
+fn filler_words_are_chosen_in_a_dialog() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
+    d.frames(2);
+    d.click("text.tab.Transcript");
+    // a Russian transcript for the media of the first A1 clip
+    let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
+    let item = seq["audio"][0]["items"][0]["item"].as_u64().unwrap();
+    let start = seq["audio"][0]["items"][0]["sourceIn"].as_i64().unwrap_or(0);
+    let tick = filmcraft_time::TICKS_PER_SECOND / 10; // 0.1 s
+    let words: Vec<Value> = ["Сегодня", "э", "мы", "ну", "монтируем"]
+        .iter()
+        .enumerate()
+        .map(|(i, w)| json!({"text": w, "start": start + tick * 5 * i as i64, "end": start + tick * (5 * i as i64 + 4)}))
+        .collect();
+    d.ok("engine.execute", json!({"command": "transcript.set", "params": {"item": item, "transcript": {"language": "ru", "speakers": [], "words": words}}}));
+    d.frames(3);
+    d.click("text.transcript.removeFillers");
+    let ids = d.ids("fillers.");
+    assert!(ids.contains(&"fillers.item.э".to_string()) && ids.contains(&"fillers.item.ну".to_string()), "{ids:?}");
+    // choose "ну" too, then remove
+    d.click("fillers.item.ну");
+    d.click("fillers.remove");
+    assert!(d.ids("fillers.").is_empty(), "the dialog closes");
+    let t = d.ok("engine.execute", json!({"command": "transcript.inspect", "params": {}}));
+    let left: Vec<&str> = t["words"].as_array().unwrap().iter().filter_map(|w| w["text"].as_str()).collect();
+    assert_eq!(left, ["Сегодня", "мы", "монтируем"]);
+}

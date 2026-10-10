@@ -193,6 +193,58 @@ pub fn find_pauses(words: &[SeqWord], min: Tick, keep: Tick, rate: FrameRate) ->
 /// The default filler words and phrases (configurable in preferences and per command).
 pub const DEFAULT_FILLERS: &[&str] = &["um", "uh", "umm", "uhm", "erm", "er", "ah", "hmm", "mm", "mhm"];
 
+/// Filler words of a language: hesitations ("uh", "э") are safe to cut and are chosen by default;
+/// discourse words ("like", "ну", "яъне") can carry meaning and are offered unchosen. Russian,
+/// Tajik and English from Jilo Studio; English hesitations also include [`DEFAULT_FILLERS`].
+pub struct FillerWords {
+    pub hesitations: &'static [&'static str],
+    pub discourse: &'static [&'static str],
+}
+
+const FILLERS_RU: FillerWords = FillerWords {
+    hesitations: &["э", "ээ", "эээ", "эм", "эмм", "мм", "ммм", "а-а", "хм"],
+    discourse: &["ну", "вот", "типа", "короче", "значит", "как бы", "в общем", "это самое", "так сказать"],
+};
+const FILLERS_TG: FillerWords =
+    FillerWords { hesitations: &["ээ", "эээ", "эм", "мм", "хм"], discourse: &["яъне", "ана", "ҳамин", "хуллас", "хуб"] };
+const FILLERS_EN: FillerWords = FillerWords {
+    hesitations: &["um", "uh", "umm", "uhm", "erm", "er", "ah", "hmm", "mm", "mhm"],
+    discourse: &["like", "you know", "basically", "actually", "literally", "i mean", "kind of", "sort of"],
+};
+
+/// The filler words of `language` (ISO 639-1; other languages get the English list).
+pub fn filler_words(language: &str) -> &'static FillerWords {
+    match language {
+        "ru" => &FILLERS_RU,
+        "tg" => &FILLERS_TG,
+        _ => &FILLERS_EN,
+    }
+}
+
+/// A filler phrase found in the words, how often, and whether it is chosen by default.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FoundFiller {
+    pub phrase: String,
+    pub count: usize,
+    pub hesitation: bool,
+}
+
+/// The fillers of `language` that occur in `words`, hesitations first, each by count.
+pub fn found_fillers(words: &[SeqWord], language: &str) -> Vec<FoundFiller> {
+    let dict = filler_words(language);
+    let mut out: Vec<FoundFiller> = Vec::new();
+    for (list, hesitation) in [(dict.hesitations, true), (dict.discourse, false)] {
+        for phrase in list {
+            let n = find_fillers(words, &[phrase.to_string()]).len();
+            if n > 0 {
+                out.push(FoundFiller { phrase: phrase.to_string(), count: n, hesitation });
+            }
+        }
+    }
+    out.sort_by(|a, b| b.hesitation.cmp(&a.hesitation).then(b.count.cmp(&a.count)));
+    out
+}
+
 /// Filler words: word index ranges matching one of `fillers` (each a word or a phrase such as
 /// "you know"; case and punctuation ignored).
 pub fn find_fillers(words: &[SeqWord], fillers: &[String]) -> Vec<std::ops::Range<usize>> {

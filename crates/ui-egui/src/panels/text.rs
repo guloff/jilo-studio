@@ -316,6 +316,14 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             if cmd.ends_with("extract") || cmd.ends_with("lift") {
                 app.ui.transcript_sel = None;
             }
+            if cmd == "transcript.removeFillers" {
+                // the found fillers of the transcript's language, to choose from
+                match app.session.execute("transcript.fillers", json!({})) {
+                    Ok(v) => app.ui.fillers = Some(v["fillers"].as_array().cloned().unwrap_or_default()),
+                    Err(e) => app.ui.status = e.to_string(),
+                }
+                continue;
+            }
             actions.push((cmd.into(), params));
         }
         x += 28.0;
@@ -365,7 +373,57 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             ui.add_space(8.0);
         }
     });
+    fillers_dialog(app, ui.ctx());
     run(app, ui, actions);
+}
+
+/// Text panel ▸ Remove filler words: the fillers found, hesitations chosen, discourse words not.
+fn fillers_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+    let Some(mut list) = app.ui.fillers.take() else { return };
+    let t = app.tokens;
+    let (mut remove, mut cancel) = (false, false);
+    let w = 360.0;
+    egui::Modal::new(egui::Id::new("fillers-dialog")).frame(crate::dialog_style::frame(&t)).show(ctx, |ui| {
+        ui.set_width(w);
+        let bar = crate::dialog_style::header(ui, tl!("Remove Filler Words"), w);
+        app.auto.add("fillers.dialog", bar, "Remove Filler Words");
+        egui::Frame::new().inner_margin(egui::Margin::symmetric(18, 14)).show(ui, |ui| {
+            if list.is_empty() {
+                ui.label(tl!("No filler words found in this transcript."));
+            } else {
+                ui.label(
+                    egui::RichText::new(tl!("Hesitations are chosen; words like “well” or “like” can carry meaning, so choose them yourself."))
+                        .color(t.text_dim),
+                );
+                for f in list.iter_mut() {
+                    let phrase = f["phrase"].as_str().unwrap_or_default().to_string();
+                    let mut on = f["selected"].as_bool().unwrap_or(false);
+                    let r = ui.checkbox(&mut on, format!("{phrase}  ×{}", f["count"].as_u64().unwrap_or(0)));
+                    app.auto.add(&format!("fillers.item.{phrase}"), r.rect, &phrase);
+                    f["selected"] = json!(on);
+                }
+            }
+            ui.add_space(6.0);
+            crate::dialog_style::actions(ui, |ui| {
+                let any = list.iter().any(|f| f["selected"] == true);
+                let r = ui.add_enabled(any, crate::dialog_style::primary(tl!("Remove")));
+                app.auto.add("fillers.remove", r.rect, "Remove");
+                let c = ui.add(crate::dialog_style::secondary(tl!("Cancel")));
+                app.auto.add("fillers.cancel", c.rect, "Cancel");
+                remove = r.clicked();
+                cancel = c.clicked();
+            });
+        });
+    });
+    if remove {
+        let chosen: Vec<Value> = list.iter().filter(|f| f["selected"] == true).map(|f| f["phrase"].clone()).collect();
+        match app.session.execute("transcript.removeFillers", json!({"fillers": chosen})) {
+            Ok(v) => app.ui.status = tlf!("Removed {n} filler words", n = v["removed"].as_u64().unwrap_or(0)),
+            Err(e) => app.ui.status = e.to_string(),
+        }
+    } else if !cancel && !ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        app.ui.fillers = Some(list);
+    }
 }
 
 /// Languages offered for recognition (Settings ▸ Media Analysis has the full list).

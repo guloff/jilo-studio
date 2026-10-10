@@ -68,3 +68,30 @@ fn no_audio_or_all_silence_is_refused() {
     s.execute("timeline.place", json!({"item": item.0, "audioTrack": "A1", "seconds": 0.0})).unwrap();
     assert!(s.execute("audio.removeSilences", json!({})).unwrap_err().to_string().contains("whole sequence is silent"));
 }
+
+/// Filler words of the transcript's language: Russian hesitations are chosen, discourse words not.
+#[test]
+fn russian_fillers_are_found_and_hesitations_removed_by_default() {
+    let mut s = Session::default();
+    s.execute("file.newSequence", json!({"name": "ru", "audio": 1, "video": 1})).unwrap();
+    let item = crate::commands::import_bytes(&mut s, "/ru.wav", wav(), None).unwrap();
+    s.execute("timeline.place", json!({"item": item.0, "audioTrack": "A1", "seconds": 0.0})).unwrap();
+    let tick = |x: f64| filmcraft_time::Tick::from_seconds_f64(x).0;
+    let words: Vec<_> = ["Сегодня", "э", "мы", "ну", "монтируем", "ээ,", "интервью"]
+        .iter()
+        .enumerate()
+        .map(|(i, w)| json!({"text": w, "start": tick(i as f64), "end": tick(i as f64 + 0.8)}))
+        .collect();
+    s.execute("transcript.set", json!({"item": item.0, "transcript": {"language": "ru", "speakers": [], "words": words}})).unwrap();
+    let r = s.execute("transcript.fillers", json!({})).unwrap();
+    assert_eq!(r["language"], "ru");
+    let list = r["fillers"].as_array().unwrap();
+    let get = |p: &str| list.iter().find(|f| f["phrase"] == p).cloned().unwrap();
+    assert_eq!((get("э")["count"].clone(), get("э")["selected"].clone()), (json!(1), json!(true)));
+    assert_eq!(get("ээ")["kind"], "hesitation");
+    assert_eq!((get("ну")["kind"].clone(), get("ну")["selected"].clone()), (json!("discourse"), json!(false)));
+    let removed = s.execute("transcript.removeFillers", json!({})).unwrap();
+    assert_eq!(removed["removed"], 2, "э and ээ, not ну");
+    let left: Vec<String> = crate::transcript::sequence_words(&s).iter().map(|w| w.text.clone()).collect();
+    assert_eq!(left, ["Сегодня", "мы", "ну", "монтируем", "интервью"]);
+}

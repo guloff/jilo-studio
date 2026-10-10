@@ -101,6 +101,15 @@ prints SKIPPED. Measured on 2026-10-01: `whisper-tiny`, English, 12.2 % WER over
 the local speech samples (LibriSpeech read speech and dialogue clips) (about 9.5 minutes for the run in a release build on an
 Apple-silicon laptop CPU).
 
+## Filler words
+
+Remove filler words (Text panel ▸ Transcript; `transcript.removeFillers`) knows Russian, Tajik and
+English (`filmcraft_edit::transcript::filler_words`, from Jilo Studio): hesitations ("э", "мм", "uh")
+are safe to cut, discourse words ("ну", "типа", "яъне", "like", "you know") can carry meaning. The
+language is the transcript's (most of its words), or `language`. `transcript.fillers` lists what
+occurs with counts; the panel shows it with the hesitations chosen and the discourse words not, and
+removes what stays chosen in one undo step. Without `fillers`, the command removes the hesitations.
+
 ## Pauses by sound
 
 For footage without a transcript, Sequence ▸ Remove Silent Pauses (`audio.removeSilences`;

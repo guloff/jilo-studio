@@ -457,6 +457,9 @@ pub struct UiState {
     /// Text panel ▸ Transcribe: the running recognition and a pending cloud consent.
     #[serde(default)]
     pub transcribe: TranscribeUi,
+    /// Text panel ▸ Remove filler words: the found fillers being chosen (`transcript.fillers`).
+    #[serde(default)]
+    pub fillers: Option<Vec<serde_json::Value>>,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -942,6 +945,7 @@ impl Default for UiState {
             transcript_sel: None,
             transcript_search: String::new(),
             transcribe: TranscribeUi::default(),
+            fillers: None,
             play_after_render: true,
             mixer_fx_open: false,
             mixer_hidden: Vec::new(),

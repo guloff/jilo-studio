@@ -3593,3 +3593,7 @@
 	Remove Silent Pauses	Quitar pausas silenciosas
 	Whisper small (accurate)	Whisper small (preciso)
 	Whisper large-v3 turbo (most accurate; Russian, Tajik)	Whisper large-v3 turbo (el más preciso; ruso, tayiko)
+# Text panel ▸ Remove filler words
+	Hesitations are chosen; words like “well” or “like” can carry meaning, so choose them yourself.	Las vacilaciones ya están elegidas; palabras como «bueno» o «tipo» pueden tener sentido, así que elígelas tú.
+	No filler words found in this transcript.	No se han encontrado muletillas en esta transcripción.
+	Removed {n} filler words	Muletillas quitadas: {n}

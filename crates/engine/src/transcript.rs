@@ -390,11 +390,36 @@ fn remove_pauses(s: &mut Session, p: &Value) -> Result<Value> {
     remove_ranges(s, "Remove Pauses", ranges)
 }
 
+/// The language of the sequence transcript: `language`, else the language most of its words are in.
+fn words_language(s: &Session, p: &Value, words: &[SeqWord]) -> String {
+    if let Some(l) = str_p(p, "language").filter(|l| !l.is_empty()) {
+        return l.to_string();
+    }
+    let mut count: std::collections::BTreeMap<String, usize> = Default::default();
+    for w in words {
+        if let Some(t) = s.project.transcripts.get(&w.item) {
+            *count.entry(t.language.clone()).or_default() += 1;
+        }
+    }
+    count.into_iter().max_by_key(|(_, n)| *n).map(|(l, _)| l).unwrap_or_else(|| "en".into())
+}
+
+fn list_fillers(s: &mut Session, p: &Value) -> Result<Value> {
+    let words = sequence_words(s);
+    let language = words_language(s, p, &words);
+    let found = tx::found_fillers(&words, &language);
+    Ok(json!({
+        "language": language,
+        "fillers": found.iter().map(|f| json!({"phrase": f.phrase, "count": f.count, "kind": if f.hesitation { "hesitation" } else { "discourse" }, "selected": f.hesitation})).collect::<Vec<_>>(),
+    }))
+}
+
 fn remove_fillers(s: &mut Session, p: &Value) -> Result<Value> {
     let words = sequence_words(s);
+    // default: the hesitations of the transcript's language (discourse words only when asked)
     let fillers: Vec<String> = match p.get("fillers").and_then(Value::as_array) {
         Some(a) => a.iter().filter_map(Value::as_str).map(str::to_string).collect(),
-        None => tx::DEFAULT_FILLERS.iter().map(|f| f.to_string()).collect(),
+        None => tx::filler_words(&words_language(s, p, &words)).hesitations.iter().map(|f| f.to_string()).collect(),
     };
     let hits = tx::find_fillers(&words, &fillers);
     let ranges = tx::filler_ranges(&words, &hits, s.sequence_rate());
@@ -514,7 +539,16 @@ pub fn commands() -> Vec<CommandSpec> {
             remove_pauses,
             true,
         ),
-        spec("transcript.removeFillers", "Remove Filler Words", &["Sequence", "Transcript"], r#"{"fillers":[str]?}"#, has_transcript, remove_fillers, true),
+        spec("transcript.fillers", "List Filler Words", &[], r#"{"language":"ru|tg|en"?}"#, has_transcript, list_fillers, false),
+        spec(
+            "transcript.removeFillers",
+            "Remove Filler Words",
+            &["Sequence", "Transcript"],
+            r#"{"fillers":[str]?,"language":"ru|tg|en"?}"#,
+            has_transcript,
+            remove_fillers,
+            true,
+        ),
         spec(
             "transcript.createCaptions",
             "Create Captions from Transcript…",
