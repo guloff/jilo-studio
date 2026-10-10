@@ -112,6 +112,15 @@ impl Weights {
         Ok(Weights { map })
     }
 
+    /// Move every tensor to `dev` (the GPU, when the model runs there).
+    pub(crate) fn into_device(self, dev: &Device) -> Result<Weights, TtsError> {
+        if dev.is_cpu() {
+            return Ok(self);
+        }
+        let map = self.map.into_iter().map(|(k, t)| t.to_device(dev).map(|t| (k, t))).collect::<candle_core::Result<HashMap<_, _>>>().map_err(err)?;
+        Ok(Weights { map })
+    }
+
     pub(crate) fn get(&self, name: &str) -> Result<Tensor, TtsError> {
         self.map.get(name).cloned().ok_or_else(|| err(format!("missing weight `{name}`")))
     }

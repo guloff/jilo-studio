@@ -36,6 +36,9 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 sys-locale = "0.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+# Our macOS build transcribes (Text panel ▸ Transcribe) and speaks natural voices on the GPU
+# (Metal), with Accelerate for what stays on the CPU.
+filmcraft-engine = { workspace = true, features = ["whisper", "speech-download", "neural-voices", "apple-ml"] }
 muda = "0.21"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSProcessInfo", "NSString", "NSArray"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder", "NSWindow"] }

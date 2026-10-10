@@ -13,6 +13,10 @@ workspace = true
 default = []
 # Whisper inference on the CPU via candle (pure Rust). Off by default (and in wasm builds).
 whisper = ["dep:candle-core", "dep:candle-nn"]
+# Whisper on Apple's GPU (Metal) through candle, with the CPU as fallback (macOS).
+metal = ["whisper", "candle-core/metal", "candle-nn/metal"]
+# Matrix maths on the CPU through Apple's Accelerate framework (macOS).
+accelerate = ["whisper", "candle-core/accelerate", "candle-nn/accelerate"]
 # Model downloads over HTTPS (pure-Rust TLS: rustls + RustCrypto, OS certificate verification).
 download = ["dep:ureq", "dep:rustls", "dep:rustls-rustcrypto", "dep:sha2"]
 

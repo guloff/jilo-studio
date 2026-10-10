@@ -13,6 +13,10 @@ workspace = true
 default = []
 # Kokoro-82M neural voices on the CPU via candle (pure Rust). Off by default and in wasm builds.
 kokoro = ["dep:candle-core", "dep:candle-nn", "dep:zip", "dep:serde_json", "dep:filmcraft-tts-text", "dep:filmcraft-audio-dsp"]
+# Kokoro on Apple's GPU (Metal) through candle, with the CPU as fallback (macOS).
+metal = ["kokoro", "candle-core/metal", "candle-nn/metal"]
+# Matrix maths on the CPU through Apple's Accelerate framework (macOS).
+accelerate = ["kokoro", "candle-core/accelerate", "candle-nn/accelerate"]
 
 [dependencies]
 filmcraft-tts-text = { workspace = true, optional = true }

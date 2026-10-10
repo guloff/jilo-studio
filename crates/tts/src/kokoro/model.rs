@@ -334,14 +334,14 @@ pub(crate) struct Model {
 }
 
 impl Model {
-    pub(crate) fn load(w: &Weights) -> R<Model> {
+    pub(crate) fn load(w: &Weights, dev: Device) -> R<Model> {
         Ok(Model {
             albert: Albert::load(w)?,
             bert_enc: Linear::load(w, "bert_encoder")?,
             text: TextEncoder::load(w)?,
             pred: Predictor::load(w)?,
             dec: Decoder::load(w)?,
-            dev: Device::Cpu,
+            dev,
         })
     }
 

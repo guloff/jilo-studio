@@ -252,6 +252,18 @@ impl Decoder {
     }
 }
 
+/// Where Whisper runs: Apple's GPU (Metal) in builds with the `metal` feature, unless
+/// `FILMCRAFT_SPEECH_DEVICE=cpu`; the CPU otherwise, and whenever no Metal device can be opened.
+fn device() -> Device {
+    #[cfg(feature = "metal")]
+    if std::env::var("FILMCRAFT_SPEECH_DEVICE").map_or(true, |v| v != "cpu")
+        && let Ok(d) = Device::new_metal(0)
+    {
+        return d;
+    }
+    Device::Cpu
+}
+
 pub struct Model {
     pub cfg: Config,
     pub encoder: Encoder,
@@ -261,7 +273,7 @@ pub struct Model {
 
 impl Model {
     pub fn load(cfg: Config, weights: Vec<u8>) -> Result<Self> {
-        let device = Device::Cpu;
+        let device = device();
         let vb = VarBuilder::from_buffered_safetensors(weights, DType::F32, &device)?;
         let vb = vb.pp("model");
         Ok(Self { encoder: Encoder::new(&cfg, vb.pp("encoder"))?, decoder: Decoder::new(&cfg, vb.pp("decoder"))?, cfg, device })

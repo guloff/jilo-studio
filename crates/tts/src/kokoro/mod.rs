@@ -19,6 +19,18 @@ use crate::TtsError;
 
 pub use model::SAMPLE_RATE as KOKORO_RATE;
 
+/// Where the model runs: Apple's GPU (Metal) in builds with the `metal` feature, unless
+/// `FILMCRAFT_TTS_DEVICE=cpu`; the CPU otherwise, and whenever no Metal device can be opened.
+fn device() -> candle_core::Device {
+    #[cfg(feature = "metal")]
+    if std::env::var("FILMCRAFT_TTS_DEVICE").map_or(true, |v| v != "cpu")
+        && let Ok(d) = candle_core::Device::new_metal(0)
+    {
+        return d;
+    }
+    candle_core::Device::Cpu
+}
+
 /// Longest phoneme string one forward pass takes (the position table has 512 rows, two of them
 /// for the boundary tokens).
 pub const MAX_PHONEMES: usize = 510;
@@ -42,8 +54,9 @@ impl Kokoro {
     /// Load `config.json` and `kokoro-v1_0.pth` from `dir`.
     pub fn load(dir: &Path) -> Result<Kokoro, TtsError> {
         let cfg = weights::read_config(&dir.join("config.json"))?;
-        let w = weights::Weights::load(&dir.join("kokoro-v1_0.pth"))?;
-        Ok(Kokoro { model: model::Model::load(&w)?, vocab: cfg.vocab })
+        let dev = device();
+        let w = weights::Weights::load(&dir.join("kokoro-v1_0.pth"))?.into_device(&dev)?;
+        Ok(Kokoro { model: model::Model::load(&w, dev)?, vocab: cfg.vocab })
     }
 
     /// Phoneme ids of `phonemes`; symbols outside the vocabulary are dropped.
