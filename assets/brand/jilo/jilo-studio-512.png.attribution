@@ -1,8 +1,8 @@
 asset:        jilo-studio-512.png
 title:        Jilo Studio app icon, 512 px on the macOS icon grid (window and Dock icon)
 author:       Rustam Gulov (Jilo Studio owner)
-source:       original work (Jilo Studio, ~/Documents/Projects/AppDevelopment/JiloStudio Web/packages/desktop/assets/icon.svg and its build)
+source:       original work: concept generated with Higgsfield (GPT Image 2.5) at the owner's request, redrawn as exact geometry by packaging/macos/icon/
 license:      LicenseRef-Jilo-Trademark — the Jilo name and icon are the owner's marks, usable unmodified for Jilo Studio; not covered by the project's MIT OR Apache-2.0 license (assets/brand/jilo/LICENSE-brand.txt)
 license-file: assets/brand/jilo/LICENSE-brand.txt
 added:        2026-10-10 by Rustam Gulov
-notes:        Replaces the ArtCraft marks, which modified FilmCraft builds must not carry (docs/brand/LICENSE-brand.txt).
+notes:        2026-10-11: the aperture mark (six curved blades, violet gradient #E3C8FF → #7B2FF7 on a dark plate #15131D) replaces the lime J; rendered from jilo-studio.svg's geometry (draw.swift, 512 px, plate on the 1024 grid). See packaging/macos/icon/README.md. The ArtCraft marks stay out of this build (docs/brand/LICENSE-brand.txt).

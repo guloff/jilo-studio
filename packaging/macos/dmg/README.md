@@ -7,8 +7,8 @@ Finder scripting on CI, nothing extra installed in the signing job).
 
 | File | What |
 |---|---|
-| `background.svg` | Source of the background: the J and editing track of the Jilo Studio icon (`assets/brand/jilo/jilo-studio.svg`) as a cover on a black panel, Paper under both icons, an editing-track arrow in Jilo lime (`#c8ff00`). No text, so rendering it needs no fonts. No paper grain: noise doesn't compress, and this keeps `background.tiff` small. |
-| `background.tiff` | The background at 1x (660 × 400 px, 72 dpi) and 2x (1320 × 800 px, 144 dpi) in one HiDPI TIFF (16-colour palette, Deflate, sRGB). Goes to `.background/background.tiff`. |
+| `background.svg` | Source of the background: the aperture of the Jilo Studio icon (`assets/brand/jilo/jilo-studio.svg`) as a cover on a dark panel (`#15131D`, the blades in `#E3C8FF` → `#7B2FF7`), light paper (`#F2EFF7`) under both icons, an editing-track arrow. No text, so rendering it needs no fonts. Written by `packaging/macos/icon/bg.py`. |
+| `background.tiff` | The background at 1x (660 × 400 px, 72 dpi) and 2x (1320 × 800 px, 144 dpi) in one HiDPI TIFF (sRGB). Goes to `.background/background.tiff`. Rendered on a Mac by `packaging/macos/icon/bg.swift`. |
 | `dmg-layout.DS_Store` | Finder's view settings for the volume: window size, icon size 128, Jilo Studio.app at (326, 205), `Applications` at (574, 205), and the background. Goes to `.DS_Store` in the image; named so it isn't mistaken for (or ignored like) a Finder-generated `.DS_Store`. |
 | `generate.py` | Writes `background.tiff` and `dmg-layout.DS_Store` from the SVG and the layout above. |
 
@@ -28,7 +28,9 @@ The DMG file name (`jilo-studio-<version>-macos-<arch>.dmg`) still carries the v
 
 ## Regenerate
 
-Edit `background.svg` (or the layout constants in `generate.py`), then run, on any OS:
+The background is drawn from the icon's geometry by `packaging/macos/icon/` (see its README).
+`generate.py` still writes `dmg-layout.DS_Store` (and can render a hand-edited `background.svg`); for that,
+run, on any OS:
 
 ```sh
 pip install 'pillow>=12' ds_store==1.3.3 mac_alias==2.2.3

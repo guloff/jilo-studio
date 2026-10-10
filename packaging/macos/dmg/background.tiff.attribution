@@ -1,8 +1,8 @@
 asset:        background.tiff
 title:        Jilo Studio macOS DMG window background (rendered)
 author:       Rustam Gulov, after the FilmCraft background by @XusBadia
-source:       rendered from background.svg by generate.py
+source:       rendered from background.svg's shapes by packaging/macos/icon/bg.swift (1x and 2x), joined with tiffutil
 license:      MIT OR Apache-2.0
 license-file: LICENSE-MIT, LICENSE-APACHE
 added:        2026-10-10 by Rustam Gulov
-notes:        1x + 2x HiDPI TIFF for the macOS DMG window; includes the Jilo Studio icon (see its row, LicenseRef-Jilo-Trademark) and LittleCMS built-in sRGB profile ("No copyright, use freely"). Regenerate with packaging/macos/dmg/generate.py.
+notes:        1x + 2x HiDPI TIFF for the macOS DMG window; includes the Jilo Studio icon (see its row, LicenseRef-Jilo-Trademark) in the sRGB colour space. Regenerate with packaging/macos/icon/ (see its README).

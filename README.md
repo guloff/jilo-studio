@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="#license-and-credits"><img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20%7C%20Apache--2.0-c8ff00?labelColor=0a0a0a"></a>
-  <img alt="macOS 15+ on Apple silicon" src="https://img.shields.io/badge/macOS-15%2B%20%C2%B7%20Apple%20silicon-c8ff00?labelColor=0a0a0a">
-  <img alt="Written in Rust" src="https://img.shields.io/badge/written%20in-Rust-c8ff00?labelColor=0a0a0a">
+  <a href="#license-and-credits"><img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20%7C%20Apache--2.0-7B2FF7?labelColor=15131D"></a>
+  <img alt="macOS 15+ on Apple silicon" src="https://img.shields.io/badge/macOS-15%2B%20%C2%B7%20Apple%20silicon-7B2FF7?labelColor=15131D">
+  <img alt="Written in Rust" src="https://img.shields.io/badge/written%20in-Rust-7B2FF7?labelColor=15131D">
 </p>
 
 <p align="center">
