@@ -267,3 +267,40 @@ fn fragmented_writer_ffmpeg() {
         }
     }
 }
+
+/// Chapters (a QuickTime chapter track) as ffprobe reads them, in MP4 and MOV.
+#[test]
+fn chapters_are_read_by_ffprobe() {
+    let (Some(src), Some(ffp)) = (fixture("h264_bframes.mp4"), ffprobe()) else { return };
+    let data = std::fs::read(&src).unwrap();
+    let f = open(data.as_slice()).unwrap();
+    for (name, brand) in [("chapters.mp4", Brand::Mp4), ("chapters.mov", Brand::Mov)] {
+        let mut opts = WriterOptions::new(brand);
+        opts.movie_timescale = f.timescale;
+        let mut w = Mp4Writer::new(Cursor::new(Vec::new()), opts).unwrap();
+        let av: Vec<usize> = (0..f.tracks.len()).filter(|&i| matches!(f.tracks[i].kind, TrackKind::Video | TrackKind::Audio)).collect();
+        let mut map = vec![usize::MAX; f.tracks.len()];
+        for &i in &av {
+            map[i] = w.add_track(track_config(&f, &f.tracks[i], true)).unwrap();
+        }
+        for (t, i) in interleave(&f, &av) {
+            let s = f.tracks[t].samples[i];
+            let bytes = f.read_sample(data.as_slice(), t, i).unwrap();
+            w.write_sample(map[t], WriteSample { data: &bytes, duration: s.duration, composition_offset: (s.pts - s.dts) as i32, is_sync: s.is_sync }).unwrap();
+        }
+        w.set_chapters(vec![Chapter { start_ms: 0, title: "Opening".into() }, Chapter { start_ms: 1000, title: "Главная мысль".into() }]);
+        let out = w.finish_faststart().unwrap().into_inner();
+        let path = out_dir().join(name);
+        std::fs::write(&path, &out).unwrap();
+        decode_clean(&path);
+        let o = std::process::Command::new(&ffp).args(["-v", "error", "-show_chapters", "-of", "json"]).arg(&path).output().unwrap();
+        let v: Value = serde_json::from_slice(&o.stdout).unwrap();
+        let ch = v["chapters"].as_array().cloned().unwrap_or_default();
+        let got: Vec<(String, String)> =
+            ch.iter().map(|c| (c["start_time"].as_str().unwrap_or("").to_string(), c["tags"]["title"].as_str().unwrap_or("").to_string())).collect();
+        assert_eq!(got.len(), 2, "{name}: {v}");
+        assert_eq!(got[1].1, "Главная мысль", "{name}: {v}");
+        assert!(got[1].0.starts_with("1.0"), "{name}: {v}");
+        eprintln!("{name}: {got:?}");
+    }
+}

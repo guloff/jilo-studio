@@ -70,12 +70,16 @@ enum Handler {
     Video,
     Audio,
     Timecode,
+    /// A QuickTime text track: the chapter list (`tref/chap` points at it).
+    Text,
     Other,
 }
 
 fn handler_of(e: &SampleEntry) -> Handler {
     if matches!(e.codec, CodecConfig::Timecode(_)) {
         Handler::Timecode
+    } else if e.format.0 == *b"text" {
+        Handler::Text
     } else if e.video.is_some() {
         Handler::Video
     } else if e.audio.is_some() {
@@ -131,6 +135,64 @@ struct WTrack {
     tmcd_ref: Option<u32>,
     /// For timecode tracks: (video track index, start frame).
     tmcd_source: Option<(usize, u32)>,
+    /// Track id of the chapter track (`tref/chap`).
+    chap_ref: Option<u32>,
+}
+
+/// A chapter of a movie: where it starts (milliseconds from the start of the presentation) and
+/// its title. Each lasts until the next one (the last until the end of the movie).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Chapter {
+    pub start_ms: u64,
+    pub title: String,
+}
+
+/// The QuickTime text sample description (`text`) of a chapter track, after the box header
+/// (QuickTime File Format, "Text Sample Description"): data reference 1, centred, no box, black
+/// on transparent, no font name.
+fn chapter_entry() -> SampleEntry {
+    let mut raw = Vec::with_capacity(51);
+    raw.extend_from_slice(&[0; 6]);
+    raw.extend_from_slice(&1u16.to_be_bytes()); // data reference index
+    raw.extend_from_slice(&0u32.to_be_bytes()); // display flags
+    raw.extend_from_slice(&1i32.to_be_bytes()); // text justification: centred
+    raw.extend_from_slice(&[0; 6]); // background colour
+    raw.extend_from_slice(&[0; 8]); // default text box
+    raw.extend_from_slice(&[0; 8]); // reserved
+    raw.extend_from_slice(&0u16.to_be_bytes()); // font number
+    raw.extend_from_slice(&0u16.to_be_bytes()); // font face
+    raw.extend_from_slice(&[0; 3]); // reserved
+    raw.extend_from_slice(&[0; 6]); // foreground colour
+    raw.push(0); // text name (empty Pascal string)
+    SampleEntry {
+        format: crate::bytes::FourCc(*b"text"),
+        data_reference_index: 1,
+        codec: CodecConfig::Unknown { fourcc: crate::bytes::FourCc(*b"text"), raw },
+        video: None,
+        audio: None,
+        bitrate: None,
+    }
+}
+
+/// A text sample (QuickTime File Format, "Text Sample Data"): a 16-bit length, the text in UTF-8,
+/// and for anything beyond ASCII an encoding atom (`encd`, Unicode in UTF-8: 0x08000100), without
+/// which readers take the bytes for Mac Roman. A title too long for the length word is cut at a
+/// character boundary.
+fn text_sample(title: &str) -> Vec<u8> {
+    let mut end = title.len().min(u16::MAX as usize);
+    while !title.is_char_boundary(end) {
+        end -= 1;
+    }
+    let text = &title.as_bytes()[..end];
+    let mut out = Vec::with_capacity(2 + text.len() + 12);
+    out.extend_from_slice(&(text.len() as u16).to_be_bytes());
+    out.extend_from_slice(text);
+    if !title.is_ascii() {
+        out.extend_from_slice(&12u32.to_be_bytes());
+        out.extend_from_slice(b"encd");
+        out.extend_from_slice(&0x0800_0100u32.to_be_bytes());
+    }
+    out
 }
 
 fn pack_language(lang: &str) -> u16 {
@@ -221,7 +283,8 @@ fn write_trak(b: &mut BoxBuf, t: &WTrack, movie_ts: u32, qt: bool, shift: u64, f
     let trak = b.start(b"trak");
     let dur = presentation_duration(t, movie_ts);
     let v1 = dur > u32::MAX as u64;
-    let m = b.start_full(b"tkhd", v1 as u8, 3);
+    // a chapter track is not shown as a track of its own (in the movie, not enabled)
+    let m = b.start_full(b"tkhd", v1 as u8, if t.handler == Handler::Text { 2 } else { 3 });
     if v1 {
         b.u64(0);
         b.u64(0);
@@ -275,11 +338,15 @@ fn write_trak(b: &mut BoxBuf, t: &WTrack, movie_ts: u32, qt: bool, shift: u64, f
         b.end(l);
         b.end(e);
     }
-    if let Some(id) = t.tmcd_ref {
+    if t.tmcd_ref.is_some() || t.chap_ref.is_some() {
         let r = b.start(b"tref");
-        let m = b.start(b"tmcd");
-        b.u32(id);
-        b.end(m);
+        for (kind, id) in [(b"tmcd", t.tmcd_ref), (b"chap", t.chap_ref)] {
+            if let Some(id) = id {
+                let m = b.start(kind);
+                b.u32(id);
+                b.end(m);
+            }
+        }
         b.end(r);
     }
     let mdia = b.start(b"mdia");
@@ -303,6 +370,7 @@ fn write_trak(b: &mut BoxBuf, t: &WTrack, movie_ts: u32, qt: bool, shift: u64, f
         Handler::Video => (b"vide", "VideoHandler"),
         Handler::Audio => (b"soun", "SoundHandler"),
         Handler::Timecode => (b"tmcd", "TimeCodeHandler"),
+        Handler::Text => (b"text", "ChapterHandler"),
         Handler::Other => (b"meta", "MetaHandler"),
     };
     let name = t.cfg.handler_name.clone().unwrap_or_else(|| default_name.into());
@@ -352,6 +420,24 @@ fn write_trak(b: &mut BoxBuf, t: &WTrack, movie_ts: u32, qt: bool, shift: u64, f
             b.u8(0);
             b.end(m);
             b.end(tm);
+            b.end(g);
+        }
+        Handler::Text => {
+            // base media information with a text media information atom (an identity matrix)
+            let g = b.start(b"gmhd");
+            let m = b.start_full(b"gmin", 0, 0);
+            b.u16(0x40);
+            b.u16(0x8000);
+            b.u16(0x8000);
+            b.u16(0x8000);
+            b.i16(0);
+            b.u16(0);
+            b.end(m);
+            let tx = b.start(b"text");
+            for v in MATRIX {
+                b.i32(v);
+            }
+            b.end(tx);
             b.end(g);
         }
         Handler::Other => {
@@ -509,6 +595,8 @@ pub struct Mp4Writer<W: Write + Seek> {
     w: W,
     opts: WriterOptions,
     tracks: Vec<WTrack>,
+    /// Written as a chapter track at the end ([`set_chapters`](Self::set_chapters)).
+    chapters: Vec<Chapter>,
     /// Offset of the placeholder box (8 bytes) preceding the mdat header.
     pad_pos: u64,
     mdat_pos: u64,
@@ -528,7 +616,7 @@ impl<W: Write + Seek> Mp4Writer<W> {
         b.leaf(b"mdat", &[]);
         w.write_all(&b.buf)?;
         let pos = start + b.len() as u64;
-        Ok(Mp4Writer { w, opts, tracks: Vec::new(), pad_pos, mdat_pos, pos, last_track: None })
+        Ok(Mp4Writer { w, opts, tracks: Vec::new(), chapters: Vec::new(), pad_pos, mdat_pos, pos, last_track: None })
     }
 
     /// Add a track; returns its index (track ids are index + 1).
@@ -537,7 +625,7 @@ impl<W: Write + Seek> Mp4Writer<W> {
         let handler = handler_of(&cfg.entry);
         let mut t = Tables::new();
         t.const_size = pcm;
-        self.tracks.push(WTrack { id: self.tracks.len() as u32 + 1, handler, pcm_frame_bytes: pcm, t, cfg, tmcd_ref: None, tmcd_source: None });
+        self.tracks.push(WTrack { id: self.tracks.len() as u32 + 1, handler, pcm_frame_bytes: pcm, t, cfg, tmcd_ref: None, tmcd_source: None, chap_ref: None });
         Ok(self.tracks.len() - 1)
     }
 
@@ -571,6 +659,14 @@ impl<W: Write + Seek> Mp4Writer<W> {
         let id = self.tracks[idx].id;
         self.tracks[video_track].tmcd_ref = Some(id);
         Ok(idx)
+    }
+
+    /// Chapters to write when the file is finished: a QuickTime chapter track (text samples, one
+    /// per chapter) that every video and audio track refers to with `tref/chap`, as QuickTime
+    /// Player, Apple's players and other readers of MP4/MOV chapters expect. The first chapter
+    /// starts the movie whatever its time; chapters at or past the end are left out.
+    pub fn set_chapters(&mut self, chapters: Vec<Chapter>) {
+        self.chapters = chapters;
     }
 
     /// Append one sample to track `track` (decode order). For PCM tracks `data` may hold any whole
@@ -625,7 +721,35 @@ impl<W: Write + Seek> Mp4Writer<W> {
         Ok(())
     }
 
+    fn write_chapters(&mut self) -> Result<()> {
+        let mut chapters = std::mem::take(&mut self.chapters);
+        let ts = self.opts.movie_timescale.max(1);
+        let total = rescale(movie_duration(&self.tracks, ts), ts, 1000);
+        chapters.sort_by_key(|c| c.start_ms);
+        chapters.retain(|c| c.start_ms < total);
+        if chapters.is_empty() {
+            return Ok(());
+        }
+        let mut cfg = TrackConfig::new(chapter_entry(), 1000);
+        cfg.handler_name = Some("Chapters".into());
+        let idx = self.add_track(cfg)?;
+        let id = self.tracks[idx].id;
+        for t in &mut self.tracks {
+            if matches!(t.handler, Handler::Video | Handler::Audio) {
+                t.chap_ref = Some(id);
+            }
+        }
+        for (i, c) in chapters.iter().enumerate() {
+            let start = if i == 0 { 0 } else { c.start_ms };
+            let end = chapters.get(i + 1).map_or(total, |n| n.start_ms);
+            let duration = end.saturating_sub(start).clamp(1, u32::MAX as u64) as u32;
+            self.write_sample(idx, WriteSample { data: &text_sample(&c.title), duration, composition_offset: 0, is_sync: true })?;
+        }
+        Ok(())
+    }
+
     fn finish_mdat(&mut self) -> Result<()> {
+        self.write_chapters()?;
         // Timecode samples.
         for i in 0..self.tracks.len() {
             let Some((vi, start)) = self.tracks[i].tmcd_source else { continue };
@@ -758,7 +882,16 @@ impl<W: Write> FragmentedWriter<W> {
             return Err(Error::Mux("PCM is not supported by the fragmented writer".into()));
         }
         let handler = handler_of(&cfg.entry);
-        self.tracks.push(WTrack { id: self.tracks.len() as u32 + 1, handler, pcm_frame_bytes: None, t: Tables::new(), cfg, tmcd_ref: None, tmcd_source: None });
+        self.tracks.push(WTrack {
+            id: self.tracks.len() as u32 + 1,
+            handler,
+            pcm_frame_bytes: None,
+            t: Tables::new(),
+            cfg,
+            tmcd_ref: None,
+            tmcd_source: None,
+            chap_ref: None,
+        });
         self.pending.push(Vec::new());
         self.next_dts.push(0);
         Ok(self.tracks.len() - 1)
@@ -891,6 +1024,48 @@ mod tests {
 
     fn avc_entry() -> SampleEntry {
         SampleEntry::avc(AvcConfig::new(vec![vec![0x67, 0x42, 0, 0x1E]], vec![vec![0x68, 0xCE]], 4), 64, 48)
+    }
+
+    /// Chapters become a disabled text track with one sample per chapter (length + UTF-8 text, an
+    /// `encd` atom when it is not ASCII) that the video track refers to with `tref/chap`.
+    #[test]
+    fn chapters_are_a_text_track_referenced_by_chap() {
+        for (brand, fast) in [(Brand::Mp4, false), (Brand::Mov, true)] {
+            let mut w = Mp4Writer::new(Cursor::new(Vec::new()), WriterOptions::new(brand)).unwrap();
+            let v = w.add_track(TrackConfig::new(avc_entry(), 1000)).unwrap();
+            for i in 0..10u8 {
+                w.write_sample(v, WriteSample { data: &[i; 50], duration: 1000, composition_offset: 0, is_sync: true }).unwrap();
+            }
+            w.set_chapters(vec![
+                Chapter { start_ms: 4000, title: "Глава 2".into() },
+                Chapter { start_ms: 250, title: "Intro".into() },
+                Chapter { start_ms: 12_000, title: "past the end".into() },
+            ]);
+            let out = if fast { w.finish_faststart() } else { w.finish() }.unwrap().into_inner();
+            let f = crate::open(out.as_slice()).unwrap();
+            assert_eq!(f.tracks.len(), 2, "{brand:?}");
+            let t = &f.tracks[1];
+            assert_eq!(t.entries[0].format.0, *b"text");
+            let durations: Vec<u32> = t.samples.iter().map(|s| s.duration).collect();
+            assert_eq!(durations, [4000, 6000], "the first chapter starts the movie, the last ends with it");
+            let first = f.read_sample(out.as_slice(), 1, 0).unwrap();
+            assert_eq!(first, [0, 5, b'I', b'n', b't', b'r', b'o']);
+            let second = f.read_sample(out.as_slice(), 1, 1).unwrap();
+            let n = "Глава 2".len();
+            assert_eq!(&second[..2], &(n as u16).to_be_bytes());
+            assert_eq!(std::str::from_utf8(&second[2..2 + n]).unwrap(), "Глава 2");
+            assert_eq!(&second[2 + n..], &[0, 0, 0, 12, b'e', b'n', b'c', b'd', 8, 0, 1, 0], "UTF-8 is declared");
+            let chap = out.windows(4).position(|w| w == b"chap").unwrap();
+            assert_eq!(u32::from_be_bytes(out[chap + 4..chap + 8].try_into().unwrap()), 2, "tref/chap names the chapter track");
+        }
+        // nothing to do without chapters, or with chapters past the end
+        let mut w = Mp4Writer::new(Cursor::new(Vec::new()), WriterOptions::new(Brand::Mp4)).unwrap();
+        let v = w.add_track(TrackConfig::new(avc_entry(), 1000)).unwrap();
+        w.write_sample(v, WriteSample { data: &[1; 10], duration: 1000, composition_offset: 0, is_sync: true }).unwrap();
+        w.set_chapters(vec![Chapter { start_ms: 5000, title: "late".into() }]);
+        let out = w.finish().unwrap().into_inner();
+        assert_eq!(crate::open(out.as_slice()).unwrap().tracks.len(), 1);
+        assert!(!out.windows(4).any(|w| w == b"chap"));
     }
 
     #[test]
