@@ -68,7 +68,10 @@ echo "==> $APP_NAME $VERSION for macOS ($ARCH), identity: $IDENTITY, notarize: $
 if [ "$SKIP_BUILD" = 0 ]; then
   args=()
   for t in "${TARGETS[@]}"; do args+=(--target "$t"); done
-  (cd "$ROOT" && cargo build --release --locked -p filmcraft -p filmcraft-cli "${args[@]}")
+  # Panic locations carry source paths: map the build machine's (the home folder's cargo registry,
+  # the checkout) to neutral ones, so a release names no user or folder of the machine it was built on.
+  remap="--remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}/registry/src=/cargo/registry/src --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}/git/checkouts=/cargo/git --remap-path-prefix=$ROOT=/jilo-studio"
+  (cd "$ROOT" && RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$remap" cargo build --release --locked -p filmcraft -p filmcraft-cli "${args[@]}")
 fi
 
 rm -rf "$WORK"
@@ -182,7 +185,8 @@ copy_docs "$CLI_DIR"
 sign --options runtime "$CLI_DIR/filmcraft-cli"
 codesign --verify --strict --verbose=2 "$CLI_DIR/filmcraft-cli"
 rm -f "$CLI_ZIP"
-ditto -c -k --keepParent "$CLI_DIR" "$CLI_ZIP"
+# without extended attributes or AppleDouble (._*) files: only what the archive is meant to hold
+ditto -c -k --keepParent --norsrc --noextattr --noqtn --noacl "$CLI_DIR" "$CLI_ZIP"
 # A bare Mach-O can't carry a stapled ticket; Gatekeeper looks the notarization up online.
 if [ "$NOTARIZE" = 1 ]; then notarize "$CLI_ZIP"; fi
 
