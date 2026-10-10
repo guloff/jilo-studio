@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
+# vendor/: patched third-party crates (see [patch.crates-io]), not workspace members
+exclude = ["vendor"]
 default-members = ["crates/*", "apps/*", "xtask"]
 
 [workspace.package]
@@ -129,3 +131,8 @@ opt-level = 3
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# egui-wgpu 0.36.2 with a surface format / colour-space option (EDR HDR monitors on macOS) and
+# half-float screen capture; vendor/egui-wgpu/FILMCRAFT-PATCH.md lists the changes.
+[patch.crates-io]
+egui-wgpu = { path = "vendor/egui-wgpu" }
