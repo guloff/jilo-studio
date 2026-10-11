@@ -97,7 +97,8 @@ pub fn version(tag: &str) -> Option<[u64; 3]> {
 }
 
 /// Release notes (GitHub Markdown) as plain text for the window: headings without their `#`,
-/// list items as bullets, links as their text, no emphasis or code marks.
+/// list items as bullets, links as their text, no emphasis or code marks, and menu paths with
+/// `›` (the window's font has no `▸`).
 pub fn plain(md: &str) -> String {
     let link = |l: &str| {
         // [text](url) → text
@@ -123,7 +124,7 @@ pub fn plain(md: &str) -> String {
                 Some(item) => format!("{}• {item}", " ".repeat(lead)),
                 None => format!("{}{body}", " ".repeat(lead)),
             };
-            link(&body).replace("**", "").replace('`', "")
+            link(&body).replace("**", "").replace('`', "").replace('▸', "›")
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -297,6 +298,7 @@ mod tests {
         assert_eq!(plain(md), "What's new\n\n• Faster export, see the docs\n  • nested code\nPlain line");
         assert_eq!(plain("[unclosed (x"), "[unclosed (x");
         assert_eq!(plain(""), "");
+        assert_eq!(plain("Settings ▸ AI"), "Settings › AI");
         let notes = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/releases/0.6.0.md")).unwrap();
         let p = plain(&notes);
         assert!(!p.contains("##") && !p.contains("**") && p.contains("• Reframe to Face"), "{p}");
