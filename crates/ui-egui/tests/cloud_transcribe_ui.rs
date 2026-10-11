@@ -803,7 +803,12 @@ fn an_elevenlabs_voice_is_chosen_allowed_and_speaks_the_narration() {
     let fake = Arc::new(FakeTransport::new());
     fake.route(
         |r| r.url.ends_with("/v1/voices"),
-        |_| Ok(Response::json(200, &json!({"voices": [{"voice_id": "v1", "name": "Rachel", "labels": {"gender": "female"}}, {"voice_id": "v2", "name": "Adam"}]}))),
+        |_| {
+            Ok(Response::json(
+                200,
+                &json!({"voices": [{"voice_id": "v1", "name": "Rachel", "labels": {"gender": "female"}}, {"voice_id": "v2", "name": "Adam"}]}),
+            ))
+        },
     );
     // half a second of a tone for every piece of speech
     fake.route(

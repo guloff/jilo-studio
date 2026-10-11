@@ -793,7 +793,10 @@ fn a_generated_image_is_imported_and_placed_after_consent() {
 fn an_elevenlabs_voice_speaks_a_narration_with_its_pauses() {
     let (mut s, fake, dir) = session("eleven-tts");
     s.execute("ai.setKey", json!({"provider": "elevenlabs", "key": "xi"})).unwrap();
-    fake.route(|r| r.url.ends_with("/v1/voices"), |_| Ok(Response::json(200, &json!({"voices": [{"voice_id": "v1", "name": "Rachel", "labels": {"gender": "female"}}]}))));
+    fake.route(
+        |r| r.url.ends_with("/v1/voices"),
+        |_| Ok(Response::json(200, &json!({"voices": [{"voice_id": "v1", "name": "Rachel", "labels": {"gender": "female"}}]}))),
+    );
     // half a second of a tone for every piece of speech
     fake.route(
         |r| r.url.contains("/text-to-speech/v1"),

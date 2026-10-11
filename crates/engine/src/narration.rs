@@ -139,7 +139,9 @@ fn render(n: &Narration, speaker: &Speaker) -> std::result::Result<tts::Audio, S
     match speaker {
         Speaker::Local(models_dir) => {
             let voice = tts::voice_in(&n.voice, models_dir.as_deref()).map_err(|e| match e {
-                tts::TtsError::NotInstalled => "the natural voices are not downloaded yet: Text to Speech ▸ Download natural voices (tts.downloadVoices)".to_string(),
+                tts::TtsError::NotInstalled => {
+                    "the natural voices are not downloaded yet: Text to Speech ▸ Download natural voices (tts.downloadVoices)".to_string()
+                }
                 e => e.to_string(),
             })?;
             voice.synthesize(&n.text, &tts::Params { semitones: n.pitch.semitones(), pace: n.pace }).map_err(|e| e.to_string())
@@ -155,8 +157,8 @@ fn render(n: &Narration, speaker: &Speaker) -> std::result::Result<tts::Audio, S
             for seg in tts::script::parse(&n.text) {
                 match seg {
                     tts::script::Segment::Speech(text) if !text.trim().is_empty() => {
-                        let pcm =
-                            filmcraft_ai::elevenlabs::speak(&ctx, key, model, cloud_voice(&n.voice).unwrap_or_default(), text.trim()).map_err(|e| e.to_string())?;
+                        let pcm = filmcraft_ai::elevenlabs::speak(&ctx, key, model, cloud_voice(&n.voice).unwrap_or_default(), text.trim())
+                            .map_err(|e| e.to_string())?;
                         samples.extend(pcm.iter().map(|v| f32::from(*v) / 32768.0));
                     }
                     tts::script::Segment::Speech(_) => {}
@@ -615,7 +617,14 @@ pub fn commands() -> Vec<CommandSpec> {
             create,
             true,
         ),
-        spec("tts.edit", "Edit Narration", r#"{"clip":id?,"text":str?,"voice":str?,"pitch":str?,"pace":f64?,"dir":str?,"confirm":bool?}"#, has_narration_clip, edit, true),
+        spec(
+            "tts.edit",
+            "Edit Narration",
+            r#"{"clip":id?,"text":str?,"voice":str?,"pitch":str?,"pace":f64?,"dir":str?,"confirm":bool?}"#,
+            has_narration_clip,
+            edit,
+            true,
+        ),
         spec("tts.inspect", "Inspect Narration", r#"{"clip":id?,"item":id?}"#, always, inspect, false),
         spec(
             "tts.render",
