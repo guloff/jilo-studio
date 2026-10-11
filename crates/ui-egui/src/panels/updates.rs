@@ -1,9 +1,9 @@
 //! Help ▸ Check for Updates…: the check runs in the background (`app.checkUpdates`, a job in the
 //! status bar), then a window says what it found — a newer release with its notes and a Download
 //! button that opens the release's GitHub page, or that this version is the latest, or why the
-//! check failed. Nothing is checked unless asked, or — with Settings ▸ General ▸ Check for updates
-//! once a day — once a day in the background, which says nothing unless a newer release is out and
-//! offers each release once.
+//! check failed. With Settings ▸ General ▸ Check for updates once a day (on by default; the app
+//! host turns the check on with `with_daily_update_check`) it also runs once a day in the
+//! background, says nothing unless a newer release is out and offers each release once.
 
 use egui::RichText;
 use serde_json::{Value, json};
@@ -26,7 +26,7 @@ pub fn start(app: &mut FilmcraftApp) -> Result<Value, String> {
 /// The daily check: looked at once at startup and then hourly; runs when a day has passed.
 fn daily(app: &mut FilmcraftApp) {
     let now = web_time::Instant::now();
-    if app.ui.updates.job.is_some() || app.ui.updates.next_look.is_some_and(|t| now < t) {
+    if !app.ui.updates.daily || app.ui.updates.job.is_some() || app.ui.updates.next_look.is_some_and(|t| now < t) {
         return;
     }
     app.ui.updates.next_look = Some(now + std::time::Duration::from_secs(3600));

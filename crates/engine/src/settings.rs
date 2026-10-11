@@ -56,7 +56,8 @@ pub struct GeneralPrefs {
     pub show_compatibility_issues: bool,
     pub show_project_bin_in_tab: bool,
     pub show_mask_tracker_preview: bool,
-    /// Ask GitHub for the latest release once a day (Help ▸ Check for Updates… does it on request).
+    /// Ask GitHub for the latest release once a day, on by default (Help ▸ Check for Updates… does it
+    /// on request).
     pub check_for_updates: bool,
     /// When the daily check last ran (unix seconds; not shown in the dialog).
     pub last_update_check: i64,
@@ -85,7 +86,7 @@ impl Default for GeneralPrefs {
             show_compatibility_issues: true,
             show_project_bin_in_tab: true,
             show_mask_tracker_preview: true,
-            check_for_updates: false,
+            check_for_updates: true,
             last_update_check: 0,
             update_offered: String::new(),
             recent_projects: Vec::new(),

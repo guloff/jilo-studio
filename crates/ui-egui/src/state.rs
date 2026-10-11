@@ -495,6 +495,9 @@ pub struct UpdatesUi {
     pub next_look: Option<web_time::Instant>,
     /// `app.updateStatus` once the check has ended: the window shows it.
     pub result: Option<serde_json::Value>,
+    /// The host runs the daily check (the app does; tests and embedders don't, so they never reach
+    /// the network on their own).
+    pub daily: bool,
 }
 
 /// File ▸ New ▸ Generate Image… (`panels::imagegen`).

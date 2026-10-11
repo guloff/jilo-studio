@@ -238,7 +238,7 @@ fn main() -> eframe::Result {
                     Err(e) => log::error!("recovery failed: {e}"),
                 }
             }
-            let mut app = FilmcraftApp::new(session);
+            let mut app = FilmcraftApp::new(session).with_daily_update_check();
             if show_home {
                 app.ui.mode = filmcraft_ui_egui::state::Mode::Import;
             }

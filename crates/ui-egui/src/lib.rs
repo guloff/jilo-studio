@@ -616,6 +616,12 @@ impl FilmcraftApp {
         self
     }
 
+    /// Run the daily update check of Settings ▸ General (the app turns this on).
+    pub fn with_daily_update_check(mut self) -> Self {
+        self.ui.updates.daily = true;
+        self
+    }
+
     pub fn services(&self) -> Arc<dyn Services> {
         self.session.services.clone()
     }

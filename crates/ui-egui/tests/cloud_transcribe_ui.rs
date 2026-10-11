@@ -709,10 +709,12 @@ fn the_daily_check_offers_a_newer_release_once() {
             ))
         },
     );
+    assert!(filmcraft_engine::settings::GeneralPrefs::default().check_for_updates, "on by default");
     let mut s = Session::default();
     s.ai_transport = Some(fake.clone());
     s.prefs.general.check_for_updates = true;
     let mut d = Driver::new(s);
+    d.harness.state_mut().ui.updates.daily = true;
     let mut shown = false;
     for _ in 0..400 {
         d.frames(2);
