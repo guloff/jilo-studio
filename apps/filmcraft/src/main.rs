@@ -192,6 +192,8 @@ fn main() -> eframe::Result {
             let mut session = Session::default();
             session.face_detector = face_detector();
             if let Some(dir) = data_dir.clone().or_else(default_data_dir) {
+                // updates download beside the app's other data (`--data-dir` included)
+                session.updates_dir = Some(dir.join("Updates"));
                 let mut cfg = AutosaveConfig::new(dir);
                 cfg.local_offset = local_offset;
                 if let Err(e) = session.start_autosave(cfg) {
