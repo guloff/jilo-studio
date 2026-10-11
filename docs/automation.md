@@ -92,7 +92,7 @@ Long work runs as a background job, with MCP progress and cancellation:
 - a command that takes `wait`, called with `wait: true`: `file.exportMedia`, the `sequence.render*`
   commands, `media.createProxies`, `file.projectManager`, `clip.sceneEditDetection`, `masks.track`,
   the export queue, `transcript.recognize`, `tts.render`, `tts.downloadVoices`, `batch.start`,
-  `app.checkUpdates`, `ai.test`;
+  `app.checkUpdates`, `app.downloadUpdate`, `ai.test`;
 - a cloud AI task or a face analysis, always (unless the call passes `background` itself):
   `captions.translate`, `highlights.find`, `clip.autoZoom`, `youtube.generate`,
   `clip.reframeToFace`. The job fetches the answer (or finds the faces); when it ends the server

@@ -65,6 +65,7 @@ pub mod sync;
 pub mod transcript;
 pub mod translate;
 pub mod trim;
+pub mod updater;
 pub mod updates;
 pub mod voiceover;
 pub mod youtube;
@@ -446,6 +447,8 @@ pub struct Session {
     pub ai_transport: Option<Arc<dyn filmcraft_ai::Transport>>,
     /// The API key file (None = `<data dir>/ai.json`).
     pub ai_keys_file: Option<std::path::PathBuf>,
+    /// Where updates are downloaded (None = `<data dir>/Updates`; tests use their own).
+    pub updates_dir: Option<std::path::PathBuf>,
     /// Waiting between AI retries (None = real waits; tests skip them).
     pub ai_sleep: Option<filmcraft_ai::SleepFn>,
     /// Model lists found by the last key check of each provider (`ai.test`).
@@ -463,6 +466,8 @@ pub struct Session {
     pub face_cache: reframe::FaceCache,
     /// The last Help ▸ Check for Updates… of this session (`app.updateStatus`).
     pub update_check: updates::UpdateState,
+    /// The update being downloaded, checked or waiting to be installed (`app.downloadUpdate`).
+    pub update_download: updater::DownloadState,
     /// The Events panel log: failed commands, job results, auto-save errors, messages.
     pub log: panels::EventLog,
     /// Media Browser navigation (directory, back / forward history, selected files).
@@ -558,6 +563,7 @@ impl Session {
             transcriber: None,
             ai_transport: None,
             ai_keys_file: None,
+            updates_dir: None,
             ai_sleep: None,
             ai_models: Default::default(),
             recognition_cache: Default::default(),
@@ -566,6 +572,7 @@ impl Session {
             face_detector: None,
             face_cache: Default::default(),
             update_check: Default::default(),
+            update_download: Default::default(),
             log: Default::default(),
             browser: Default::default(),
             exec_depth: 0,

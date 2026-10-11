@@ -3794,3 +3794,40 @@ mode	Edit	Монтаж
 	Spoken by ElevenLabs in the cloud. Vocal pitch and pace don't apply.	Озвучивает ElevenLabs в облаке. Высота голоса и темп не применяются.
 	Couldn't load the ElevenLabs voices: {e}	Не удалось загрузить голоса ElevenLabs: {e}
 	Loading ElevenLabs voices…	Загрузка голосов ElevenLabs…
+	1. Open the disk image.	1. Откройте образ диска.
+	2. Drag FilmCraft to Applications and choose Replace.	2. Перетащите Jilo Studio в папку «Программы» и выберите «Заменить».
+	3. Quit this version and open FilmCraft again.	3. Закройте эту версию и снова откройте Jilo Studio.
+	Checking the new version's signature…	Проверка подписи новой версии…
+	Download and Install	Скачать и установить
+	Download and Install fetches the new version, checks its signature and installs it when you restart FilmCraft.	«Скачать и установить» загрузит новую версию, проверит её подпись и установит при перезапуске Jilo Studio.
+	Downloading the new version…	Загрузка новой версии…
+	Hide	Скрыть
+	Install When I Quit	Установить при выходе
+	It can't install itself here: {why}.	Здесь она не может установиться сама: {why}.
+	It will be installed when you quit FilmCraft; the next launch opens the new version.	Она будет установлена, когда вы закроете Jilo Studio; при следующем запуске откроется новая версия.
+	Open Disk Image	Открыть образ диска
+	Open Release Page	Открыть страницу релиза
+	Release page on GitHub	Страница релиза на GitHub
+	Restart and Install	Перезапустить и установить
+	The download failed: {why}	Не удалось скачать: {why}
+	The update is done: you are using the new version.	Обновление завершено: вы работаете в новой версии.
+	This release has no disk image for this Mac: its page on GitHub opens instead.	В этом релизе нет образа диска для этого Mac: вместо этого откроется его страница на GitHub.
+	To install it:	Чтобы установить её:
+	Try Again	Повторить
+	You are still using {version}. Check for updates to try again, or download it from the release page.	Вы по-прежнему работаете в версии {version}. Проверьте обновления, чтобы попробовать снова, или скачайте её со страницы релиза.
+	You can hide this window and keep working: the download goes on, and this window comes back when it is done.	Окно можно скрыть и продолжать работу: загрузка продолжится, а окно появится снова, когда она закончится.
+	{app} {version} is downloaded and checked.	{app} {version} скачана и проверена.
+	{app} {version} is downloaded.	{app} {version} скачана.
+	{app} {version} is installed	{app} {version} установлена
+	{app} {version} was not installed	{app} {version} не установлена
+	{done} of {total} MB	{done} из {total} МБ
+	Restart and Install quits {app} (asking first about unsaved changes), puts {version} in place of this version and opens it again. It takes a few seconds.	«Перезапустить и установить» закроет {app} (сначала спросив о несохранённых изменениях), заменит эту версию на {version} и снова откроет приложение. Это займёт несколько секунд.
+	this copy of Jilo Studio is not an installed app (a development build)	эта копия Jilo Studio — не установленное приложение (сборка для разработки)
+	macOS runs this copy from a temporary place; move Jilo Studio to Applications first	macOS запускает эту копию из временного места; сначала переместите Jilo Studio в «Программы»
+	Jilo Studio is running from its disk image or another disk	Jilo Studio запущена с образа диска или другого диска
+	this copy of Jilo Studio is not signed with a Developer ID	эта копия Jilo Studio не подписана сертификатом Developer ID
+	this account can't change the folder Jilo Studio is in	у этой учётной записи нет прав менять папку, где лежит Jilo Studio
+	updates install themselves only on macOS	обновления устанавливаются сами только на macOS
+	the downloaded file is damaged (its size or checksum is not the release's); try again	скачанный файл повреждён (размер или контрольная сумма не совпадают с релизом); попробуйте ещё раз
+	the new version is not signed by the same developer as this one	новая версия подписана не тем же разработчиком, что эта
+	the disk image holds a different app	в образе диска другое приложение

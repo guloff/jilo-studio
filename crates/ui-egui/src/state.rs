@@ -495,9 +495,14 @@ pub struct UpdatesUi {
     pub next_look: Option<web_time::Instant>,
     /// `app.updateStatus` once the check has ended: the window shows it.
     pub result: Option<serde_json::Value>,
-    /// The host runs the daily check (the app does; tests and embedders don't, so they never reach
-    /// the network on their own).
-    pub daily: bool,
+    /// The host is the app itself: it runs the daily check, says after a restart whether an
+    /// update was installed, and installs an armed update as it quits (tests and embedders don't,
+    /// so they never reach the network or replace an app on their own).
+    pub host: bool,
+    /// The job downloading and checking an update (`app.downloadUpdate`).
+    pub download_job: Option<u64>,
+    /// The launch was looked at for an update that was being installed.
+    pub launch_seen: bool,
 }
 
 /// File ▸ New ▸ Generate Image… (`panels::imagegen`).

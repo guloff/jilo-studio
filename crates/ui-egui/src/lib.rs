@@ -616,9 +616,10 @@ impl FilmcraftApp {
         self
     }
 
-    /// Run the daily update check of Settings ▸ General (the app turns this on).
+    /// Act as the app for updates: the daily check of Settings ▸ General, and installing a
+    /// downloaded update as the app quits (the app turns this on).
     pub fn with_daily_update_check(mut self) -> Self {
-        self.ui.updates.daily = true;
+        self.ui.updates.host = true;
         self
     }
 
@@ -2071,6 +2072,13 @@ impl eframe::App for FilmcraftApp {
 
     fn on_exit(&mut self) {
         crash::end_session();
+        if self.ui.updates.host {
+            // an update armed by Restart and Install / Install When I Quit: its installer waits
+            // for this process to end
+            if let Err(e) = filmcraft_engine::updater::install_on_exit(&self.session) {
+                log::error!("update not installed: {e}");
+            }
+        }
         if self.discard_on_exit {
             // "Don't Save": nothing to offer on the next launch.
             self.session.discard_unsaved_on_exit();

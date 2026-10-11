@@ -1,9 +1,9 @@
 //! Help ▸ Check for Updates… (`app.checkUpdates`, `app.updateStatus`): the latest release of Jilo
 //! Studio on GitHub (`releases/latest`, which leaves drafts and pre-releases out) compared with this
-//! build's version. Only on request — nothing is checked on its own — and nothing but the request
-//! itself is sent. The release is not downloaded or installed here: the window opens its GitHub
-//! page, where the signed disk image is. The answer is untrusted text: the notes are shown as
-//! plain text, cut to a length, and only a release page of this repository is ever opened.
+//! build's version, on request or once a day, and nothing but the request itself is sent. The
+//! answer is untrusted text: the notes are shown as plain text, cut to a length, only a release
+//! page of this repository is ever opened, and only this repository's disk image for this Mac,
+//! with the SHA-256 GitHub gives for it, is offered for download ([`crate::updater`]).
 
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -42,6 +42,41 @@ pub struct UpdateCheck {
     pub none: bool,
     /// Why the check failed.
     pub error: Option<String>,
+    /// The release's disk image for this Mac (None: the release has none; its page is offered).
+    pub asset: Option<Asset>,
+}
+
+/// A release's disk image: its name, download address, size and SHA-256 (as GitHub publishes it).
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Asset {
+    pub name: String,
+    pub url: String,
+    pub size: u64,
+    pub sha256: String,
+}
+
+/// The disk image of release `version` for an Apple silicon Mac, from GitHub's `assets`: only
+/// `jilo-studio-<version>-macos-aarch64.dmg`, downloaded from this repository, with a size and a
+/// SHA-256 digest.
+pub fn asset_of(release: &Value, version: &str) -> Option<Asset> {
+    let name = format!("jilo-studio-{version}-macos-aarch64.dmg");
+    let prefix = format!("https://github.com/{REPO}/releases/download/");
+    release["assets"].as_array()?.iter().find_map(|a| {
+        if a["name"].as_str()? != name {
+            return None;
+        }
+        let url = a["browser_download_url"].as_str()?;
+        if !url.starts_with(&prefix) || !url.ends_with(&format!("/{name}")) || url.contains(['\n', ' ', '"', '?', '#', '\\']) || url.contains("..") {
+            return None;
+        }
+        let size = a["size"].as_u64().filter(|s| *s > 0 && *s < 2 << 30)?;
+        let sha = a["digest"].as_str()?.strip_prefix("sha256:")?;
+        if sha.len() != 64 || !sha.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return None;
+        }
+        Some(Asset { name: name.clone(), url: url.to_string(), size, sha256: sha.to_ascii_lowercase() })
+    })
 }
 
 /// The last check of this session, written by the background job.
@@ -121,8 +156,10 @@ pub fn read_release(current: &str, status: u16, body: &[u8]) -> UpdateCheck {
         c.error = Some(format!("the latest release has no version number (`{}`)", tag.chars().take(40).collect::<String>()));
         return c;
     };
-    c.latest = Some(tag.trim().trim_start_matches(['v', 'V']).chars().take(40).collect());
+    let name: String = tag.trim().trim_start_matches(['v', 'V']).chars().take(40).collect();
     c.newer = version(current).is_some_and(|cur| latest > cur);
+    c.asset = asset_of(&v, &name);
+    c.latest = Some(name);
     // only a page of this repository's releases is opened
     if let Some(u) = v["html_url"].as_str().filter(|u| u.starts_with(&format!("{RELEASES_PAGE}/")) && !u.contains(['\n', ' ', '"'])) {
         c.url = u.to_string();
@@ -179,14 +216,16 @@ fn check_updates(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn update_status(s: &mut Session, _: &Value) -> Result<Value> {
-    Ok(match s.update_check.lock().unwrap_or_else(PoisonError::into_inner).clone() {
+    let mut v = match s.update_check.lock().unwrap_or_else(PoisonError::into_inner).clone() {
         Some(c) => {
             let mut v = serde_json::to_value(c).unwrap_or_default();
             v["checked"] = json!(true);
             v
         }
         None => json!({"checked": false, "current": env!("CARGO_PKG_VERSION")}),
-    })
+    };
+    v["download"] = crate::updater::status_json(s);
+    Ok(v)
 }
 
 pub fn commands() -> Vec<CommandSpec> {

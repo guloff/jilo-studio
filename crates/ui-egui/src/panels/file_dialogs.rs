@@ -162,6 +162,7 @@ pub fn show_quit(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
                 }
                 if button(app, ui, "quit.cancel", tl!("Cancel"), false) {
                     open = false;
+                    crate::panels::updates::quit_cancelled(app);
                 }
             });
         });

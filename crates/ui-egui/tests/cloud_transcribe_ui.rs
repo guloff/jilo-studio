@@ -682,7 +682,8 @@ fn updates_are_checked_on_request_and_shown_in_a_window() {
         panic!("no {id}");
     };
     d.ok("ui.menu.invoke", json!({"id": "app.checkUpdates"}));
-    wait(&mut d, "updates.download");
+    // this release has no disk image: its page is offered
+    wait(&mut d, "updates.page");
     assert_eq!(fake.sent().len(), 1);
     d.snapshot("updates-available");
     d.click("updates.later");
@@ -714,7 +715,7 @@ fn the_daily_check_offers_a_newer_release_once() {
     s.ai_transport = Some(fake.clone());
     s.prefs.general.check_for_updates = true;
     let mut d = Driver::new(s);
-    d.harness.state_mut().ui.updates.daily = true;
+    d.harness.state_mut().ui.updates.host = true;
     let mut shown = false;
     for _ in 0..400 {
         d.frames(2);
@@ -877,5 +878,114 @@ fn an_elevenlabs_voice_is_chosen_allowed_and_speaks_the_narration() {
     assert!(!status.contains("CONFIRM_CLOUD") && !status.contains("rror"), "{status}");
     let speech: Vec<_> = fake.sent().into_iter().filter(|r| r.url.contains("text-to-speech")).collect();
     assert_eq!(speech.last().unwrap().json().unwrap()["text"], "Hello from the cloud.");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Download and Install keeps the window open: the download's progress, then what comes next — a
+/// test binary is no installed app, so the disk image to open by hand; a checked update offers
+/// Restart and Install or Install When I Quit; and the launch after an update says it is installed.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn an_update_downloads_with_progress_and_says_what_comes_next() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let dir = std::env::temp_dir().join(format!("filmcraft-update-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let image: Vec<u8> = (0..3_000_000u32).map(|i| (i % 251) as u8).collect();
+    let digest: String = {
+        use sha2::Digest;
+        sha2::Sha256::digest(&image).iter().map(|b| format!("{b:02x}")).collect()
+    };
+    let name = "jilo-studio-9.3.0-macos-aarch64.dmg";
+    let url = format!("https://github.com/{}/releases/download/v9.3.0/{name}", filmcraft_engine::updates::REPO);
+    let release = json!({"tag_name": "v9.3.0", "html_url": format!("{}/tag/v9.3.0", filmcraft_engine::updates::RELEASES_PAGE),
+        "body": include_str!("../../../docs/releases/0.6.3.md"),
+        "assets": [{"name": name, "browser_download_url": url, "size": image.len(), "digest": format!("sha256:{digest}")}]});
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(|r| r.url == filmcraft_engine::updates::RELEASES_API, move |_| Ok(Response::json(200, &release)));
+    // the download waits until the test lets it finish
+    let gate = Arc::new(AtomicBool::new(false));
+    let g = gate.clone();
+    let bytes = image.clone();
+    fake.route(
+        move |r| r.url == url,
+        move |_| {
+            while !g.load(Ordering::Relaxed) {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            Ok(Response::new(200, bytes.clone()))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_transport = Some(fake.clone());
+    s.updates_dir = Some(dir.clone());
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    let wait = |d: &mut Driver, id: &str| {
+        for _ in 0..600 {
+            d.frames(2);
+            if d.ids("updates.").iter().any(|i| i == id) {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        panic!("no {id} in {:?}", d.ids("updates."));
+    };
+    d.ok("ui.menu.invoke", json!({"id": "app.checkUpdates"}));
+    wait(&mut d, "updates.download");
+    d.snapshot("update-available");
+    d.click("updates.download");
+    wait(&mut d, "updates.progress");
+    let ids = d.ids("updates.");
+    assert!(ids.contains(&"updates.hide".to_string()) && ids.contains(&"updates.stop".to_string()), "{ids:?}");
+    // halfway, as a slow line would show it
+    if let Some(j) = d.harness.state().session.jobs.last() {
+        j.progress.done.store(image.len() as u64 / 2, Ordering::Relaxed);
+    }
+    d.frames(3);
+    d.snapshot("update-downloading");
+    // hidden, it goes on and comes back when done
+    d.click("updates.hide");
+    assert!(d.ids("updates.").is_empty());
+    gate.store(true, Ordering::Relaxed);
+    wait(&mut d, "updates.openImage");
+    d.snapshot("update-manual");
+    let st = d.ok("engine.execute", json!({"command": "app.updateStatus", "params": {}}));
+    assert_eq!(st["download"]["phase"], "manual", "{st}");
+    assert_eq!(std::fs::read(dir.join(name)).unwrap(), image);
+    d.click("updates.close");
+    // a checked update (as the app itself gets): Restart and Install or Install When I Quit
+    *d.harness.state().session.update_download.lock().unwrap() = Some(filmcraft_engine::updater::UpdateDownload {
+        version: "9.3.0".into(),
+        phase: "ready".into(),
+        staged: Some(dir.join("Staged/Jilo Studio.app").to_string_lossy().into_owned()),
+        target: Some("/Applications/Jilo Studio.app".into()),
+        ..Default::default()
+    });
+    d.ok("ui.menu.invoke", json!({"id": "app.checkUpdates"}));
+    wait(&mut d, "updates.restart");
+    d.snapshot("update-ready");
+    let sent = fake.sent().len();
+    d.click("updates.onQuit");
+    wait(&mut d, "updates.ok");
+    assert_eq!(fake.sent().len(), sent, "showing a ready update checks nothing");
+    assert_eq!(d.harness.state().session.prefs.general.update_installing, "9.3.0");
+    d.snapshot("update-on-quit");
+    d.click("updates.ok");
+    // nothing is installed when this test ends
+    d.ok("engine.execute", json!({"command": "app.installUpdate", "params": {"cancel": true}}));
+    // the launch after an update
+    {
+        let app = d.harness.state_mut();
+        app.session.prefs.general.update_installing = env!("CARGO_PKG_VERSION").into();
+        app.session.prefs.general.check_for_updates = false;
+        app.ui.updates.host = true;
+        app.ui.updates.launch_seen = false;
+    }
+    wait(&mut d, "updates.ok");
+    d.snapshot("update-installed");
+    assert_eq!(d.harness.state().session.prefs.general.update_installing, "");
+    d.harness.state_mut().ui.updates.host = false;
+    d.click("updates.ok");
     let _ = std::fs::remove_dir_all(&dir);
 }

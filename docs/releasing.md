@@ -55,11 +55,27 @@ User-facing names say **Jilo Studio**. Release files are lowercase:
 
 Help ▸ Check for Updates… (`app.checkUpdates`, `crates/engine/src/updates.rs`) asks GitHub for the
 latest release of `guloff/jilo-studio` (`/releases/latest`: drafts and pre-releases are not offered)
-and compares its tag, `vX.Y.Z`, with the running version. A newer release shows its notes (the
-release body, as plain text) and a Download button that opens the release page. The app also
-checks once a day (Settings ▸ General, on by default) and then speaks only of a newer release, once;
-it downloads nothing itself; so the tag must carry the version number, and the notes
-are what users read before they download.
+and compares its tag, `vX.Y.Z`, with the running version. The app also checks once a day (Settings ▸
+General, on by default) and then speaks only of a newer release, once. A newer release shows its
+notes (the release body, as plain text).
+
+Download and Install (`app.downloadUpdate`, `crates/engine/src/updater.rs`) installs it from inside
+the app:
+
+1. The release's `jilo-studio-<version>-macos-aarch64.dmg` downloads with a progress bar, and its size
+   and SHA-256 must match what GitHub publishes for the file (the `digest` GitHub records on upload).
+2. The app inside the image is copied out and checked with `codesign`: a valid signature from the same
+   Developer ID team as the running copy, the same bundle identifier, and the version of the tag.
+3. Restart and Install (or Install When I Quit; `app.installUpdate`) installs it as the app quits: a
+   script waits for the process to end, swaps the new app in where the old one was (keeping the old
+   one if anything fails, log in `<data dir>/Updates/install.log`) and opens it again. The next
+   launch says whether the update took.
+
+When the app can't replace itself (a development build, an ad-hoc signature, a copy macOS runs from
+a temporary place, a folder the user can't write to) the image is downloaded all the same and the
+window explains how to install it by hand. So a release needs: the tag with the version number, the
+disk image under exactly that name, notes worth reading — and nothing else: no feed or signing key
+of its own, as the Developer ID signature is what is checked.
 
 ## What gets built
 

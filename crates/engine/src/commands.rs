@@ -2920,6 +2920,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::batch::commands());
     v.extend(crate::reframe::commands());
     v.extend(crate::updates::commands());
+    v.extend(crate::updater::commands());
     v.extend(crate::imagegen::commands());
     v.extend(crate::keyboard::commands());
     v.extend(crate::project_panel::commands());

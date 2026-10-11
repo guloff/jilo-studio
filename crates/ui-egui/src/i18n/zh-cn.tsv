@@ -3833,3 +3833,40 @@
 	Spoken by ElevenLabs in the cloud. Vocal pitch and pace don't apply.	由 ElevenLabs 在云端朗读。音高和语速不适用。
 	Couldn't load the ElevenLabs voices: {e}	无法加载 ElevenLabs 语音：{e}
 	Loading ElevenLabs voices…	正在加载 ElevenLabs 语音…
+	1. Open the disk image.	1. 打开磁盘映像。
+	2. Drag FilmCraft to Applications and choose Replace.	2. 将 Jilo Studio 拖到“应用程序”并选择“替换”。
+	3. Quit this version and open FilmCraft again.	3. 退出此版本，然后重新打开 Jilo Studio。
+	Checking the new version's signature…	正在检查新版本的签名…
+	Download and Install	下载并安装
+	Download and Install fetches the new version, checks its signature and installs it when you restart FilmCraft.	“下载并安装”会获取新版本、检查其签名，并在重新启动 Jilo Studio 时安装。
+	Downloading the new version…	正在下载新版本…
+	Hide	隐藏
+	Install When I Quit	退出时安装
+	It can't install itself here: {why}.	此处无法自动安装：{why}。
+	It will be installed when you quit FilmCraft; the next launch opens the new version.	退出 Jilo Studio 时将安装新版本；下次启动时打开的就是新版本。
+	Open Disk Image	打开磁盘映像
+	Open Release Page	打开发布页面
+	Release page on GitHub	GitHub 上的发布页面
+	Restart and Install	重新启动并安装
+	The download failed: {why}	下载失败：{why}
+	The update is done: you are using the new version.	更新完成：你正在使用新版本。
+	This release has no disk image for this Mac: its page on GitHub opens instead.	此版本没有适用于这台 Mac 的磁盘映像：将改为打开其 GitHub 页面。
+	To install it:	安装方法：
+	Try Again	重试
+	You are still using {version}. Check for updates to try again, or download it from the release page.	你仍在使用 {version}。请检查更新以重试，或从发布页面下载。
+	You can hide this window and keep working: the download goes on, and this window comes back when it is done.	你可以隐藏此窗口继续工作：下载会继续，完成后此窗口会再次出现。
+	{app} {version} is downloaded and checked.	{app} {version} 已下载并检查。
+	{app} {version} is downloaded.	{app} {version} 已下载。
+	{app} {version} is installed	{app} {version} 已安装
+	{app} {version} was not installed	{app} {version} 未安装
+	{done} of {total} MB	{done} / {total} MB
+	Restart and Install quits {app} (asking first about unsaved changes), puts {version} in place of this version and opens it again. It takes a few seconds.	“重新启动并安装”会退出 {app}（先询问未保存的更改），用 {version} 替换此版本并重新打开。只需几秒钟。
+	this copy of Jilo Studio is not an installed app (a development build)	此 Jilo Studio 副本不是已安装的应用（开发版本）
+	macOS runs this copy from a temporary place; move Jilo Studio to Applications first	macOS 正从临时位置运行此副本；请先将 Jilo Studio 移到“应用程序”
+	Jilo Studio is running from its disk image or another disk	Jilo Studio 正从其磁盘映像或其他磁盘运行
+	this copy of Jilo Studio is not signed with a Developer ID	此 Jilo Studio 副本未使用 Developer ID 签名
+	this account can't change the folder Jilo Studio is in	此帐户无法更改 Jilo Studio 所在的文件夹
+	updates install themselves only on macOS	仅在 macOS 上可自动安装更新
+	the downloaded file is damaged (its size or checksum is not the release's); try again	下载的文件已损坏（大小或校验和与发布不符）；请重试
+	the new version is not signed by the same developer as this one	新版本的签名者与此版本不同
+	the disk image holds a different app	磁盘映像中是另一个应用

@@ -80,7 +80,31 @@ impl Response {
 /// (no connection, timeout, TLS failure).
 pub trait Transport: Send + Sync {
     fn send(&self, req: &Request) -> Result<Response, String>;
+
+    /// GET `req` into `out` as it arrives, reporting `(bytes so far, total when known)` to
+    /// `progress`, which stops the download by returning false. Returns the status: a failed
+    /// answer's body is not written. The default reads the whole answer with [`send`](Self::send)
+    /// (the fake transport); the HTTP transport streams it.
+    fn download(&self, req: &Request, out: &mut dyn std::io::Write, progress: &mut dyn FnMut(u64, Option<u64>) -> bool) -> Result<u16, String> {
+        let r = self.send(req)?;
+        if !r.ok() {
+            return Ok(r.status);
+        }
+        let total = r.body.len() as u64;
+        let mut done = 0u64;
+        for chunk in r.body.chunks(64 << 10) {
+            out.write_all(chunk).map_err(|e| e.to_string())?;
+            done += chunk.len() as u64;
+            if !progress(done, Some(total)) {
+                return Err(CANCELLED.into());
+            }
+        }
+        Ok(r.status)
+    }
 }
+
+/// The error of a download its `progress` stopped.
+pub const CANCELLED: &str = "cancelled";
 
 /// A transport for builds without network access: every request fails.
 pub struct NoNetwork;
@@ -218,4 +242,45 @@ impl Transport for HttpTransport {
         let body = resp.into_body().with_config().limit(MAX_ANSWER).read_to_vec().map_err(|e| e.to_string())?;
         Ok(Response { status, body })
     }
+
+    fn download(&self, req: &Request, out: &mut dyn std::io::Write, progress: &mut dyn FnMut(u64, Option<u64>) -> bool) -> Result<u16, String> {
+        use std::io::Read;
+        let mut r = self.agent.get(&req.url);
+        for (k, v) in &req.headers {
+            r = r.header(k, v);
+        }
+        // a large file on a slow line gets half an hour; an answer that never starts, a minute
+        let resp = r
+            .config()
+            .timeout_global(Some(std::time::Duration::from_secs(1800)))
+            .timeout_recv_response(Some(std::time::Duration::from_secs(60)))
+            .build()
+            .call();
+        let resp = resp.map_err(|e| e.to_string())?;
+        let status = resp.status().as_u16();
+        if !(200..300).contains(&status) {
+            return Ok(status);
+        }
+        let mut body = resp.into_body();
+        let total = body.content_length();
+        let mut reader = body.with_config().limit(MAX_DOWNLOAD).reader();
+        let mut buf = vec![0u8; 256 << 10];
+        let mut done = 0u64;
+        loop {
+            let n = reader.read(&mut buf).map_err(|e| e.to_string())?;
+            if n == 0 {
+                break;
+            }
+            out.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+            done += n as u64;
+            if !progress(done, total) {
+                return Err(CANCELLED.into());
+            }
+        }
+        Ok(status)
+    }
 }
+
+/// Largest file downloaded (an app update is a few tens of megabytes).
+#[cfg(feature = "net")]
+const MAX_DOWNLOAD: u64 = 2 << 30;

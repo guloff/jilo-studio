@@ -63,6 +63,9 @@ pub struct GeneralPrefs {
     pub last_update_check: i64,
     /// The release the daily check last offered, so each one is offered once (not shown).
     pub update_offered: String,
+    /// The version an update is being installed to, set before quitting to install it: the next
+    /// launch says whether it worked, then clears it (not shown).
+    pub update_installing: String,
     /// Most recently opened / saved projects (newest first; not shown in the dialog).
     pub recent_projects: Vec<String>,
 }
@@ -89,6 +92,7 @@ impl Default for GeneralPrefs {
             check_for_updates: true,
             last_update_check: 0,
             update_offered: String::new(),
+            update_installing: String::new(),
             recent_projects: Vec::new(),
         }
     }

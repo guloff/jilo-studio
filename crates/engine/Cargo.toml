@@ -23,6 +23,7 @@ ai-net = ["filmcraft-ai/net"]
 apple-ml = ["filmcraft-speech/metal", "filmcraft-speech/accelerate", "filmcraft-tts/metal", "filmcraft-tts/accelerate"]
 
 [dependencies]
+sha2 = "0.10"
 filmcraft-time = { workspace = true }
 filmcraft-geom = { workspace = true }
 filmcraft-color = { workspace = true }

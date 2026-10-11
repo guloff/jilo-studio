@@ -3799,3 +3799,40 @@
 	Spoken by ElevenLabs in the cloud. Vocal pitch and pace don't apply.	Lo pronuncia ElevenLabs en la nube. El tono y el ritmo no se aplican.
 	Couldn't load the ElevenLabs voices: {e}	No se pudieron cargar las voces de ElevenLabs: {e}
 	Loading ElevenLabs voices…	Cargando voces de ElevenLabs…
+	1. Open the disk image.	1. Abre la imagen de disco.
+	2. Drag FilmCraft to Applications and choose Replace.	2. Arrastra Jilo Studio a Aplicaciones y elige Reemplazar.
+	3. Quit this version and open FilmCraft again.	3. Sal de esta versión y vuelve a abrir Jilo Studio.
+	Checking the new version's signature…	Comprobando la firma de la nueva versión…
+	Download and Install	Descargar e instalar
+	Download and Install fetches the new version, checks its signature and installs it when you restart FilmCraft.	Descargar e instalar obtiene la nueva versión, comprueba su firma y la instala al reiniciar Jilo Studio.
+	Downloading the new version…	Descargando la nueva versión…
+	Hide	Ocultar
+	Install When I Quit	Instalar al salir
+	It can't install itself here: {why}.	Aquí no puede instalarse sola: {why}.
+	It will be installed when you quit FilmCraft; the next launch opens the new version.	Se instalará cuando salgas de Jilo Studio; el próximo inicio abrirá la nueva versión.
+	Open Disk Image	Abrir imagen de disco
+	Open Release Page	Abrir página de la versión
+	Release page on GitHub	Página de la versión en GitHub
+	Restart and Install	Reiniciar e instalar
+	The download failed: {why}	La descarga falló: {why}
+	The update is done: you are using the new version.	La actualización terminó: estás usando la nueva versión.
+	This release has no disk image for this Mac: its page on GitHub opens instead.	Esta versión no tiene imagen de disco para este Mac: se abrirá su página en GitHub.
+	To install it:	Para instalarla:
+	Try Again	Reintentar
+	You are still using {version}. Check for updates to try again, or download it from the release page.	Sigues usando la versión {version}. Busca actualizaciones para intentarlo de nuevo o descárgala desde la página de la versión.
+	You can hide this window and keep working: the download goes on, and this window comes back when it is done.	Puedes ocultar esta ventana y seguir trabajando: la descarga continúa y la ventana vuelve al terminar.
+	{app} {version} is downloaded and checked.	{app} {version} está descargada y comprobada.
+	{app} {version} is downloaded.	{app} {version} está descargada.
+	{app} {version} is installed	{app} {version} está instalada
+	{app} {version} was not installed	{app} {version} no se instaló
+	{done} of {total} MB	{done} de {total} MB
+	Restart and Install quits {app} (asking first about unsaved changes), puts {version} in place of this version and opens it again. It takes a few seconds.	Reiniciar e instalar cierra {app} (preguntando antes por los cambios sin guardar), pone {version} en lugar de esta versión y la vuelve a abrir. Tarda unos segundos.
+	this copy of Jilo Studio is not an installed app (a development build)	esta copia de Jilo Studio no es una app instalada (una compilación de desarrollo)
+	macOS runs this copy from a temporary place; move Jilo Studio to Applications first	macOS ejecuta esta copia desde un lugar temporal; primero mueve Jilo Studio a Aplicaciones
+	Jilo Studio is running from its disk image or another disk	Jilo Studio se está ejecutando desde su imagen de disco u otro disco
+	this copy of Jilo Studio is not signed with a Developer ID	esta copia de Jilo Studio no está firmada con un Developer ID
+	this account can't change the folder Jilo Studio is in	esta cuenta no puede modificar la carpeta donde está Jilo Studio
+	updates install themselves only on macOS	las actualizaciones solo se instalan solas en macOS
+	the downloaded file is damaged (its size or checksum is not the release's); try again	el archivo descargado está dañado (su tamaño o suma de comprobación no coinciden con la versión); inténtalo de nuevo
+	the new version is not signed by the same developer as this one	la nueva versión no está firmada por el mismo desarrollador que esta
+	the disk image holds a different app	la imagen de disco contiene otra app

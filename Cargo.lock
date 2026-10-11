@@ -1953,6 +1953,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.21",
  "web-time",
 ]
@@ -2369,6 +2370,7 @@ dependencies = [
  "rustix 1.1.5",
  "serde",
  "serde_json",
+ "sha2",
  "toml 1.1.6+spec-1.1.0",
  "web-time",
 ]
