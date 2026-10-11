@@ -719,7 +719,8 @@ fn the_daily_check_offers_a_newer_release_once() {
     let mut shown = false;
     for _ in 0..400 {
         d.frames(2);
-        if d.ids("updates.").iter().any(|i| i == "updates.download") {
+        // a release without a disk image: its page is offered
+        if d.ids("updates.").iter().any(|i| i == "updates.page") {
             shown = true;
             break;
         }
