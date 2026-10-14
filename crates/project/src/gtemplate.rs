@@ -1018,7 +1018,7 @@ fn social_and_short_video_templates() -> Vec<GraphicsTemplate> {
     }
     // Step: a number in a circle and the step's text.
     {
-        let mut circle = shape(1, "Circle", 1, (190.0, 180.0), (96.0, 96.0), 0x22c55e);
+        let circle = shape(1, "Circle", 1, (190.0, 180.0), (96.0, 96.0), 0x22c55e);
         let mut num = text(2, "Number", "1", (190.0, 200.0), 60.0, "Bold");
         centred(&mut num);
         let mut step = text(3, "Step", "Open the settings", (270.0, 200.0), 52.0, "SemiBold");
