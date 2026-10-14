@@ -255,6 +255,9 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
             let bar = Rect::from_min_max(pos2(ra.min.x, ra.max.y + 2.0), pos2(video_area.max.x, ra.max.y + 22.0));
             monitor_view::compare_bar(app, ui, bar, rate, drop_frame);
         }
+        if mv.short_video_safe {
+            short_video_safe_zone(ui, pic);
+        }
         if mv.safe_margins {
             for (f, c) in [(0.9, Color32::from_white_alpha(120)), (0.8, Color32::from_white_alpha(90))] {
                 let r = Rect::from_center_size(pic.center(), pic.size() * f);
@@ -365,6 +368,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
         monitor_view::wrench_items(app, ui, which);
         let mv = monitor_view::view_mut(app, which);
         ui.checkbox(&mut mv.safe_margins, tl!("Safe Margins"));
+        ui.checkbox(&mut mv.short_video_safe, tl!("Short-Video Safe Zone"));
         ui.checkbox(&mut mv.show_transport, tl!("Show Transport Controls"));
         if which == Which::Source {
             let mut looping = app.source_playback.clock.looping;
@@ -923,6 +927,23 @@ fn source_nav(app: &mut FilmcraftApp, cmd: &str) {
         _ => rate.tick_of(rate.frame_at(cur).saturating_add(1)),
     };
     let _ = app.session.execute("source.setPlayhead", json!({"time": t.0}));
+}
+
+/// Short-video safe zone: shade the parts of a vertical frame that the feeds of short-video apps
+/// usually cover — the tabs at the top, the description and sound at the bottom, the buttons on the
+/// right — so captions and titles stay clear of them. Proportions are a common rule of thumb, not any
+/// one app's exact layout.
+fn short_video_safe_zone(ui: &egui::Ui, pic: Rect) {
+    let shade = Color32::from_rgba_unmultiplied(255, 64, 64, 46);
+    let edge = Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 96, 96, 150));
+    let (w, h) = (pic.width(), pic.height());
+    let top = Rect::from_min_max(pic.min, pos2(pic.max.x, pic.min.y + h * 0.12));
+    let bottom = Rect::from_min_max(pos2(pic.min.x, pic.max.y - h * 0.22), pic.max);
+    let right = Rect::from_min_max(pos2(pic.max.x - w * 0.14, pic.min.y + h * 0.40), pos2(pic.max.x, pic.max.y - h * 0.22));
+    for r in [top, bottom, right] {
+        ui.painter().rect_filled(r, 0.0, shade);
+        ui.painter().rect_stroke(r, 0.0, edge, StrokeKind::Inside);
+    }
 }
 
 #[cfg(test)]

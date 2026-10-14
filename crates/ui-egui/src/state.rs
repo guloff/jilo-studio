@@ -276,6 +276,8 @@ pub struct MonitorView {
     /// Pan offset of a magnified picture from the centre (points).
     pub pan: [f32; 2],
     pub safe_margins: bool,
+    /// Shade where short-video apps (vertical feeds) draw their buttons, captions and tabs.
+    pub short_video_safe: bool,
     pub show_transport: bool,
     /// Program monitor display mode Multi-Camera (angle grid + program).
     pub multicam: bool,
@@ -302,6 +304,7 @@ impl Default for MonitorView {
             zoom: None,
             pan: [0.0, 0.0],
             safe_margins: false,
+            short_video_safe: false,
             show_transport: true,
             multicam: false,
             display: DisplayMode::Composite,

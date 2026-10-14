@@ -144,6 +144,11 @@ pub fn route(app: &mut FilmcraftApp, id: &str, params: &Value) -> Option<Result<
             v.safe_margins = toggled(v.safe_margins, params);
             Ok(json!({"monitor": pfx, "safeMargins": v.safe_margins}))
         }
+        "shortVideoSafeZone" => {
+            let v = view_mut(app, w);
+            v.short_video_safe = toggled(v.short_video_safe, params);
+            Ok(json!({"monitor": pfx, "shortVideoSafeZone": v.short_video_safe}))
+        }
         "showRulers" => {
             let v = view_mut(app, w);
             v.show_rulers = toggled(v.show_rulers, params);
@@ -303,6 +308,7 @@ pub fn checked(app: &FilmcraftApp, id: &str) -> Option<bool> {
     match rest {
         "highQualityPlayback" => Some(v.high_quality),
         "safeMargins" => Some(v.safe_margins),
+        "shortVideoSafeZone" => Some(v.short_video_safe),
         "showRulers" => Some(v.show_rulers),
         "showGuides" => Some(v.show_guides),
         "lockGuides" => Some(v.lock_guides),
