@@ -4217,3 +4217,45 @@
 	Download AI Model	Descargar modelo de IA
 	Delete AI Model	Eliminar modelo de IA
 	Reset Cloud Consents	Restablecer consentimientos de la nube
+# AI Tools panel (15.B1)
+	AI Tools	Herramientas de IA
+	Open a sequence	Abra una secuencia
+	Transcribe first	Primero transcriba
+	{provider} is off: only on this computer	{provider} desactivado: solo en este ordenador
+	Needs a {provider} key	Necesita una clave de {provider}
+	Not in this build	No disponible en esta versión
+	Cloud only: turned off	Solo en la nube: desactivado
+	Make captions first	Primero cree subtítulos
+	Needs a multi-camera clip	Necesita un clip multicámara
+	Select clips	Seleccione clips
+	Do It	Hacerlo
+	Customize…	Personalizar…
+	Open…	Abrir…
+	Mixed: {gain} dB on the Mix fader	Mezclado: {gain} dB en el fader de mezcla
+	Mixed.	Mezclado.
+	Captions made from the transcript.	Subtítulos creados a partir de la transcripción.
+	Done.	Hecho.
+	Brand and Publishing	Marca y publicación
+	Automation	Automatización
+	Turn speech into text with word timing, on this computer or in the cloud.	Convierte la voz en texto con el tiempo de cada palabra, en este ordenador o en la nube.
+	Captions from the Transcript	Subtítulos a partir de la transcripción
+	Captions in short readable lines, timed to the words.	Subtítulos en líneas cortas y legibles, sincronizados con las palabras.
+	A caption track in another language.	Una pista de subtítulos en otro idioma.
+	Find the ums and ahs and cut the ones you pick.	Encuentra las muletillas y corta las que elijas.
+	Keep the last take of repeated phrases.	Conserva la última toma de las frases repetidas.
+	The moments worth a short, marked on the timeline.	Los momentos que merecen un short, marcados en la línea de tiempo.
+	Punch in on the louder or more important phrases.	Acerca la imagen en las frases más fuertes o importantes.
+	Keep the speaker in frame in a vertical or square sequence.	Mantiene a quien habla en el encuadre en una secuencia vertical o cuadrada.
+	Auto Multi-Camera	Multicámara automática
+	Switch to whoever is speaking.	Cambia a quien esté hablando.
+	Footage that fits what is said, above the phrase.	Material que encaja con lo que se dice, sobre la frase.
+	16:9, 9:16, 1:1 and 4:5 copies, exported together.	Copias 16:9, 9:16, 1:1 y 4:5, exportadas juntas.
+	Speech even, music under the voice, the mix at YouTube's loudness.	Voz uniforme, música bajo la voz y la mezcla al volumen de YouTube.
+	A voice reads your script.	Una voz lee tu guion.
+	Logo, colours, fonts and captions in one click.	Logotipo, colores, fuentes y subtítulos en un clic.
+	YouTube Title and Chapters	Título y capítulos de YouTube
+	Title, description and chapters from what is said.	Título, descripción y capítulos a partir de lo que se dice.
+	A picture from a description.	Una imagen a partir de una descripción.
+	Say what you want; it plans the steps and you approve them.	Di lo que quieres; planifica los pasos y tú los apruebas.
+	Record a series of steps and run it again with one click.	Graba una serie de pasos y repítela con un clic.
+	The same steps on many clips, and the inbox folder.	Los mismos pasos en muchos clips, y la carpeta de entrada.

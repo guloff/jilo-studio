@@ -33,6 +33,7 @@ pub enum PanelKind {
     TextToSpeech,
     CaptionStyle,
     Assistant,
+    AiTools,
     Properties,
     Text,
     Events,
@@ -42,7 +43,7 @@ pub enum PanelKind {
 }
 
 impl PanelKind {
-    pub const ALL: [PanelKind; 29] = [
+    pub const ALL: [PanelKind; 30] = [
         PanelKind::Project,
         PanelKind::MediaBrowser,
         PanelKind::Libraries,
@@ -66,6 +67,7 @@ impl PanelKind {
         PanelKind::TextToSpeech,
         PanelKind::CaptionStyle,
         PanelKind::Assistant,
+        PanelKind::AiTools,
         PanelKind::Properties,
         PanelKind::Text,
         PanelKind::Events,
@@ -98,6 +100,7 @@ impl PanelKind {
             PanelKind::TextToSpeech => "Text to Speech",
             PanelKind::CaptionStyle => "Caption Style",
             PanelKind::Assistant => "AI Assistant",
+            PanelKind::AiTools => "AI Tools",
             PanelKind::Properties => "Properties",
             PanelKind::Text => "Text",
             PanelKind::Events => "Events",
@@ -296,14 +299,18 @@ pub fn workspace(name: &str) -> DockNode {
             hsplit(
                 FixedB(400.0),
                 hsplit(Ratio(0.38), tabs(&[Text, Project, Libraries], 0), tabs(&[Program], 0)),
-                tabs(&[Assistant, CaptionStyle, Properties, EssentialGraphics], 0),
+                tabs(&[AiTools, Assistant, CaptionStyle, Properties, EssentialGraphics], 0),
             ),
             hsplit(Ratio(0.2), tabs(&[Project, MediaBrowser, Effects, History], 0), bottom_editing()),
         ),
         // Simple mode: the picture, the media, the timeline and one panel of settings.
         "Simple" => vsplit(
             Ratio(0.6),
-            hsplit(FixedB(380.0), hsplit(FixedA(300.0), tabs(&[Project, Libraries], 0), tabs(&[Program], 0)), tabs(&[Properties, CaptionStyle, Assistant], 0)),
+            hsplit(
+                FixedB(380.0),
+                hsplit(FixedA(300.0), tabs(&[Project, Libraries], 0), tabs(&[Program], 0)),
+                tabs(&[AiTools, Properties, CaptionStyle, Assistant], 0),
+            ),
             hsplit(FixedA(64.0), tabs(&[Tools], 0), tabs(&[Timeline], 0)),
         ),
         "All Panels" => vsplit(

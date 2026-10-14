@@ -4212,3 +4212,45 @@ mode	Edit	Монтаж
 	Download AI Model	Загрузить модель ИИ
 	Delete AI Model	Удалить модель ИИ
 	Reset Cloud Consents	Сбросить согласия на облако
+# AI Tools panel (15.B1)
+	AI Tools	Инструменты ИИ
+	Open a sequence	Откройте секвенцию
+	Transcribe first	Сначала расшифруйте
+	{provider} is off: only on this computer	{provider} выключен: только на этом компьютере
+	Needs a {provider} key	Нужен ключ {provider}
+	Not in this build	Нет в этой сборке
+	Cloud only: turned off	Только облако: выключено
+	Make captions first	Сначала сделайте субтитры
+	Needs a multi-camera clip	Нужен мультикам-клип
+	Select clips	Выберите клипы
+	Do It	Сделать
+	Customize…	Настроить…
+	Open…	Открыть…
+	Mixed: {gain} dB on the Mix fader	Готово: {gain} дБ на фейдере «Микс»
+	Mixed.	Готово.
+	Captions made from the transcript.	Субтитры сделаны из расшифровки.
+	Done.	Готово.
+	Brand and Publishing	Бренд и публикация
+	Automation	Автоматизация
+	Turn speech into text with word timing, on this computer or in the cloud.	Речь в текст с временем каждого слова — на этом компьютере или в облаке.
+	Captions from the Transcript	Субтитры из расшифровки
+	Captions in short readable lines, timed to the words.	Субтитры короткими удобными строками, точно по словам.
+	A caption track in another language.	Дорожка субтитров на другом языке.
+	Find the ums and ahs and cut the ones you pick.	Найдёт «э-э» и «м-м» и вырежет выбранные.
+	Keep the last take of repeated phrases.	Из повторённых фраз оставит последний дубль.
+	The moments worth a short, marked on the timeline.	Моменты для шортсов — маркерами на таймлайне.
+	Punch in on the louder or more important phrases.	Приближение на громких или важных фразах.
+	Keep the speaker in frame in a vertical or square sequence.	Держит говорящего в кадре в вертикальной или квадратной секвенции.
+	Auto Multi-Camera	Автомультикам
+	Switch to whoever is speaking.	Переключает на того, кто говорит.
+	Footage that fits what is said, above the phrase.	Подходящие кадры над фразой, о которой речь.
+	16:9, 9:16, 1:1 and 4:5 copies, exported together.	Копии 16:9, 9:16, 1:1 и 4:5 — экспорт за один раз.
+	Speech even, music under the voice, the mix at YouTube's loudness.	Ровная речь, музыка под голосом, микс под громкость YouTube.
+	A voice reads your script.	Голос прочитает ваш текст.
+	Logo, colours, fonts and captions in one click.	Логотип, цвета, шрифты и субтитры в один клик.
+	YouTube Title and Chapters	Заголовок и главы для YouTube
+	Title, description and chapters from what is said.	Заголовок, описание и главы по сказанному.
+	A picture from a description.	Картинка по описанию.
+	Say what you want; it plans the steps and you approve them.	Скажите, что нужно, — ассистент составит шаги, вы их подтвердите.
+	Record a series of steps and run it again with one click.	Запишите цепочку шагов и повторяйте её одним кликом.
+	The same steps on many clips, and the inbox folder.	Одни и те же шаги для многих клипов и папка-входящие.

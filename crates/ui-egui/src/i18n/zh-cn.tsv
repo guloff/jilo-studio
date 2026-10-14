@@ -4252,3 +4252,45 @@
 	Download AI Model	下载 AI 模型
 	Delete AI Model	删除 AI 模型
 	Reset Cloud Consents	重置云端许可
+# AI Tools panel (15.B1)
+	AI Tools	AI 工具
+	Open a sequence	请打开一个序列
+	Transcribe first	请先转写
+	{provider} is off: only on this computer	{provider} 已关闭：仅限本机
+	Needs a {provider} key	需要 {provider} 密钥
+	Not in this build	此版本不提供
+	Cloud only: turned off	仅云端：已关闭
+	Make captions first	请先生成字幕
+	Needs a multi-camera clip	需要多机位片段
+	Select clips	请选择片段
+	Do It	执行
+	Customize…	自定义…
+	Open…	打开…
+	Mixed: {gain} dB on the Mix fader	已混音：混音推子 {gain} dB
+	Mixed.	已混音。
+	Captions made from the transcript.	已根据文字稿生成字幕。
+	Done.	完成。
+	Brand and Publishing	品牌与发布
+	Automation	自动化
+	Turn speech into text with word timing, on this computer or in the cloud.	将语音转为带逐词时间的文字，可在本机或云端完成。
+	Captions from the Transcript	从文字稿生成字幕
+	Captions in short readable lines, timed to the words.	简短易读的字幕行，与词语同步。
+	A caption track in another language.	另一种语言的字幕轨道。
+	Find the ums and ahs and cut the ones you pick.	找出“嗯”“啊”等语气词并剪掉所选的。
+	Keep the last take of repeated phrases.	保留重复语句的最后一遍。
+	The moments worth a short, marked on the timeline.	值得做成短视频的片段，在时间线上标记。
+	Punch in on the louder or more important phrases.	在较响或更重要的语句上推近画面。
+	Keep the speaker in frame in a vertical or square sequence.	在竖屏或方形序列中让说话人保持在画面内。
+	Auto Multi-Camera	自动多机位
+	Switch to whoever is speaking.	切换到正在说话的人。
+	Footage that fits what is said, above the phrase.	与所说内容相符的素材，放在该句上方。
+	16:9, 9:16, 1:1 and 4:5 copies, exported together.	16:9、9:16、1:1 和 4:5 副本一起导出。
+	Speech even, music under the voice, the mix at YouTube's loudness.	语音均衡、人声时音乐降低，混音达到 YouTube 响度。
+	A voice reads your script.	由语音朗读你的脚本。
+	Logo, colours, fonts and captions in one click.	一键应用标志、颜色、字体和字幕。
+	YouTube Title and Chapters	YouTube 标题和章节
+	Title, description and chapters from what is said.	根据所说内容生成标题、描述和章节。
+	A picture from a description.	根据描述生成图片。
+	Say what you want; it plans the steps and you approve them.	说出你的需求，它会规划步骤，由你确认。
+	Record a series of steps and run it again with one click.	录制一系列步骤，一键再次运行。
+	The same steps on many clips, and the inbox folder.	对多个片段执行相同步骤，以及收件文件夹。
