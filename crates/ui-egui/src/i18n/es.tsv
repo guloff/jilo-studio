@@ -84,6 +84,7 @@
 	Bring Forward	Traer adelante
 	Bring to Front	Traer al frente
 	Brown	Marrón
+	built-in	integrada
 	Call Color	Color de la llamada
 	Call to Action	Llamada a la acción
 	Caption fonts installed	Fuentes de subtítulos instaladas
@@ -99,11 +100,13 @@
 	Cerulean	Cerúleo
 	Chapter Card	Tarjeta de capítulo
 	Chapter number and title beside an accent bar.	Número y título del capítulo junto a una barra de acento.
+	Choose a recipe.	Elige una receta.
 	Cinema	Cine
 	Circle Color	Color del círculo
 	Classic	Clásico
 	Clean Box	Caja limpia
 	Clean Shadow	Sombra limpia
+	Clean Talking Head	Limpiar plano de entrevista
 	Clear	Borrar
 	Clear Guides	Borrar guías
 	Clear In	Borrar entrada
@@ -136,6 +139,7 @@
 	Delete Render Files In to Out	Eliminar archivos de procesamiento de entrada a salida
 	Delete Tracks…	Eliminar pistas…
 	Delete Transcript	Eliminar transcripción
+	Deleted.	Eliminado.
 	Demo Footage	Material de demostración
 	Demo Project	Proyecto de demostración
 	Deselect All	Deseleccionar todo
@@ -153,6 +157,7 @@
 	Dynamic Audio Waveforms	Formas de onda de audio dinámicas
 	Edge Distance	Distancia al borde
 	Edit	Edición
+	Edit as usual: every change is a step. Moving around and selecting are not recorded; the recipe works on whatever is selected when it runs.	Edita como siempre: cada cambio es un paso. Moverse y seleccionar no se graban; la receta actúa sobre lo seleccionado al ejecutarla.
 	Edit Offline…	Editar sin conexión…
 	Edit Original	Editar original
 	Edit Subclip…	Editar subclip…
@@ -232,6 +237,7 @@
 	Install Motion Graphics Template…	Instalar plantilla de animación…
 	Interpret Footage…	Interpretar material…
 	Italic Quote	Cita en cursiva
+	Karaoke Captions	Subtítulos karaoke
 	Karaoke Green	Karaoke verde
 	Karaoke Yellow	Karaoke amarillo
 	Keyboard Shortcuts…	Atajos de teclado…
@@ -345,7 +351,11 @@
 	Purple	Púrpura
 	Quote	Cita
 	Quote Card	Tarjeta de cita
+	Recipe name	Nombre de la receta
+	Recipes	Recetas
+	Recipes…	Recetas…
 	Reconnect Full Resolution Media…	Reconectar medios de resolución completa…
+	Recorded {name}.	Grabada {name}.
 	Recover Unsaved Changes…	Recuperar cambios no guardados…
 	Rectangle	Rectángulo
 	Red	Rojo
@@ -380,14 +390,18 @@
 	Ripple Sequence Markers	Desplazar marcadores de secuencia
 	Role Pill	Cápsula del cargo
 	Rose	Rosa
+	Run	Ejecutar
+	Running…	Ejecutando…
 	Safe Margins	Márgenes seguros
 	Sample caption text	Texto de subtítulo de ejemplo
 	Save	Guardar
 	Save All	Guardar todo
 	Save As…	Guardar como…
+	Save Changes	Guardar cambios
 	Save Guides as Template…	Guardar guías como plantilla…
 	Save a Copy…	Guardar una copia…
 	Save as Template…	Guardar como plantilla…
+	Saved.	Guardado.
 	Scale to Frame Size	Escalar al tamaño del fotograma
 	Scene Edit Detection…	Detección de cambios de escena…
 	Scratch Disks…	Discos de memoria virtual…
@@ -411,6 +425,7 @@
 	Sequence Settings…	Ajustes de secuencia…
 	Sequence…	Secuencia…
 	Short-Video Safe Zone	Zona segura para vídeo corto
+	Shorts Pack	Pack para shorts
 	Show Active Caption Tracks Only	Mostrar solo pistas de subtítulos activas
 	Show All Caption Tracks	Mostrar todas las pistas de subtítulos
 	Show All Marker Colors	Mostrar todos los colores de marcador
@@ -433,6 +448,7 @@
 	Spoken Word Size	Tamaño de la palabra hablada
 	Step	Paso
 	Step Label	Etiqueta de paso
+	Stop and Save	Detener y guardar
 	Styles…	Estilos…
 	Subscribe Button	Botón de suscripción
 	Subtle Box	Caja sutil
@@ -446,6 +462,7 @@
 	Text to Speech…	Texto a voz…
 	Thanks	Gracias
 	Thanks for watching, with a call to subscribe.	Gracias por ver, con una llamada a suscribirse.
+	The recipe stopped: {error}	La receta se detuvo: {error}
 	The sequence has no captions to translate. Create captions from the transcript first.	La secuencia no tiene subtítulos para traducir. Crea primero subtítulos a partir de la transcripción.
 	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	Esta secuencia aún no tiene subtítulos. Créalos a partir de la transcripción (IA ▸ Voz y subtítulos) o añade una pista de subtítulos.
 	Time Interpolation	Interpolación de tiempo
@@ -461,6 +478,9 @@
 	Top Banner	Banner superior
 	Top Title	Título superior
 	Transcribe Sequence…	Transcribir secuencia…
+	Transcribe the open sequence, then remove filler words and pauses.	Transcribe la secuencia abierta y quita muletillas y pausas.
+	Transcribe, clean fillers and pauses, add karaoke captions and zoom on the loud moments.	Transcribe, limpia muletillas y pausas, añade subtítulos karaoke y acerca en los momentos fuertes.
+	Transcribe, make captions and give them the Karaoke Yellow style.	Transcribe, crea subtítulos y aplícales el estilo Karaoke amarillo.
 	Transcribe…	Transcribir…
 	Transcript	Transcripción
 	Translate Captions…	Traducir subtítulos…
@@ -545,6 +565,7 @@
 	Report an issue	Informar de un problema
 	MIT OR Apache-2.0. Fonts: Inter, Noto Serif and JetBrains Mono (SIL OFL 1.1).	MIT OR Apache-2.0. Fuentes: Inter, Noto Serif y JetBrains Mono (SIL OFL 1.1).
 	just now	ahora mismo
+	{name} done. One Undo takes it all back.	{name} terminada. Un solo Deshacer lo revierte todo.
 	{n} s ago	hace {n} s
 	{n} min ago	hace {n} min
 	{n} h ago	hace {n} h
@@ -733,6 +754,8 @@
 	Voice-over recorded: {p}	Voz en off grabada: {p}
 	Voice-over recording stopped (nothing recorded)	Grabación de voz en off detenida (no se grabó nada)
 	Post-roll	Margen posterior
+	● REC {n}	● GRAB {n}
+	● Record New Recipe	● Grabar receta nueva
 	● Recording	● Grabando
 	Voice-Over Record Settings	Ajustes de grabación de voz en off
 	Source:	Origen:
@@ -934,6 +957,7 @@
 	Browse…	Examinar…
 	Exact name matches only	Solo coincidencias exactas de nombre
 	No candidates yet — Search a folder or Locate the file.	Aún no hay candidatos: busca en una carpeta o localiza el archivo.
+	● Recording: {n} steps	● Grabando: {n} pasos
 	✔ same file	✔ mismo archivo
 	✔ matches	✔ coincide
 	✖ different file	✖ archivo distinto

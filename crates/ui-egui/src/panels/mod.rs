@@ -41,6 +41,7 @@ pub mod presets;
 pub mod project;
 pub mod project_dialogs;
 pub mod project_views;
+pub mod recipes;
 pub mod reference;
 pub mod reframe;
 pub mod remix;

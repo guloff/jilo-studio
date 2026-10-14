@@ -77,6 +77,7 @@
 	Bring Forward	Переместить вперёд
 	Bring to Front	На передний план
 	Brown	Коричневый
+	built-in	встроенный
 	Call Color	Цвет призыва
 	Call to Action	Призыв к действию
 	Caption fonts installed	Шрифты для субтитров установлены
@@ -92,11 +93,13 @@
 	Cerulean	Лазурный
 	Chapter Card	Карточка главы
 	Chapter number and title beside an accent bar.	Номер и название главы рядом с акцентной полосой.
+	Choose a recipe.	Выберите рецепт.
 	Cinema	Кино
 	Circle Color	Цвет круга
 	Classic	Классика
 	Clean Box	Чистая плашка
 	Clean Shadow	Чистая тень
+	Clean Talking Head	Чистая «говорящая голова»
 	Clear	Очистить
 	Clear Guides	Очистить направляющие
 	Clear In	Очистить вход
@@ -129,6 +132,7 @@
 	Delete Render Files In to Out	Удалить файлы рендера от входа до выхода
 	Delete Tracks…	Удалить дорожки…
 	Delete Transcript	Удалить расшифровку
+	Deleted.	Удалено.
 	Demo Footage	Демонстрационный материал
 	Demo Project	Демонстрационный проект
 	Deselect All	Снять выделение
@@ -146,6 +150,7 @@
 	Dynamic Audio Waveforms	Динамические формы аудиосигнала
 	Edge Distance	Отступ от края
 	Edit	Правка
+	Edit as usual: every change is a step. Moving around and selecting are not recorded; the recipe works on whatever is selected when it runs.	Монтируйте как обычно: каждое изменение — шаг. Перемещение и выделение не записываются; рецепт работает с тем, что выделено при запуске.
 	Edit Offline…	Редактировать офлайн…
 	Edit Original	Редактировать оригинал
 	Edit Subclip…	Изменить подклип…
@@ -225,6 +230,7 @@
 	Install Motion Graphics Template…	Установить шаблон анимированной графики…
 	Interpret Footage…	Интерпретировать материал…
 	Italic Quote	Цитата курсивом
+	Karaoke Captions	Субтитры-караоке
 	Karaoke Green	Караоке зелёный
 	Karaoke Yellow	Караоке жёлтый
 	Keyboard Shortcuts…	Сочетания клавиш…
@@ -338,7 +344,11 @@
 	Purple	Пурпурный
 	Quote	Цитата
 	Quote Card	Карточка цитаты
+	Recipe name	Название рецепта
+	Recipes	Рецепты
+	Recipes…	Рецепты…
 	Reconnect Full Resolution Media…	Переподключить медиа в полном разрешении…
+	Recorded {name}.	Записан рецепт «{name}».
 	Recover Unsaved Changes…	Восстановить несохранённые изменения…
 	Rectangle	Прямоугольник
 	Red	Красный
@@ -373,14 +383,18 @@
 	Ripple Sequence Markers	Сдвигать маркеры секвенции
 	Role Pill	Капсула должности
 	Rose	Розовый
+	Run	Запустить
+	Running…	Выполняется…
 	Safe Margins	Безопасные поля
 	Sample caption text	Пример текста субтитров
 	Save	Сохранить
 	Save All	Сохранить все
 	Save As…	Сохранить как…
+	Save Changes	Сохранить изменения
 	Save Guides as Template…	Сохранить направляющие как шаблон…
 	Save a Copy…	Сохранить копию…
 	Save as Template…	Сохранить как шаблон…
+	Saved.	Сохранено.
 	Scale to Frame Size	Масштабировать до размера кадра
 	Scene Edit Detection…	Определение смены сцен…
 	Scratch Disks…	Диски для временных файлов…
@@ -404,6 +418,7 @@
 	Sequence Settings…	Настройки секвенции…
 	Sequence…	Секвенция…
 	Short-Video Safe Zone	Безопасная зона коротких видео
+	Shorts Pack	Набор для шортсов
 	Show Active Caption Tracks Only	Показывать только активные дорожки субтитров
 	Show All Caption Tracks	Показать все дорожки субтитров
 	Show All Marker Colors	Показать маркеры всех цветов
@@ -426,6 +441,7 @@
 	Spoken Word Size	Размер звучащего слова
 	Step	Шаг
 	Step Label	Метка шага
+	Stop and Save	Остановить и сохранить
 	Styles…	Стили…
 	Subscribe Button	Кнопка «Подписаться»
 	Subtle Box	Мягкая подложка
@@ -439,6 +455,7 @@
 	Text to Speech…	Синтез речи…
 	Thanks	Спасибо
 	Thanks for watching, with a call to subscribe.	«Спасибо за просмотр» с призывом подписаться.
+	The recipe stopped: {error}	Рецепт остановлен: {error}
 	The sequence has no captions to translate. Create captions from the transcript first.	В секвенции нет субтитров для перевода. Сначала создайте субтитры из расшифровки.
 	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	В этой секвенции пока нет субтитров. Создайте их из расшифровки (AI ▸ Речь и субтитры) или добавьте дорожку субтитров.
 	Time Interpolation	Интерполяция времени
@@ -454,6 +471,9 @@
 	Top Banner	Верхний баннер
 	Top Title	Заголовок сверху
 	Transcribe Sequence…	Расшифровать секвенцию…
+	Transcribe the open sequence, then remove filler words and pauses.	Расшифровать открытую секвенцию, затем убрать слова-паразиты и паузы.
+	Transcribe, clean fillers and pauses, add karaoke captions and zoom on the loud moments.	Расшифровать, убрать паразитов и паузы, добавить караоке-субтитры и зумы на громких местах.
+	Transcribe, make captions and give them the Karaoke Yellow style.	Расшифровать, сделать субтитры и применить стиль «Караоке жёлтый».
 	Transcribe…	Расшифровать…
 	Transcript	Расшифровка
 	Translate Captions…	Перевести субтитры…
@@ -538,6 +558,7 @@
 	Report an issue	Сообщить о проблеме
 	MIT OR Apache-2.0. Fonts: Inter, Noto Serif and JetBrains Mono (SIL OFL 1.1).	MIT OR Apache-2.0. Шрифты: Inter, Noto Serif и JetBrains Mono (SIL OFL 1.1).
 	just now	только что
+	{name} done. One Undo takes it all back.	«{name}» выполнен. Одна отмена возвращает всё.
 	{n} s ago	{n} с назад
 	{n} min ago	{n} мин назад
 	{n} h ago	{n} ч назад
@@ -726,6 +747,8 @@
 	Voice-over recorded: {p}	Закадровый голос записан: {p}
 	Voice-over recording stopped (nothing recorded)	Запись закадрового голоса остановлена (ничего не записано)
 	Post-roll	Пост-ролл
+	● REC {n}	● ЗАПИСЬ {n}
+	● Record New Recipe	● Записать новый рецепт
 	● Recording	● Запись
 	Voice-Over Record Settings	Настройки записи закадрового голоса
 	Source:	Источник:
@@ -927,6 +950,7 @@
 	Browse…	Обзор…
 	Exact name matches only	Только точное совпадение имени
 	No candidates yet — Search a folder or Locate the file.	Кандидатов пока нет — выполните поиск в папке или найдите файл.
+	● Recording: {n} steps	● Запись: шагов — {n}
 	✔ same file	✔ тот же файл
 	✔ matches	✔ совпадает
 	✖ different file	✖ другой файл

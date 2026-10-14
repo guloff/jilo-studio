@@ -51,6 +51,7 @@ pub mod project_manager;
 pub mod project_panel;
 pub mod project_tools;
 pub mod proxies;
+pub mod recipes;
 pub mod recognition;
 pub mod reframe;
 pub mod relink;
@@ -463,6 +464,10 @@ pub struct Session {
     pub ai_task_cache: ai_tasks::TaskCache,
     /// The batch running or last run (`batch.*`), advanced by [`batch::pump`].
     pub batch: Option<batch::BatchRun>,
+    /// The recipe running or last run (`recipes.run`), advanced by [`recipes::pump`].
+    pub recipe: Option<recipes::RecipeRun>,
+    /// Steps of the recipe being recorded (`recipes.recordStart`).
+    pub recording: Option<Vec<recipes::Step>>,
     /// Finds faces for Reframe to Face (the host installs Apple Vision on macOS; None: not available).
     pub face_detector: Option<reframe::FaceDetector>,
     /// Faces found per clip's media range, for this session.
@@ -574,6 +579,8 @@ impl Session {
             recognition_cache: Default::default(),
             ai_task_cache: Default::default(),
             batch: None,
+            recipe: None,
+            recording: None,
             face_detector: None,
             face_cache: Default::default(),
             update_check: Default::default(),
@@ -676,6 +683,7 @@ impl Session {
         scene_detect::poll(self);
         export_tools::pump_queue(self, false);
         batch::pump(self);
+        recipes::pump(self);
         panels::log_jobs(self);
         let Some(p) = self.persistence.as_mut() else { return };
         for ev in p.drain_events() {
@@ -771,6 +779,9 @@ impl Session {
         self.sync_persistence();
         // playback reads the newest snapshot (mixer moves, mutes… are heard while playing)
         self.previews.live.publish_project(self.project.clone());
+        if r.is_ok() && spec.journal && self.exec_depth == 0 && self.recording.is_some() {
+            self.record_step(id, &params);
+        }
         if r.is_ok() && spec.journal {
             self.journal.push((id.to_string(), params));
             if self.journal.len() > 10_000 {

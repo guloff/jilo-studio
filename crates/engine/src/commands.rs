@@ -2893,6 +2893,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::captions::commands());
     v.extend(crate::caption_presets::commands());
     v.extend(crate::caption_fonts::commands());
+    v.extend(crate::recipes::commands());
     v.extend(crate::settings::commands());
     v.extend(crate::mixer::commands());
     v.extend(crate::multicam::commands());

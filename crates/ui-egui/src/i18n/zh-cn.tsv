@@ -227,6 +227,7 @@
 	Browse	浏览
 	Browse files…	浏览文件…
 	Browse…	浏览…
+	built-in	内置
 	Burn Alpha	燃烧 Alpha
 	Burn Captions Into Video	将字幕嵌入视频中
 	Burn Chroma	燃烧色度
@@ -273,6 +274,7 @@
 	Chapter Card	章节卡
 	Chapter number and title beside an accent bar.	强调条旁的章节编号和标题。
 	Checker Wipe	棋盘划像
+	Choose a recipe.	请选择配方。
 	Choose folder	选择文件夹
 	Choose location…	选择位置…
 	Chorus	合唱
@@ -286,6 +288,7 @@
 	Classic warm monochrome with amber highlights	经典的暖色单色调，带琥珀色高光
 	Clean Box	简洁底框
 	Clean Shadow	简洁阴影
+	Clean Talking Head	清理口播
 	Clear	清除
 	Clear (Delete)	清除 (删除)
 	Clear All	全部清除
@@ -409,6 +412,7 @@
 	Delete Transcript	删除文本记录
 	Delete video tracks	删除视频轨道
 	Delete Video Tracks	删除视频轨道
+	Deleted.	已删除。
 	Demo Footage	演示素材
 	Demo footage	演示素材
 	Demo Project	演示项目
@@ -470,6 +474,7 @@
 	Edge Distance	边缘距离
 	Edge Feather	边缘羽化
 	Edit	编辑
+	Edit as usual: every change is a step. Moving around and selecting are not recorded; the recipe works on whatever is selected when it runs.	照常编辑：每次更改都是一步。移动和选择不会被录制；配方运行时作用于当时的选择。
 	Edit Cameras…	编辑机位…
 	Edit Columns	编辑列
 	Edit Columns…	编辑列…
@@ -716,6 +721,7 @@
 	just now	刚刚
 	Justify	两端对齐
 	Kaleidoscope	万花筒
+	Karaoke Captions	卡拉OK字幕
 	Karaoke Green	卡拉OK 绿
 	Karaoke Yellow	卡拉OK 黄
 	Kerning	字偶间距
@@ -1093,8 +1099,12 @@
 	Razor Tool	剃刀工具
 	Ready	就绪
 	Recent Directories	最近的目录
+	Recipe name	配方名称
+	Recipes	配方
+	Recipes…	配方…
 	Reconnect Full Resolution Media…	重新连接全分辨率媒体…
 	Record (voice-over on the record-enabled track)	录音 (在已启用录音的轨道上录制旁白)
+	Recorded {name}.	已录制 {name}。
 	Recover	恢复
 	Recover Unsaved Changes	恢复未保存的更改
 	Recover Unsaved Changes…	恢复未保存的更改…
@@ -1178,6 +1188,8 @@
 	Rolling Edit Tool	滚动编辑工具
 	Rose	玫瑰色
 	Rotation	旋转
+	Run	运行
+	Running…	运行中…
 	Safe Margins	安全边距
 	Sample caption text	示例字幕文本
 	Sample Rate	采样率
@@ -1193,6 +1205,7 @@
 	Save as New Workspace…	另存为新工作区…
 	Save as Template…	另存为模板…
 	Save As…	另存为…
+	Save Changes	保存更改
 	Save changes to	是否保存更改至
 	Save Changes to this Workspace	保存对此工作区的更改
 	Save current settings as:	将当前设置另存为:
@@ -1202,6 +1215,7 @@
 	Save Preset	保存预设
 	Save Preset…	保存预设…
 	Save Project	保存项目
+	Saved.	已保存。
 	Saves the view, columns, sort, thumbnail and font size.	保存视图、列、排序、缩略图和字号。
 	Scale	缩放
 	Scale To Fill	缩放以填充
@@ -1270,6 +1284,7 @@
 	Shape Flow	形状流动
 	Sharpen	锐化
 	Short-Video Safe Zone	短视频安全区
+	Shorts Pack	短视频套装
 	Shot/Take	镜头/镜头编号
 	Show Active Caption Tracks Only	仅显示活动字幕轨道
 	Show All	显示全部
@@ -1365,6 +1380,7 @@
 	Stereo Width	立体声宽度
 	Still Images	静止图像
 	Stop	停止
+	Stop and Save	停止并保存
 	Stretch	拉伸
 	Stretch To Fill	拉伸以填充
 	Stretch Wipe	拉伸划像
@@ -1408,6 +1424,7 @@
 	Thanks	感谢
 	Thanks for watching, with a call to subscribe.	感谢观看，并号召订阅。
 	The project had not been saved yet.	项目尚未保存。
+	The recipe stopped: {error}	配方已停止：{error}
 	The sequence has no caption track.	序列没有字幕轨道。
 	The sequence has no captions to translate. Create captions from the transcript first.	序列中没有可翻译的字幕。请先从转录创建字幕。
 	This build has no speech-to-text; import a transcript with transcript.set.	当前版本未包含语音转文本功能；可通过 transcript.set 导入转录文本。
@@ -1453,6 +1470,9 @@
 	Transcribe	转录
 	Transcribe sequence	转录序列
 	Transcribe Sequence…	转录序列…
+	Transcribe the open sequence, then remove filler words and pauses.	转录当前序列，然后删除口头禅和停顿。
+	Transcribe, clean fillers and pauses, add karaoke captions and zoom on the loud moments.	转录、清理口头禅和停顿、添加卡拉OK字幕并在响亮处放大。
+	Transcribe, make captions and give them the Karaoke Yellow style.	转录、生成字幕并应用“卡拉OK 黄”样式。
 	Transcribe…	转录…
 	Transcript	文本记录
 	Transform	变换
@@ -1579,9 +1599,13 @@
 	Zoom to Sequence	缩放至序列
 	Zoom Tool	缩放工具
 	{name} - Edited	{name} - 已编辑
+	{name} done. One Undo takes it all back.	{name} 完成。撤销一次即可全部还原。
 	{n} h ago	{n} 小时前
 	{n} min ago	{n} 分钟前
 	{n} s ago	{n} 秒前
+	● REC {n}	● 录制 {n}
+	● Record New Recipe	● 录制新配方
+	● Recording: {n} steps	● 正在录制：{n} 步
 	✓ Enable	✓ 启用
 	Dark	深色
 	Next Appearance Mode	下一个外观模式

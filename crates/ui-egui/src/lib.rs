@@ -1739,6 +1739,7 @@ impl FilmcraftApp {
         panels::crash_report::show(self, &ctx);
         panels::youtube::show(self, &ctx);
         panels::batch::show(self, &ctx);
+        panels::recipes::show(self, &ctx);
         if !self.ui.show_status_bar {
             // no bar to draw the job in, but a finished preview render still plays
             self.watch_jobs(ui.ctx());

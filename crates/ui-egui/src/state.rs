@@ -692,6 +692,9 @@ pub struct UiState {
     /// AI ▸ Batch Process…: the dialog, its choices and the batch it started.
     #[serde(skip)]
     pub batch: BatchUi,
+    /// AI ▸ Recipes…: the window, the recipe shown and the run being watched.
+    #[serde(skip)]
+    pub recipes: crate::panels::recipes::RecipesUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -1187,6 +1190,7 @@ impl Default for UiState {
             crash_report_taken: false,
             youtube: YouTubeUi::default(),
             batch: BatchUi::default(),
+            recipes: Default::default(),
             ai_task: None,
             translate_track: None,
             translate_to: String::new(),
