@@ -17,6 +17,7 @@ pub mod ai_tasks;
 pub mod autosave;
 pub mod autozoom;
 pub mod batch;
+pub mod caption_presets;
 pub mod captions;
 pub mod clip_ops;
 pub mod color;

@@ -151,6 +151,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("app.settings.plugins", "Plugins…", ["Edit", "Preferences"], None),
     uic!("app.settings.timeline", "Timeline…", ["Edit", "Preferences"], None),
     uic!("app.settings.trim", "Trim…", ["Edit", "Preferences"], None),
+    uic!("graphics.captionStyles", "Caption Styles…", ["Graphics and Titles"], None),
     // AI ▸ … after the engine's AI commands (`filmcraft_engine::ai_menu`)
     uic!("ai.textToSpeech", "Text to Speech…", ["AI"], None),
     uic!("ai.settings", "AI Settings…", ["AI"], None),
@@ -443,6 +444,11 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         // AI ▸ Text to Speech… shows the Text to Speech panel; AI ▸ AI Settings… opens Settings ▸ AI.
         "ai.textToSpeech" => {
             app.show_panel(PanelKind::TextToSpeech);
+            return Ok(Value::Null);
+        }
+        // Graphics and Titles ▸ Caption Styles… shows the Caption Style panel.
+        "graphics.captionStyles" => {
+            app.show_panel(PanelKind::CaptionStyle);
             return Ok(Value::Null);
         }
         "ai.settings" => {

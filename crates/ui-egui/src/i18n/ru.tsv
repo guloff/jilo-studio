@@ -10,6 +10,7 @@
 	About FilmCraft	О программе FilmCraft
 	Add Audio Submix Track	Добавить дорожку аудиосубмикса
 	Add Caption at Playhead	Добавить субтитр в позиции курсора воспроизведения
+	Add Caption Track	Добавить дорожку субтитров
 	Add Chapter Marker…	Добавить маркер главы…
 	Add Edit	Добавить монтажную точку
 	Add Edit to All Tracks	Добавить монтажную точку на все дорожки
@@ -24,9 +25,12 @@
 	Adjustment Layer…	Корректирующий слой…
 	AI Settings…	Настройки AI…
 	AI…	AI…
+	Alert	Тревога
 	Align to Selection	Выровнять по выделению
 	Align to Video Frame	Выровнять по кадру видео
 	Align to Video Frame as Group	Выровнять по кадру видео как группу
+	ALL CAPS	ВСЕ ЗАГЛАВНЫЕ
+	All caption tracks	Все дорожки субтитров
 	All Panels	Все панели
 	Alpha	Альфа
 	Appearance	Оформление
@@ -51,15 +55,19 @@
 	Automate to Sequence…	Автоматически в секвенцию…
 	Automatic Editing	Автомонтаж
 	Bars and Tone…	Цветные полосы и тон…
+	Big Center	Крупно по центру
 	Bin	Папка
 	Bin From Selection	Папка из выделения
 	Black Video…	Чёрное видео…
 	Blue	Синий
+	Bold Outline	Жирная обводка
 	Bottom	Снизу
 	Breakout to Mono	Разделить на моно
 	Bring Forward	Переместить вперёд
 	Bring to Front	На передний план
 	Brown	Коричневый
+	Caption Style	Стиль субтитров
+	Caption Styles…	Стили субтитров…
 	Captions	Субтитры
 	Captions and Graphics	Субтитры и графика
 	Captions…	Субтитры…
@@ -67,6 +75,9 @@
 	Center Horizontally	Центрировать по горизонтали
 	Center Vertically	Центрировать по вертикали
 	Cerulean	Лазурный
+	Cinema	Кино
+	Classic	Классика
+	Clean Shadow	Чистая тень
 	Clear	Очистить
 	Clear Guides	Очистить направляющие
 	Clear In	Очистить вход
@@ -81,6 +92,7 @@
 	Close Project	Закрыть проект
 	Color Management…	Управление цветом…
 	Color Matte…	Цветная подложка…
+	Comic	Комикс
 	Comparison View	Режим сравнения
 	Composite Video	Композитное видео
 	Consolidate Duplicates	Объединить дубликаты
@@ -90,6 +102,7 @@
 	Create Multi-Camera Source Sequence…	Создать мультикамерную исходную секвенцию…
 	Create Proxies…	Создать прокси…
 	Cut	Вырезать
+	Dark Pill	Тёмная капсула
 	Darkest	Самый тёмный
 	Delete Render Files	Удалить файлы рендера
 	Delete Render Files In to Out	Удалить файлы рендера от входа до выхода
@@ -107,6 +120,7 @@
 	Distribute Vertically	Распределить по вертикали
 	Duplicate	Дублировать
 	Dynamic Audio Waveforms	Динамические формы аудиосигнала
+	Edge Distance	Отступ от края
 	Edit	Правка
 	Edit Offline…	Редактировать офлайн…
 	Edit Original	Редактировать оригинал
@@ -155,6 +169,7 @@
 	Go to Previous Caption Segment	Перейти к предыдущему фрагменту субтитров
 	Go to Previous Marker	Перейти к предыдущему маркеру
 	Go to Split	Перейти к точке разделения
+	Gold	Золото
 	Graphics and Titles	Графика и титры
 	Graphics…	Графика…
 	Green	Зелёный
@@ -163,6 +178,7 @@
 	Help	Справка
 	Hide All Caption Tracks	Скрыть все дорожки субтитров
 	High Quality Playback	Воспроизведение в высоком качестве
+	Highlighter	Маркер
 	History	История
 	Import From	Импорт из
 	Import Image Sequence…	Импортировать последовательность изображений…
@@ -170,10 +186,12 @@
 	Import…	Импортировать…
 	Info	Сведения
 	Ingest Settings…	Параметры приёма медиа…
+	Ink	Чернила
 	Insert	Вставка
 	Insert Frame Hold Segment	Вставить фрагмент стоп-кадра
 	Install Motion Graphics Template…	Установить шаблон анимированной графики…
 	Interpret Footage…	Интерпретировать материал…
+	Italic Quote	Цитата курсивом
 	Keyboard Shortcuts…	Сочетания клавиш…
 	Label	Метка
 	Labels…	Метки…
@@ -184,6 +202,8 @@
 	Libraries	Библиотеки
 	Lift	Поднять
 	Light	Светлое
+	Lime	Лайм
+	Line Spacing	Межстрочный интервал
 	Link	Связать
 	Link Media…	Связать медиафайлы…
 	Linked Selection	Связанное выделение
@@ -209,31 +229,42 @@
 	Memory…	Память…
 	Merge Clips…	Объединить клипы…
 	Metadata	Метаданные
+	Middle	Середина
+	Minimal	Минимализм
 	Modify	Изменить
 	Motion Graphics Template…	Шаблон анимированной графики…
 	Multi-Camera	Мультикамера
 	Multi-Camera View	Мультикамерный вид
+	Neon Cyan	Неон бирюзовый
+	Neon Pink	Неон розовый
 	Nest…	Вложить…
 	New	Создать
 	New Layer	Новый слой
 	New Project Panel	Новая панель проекта
+	News	Новости
 	Next in Sequence	Следующий в секвенции
 	Next in Track	Следующий на дорожке
 	No sequence is open.	Нет открытой секвенции.
 	Normalize Mix Track…	Нормализовать дорожку микса…
 	Offline File…	Офлайн-файл…
+	Open a sequence to style its captions.	Откройте секвенцию, чтобы настроить стиль её субтитров.
 	Open Project…	Открыть проект…
 	Optical Flow	Оптический поток
+	Orange Pop	Оранжевый акцент
+	Outline	Обводка
 	Overwrite	Перезапись
 	Paste	Вставить
 	Paste Attributes…	Вставить атрибуты…
 	Paste Insert	Вставить со сдвигом
+	Pastel	Пастель
 	Paused Resolution	Разрешение на паузе
+	Place	Расположение
 	Playback Resolution	Разрешение воспроизведения
 	Playback…	Воспроизведение…
 	Plugins…	Плагины…
 	Polygon	Многоугольник
 	Preferences	Настройки
+	Presets and every style setting in the Caption Style panel	Пресеты и все настройки стиля — в панели «Стиль субтитров»
 	Previous in Sequence	Предыдущий в секвенции
 	Previous in Track	Предыдущий на дорожке
 	Program	Программа
@@ -266,6 +297,7 @@
 	Report an Issue…	Сообщить о проблеме…
 	Reset All Parameters	Сбросить все параметры
 	Reset Duration	Сбросить длительность
+	Reset Style	Сбросить стиль
 	Reset to Saved Layout	Вернуть сохранённую раскладку
 	Restore Captions from Source Clip	Восстановить субтитры из исходного клипа
 	Reveal Log Files…	Показать файлы журнала…
@@ -278,6 +310,7 @@
 	Ripple Sequence Markers	Сдвигать маркеры секвенции
 	Rose	Розовый
 	Safe Margins	Безопасные поля
+	Sample caption text	Пример текста субтитров
 	Save	Сохранить
 	Save All	Сохранить все
 	Save As…	Сохранить как…
@@ -312,12 +345,15 @@
 	Show Rulers	Показать линейки
 	Show Through Edits	Показывать сквозные монтажные точки
 	Simplify Sequence…	Упростить секвенцию…
+	Sky Blue	Небесный
 	Snap in Program Monitor	Привязка в мониторе программы
 	Snap in Timeline	Привязка на таймлайне
 	Source	Источник
 	Source Settings…	Настройки источника…
 	Speech and Captions	Речь и субтитры
 	Speed/Duration…	Скорость/длительность…
+	Styles…	Стили…
+	Subtle Box	Мягкая подложка
 	Synchronize…	Синхронизировать…
 	System Compatibility Report…	Отчёт о совместимости системы…
 	Tan	Бежевый
@@ -325,6 +361,7 @@
 	Text	Текст
 	Text to Speech…	Синтез речи…
 	The sequence has no captions to translate. Create captions from the transcript first.	В секвенции нет субтитров для перевода. Сначала создайте субтитры из расшифровки.
+	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	В этой секвенции пока нет субтитров. Создайте их из расшифровки (AI ▸ Речь и субтитры) или добавьте дорожку субтитров.
 	Time Interpolation	Интерполяция времени
 	Timecode	Таймкод
 	Timecode…	Таймкод…
@@ -333,6 +370,7 @@
 	Toggle Proxies	Переключить прокси
 	Tools	Инструменты
 	Top	Сверху
+	Top Title	Заголовок сверху
 	Transcribe Sequence…	Расшифровать секвенцию…
 	Transcribe…	Расшифровать…
 	Transcript	Расшифровка
@@ -353,10 +391,13 @@
 	Video and Audio Waveform Split	Видео и форма аудиосигнала раздельно
 	View	Вид
 	Violet	Фиолетовый
+	Violet Box	Фиолетовая подложка
 	Whisper model (on this computer)	Модель Whisper (на этом компьютере)
+	White Pill	Белая капсула
 	Window	Окно
 	Workspaces	Рабочие среды
 	Yellow	Жёлтый
+	Yellow Pop	Жёлтый акцент
 	Zoom In	Увеличить
 	Zoom Out	Уменьшить
 	Zoom to Sequence	Масштаб по секвенции

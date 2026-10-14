@@ -31,7 +31,7 @@ fn spec(
     CommandSpec { id, label, menu, shortcut, params, enabled, run, journal: true }
 }
 
-fn has_caption_track(s: &Session) -> std::result::Result<(), String> {
+pub(crate) fn has_caption_track(s: &Session) -> std::result::Result<(), String> {
     has_seq(s)?;
     if s.active_sequence().is_some_and(|q| !q.caption_tracks.is_empty()) { Ok(()) } else { Err("the sequence has no caption track".into()) }
 }
@@ -93,6 +93,123 @@ fn parse_color(v: &Value) -> Option<[u8; 4]> {
 
 fn hex(c: [u8; 4]) -> String {
     format!("#{:02x}{:02x}{:02x}{:02x}", c[0], c[1], c[2], c[3])
+}
+
+/// Parameters of `captions.setStyle`: every field of [`CaptionStyle`]; `track: "all"` styles every
+/// caption track of the sequence in one undo step.
+const STYLE_PARAMS: &str = r##"{"track":id|"C1"|"all","font":str?,"fontStyle":str?,"size":f32?,"uppercase":bool?,"color":"#rrggbb[aa]"?,"background":bool?,"backgroundColor":"#rrggbbaa"?,"boxRadius":f32?,"align":"left|center|right"?,"anchor":"top|middle|bottom"?,"margin":0..0.45 (fraction of frame height)?,"lineSpacing":f32?,"outline":f32?,"outlineColor":str?,"shadow":bool?,"shadowColor":str?,"shadowOffset":[x,y]?,"shadowBlur":f32?,"reset":bool?}"##;
+
+/// A caption style as JSON (the `style` of `captions.inspect`, `captions.setStyle`'s parameters).
+pub fn style_json(y: &CaptionStyle) -> Value {
+    json!({
+        "font": y.font, "fontStyle": y.font_style, "size": y.size, "uppercase": y.uppercase, "color": hex(y.color),
+        "background": y.background, "backgroundColor": hex(y.background_color), "boxRadius": y.box_radius,
+        "align": format!("{:?}", y.align).to_lowercase(), "anchor": format!("{:?}", y.anchor).to_lowercase(),
+        "margin": y.margin, "lineSpacing": y.line_spacing, "outline": y.outline, "outlineColor": hex(y.outline_color),
+        "shadow": y.shadow, "shadowColor": hex(y.shadow_color), "shadowOffset": y.shadow_offset, "shadowBlur": y.shadow_blur,
+    })
+}
+
+/// Apply the style fields present in `p` (see [`STYLE_PARAMS`]) to `y`.
+pub(crate) fn apply_style(y: &mut CaptionStyle, p: &Value, cmd: &str) -> Result<()> {
+    if bool_p(p, "reset").unwrap_or(false) {
+        *y = CaptionStyle::default();
+    }
+    if let Some(v) = str_p(p, "font") {
+        y.font = v.to_string();
+    }
+    if let Some(v) = str_p(p, "fontStyle") {
+        y.font_style = v.to_string();
+    }
+    if let Some(v) = f64_p(p, "size") {
+        y.size = (v as f32).clamp(4.0, 400.0);
+    }
+    if let Some(b) = bool_p(p, "uppercase") {
+        y.uppercase = b;
+    }
+    if let Some(c) = p.get("color").and_then(parse_color) {
+        y.color = c;
+    }
+    if let Some(b) = bool_p(p, "background") {
+        y.background = b;
+    }
+    if let Some(c) = p.get("backgroundColor").and_then(parse_color) {
+        y.background_color = c;
+    }
+    if let Some(v) = f64_p(p, "boxRadius") {
+        y.box_radius = (v as f32).clamp(0.0, 200.0);
+    }
+    if let Some(c) = p.get("outlineColor").and_then(parse_color) {
+        y.outline_color = c;
+    }
+    if let Some(v) = f64_p(p, "outline") {
+        y.outline = (v as f32).clamp(0.0, 40.0);
+    }
+    if let Some(v) = f64_p(p, "margin") {
+        y.margin = (v as f32).clamp(0.0, 0.45);
+    }
+    if let Some(v) = f64_p(p, "lineSpacing") {
+        y.line_spacing = (v as f32).clamp(0.8, 4.0);
+    }
+    if let Some(b) = bool_p(p, "shadow") {
+        y.shadow = b;
+    }
+    if let Some(c) = p.get("shadowColor").and_then(parse_color) {
+        y.shadow_color = c;
+    }
+    if let Some(a) = p.get("shadowOffset").and_then(Value::as_array) {
+        let v: Vec<f32> = a.iter().filter_map(Value::as_f64).map(|v| (v as f32).clamp(-100.0, 100.0)).collect();
+        if let [x, y2] = v[..] {
+            y.shadow_offset = [x, y2];
+        } else {
+            return Err(bad(cmd, "`shadowOffset` is [x, y]"));
+        }
+    }
+    if let Some(v) = f64_p(p, "shadowBlur") {
+        y.shadow_blur = (v as f32).clamp(0.0, 100.0);
+    }
+    match str_p(p, "align") {
+        Some("left") => y.align = CaptionAlign::Left,
+        Some("right") => y.align = CaptionAlign::Right,
+        Some("center") => y.align = CaptionAlign::Center,
+        Some(o) => return Err(bad(cmd, format!("unknown align `{o}`"))),
+        None => {}
+    }
+    match str_p(p, "anchor") {
+        Some("top") => y.anchor = CaptionAnchor::Top,
+        Some("middle") => y.anchor = CaptionAnchor::Middle,
+        Some("bottom") => y.anchor = CaptionAnchor::Bottom,
+        Some(o) => return Err(bad(cmd, format!("unknown anchor `{o}`"))),
+        None => {}
+    }
+    Ok(())
+}
+
+/// The caption tracks a style command acts on: every one for `track: "all"`, else the one named.
+pub(crate) fn style_targets(s: &Session, p: &Value, cmd: &str) -> Result<Vec<TrackId>> {
+    if str_p(p, "track") == Some("all") {
+        let ids: Vec<TrackId> = s.active_sequence().map(|q| q.caption_tracks.iter().map(|t| t.id).collect()).unwrap_or_default();
+        return if ids.is_empty() { Err(bad(cmd, "the sequence has no caption track")) } else { Ok(ids) };
+    }
+    Ok(vec![track_param(s, p).ok_or_else(|| bad(cmd, "no such caption track"))?])
+}
+
+fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "captions.setStyle";
+    let tracks = style_targets(s, p, cmd)?;
+    // check the parameters once before the edit
+    apply_style(&mut CaptionStyle::default(), p, cmd)?;
+    let p = p.clone();
+    s.edit("Caption Style", |pr, st| {
+        let seq = st.active_sequence.ok_or(EngineError::NoSequence)?;
+        let q = pr.sequence_mut(seq).ok_or(EngineError::NoSequence)?;
+        for tid in &tracks {
+            let t = q.caption_track_mut(*tid).ok_or(EngineError::NoSequence)?;
+            apply_style(&mut t.style, &p, cmd)?;
+        }
+        Ok(())
+    })?;
+    Ok(json!({"tracks": tracks.iter().map(|t| t.0).collect::<Vec<_>>()}))
 }
 
 /// The caption format of a file, if it is one (extension `.srt` / `.vtt` / `.scc` / `.mcc` /
@@ -187,12 +304,7 @@ fn track_json(s: &Session, t: &CaptionTrack, index: usize) -> Value {
         "enabled": t.enabled,
         "locked": t.locked,
         "syncLock": t.sync_lock,
-        "style": {
-            "font": t.style.font, "size": t.style.size, "color": hex(t.style.color),
-            "background": t.style.background, "backgroundColor": hex(t.style.background_color),
-            "align": format!("{:?}", t.style.align).to_lowercase(), "anchor": format!("{:?}", t.style.anchor).to_lowercase(),
-            "margin": t.style.margin, "lineSpacing": t.style.line_spacing, "outline": t.style.outline, "outlineColor": hex(t.style.outline_color),
-        },
+        "style": style_json(&t.style),
         "captions": t.captions.iter().map(|c| caption_json(s, c)).collect::<Vec<_>>(),
     })
 }
@@ -291,69 +403,7 @@ pub fn commands() -> Vec<CommandSpec> {
                 Ok(Value::Null)
             },
         ),
-        spec(
-            "captions.setStyle",
-            "Caption Track Style",
-            &[],
-            None,
-            r##"{"track":id|"C1","font":str?,"size":f32?,"color":"#rrggbb[aa]"?,"background":bool?,"backgroundColor":"#rrggbbaa"?,"align":"left|center|right"?,"anchor":"top|middle|bottom"?,"margin":0..0.45 (fraction of frame height)?,"lineSpacing":f32?,"outline":f32?,"outlineColor":str?,"reset":bool?}"##,
-            has_caption_track,
-            |s, p| {
-                let tid = track_param(s, p).ok_or_else(|| bad("captions.setStyle", "no such caption track"))?;
-                let p = p.clone();
-                s.edit("Caption Style", |pr, st| {
-                    let seq = st.active_sequence.ok_or(EngineError::NoSequence)?;
-                    let t = pr.sequence_mut(seq).and_then(|q| q.caption_track_mut(tid)).ok_or(EngineError::NoSequence)?;
-                    let y = &mut t.style;
-                    if bool_p(&p, "reset").unwrap_or(false) {
-                        *y = CaptionStyle::default();
-                    }
-                    if let Some(v) = str_p(&p, "font") {
-                        y.font = v.to_string();
-                    }
-                    if let Some(v) = f64_p(&p, "size") {
-                        y.size = (v as f32).clamp(4.0, 400.0);
-                    }
-                    if let Some(c) = p.get("color").and_then(parse_color) {
-                        y.color = c;
-                    }
-                    if let Some(b) = bool_p(&p, "background") {
-                        y.background = b;
-                    }
-                    if let Some(c) = p.get("backgroundColor").and_then(parse_color) {
-                        y.background_color = c;
-                    }
-                    if let Some(c) = p.get("outlineColor").and_then(parse_color) {
-                        y.outline_color = c;
-                    }
-                    if let Some(v) = f64_p(&p, "outline") {
-                        y.outline = (v as f32).clamp(0.0, 40.0);
-                    }
-                    if let Some(v) = f64_p(&p, "margin") {
-                        y.margin = (v as f32).clamp(0.0, 0.45);
-                    }
-                    if let Some(v) = f64_p(&p, "lineSpacing") {
-                        y.line_spacing = (v as f32).clamp(0.8, 4.0);
-                    }
-                    match str_p(&p, "align") {
-                        Some("left") => y.align = CaptionAlign::Left,
-                        Some("right") => y.align = CaptionAlign::Right,
-                        Some("center") => y.align = CaptionAlign::Center,
-                        Some(o) => return Err(bad("captions.setStyle", format!("unknown align `{o}`"))),
-                        None => {}
-                    }
-                    match str_p(&p, "anchor") {
-                        Some("top") => y.anchor = CaptionAnchor::Top,
-                        Some("middle") => y.anchor = CaptionAnchor::Middle,
-                        Some("bottom") => y.anchor = CaptionAnchor::Bottom,
-                        Some(o) => return Err(bad("captions.setStyle", format!("unknown anchor `{o}`"))),
-                        None => {}
-                    }
-                    Ok(())
-                })?;
-                Ok(Value::Null)
-            },
-        ),
+        spec("captions.setStyle", "Caption Track Style", &[], None, STYLE_PARAMS, has_caption_track, set_style),
         spec(
             "captions.add",
             "Add Caption at Playhead",

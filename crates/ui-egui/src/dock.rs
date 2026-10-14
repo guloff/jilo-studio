@@ -31,6 +31,7 @@ pub enum PanelKind {
     EssentialGraphics,
     EssentialSound,
     TextToSpeech,
+    CaptionStyle,
     Properties,
     Text,
     Events,
@@ -40,7 +41,7 @@ pub enum PanelKind {
 }
 
 impl PanelKind {
-    pub const ALL: [PanelKind; 27] = [
+    pub const ALL: [PanelKind; 28] = [
         PanelKind::Project,
         PanelKind::MediaBrowser,
         PanelKind::Libraries,
@@ -62,6 +63,7 @@ impl PanelKind {
         PanelKind::EssentialGraphics,
         PanelKind::EssentialSound,
         PanelKind::TextToSpeech,
+        PanelKind::CaptionStyle,
         PanelKind::Properties,
         PanelKind::Text,
         PanelKind::Events,
@@ -92,6 +94,7 @@ impl PanelKind {
             PanelKind::EssentialGraphics => "Essential Graphics",
             PanelKind::EssentialSound => "Essential Sound",
             PanelKind::TextToSpeech => "Text to Speech",
+            PanelKind::CaptionStyle => "Caption Style",
             PanelKind::Properties => "Properties",
             PanelKind::Text => "Text",
             PanelKind::Events => "Events",
@@ -280,14 +283,18 @@ pub fn workspace(name: &str) -> DockNode {
                 hsplit(Ratio(0.4), tabs(&[Text, Source, EffectControls], 0), tabs(&[Program], 0)),
                 hsplit(Ratio(0.3), tabs(&[Project, MediaBrowser, Libraries], 0), bottom_editing()),
             ),
-            tabs(&[EssentialGraphics, Properties], 0),
+            tabs(&[EssentialGraphics, Properties, CaptionStyle], 0),
         ),
         "All Panels" => vsplit(
             Ratio(0.5),
             hsplit(
                 Ratio(0.5),
                 tabs(&[Source, EffectControls, AudioClipMixer, Metadata, LumetriScopes, Text], 0),
-                hsplit(Ratio(0.6), tabs(&[Program], 0), tabs(&[LumetriColor, EssentialGraphics, EssentialSound, TextToSpeech, Properties, AudioTrackMixer], 0)),
+                hsplit(
+                    Ratio(0.6),
+                    tabs(&[Program], 0),
+                    tabs(&[LumetriColor, EssentialGraphics, CaptionStyle, EssentialSound, TextToSpeech, Properties, AudioTrackMixer], 0),
+                ),
             ),
             hsplit(Ratio(0.26), tabs(&[Project, MediaBrowser, Libraries, Info, Effects, Markers, History], 0), bottom_editing()),
         ),
@@ -298,7 +305,7 @@ pub fn workspace(name: &str) -> DockNode {
             hsplit(
                 FixedB(450.0),
                 hsplit(Ratio(0.5), tabs(&[Source, EffectControls, AudioClipMixer, Metadata], 0), tabs(&[Program], 0)),
-                tabs(&[Properties, EssentialGraphics, Text], 0),
+                tabs(&[Properties, EssentialGraphics, Text, CaptionStyle], 0),
             ),
             hsplit(
                 Ratio(0.29),

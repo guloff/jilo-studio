@@ -9,10 +9,12 @@ version 2; version 1 projects open with no caption tracks).
 - **Caption track** (`CaptionTrack`, `crates/project/src/caption.rs`): name, format (`Subtitle`,
   `CEA-608`, `CEA-708`, `Teletext`), language, output eye (shown in the Program monitor and
   burned in on export), lock, sync lock, and a **track style**:
-  font size (pixels at 1080 lines, scaled to the frame), text colour, background box and its colour,
-  outline width and colour, alignment (left/centre/right), position (top/middle/bottom) and
-  margin (a fraction of the frame height, default 0.08; `captions.setStyle` clamps it to 0–0.45),
-  line spacing.
+  font family and style (bundled or installed; a missing family falls back to Inter, the default is
+  Inter SemiBold), font size (pixels at 1080 lines, scaled to the frame), capitals, text colour,
+  background box, its colour and corner radius, outline width and colour, drop shadow (colour,
+  offset, softness), alignment (left/centre/right), position (top/middle/bottom) and margin (a
+  fraction of the frame height, default 0.08; `captions.setStyle` clamps it to 0–0.45), line
+  spacing. Styles saved before fonts, capitals, corners and shadows load unchanged.
 - **Caption**: in/out in exact `Tick`s, text (lines separated by `\n`; `<i>`, `<b>`, `<u>` kept
   as written), optional speaker, and the WebVTT cue id and cue settings, kept for round trips.
   Captions on a track never overlap.
@@ -49,7 +51,9 @@ Details of each format and the SCC encoder are in [`crates/captions/README.md`](
 | `captions.delete` | Edit ▸ Clear / Ripple Delete with captions selected | `captions`, `ripple` |
 | `captions.select`, `captions.goTo` | click / number button | `captions`, `add` / `caption` |
 | `captions.setTrack` | caption track header (eye, lock) | `track`, `name`, `format`, `language`, `enabled`, `locked`, `syncLock` |
-| `captions.setStyle` | Text panel style strip | `track`, `size`, `color`, `background`, `backgroundColor`, `outline`, `outlineColor`, `align`, `anchor`, `margin`, `lineSpacing`, `reset` |
+| `captions.setStyle` | Caption Style panel, Text panel style strip | `track` (id, `"C1"`, or `"all"` for every caption track in one undo step), `font`, `fontStyle`, `size`, `uppercase`, `color`, `background`, `backgroundColor`, `boxRadius`, `outline`, `outlineColor`, `shadow`, `shadowColor`, `shadowOffset` `[x, y]`, `shadowBlur`, `align`, `anchor`, `margin`, `lineSpacing`, `reset` |
+| `captions.stylePresets` | (query) | the built-in style presets: `id`, `name`, `style` (`crates/engine/src/caption_presets.rs`) |
+| `captions.applyStylePreset` | Caption Style panel tiles | `preset`, `track` (id, `"C1"` or `"all"`): the preset replaces the style |
 | `captions.deleteTrack` | | `track` |
 | `captions.import` / `captions.export` | File ▸ Export ▸ Captions… | `path`, `format`, `track`, `dropFrame` |
 | `captions.list` | (query) | `track` — tracks, styles and captions with timecodes (a `track` that names no caption track is an error) |
@@ -69,7 +73,14 @@ also splits captions.
   split / merge / delete / export buttons, the list of segments with editable in/out timecodes
   and text (committed when the field loses focus), and the track style strip (size, colour, box,
   alignment, position). Automation ids: `text.tab.Captions`, `text.captions.add|split|merge|delete|export|search|track`,
-  `text.captions.<id>.in|out|text|goto|row`, `text.captions.style.*`.
+  `text.captions.<id>.in|out|text|goto|row`, `text.captions.style.*`; its Styles… button opens the
+  Caption Style panel.
+- **Caption Style panel** (Graphics and Titles ▸ Caption Styles…, Window ▸ Caption Style): the track
+  (or All caption tracks), a gallery of 26 presets — each tile a frame drawn by the burn-in renderer,
+  so it looks as playback and export will — and every style field (font, style, size, ALL CAPS,
+  colour, outline, box and corners, shadow, alignment, position, edge distance, line spacing,
+  Reset Style). Automation ids: `captionStyle.track|all|reset|newTrack`,
+  `captionStyle.preset.<id>`, `captionStyle.<field>`.
 
 ## Burn-in
 

@@ -74,10 +74,15 @@ pub enum CaptionAnchor {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CaptionStyle {
-    /// Font family name. Only the bundled Inter is rendered today; other names fall back to it.
+    /// Font family name (bundled or installed; a family that is missing falls back to Inter).
     pub font: String,
+    /// Style of the family: `Regular`, `SemiBold`, `Bold`, `Italic`… (the nearest weight is used,
+    /// with synthetic bold or slant when the family lacks it).
+    pub font_style: String,
     /// Font size in pixels for a 1080-line frame (scaled with the frame height).
     pub size: f32,
+    /// Draw the text in capitals.
+    pub uppercase: bool,
     /// Text colour, sRGB + alpha.
     pub color: [u8; 4],
     /// Draw a background box behind each line.
@@ -93,13 +98,24 @@ pub struct CaptionStyle {
     /// Text outline width in pixels at 1080 lines (0 = none).
     pub outline: f32,
     pub outline_color: [u8; 4],
+    /// Corner radius of the background box in pixels at 1080 lines (0 = square).
+    pub box_radius: f32,
+    /// Drop shadow under the text and its outline.
+    pub shadow: bool,
+    pub shadow_color: [u8; 4],
+    /// Shadow offset `[x, y]` in pixels at 1080 lines (positive = right, down).
+    pub shadow_offset: [f32; 2],
+    /// Shadow softness (blur radius) in pixels at 1080 lines.
+    pub shadow_blur: f32,
 }
 
 impl Default for CaptionStyle {
     fn default() -> Self {
         Self {
             font: "Inter".into(),
+            font_style: "SemiBold".into(),
             size: 54.0,
+            uppercase: false,
             color: [255, 255, 255, 255],
             background: true,
             background_color: [0, 0, 0, 191],
@@ -109,6 +125,11 @@ impl Default for CaptionStyle {
             line_spacing: 1.25,
             outline: 0.0,
             outline_color: [0, 0, 0, 255],
+            box_radius: 0.0,
+            shadow: false,
+            shadow_color: [0, 0, 0, 160],
+            shadow_offset: [0.0, 3.0],
+            shadow_blur: 4.0,
         }
     }
 }
@@ -291,6 +312,12 @@ pub fn plain_text(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn styles_saved_before_fonts_capitals_and_shadows_load_as_they_looked() {
+        let old: CaptionStyle = serde_json::from_str(r#"{"font":"Inter","size":54.0,"background":true}"#).unwrap();
+        assert_eq!(old, CaptionStyle::default());
+    }
 
     #[test]
     fn plain() {

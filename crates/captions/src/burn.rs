@@ -1,8 +1,9 @@
 //! Caption layout and burn-in.
 //!
 //! [`overlay`] lays out the caption showing on a track at a time with the track's
-//! [`CaptionStyle`] (size relative to a 1080-line frame, colour, background box, outline,
-//! alignment, anchor and margin; WebVTT `line:N%` and `align:` cue settings override the style)
+//! [`CaptionStyle`] (font and style, size relative to a 1080-line frame, capitals, colour,
+//! background box with rounded corners, outline, drop shadow, alignment, anchor and margin; WebVTT
+//! `line:N%` and `align:` cue settings override the style)
 //! and rasterises it into a small premultiplied linear-light RGBA [`Overlay`] positioned in the
 //! frame. Renderers composite overlays over the finished picture.
 
@@ -10,7 +11,7 @@ use filmcraft_color::srgb_to_linear;
 use filmcraft_project::{Caption, CaptionAlign, CaptionAnchor, CaptionStyle, CaptionTrack, Sequence};
 use filmcraft_time::Tick;
 
-use filmcraft_text::{ParagraphStyle, TextStyle, layout, render};
+use filmcraft_text::{Caps, ParagraphStyle, TextStyle, layout, render};
 
 /// A rendered caption: premultiplied linear-light RGBA f32 pixels at `(x, y)` in the frame.
 #[derive(Clone, Debug, PartialEq)]
@@ -49,13 +50,21 @@ impl Overlay {
     }
 }
 
-/// The caption face: Inter SemiBold at `px`.
-fn caption_style(px: f32) -> TextStyle {
-    TextStyle { style: "SemiBold".into(), size: px, ..Default::default() }
+/// The caption face at `px`: the style's family and style (Inter SemiBold when unset), in capitals
+/// when the style asks for them.
+fn caption_style(style: &CaptionStyle, px: f32) -> TextStyle {
+    let or = |s: &str, d: &str| if s.trim().is_empty() { d.to_string() } else { s.to_string() };
+    TextStyle {
+        family: or(&style.font, "Inter"),
+        style: or(&style.font_style, "SemiBold"),
+        size: px,
+        caps: if style.uppercase { Caps::All } else { Caps::Normal },
+        ..Default::default()
+    }
 }
 
-fn measure(text: &str, px: f32) -> f32 {
-    filmcraft_text::measure(text, &caption_style(px))
+fn measure(text: &str, ts: &TextStyle) -> f32 {
+    filmcraft_text::measure(text, ts)
 }
 
 fn lin(c: [u8; 4]) -> [f32; 4] {
@@ -64,12 +73,12 @@ fn lin(c: [u8; 4]) -> [f32; 4] {
 }
 
 /// Word-wrap one line to `max_w` pixels.
-fn wrap(line: &str, px: f32, max_w: f32) -> Vec<String> {
+fn wrap(line: &str, ts: &TextStyle, max_w: f32) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     for word in line.split(' ') {
         let cand = if cur.is_empty() { word.to_string() } else { format!("{cur} {word}") };
-        if !cur.is_empty() && measure(&cand, px) > max_w {
+        if !cur.is_empty() && measure(&cand, ts) > max_w {
             out.push(std::mem::take(&mut cur));
             cur = word.to_string();
         } else {
@@ -114,17 +123,18 @@ pub fn render_caption(c: &Caption, style: &CaptionStyle, w: usize, h: usize) -> 
     }
     let scale = h as f32 / 1080.0;
     let px = (style.size * scale).max(4.0);
+    let ts = caption_style(style, px);
     let max_w = w as f32 * 0.9;
     let mut lines: Vec<String> = Vec::new();
     // (speaker names are metadata; like Premiere, they are not burned in)
     for l in c.plain_lines() {
-        lines.extend(wrap(l.trim(), px, max_w));
+        lines.extend(wrap(l.trim(), &ts, max_w));
     }
     lines.retain(|l| !l.is_empty());
     if lines.is_empty() {
         return None;
     }
-    let vm = filmcraft_text::fonts::face(filmcraft_text::resolve("Inter", "SemiBold").face).metrics(px);
+    let vm = filmcraft_text::fonts::face(filmcraft_text::resolve(&ts.family, &ts.style).face).metrics(px);
     let (asc, desc) = (vm.ascent, vm.descent);
     let lh = px * style.line_spacing.max(0.8);
     let pad_x = (px * 0.3).round();
@@ -141,7 +151,7 @@ pub fn render_caption(c: &Caption, style: &CaptionStyle, w: usize, h: usize) -> 
     .max(0.0)
     .round();
     let side = w as f32 * 0.05;
-    let widths: Vec<f32> = lines.iter().map(|l| measure(l, px)).collect();
+    let widths: Vec<f32> = lines.iter().map(|l| measure(l, &ts)).collect();
     let xs: Vec<f32> = widths
         .iter()
         .map(|&lw| match align {
@@ -151,7 +161,13 @@ pub fn render_caption(c: &Caption, style: &CaptionStyle, w: usize, h: usize) -> 
         })
         .collect();
     let outline = (style.outline * scale).max(0.0);
-    let grow = outline.ceil() + 1.0;
+    let radius = (style.box_radius * scale).max(0.0);
+    let (sdx, sdy, blur) = if style.shadow && style.shadow_color[3] > 0 {
+        (style.shadow_offset[0] * scale, style.shadow_offset[1] * scale, (style.shadow_blur * scale).max(0.0))
+    } else {
+        (0.0, 0.0, 0.0)
+    };
+    let grow = outline.ceil() + 1.0 + (blur * 1.5 + sdx.abs().max(sdy.abs())).ceil();
     let bx0 = xs.iter().zip(&widths).map(|(x, _)| x - pad_x - grow).fold(f32::MAX, f32::min).floor();
     let bx1 = xs.iter().zip(&widths).map(|(x, lw)| x + lw + pad_x + grow).fold(f32::MIN, f32::max).ceil();
     let by0 = (top - grow).floor();
@@ -163,7 +179,10 @@ pub fn render_caption(c: &Caption, style: &CaptionStyle, w: usize, h: usize) -> 
     let mut bg = vec![0.0f32; ow * oh];
     for (i, line) in lines.iter().enumerate() {
         let lt = top + lh * i as f32;
-        if style.background && style.background_color[3] > 0 {
+        if style.background && style.background_color[3] > 0 && radius > 0.0 {
+            let (x0, x1) = (xs[i] - pad_x, xs[i] + widths[i] + pad_x);
+            rounded_rect(&mut bg, (ox, oy, ow, oh), (x0, lt, x1, lt + lh), radius);
+        } else if style.background && style.background_color[3] > 0 {
             let (x0, x1) = (xs[i] - pad_x, xs[i] + widths[i] + pad_x);
             let (y0, y1) = (lt, lt + lh);
             for y in (y0.floor() as i32).max(oy)..(y1.ceil() as i32).min(oy + oh as i32) {
@@ -176,13 +195,19 @@ pub fn render_caption(c: &Caption, style: &CaptionStyle, w: usize, h: usize) -> 
             }
         }
         let baseline = lt + (lh - (asc + desc)) / 2.0 + asc;
-        let l = layout(line, &caption_style(px), &ParagraphStyle::default());
+        let l = layout(line, &ts, &ParagraphStyle::default());
         let mut m = filmcraft_text::Mask { w: ow, h: oh, a: std::mem::take(&mut cover) };
         render::draw(&l, &render::at(xs[i], baseline.round()), &mut m, (ox, oy));
         cover = m.a;
     }
     let stroke = if outline > 0.0 { dilate(&cover, ow, oh, outline) } else { Vec::new() };
-    let (tc, bc, oc) = (lin(style.color), lin(style.background_color), lin(style.outline_color));
+    let shadow = if style.shadow && style.shadow_color[3] > 0 {
+        let solid: Vec<f32> = if stroke.is_empty() { cover.clone() } else { cover.iter().zip(&stroke).map(|(a, b)| a.max(*b)).collect() };
+        blur_mask(&shift(&solid, ow, oh, sdx.round() as i32, sdy.round() as i32), ow, oh, blur)
+    } else {
+        Vec::new()
+    };
+    let (tc, bc, oc, sc) = (lin(style.color), lin(style.background_color), lin(style.outline_color), lin(style.shadow_color));
     let mut out = vec![0.0f32; ow * oh * 4];
     for j in 0..ow * oh {
         let mut p = [0.0f32; 4];
@@ -194,6 +219,9 @@ pub fn render_caption(c: &Caption, style: &CaptionStyle, w: usize, h: usize) -> 
             }
         };
         over(&mut p, bc, bg[j]);
+        if !shadow.is_empty() {
+            over(&mut p, sc, shadow[j]);
+        }
         if !stroke.is_empty() {
             over(&mut p, oc, stroke[j]);
         }
@@ -201,6 +229,90 @@ pub fn render_caption(c: &Caption, style: &CaptionStyle, w: usize, h: usize) -> 
         out[j * 4..j * 4 + 4].copy_from_slice(&p);
     }
     Some(Overlay { x: ox, y: oy, w: ow, h: oh, px: out })
+}
+
+/// Add the coverage of the rounded rectangle `(x0, y0, x1, y1)` (corner radius `r`) to a mask placed
+/// at `(ox, oy)` with size `ow`×`oh`.
+fn rounded_rect(m: &mut [f32], (ox, oy, ow, oh): (i32, i32, usize, usize), (x0, y0, x1, y1): (f32, f32, f32, f32), r: f32) {
+    let r = r.min((x1 - x0) / 2.0).min((y1 - y0) / 2.0).max(0.0);
+    let (cx, cy) = ((x0 + x1) / 2.0, (y0 + y1) / 2.0);
+    let (hx, hy) = ((x1 - x0) / 2.0 - r, (y1 - y0) / 2.0 - r);
+    for y in (y0.floor() as i32).max(oy)..(y1.ceil() as i32).min(oy + oh as i32) {
+        for x in (x0.floor() as i32).max(ox)..(x1.ceil() as i32).min(ox + ow as i32) {
+            // signed distance from the pixel centre to the rounded rectangle
+            let (qx, qy) = (((x as f32 + 0.5) - cx).abs() - hx, ((y as f32 + 0.5) - cy).abs() - hy);
+            let outside = (qx.max(0.0).powi(2) + qy.max(0.0).powi(2)).sqrt();
+            let d = outside + qx.max(qy).min(0.0) - r;
+            let a = (0.5 - d).clamp(0.0, 1.0);
+            let j = (y - oy) as usize * ow + (x - ox) as usize;
+            m[j] = (m[j] + a).min(1.0);
+        }
+    }
+}
+
+/// A mask moved by `(dx, dy)` pixels (what moves out is dropped).
+fn shift(m: &[f32], w: usize, h: usize, dx: i32, dy: i32) -> Vec<f32> {
+    let mut out = vec![0.0f32; w * h];
+    for y in 0..h as i32 {
+        let sy = y - dy;
+        if sy < 0 || sy >= h as i32 {
+            continue;
+        }
+        for x in 0..w as i32 {
+            let sx = x - dx;
+            if sx >= 0 && sx < w as i32 {
+                out[y as usize * w + x as usize] = m[sy as usize * w + sx as usize];
+            }
+        }
+    }
+    out
+}
+
+/// Soften a mask: three box-blur passes in each direction (close to a Gaussian of about `r`).
+fn blur_mask(m: &[f32], w: usize, h: usize, r: f32) -> Vec<f32> {
+    let k = (r / 2.0).round() as usize;
+    if k == 0 {
+        return m.to_vec();
+    }
+    let mut a = m.to_vec();
+    let mut b = vec![0.0f32; w * h];
+    let n = (2 * k + 1) as f32;
+    for _ in 0..3 {
+        // horizontal: a → b
+        for y in 0..h {
+            let row = &a[y * w..(y + 1) * w];
+            let mut sum = 0.0f32;
+            for x in 0..=k.min(w.saturating_sub(1)) {
+                sum += row[x];
+            }
+            for x in 0..w {
+                b[y * w + x] = sum / n;
+                if x + k + 1 < w {
+                    sum += row[x + k + 1];
+                }
+                if x >= k {
+                    sum -= row[x - k];
+                }
+            }
+        }
+        // vertical: b → a
+        for x in 0..w {
+            let mut sum = 0.0f32;
+            for y in 0..=k.min(h.saturating_sub(1)) {
+                sum += b[y * w + x];
+            }
+            for y in 0..h {
+                a[y * w + x] = sum / n;
+                if y + k + 1 < h {
+                    sum += b[(y + k + 1) * w + x];
+                }
+                if y >= k {
+                    sum -= b[(y - k) * w + x];
+                }
+            }
+        }
+    }
+    a
 }
 
 /// Max-filter a coverage mask with a disc of radius `r`.
@@ -303,6 +415,47 @@ mod tests {
         let st = CaptionStyle { background: false, outline: 4.0, outline_color: [255, 0, 0, 255], ..Default::default() };
         let o = render_caption(&cap("O"), &st, 1920, 1080).unwrap();
         assert!(o.px.chunks(4).any(|p| p[0] > 0.9 && p[1] < 0.05 && p[3] > 0.9), "red outline pixels");
+    }
+
+    #[test]
+    fn font_style_capitals_rounded_box_and_shadow() {
+        let plain = render_caption(&cap("Hello"), &CaptionStyle::default(), 1920, 1080).unwrap();
+        // capitals are wider than lower case in the same face
+        let caps = CaptionStyle { uppercase: true, ..Default::default() };
+        let up = render_caption(&cap("Hello"), &caps, 1920, 1080).unwrap();
+        assert!(up.w > plain.w, "{} vs {}", up.w, plain.w);
+        // a bolder style of the family draws more ink
+        let ink = |o: &Overlay| o.px.chunks(4).filter(|p| p[3] > 0.99 && p[0] > 0.9).count();
+        let thin = CaptionStyle { background: false, font_style: "Regular".into(), ..Default::default() };
+        let bold = CaptionStyle { background: false, font_style: "Bold".into(), ..Default::default() };
+        let (t, b) = (render_caption(&cap("Hello"), &thin, 1920, 1080).unwrap(), render_caption(&cap("Hello"), &bold, 1920, 1080).unwrap());
+        assert!(ink(&b) > ink(&t), "{} vs {}", ink(&b), ink(&t));
+        // rounded corners leave the box corner pixel empty
+        let round = CaptionStyle { box_radius: 20.0, background_color: [0, 0, 0, 255], ..Default::default() };
+        let o = render_caption(&cap("Hello"), &round, 1920, 1080).unwrap();
+        let first = (0..o.w * o.h).find(|&j| o.px[j * 4 + 3] > 0.5).unwrap();
+        let (fx, fy) = (first % o.w, first / o.w);
+        assert!(o.px[(fy * o.w + fx.saturating_sub(1)) * 4 + 3] < 0.5);
+        let square = CaptionStyle { background_color: [0, 0, 0, 255], ..Default::default() };
+        let q = render_caption(&cap("Hello"), &square, 1920, 1080).unwrap();
+        let opaque = |o: &Overlay| o.px.chunks(4).filter(|p| p[3] > 0.99).count();
+        assert!(opaque(&o) < opaque(&q));
+        // a red shadow below the text, none without it
+        let red = |o: &Overlay| o.px.chunks(4).filter(|p| p[0] > 0.2 && p[1] < 0.05 && p[3] > 0.2).count();
+        let shadow = CaptionStyle { background: false, shadow: true, shadow_color: [255, 0, 0, 255], shadow_offset: [0.0, 8.0], ..Default::default() };
+        let s = render_caption(&cap("Hello"), &shadow, 1920, 1080).unwrap();
+        assert!(red(&s) > 200, "{}", red(&s));
+        assert_eq!(red(&render_caption(&cap("Hello"), &thin, 1920, 1080).unwrap()), 0);
+    }
+
+    #[test]
+    fn the_default_style_draws_as_before() {
+        // Inter SemiBold, no capitals, square box, no shadow: what every older project shows
+        let st = CaptionStyle::default();
+        assert_eq!((st.font.as_str(), st.font_style.as_str(), st.uppercase, st.box_radius, st.shadow), ("Inter", "SemiBold", false, 0.0, false));
+        let unset = CaptionStyle { font: String::new(), font_style: String::new(), ..Default::default() };
+        let (a, b) = (render_caption(&cap("Same"), &st, 1280, 720).unwrap(), render_caption(&cap("Same"), &unset, 1280, 720).unwrap());
+        assert_eq!(a, b);
     }
 
     #[test]

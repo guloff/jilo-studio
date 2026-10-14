@@ -17,6 +17,7 @@
 	About FilmCraft	Acerca de FilmCraft
 	Add Audio Submix Track	Añadir pista de submezcla de audio
 	Add Caption at Playhead	Añadir subtítulo en el cabezal
+	Add Caption Track	Añadir pista de subtítulos
 	Add Chapter Marker…	Añadir marcador de capítulo…
 	Add Edit	Añadir edición
 	Add Edit to All Tracks	Añadir edición a todas las pistas
@@ -31,9 +32,12 @@
 	Adjustment Layer…	Capa de ajuste…
 	AI Settings…	Ajustes de IA…
 	AI…	IA…
+	Alert	Alerta
 	Align to Selection	Alinear con la selección
 	Align to Video Frame	Alinear con el fotograma de video
 	Align to Video Frame as Group	Alinear con el fotograma de video como grupo
+	ALL CAPS	MAYÚSCULAS
+	All caption tracks	Todas las pistas de subtítulos
 	All Panels	Todos los paneles
 	Alpha	Alfa
 	Appearance	Apariencia
@@ -58,15 +62,19 @@
 	Automate to Sequence…	Automatizar a secuencia…
 	Automatic Editing	Edición automática
 	Bars and Tone…	Barras y tono…
+	Big Center	Grande al centro
 	Bin	Bandeja
 	Bin From Selection	Bandeja a partir de la selección
 	Black Video…	Video negro…
 	Blue	Azul
+	Bold Outline	Contorno grueso
 	Bottom	Abajo
 	Breakout to Mono	Separar en mono
 	Bring Forward	Traer adelante
 	Bring to Front	Traer al frente
 	Brown	Marrón
+	Caption Style	Estilo de subtítulos
+	Caption Styles…	Estilos de subtítulos…
 	Captions	Subtítulos
 	Captions and Graphics	Subtítulos y gráficos
 	Captions…	Subtítulos…
@@ -74,6 +82,9 @@
 	Center Horizontally	Centrar horizontalmente
 	Center Vertically	Centrar verticalmente
 	Cerulean	Cerúleo
+	Cinema	Cine
+	Classic	Clásico
+	Clean Shadow	Sombra limpia
 	Clear	Borrar
 	Clear Guides	Borrar guías
 	Clear In	Borrar entrada
@@ -88,6 +99,7 @@
 	Close Project	Cerrar proyecto
 	Color Management…	Gestión del color…
 	Color Matte…	Mate de color…
+	Comic	Cómic
 	Comparison View	Vista de comparación
 	Composite Video	Video compuesto
 	Consolidate Duplicates	Consolidar duplicados
@@ -97,6 +109,7 @@
 	Create Multi-Camera Source Sequence…	Crear secuencia de origen multicámara…
 	Create Proxies…	Crear proxies…
 	Cut	Cortar
+	Dark Pill	Cápsula oscura
 	Darkest	Más oscuro
 	Delete Render Files	Eliminar archivos de procesamiento
 	Delete Render Files In to Out	Eliminar archivos de procesamiento de entrada a salida
@@ -114,6 +127,7 @@
 	Distribute Vertically	Distribuir verticalmente
 	Duplicate	Duplicar
 	Dynamic Audio Waveforms	Formas de onda de audio dinámicas
+	Edge Distance	Distancia al borde
 	Edit	Edición
 	Edit Offline…	Editar sin conexión…
 	Edit Original	Editar original
@@ -162,6 +176,7 @@
 	Go to Previous Caption Segment	Ir al segmento de subtítulo anterior
 	Go to Previous Marker	Ir al marcador anterior
 	Go to Split	Ir a la división
+	Gold	Oro
 	Graphics and Titles	Gráficos y títulos
 	Graphics…	Gráficos…
 	Green	Verde
@@ -170,6 +185,7 @@
 	Help	Ayuda
 	Hide All Caption Tracks	Ocultar todas las pistas de subtítulos
 	High Quality Playback	Reproducción de alta calidad
+	Highlighter	Marcador
 	History	Historial
 	Import From	Importar desde
 	Import Image Sequence…	Importar secuencia de imágenes…
@@ -177,10 +193,12 @@
 	Import…	Importar…
 	Info	Información
 	Ingest Settings…	Ajustes de ingesta…
+	Ink	Tinta
 	Insert	Insertar
 	Insert Frame Hold Segment	Insertar segmento de fotograma congelado
 	Install Motion Graphics Template…	Instalar plantilla de animación…
 	Interpret Footage…	Interpretar material…
+	Italic Quote	Cita en cursiva
 	Keyboard Shortcuts…	Atajos de teclado…
 	Label	Etiqueta
 	Labels…	Etiquetas…
@@ -191,6 +209,8 @@
 	Libraries	Bibliotecas
 	Lift	Levantar
 	Light	Claro
+	Lime	Lima
+	Line Spacing	Interlineado
 	Link	Vincular
 	Link Media…	Vincular medios…
 	Linked Selection	Selección vinculada
@@ -216,31 +236,42 @@
 	Memory…	Memoria…
 	Merge Clips…	Combinar clips…
 	Metadata	Metadatos
+	Middle	Centro
+	Minimal	Mínimo
 	Modify	Modificar
 	Motion Graphics Template…	Plantilla de animación…
 	Multi-Camera	Multicámara
 	Multi-Camera View	Vista multicámara
+	Neon Cyan	Neón cian
+	Neon Pink	Neón rosa
 	Nest…	Anidar…
 	New	Nuevo
 	New Layer	Nueva capa
 	New Project Panel	Nuevo panel de proyecto
+	News	Noticias
 	Next in Sequence	Siguiente en la secuencia
 	Next in Track	Siguiente en la pista
 	No sequence is open.	No hay ninguna secuencia abierta.
 	Normalize Mix Track…	Normalizar pista de mezcla…
 	Offline File…	Archivo sin conexión…
+	Open a sequence to style its captions.	Abre una secuencia para dar estilo a sus subtítulos.
 	Open Project…	Abrir proyecto…
 	Optical Flow	Flujo óptico
+	Orange Pop	Naranja vivo
+	Outline	Contorno
 	Overwrite	Sobrescribir
 	Paste	Pegar
 	Paste Attributes…	Pegar atributos…
 	Paste Insert	Pegar e insertar
+	Pastel	Pastel
 	Paused Resolution	Resolución en pausa
+	Place	Ubicación
 	Playback Resolution	Resolución de reproducción
 	Playback…	Reproducción…
 	Plugins…	Complementos…
 	Polygon	Polígono
 	Preferences	Preferencias
+	Presets and every style setting in the Caption Style panel	Ajustes preestablecidos y todos los ajustes de estilo en el panel Estilo de subtítulos
 	Previous in Sequence	Anterior en la secuencia
 	Previous in Track	Anterior en la pista
 	Program	Programa
@@ -273,6 +304,7 @@
 	Report an Issue…	Informar de un problema…
 	Reset All Parameters	Restablecer todos los parámetros
 	Reset Duration	Restablecer duración
+	Reset Style	Restablecer estilo
 	Reset to Saved Layout	Restablecer al diseño guardado
 	Restore Captions from Source Clip	Restaurar subtítulos del clip de origen
 	Reveal Log Files…	Mostrar archivos de registro…
@@ -285,6 +317,7 @@
 	Ripple Sequence Markers	Desplazar marcadores de secuencia
 	Rose	Rosa
 	Safe Margins	Márgenes seguros
+	Sample caption text	Texto de subtítulo de ejemplo
 	Save	Guardar
 	Save All	Guardar todo
 	Save As…	Guardar como…
@@ -319,12 +352,15 @@
 	Show Rulers	Mostrar reglas
 	Show Through Edits	Mostrar ediciones pasantes
 	Simplify Sequence…	Simplificar secuencia…
+	Sky Blue	Azul cielo
 	Snap in Program Monitor	Ajustar en el monitor de programa
 	Snap in Timeline	Ajustar en la línea de tiempo
 	Source	Origen
 	Source Settings…	Ajustes de origen…
 	Speech and Captions	Voz y subtítulos
 	Speed/Duration…	Velocidad/duración…
+	Styles…	Estilos…
+	Subtle Box	Caja sutil
 	Synchronize…	Sincronizar…
 	System Compatibility Report…	Informe de compatibilidad del sistema…
 	Tan	Canela
@@ -332,6 +368,7 @@
 	Text	Texto
 	Text to Speech…	Texto a voz…
 	The sequence has no captions to translate. Create captions from the transcript first.	La secuencia no tiene subtítulos para traducir. Crea primero subtítulos a partir de la transcripción.
+	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	Esta secuencia aún no tiene subtítulos. Créalos a partir de la transcripción (IA ▸ Voz y subtítulos) o añade una pista de subtítulos.
 	Time Interpolation	Interpolación de tiempo
 	Timecode	Código de tiempo
 	Timecode…	Código de tiempo…
@@ -340,6 +377,7 @@
 	Toggle Proxies	Alternar proxies
 	Tools	Herramientas
 	Top	Arriba
+	Top Title	Título superior
 	Transcribe Sequence…	Transcribir secuencia…
 	Transcribe…	Transcribir…
 	Transcript	Transcripción
@@ -360,10 +398,13 @@
 	Video and Audio Waveform Split	Video y forma de onda de audio divididos
 	View	Ver
 	Violet	Violeta
+	Violet Box	Caja violeta
 	Whisper model (on this computer)	Modelo Whisper (en este ordenador)
+	White Pill	Cápsula blanca
 	Window	Ventana
 	Workspaces	Espacios de trabajo
 	Yellow	Amarillo
+	Yellow Pop	Amarillo vivo
 	Zoom In	Acercar
 	Zoom Out	Alejar
 	Zoom to Sequence	Ajustar zoom a la secuencia

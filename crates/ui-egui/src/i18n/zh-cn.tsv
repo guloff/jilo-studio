@@ -34,6 +34,7 @@
 	Add audio tracks	添加音频轨道
 	Add Caption at Playhead	在播放头处添加字幕
 	Add caption at playhead	在播放头位置添加字幕
+	Add Caption Track	添加字幕轨道
 	Add captions	添加字幕
 	Add Chapter Marker…	添加章节标记…
 	Add Edit	添加剪辑点
@@ -67,6 +68,7 @@
 	AI Settings…	AI 设置…
 	AIFF 48 kHz 16-bit	AIFF 48 kHz 16 位
 	AI…	AI…
+	Alert	警示
 	Align	对齐
 	Align and Transform	对齐和变换
 	Align Bottom	底对齐
@@ -82,6 +84,8 @@
 	Align Top	顶对齐
 	Alignment	对齐
 	All Caps	全部大写
+	ALL CAPS	全部大写
+	All caption tracks	所有字幕轨道
 	All Categories	所有类别
 	All Empty Tracks	所有空轨道
 	All Events	所有事件
@@ -177,6 +181,7 @@
 	Before First Track	在第一个轨道之前
 	Before Last Track	在最后一个轨道之前
 	Bevel Alpha	斜角 Alpha
+	Big Center	居中大字
 	Bin	素材箱
 	Bin From Selection	从所选新建素材箱
 	Binauralizer - Ambisonics	双耳渲染器 - 环绕声
@@ -194,6 +199,7 @@
 	Blur In	模糊切入
 	Blur Out	模糊切出
 	BMP Sequence	BMP 序列
+	Bold Outline	粗描边
 	Boost Vibrance	增强自然饱和度
 	Bottom	底部
 	bottom	底部
@@ -225,6 +231,8 @@
 	Caption in	字幕入点
 	Caption out	字幕出点
 	Caption size	字幕大小
+	Caption Style	字幕样式
+	Caption Styles…	字幕样式…
 	Caption text	字幕文本
 	Caption track options	字幕轨道选项
 	Captions	字幕
@@ -253,9 +261,12 @@
 	Chorus	合唱
 	Chorus/Flanger	合唱/镶边
 	Chroma Leak	色度泄漏
+	Cinema	电影
 	Cinematic	电影
 	Circle	圆形
+	Classic	经典
 	Classic warm monochrome with amber highlights	经典的暖色单色调，带琥珀色高光
+	Clean Shadow	简洁阴影
 	Clear	清除
 	Clear (Delete)	清除 (删除)
 	Clear All	全部清除
@@ -302,6 +313,7 @@
 	Color Wheels & Match	色轮和一致
 	Color…	颜色…
 	Column order	列顺序
+	Comic	漫画
 	Comment	注释
 	Comparison View	对比视图
 	Composite Video	复合视频
@@ -347,6 +359,7 @@
 	Cyan-teal shadows and warm highlights with a little more contrast	青绿色阴影和暖色高光，对比度稍高
 	D1/DV NTSC (0.9091)	D1/DV NTSC (0.9091)
 	D1/DV PAL (1.0940)	D1/DV PAL (1.0940)
+	Dark Pill	深色胶囊
 	Darken	变暗
 	Darker Color	深色
 	Darkest	最暗
@@ -430,6 +443,7 @@
 	Ease In	缓入
 	Ease Out	缓出
 	Echo	回声
+	Edge Distance	边缘距离
 	Edge Feather	边缘羽化
 	Edit	编辑
 	Edit Cameras…	编辑机位…
@@ -578,6 +592,7 @@
 	Go to Previous Caption Segment	转到上一字幕段
 	Go to Previous Marker	转到上一标记
 	Go to Split	转到拆分处
+	Gold	金色
 	Golden Dusk	金色黄昏
 	Gradient Wipe	渐变划像
 	Graphic Equalizer (10 Bands)	图形均衡器(10 段)
@@ -612,6 +627,7 @@
 	High Quality 1080p HD	高质量 1080p HD
 	High Quality 2160p 4K	高质量 2160p 4K
 	High Quality Playback	高质量回放
+	Highlighter	荧光笔
 	Highpass	高通
 	History	历史记录
 	Hold On:	定格于：
@@ -642,6 +658,7 @@
 	Info	信息
 	Ingest	收录
 	Ingest Settings…	摄取设置…
+	Ink	墨水
 	Inner	内侧
 	Insert	插入
 	Insert (,)	插入 (,)
@@ -660,6 +677,7 @@
 	Iris Cross	十字光圈
 	Iris Diamond	菱形光圈
 	Iris Round	圆形光圈
+	Italic Quote	斜体引语
 	items	项
 	Join Through Edits	结合全通编辑
 	just now	刚刚
@@ -705,6 +723,8 @@
 	Lighter Color	浅色
 	Lights & Blurs	光效和模糊
 	Lights & Glows	光效与发光
+	Lime	青柠
+	Line Spacing	行距
 	Linear Burn	线性加深
 	Linear Dodge (Add)	线性减淡 (添加)
 	Linear Light	线性光
@@ -791,6 +811,8 @@
 	Metadata Display…	元数据显示…
 	Meter Input(s) Only	仅计量输入
 	middle	居中
+	Middle	中间
+	Minimal	极简
 	Minimize All Tracks	最小化所有轨道
 	Mirror	镜像
 	Modify	修改
@@ -826,6 +848,8 @@
 	Name over a thin rule that always matches the name's width.	细线之上的姓名，细线始终匹配姓名宽度。
 	Name Overlay	名称叠加
 	Name:	名称：
+	Neon Cyan	青色霓虹
+	Neon Pink	粉色霓虹
 	Neon Wipe	霓虹划像
 	Nest…	嵌套…
 	Network	网络
@@ -846,6 +870,7 @@
 	New Sequence From Clip	从剪辑新建序列
 	New Subtitle track	新建副标题轨道
 	New Text Layer	新建文本图层
+	News	新闻
 	Next in Sequence	序列中的下一个
 	Next in Track	轨道中的下一个
 	Next to original media, in a 'Proxy' folder	在原始媒体旁边的 'Proxy' 文件夹中
@@ -884,6 +909,7 @@
 	Opacity	不透明度
 	Open a sequence to export	打开序列以进行导出
 	Open a sequence to see its transcript	打开序列以查看其文本转录
+	Open a sequence to style its captions.	打开序列以设置其字幕样式。
 	Open a sequence to work with captions	打开序列以处理字幕
 	Open in New Tab	在新标签页中打开
 	Open in New Window	在新窗口中打开
@@ -898,10 +924,12 @@
 	OpenType	OpenType
 	Optical Flow	光流法
 	Options	选项
+	Orange Pop	亮橙
 	Orientation	方向
 	Orientation:	方向：
 	Out Point	出点
 	Outer	外侧
+	Outline	描边
 	Output	输出
 	Outro Duration	出点持续时间
 	Overlay	叠加
@@ -921,6 +949,7 @@
 	Paste Attributes	粘贴属性
 	Paste Attributes…	粘贴属性…
 	Paste Insert	粘贴插入
+	Pastel	粉彩
 	Path	路径
 	Paused Resolution	暂停分辨率
 	Peak Amplitude:	峰值振幅：
@@ -933,6 +962,7 @@
 	Pinned Edges	固定的边缘
 	PiP 35% Upper Right	画中画 35% 右上
 	Pitch Shifter	音高换位器
+	Place	位置
 	Placement	放置位置
 	Plateau Wipe	台地划像
 	Play Around Edit (Space loops, Shift+K once)	环绕编辑点播放 (空格键循环，Shift+K 单次)
@@ -960,6 +990,7 @@
 	Preset name	预设名称
 	Preset:	预设：
 	Presets	预设
+	Presets and every style setting in the Caption Style panel	字幕样式面板中的预设和所有样式设置
 	Previous in Sequence	序列中的上一个
 	Previous in Track	轨道中的上一个
 	ProcAmp	ProcAmp
@@ -1046,6 +1077,7 @@
 	Reset All Parameters	重置所有参数
 	Reset Duration	重置持续时间
 	Reset Effect	重置效果
+	Reset Style	重置样式
 	Reset to Grid	重置为网格
 	Reset to Saved Layout	重置为已保存的布局
 	Responsive Design - Position	响应式设计 - 位置
@@ -1083,6 +1115,7 @@
 	Rose	玫瑰色
 	Rotation	旋转
 	Safe Margins	安全边距
+	Sample caption text	示例字幕文本
 	Sample Rate	采样率
 	Sample Size	样本大小
 	Saturates muted tones without blowing out skin	在不溢出肤色的情况下饱和哑光色调
@@ -1201,6 +1234,7 @@
 	Six procedural 1080p clips with sound	带声音的 6 个程序化 1080p 剪辑
 	Size	大小
 	Size / Opacity	大小 / 不透明度
+	Sky Blue	天蓝
 	Slice	切片
 	Slide	滑动
 	Slide (Legacy)	滑动(旧版)
@@ -1266,8 +1300,10 @@
 	Stroke 2	描边 2
 	Studio Reverb	录音室混响
 	Style	样式
+	Styles…	样式…
 	Stylize	风格化
 	SubRip Subtitle (.srt)	SubRip 字幕 (.srt)
+	Subtle Box	淡色底框
 	Subtract	减去
 	Summary	摘要
 	Surround Reverb	环绕混响
@@ -1296,6 +1332,7 @@
 	The sequence has no caption track.	序列没有字幕轨道。
 	The sequence has no captions to translate. Create captions from the transcript first.	序列中没有可翻译的字幕。请先从转录创建字幕。
 	This build has no speech-to-text; import a transcript with transcript.set.	当前版本未包含语音转文本功能；可通过 transcript.set 导入转录文本。
+	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	此序列还没有字幕。请从转录创建字幕（AI ▸ 语音和字幕）或添加字幕轨道。
 	Thumbnail size	缩略图大小
 	Thumbnail View	缩略图视图
 	Ticker – Crawl	滚动字幕 – 爬行
@@ -1325,6 +1362,7 @@
 	Top Center	顶部居中
 	Top Left	左上
 	Top Right	右上
+	Top Title	顶部标题
 	Track Matte Key	轨道遮罩键
 	Track Select Backward Tool	向后选择轨道工具
 	Track Select Forward Tool	向前选择轨道工具
@@ -1407,6 +1445,7 @@
 	Vimeo 1080p Full HD	Vimeo 1080p 全高清
 	Vimeo 2160p 4K Ultra HD	Vimeo 2160p 4K 超高清
 	Violet	紫罗兰色
+	Violet Box	紫色底框
 	Vivid Light	亮光
 	Vocal Enhancer	人声增强器
 	Volume	音量
@@ -1432,6 +1471,7 @@
 	Whip	甩动
 	Whip (Legacy)	甩动(旧版)
 	Whisper model (on this computer)	Whisper 模型（本机）
+	White Pill	白色胶囊
 	Wide gamut color (composite in BT.2020)	宽色域色彩 (在 BT.2020 中合成)
 	Window	窗口
 	Wipe	划像
@@ -1440,6 +1480,7 @@
 	Working Color Space	工作色彩空间
 	Workspaces	工作区
 	Yellow	黄色
+	Yellow Pop	亮黄
 	Yellow-green highlights and blue-lifted shadows from crossed channel curves	交叉通道曲线带来的黄绿高光和泛蓝阴影
 	Yes	是
 	YouTube 1080p Full HD	YouTube 1080p 全高清

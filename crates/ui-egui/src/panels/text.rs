@@ -732,6 +732,12 @@ fn style_strip(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, track_idx: us
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r).id_salt("caption-style"));
     child.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
+        // every style field and the presets are in the Caption Style panel
+        let resp = ui.button(tl!("Styles…")).on_hover_text(tl!("Presets and every style setting in the Caption Style panel"));
+        app.auto.add("text.captions.style.more", resp.rect, "Styles…");
+        if resp.clicked() {
+            actions.push(("graphics.captionStyles".into(), json!({})));
+        }
         let mut size = st.size;
         let resp = ui.add(egui::DragValue::new(&mut size).range(8.0..=200.0).speed(0.5).suffix(" px"));
         app.auto.add("text.captions.style.size", resp.rect, "Caption size");
