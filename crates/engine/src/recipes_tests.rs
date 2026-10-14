@@ -26,6 +26,8 @@ fn recording_keeps_edits_without_navigation_or_ids() {
     assert!(s.execute("recipes.recordStart", json!({})).is_err(), "one recording at a time");
     let t = s.execute("captions.newTrack", json!({})).unwrap()["track"].as_u64().unwrap();
     s.execute("playhead.set", json!({"seconds": 2})).unwrap();
+    let clip = s.active_sequence().unwrap().video_tracks[0].items[0].id;
+    s.execute("timeline.select", json!({"clips": [clip.0]})).unwrap();
     s.execute("captions.add", json!({"text": "Hi", "track": t, "seconds": 1})).unwrap();
     s.execute("captions.applyStylePreset", json!({"preset": "dark-pill", "track": t})).unwrap();
     s.execute("edit.undo", json!({})).unwrap();

@@ -153,7 +153,7 @@ pub fn find(name: &str) -> Option<Recipe> {
 /// Commands a recording leaves out: moving around, selecting, undoing, files, settings and the
 /// recipes themselves.
 fn recordable(id: &str) -> bool {
-    const SKIP: [&str; 16] = [
+    const SKIP: [&str; 18] = [
         "recipes.",
         "playhead.",
         "project.select",
@@ -164,6 +164,8 @@ fn recordable(id: &str) -> bool {
         "edit.undo",
         "edit.redo",
         "edit.select",
+        "timeline.select",
+        "trim.select",
         "edit.deselect",
         "file.",
         "app.",

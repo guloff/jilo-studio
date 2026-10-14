@@ -77,7 +77,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let mut open = true;
     let mut actions: Vec<(String, Value)> = Vec::new();
     let all = filmcraft_engine::recipes::all();
-    egui::Window::new(tl!("Recipes"))
+    crate::dialog_style::Window::new(tl!("Recipes"))
         .id(egui::Id::new("recipes-window"))
         .open(&mut open)
         .default_size(vec2(640.0, 420.0))
