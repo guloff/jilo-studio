@@ -70,8 +70,12 @@ if [ "$SKIP_BUILD" = 0 ]; then
   for t in "${TARGETS[@]}"; do args+=(--target "$t"); done
   # Panic locations carry source paths: map the build machine's (the home folder's cargo registry,
   # the checkout) to neutral ones, so a release names no user or folder of the machine it was built on.
-  remap="--remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}/registry/src=/cargo/registry/src --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}/git/checkouts=/cargo/git --remap-path-prefix=$ROOT=/jilo-studio"
-  (cd "$ROOT" && RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$remap" cargo build --release --locked -p filmcraft -p filmcraft-cli "${args[@]}")
+  # The flags go in CARGO_ENCODED_RUSTFLAGS (separated by 0x1f), so a checkout path with spaces
+  # stays one argument; RUSTFLAGS given by the caller are split on spaces as cargo would.
+  sep=$'\x1f'
+  flags="--remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}/registry/src=/cargo/registry/src${sep}--remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}/git/checkouts=/cargo/git${sep}--remap-path-prefix=$ROOT=/jilo-studio"
+  if [ -n "${RUSTFLAGS:-}" ]; then flags="$(printf '%s' "$RUSTFLAGS" | tr ' ' "$sep")$sep$flags"; fi
+  (cd "$ROOT" && env -u RUSTFLAGS CARGO_ENCODED_RUSTFLAGS="$flags" cargo build --release --locked -p filmcraft -p filmcraft-cli "${args[@]}")
 fi
 
 rm -rf "$WORK"
