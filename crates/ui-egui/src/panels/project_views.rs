@@ -314,6 +314,16 @@ fn bin_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, bin: u64, actio
         actions.push(("file.newBin".into(), json!({"name": "New Bin", "parent": bin})));
         ui.close();
     }
+    ui.separator();
+    let b = ui.button(tl!("Delete"));
+    app.auto.add(&format!("{}.binMenu.delete", v.prefix), b.rect, "Delete");
+    if b.clicked() {
+        actions.push(("project.delete".into(), json!({"items": [bin]})));
+        if app.ui.project_panel.selected_bin == Some(bin) {
+            app.ui.project_panel.selected_bin = None;
+        }
+        ui.close();
+    }
 }
 
 /// Drop project items dragged onto a bin: move them (the selection when the dragged item is in it).

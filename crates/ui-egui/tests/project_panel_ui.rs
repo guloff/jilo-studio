@@ -447,6 +447,48 @@ fn bins_open_in_place_in_a_tab_or_in_a_window() {
     assert_eq!(name, "Camera A");
 }
 
+/// A bin made in the Project panel is deleted with the trash button, the keyboard, the panel menu
+/// and its context menu (bins are not items, so they never were in the item selection).
+#[test]
+fn bins_made_in_the_panel_can_be_deleted() {
+    let mut d = project_driver();
+    let new_bin = |d: &mut Driver| -> u64 {
+        let r = d.exec("file.newBin", json!({"name": "Temp"}));
+        d.frames(3);
+        r["bin"].as_u64().unwrap()
+    };
+    let exists = |d: &mut Driver, b: u64| d.app().session.project.root.find_bin(filmcraft_project::BinId(b)).is_some();
+    // trash button
+    let b = new_bin(&mut d);
+    d.click(&format!("project.bin.{b}"));
+    d.click("project.button.project.delete");
+    assert!(!exists(&mut d, b), "trash button");
+    // Backspace and Delete with the panel focused
+    for key in ["Backspace", "Delete"] {
+        let b = new_bin(&mut d);
+        d.click(&format!("project.bin.{b}"));
+        d.ok("ui.set", json!({"focused": "Project"}));
+        d.key(key);
+        assert!(!exists(&mut d, b), "{key}");
+    }
+    // the panel menu's Delete
+    let b = new_bin(&mut d);
+    d.click(&format!("project.bin.{b}"));
+    d.ok("ui.menu.invoke", json!({"id": "project.delete"}));
+    assert!(!exists(&mut d, b), "menu");
+    // the bin's context menu
+    let b = new_bin(&mut d);
+    d.ok("ui.click", json!({"id": format!("project.bin.{b}"), "button": "right"}));
+    d.frames(3);
+    d.wait_for("project.binMenu.delete");
+    d.click("project.binMenu.delete");
+    assert!(!exists(&mut d, b), "context menu");
+    // undo brings it back
+    d.ok("ui.menu.invoke", json!({"id": "edit.undo"}));
+    d.frames(2);
+    assert!(exists(&mut d, b), "undo");
+}
+
 #[test]
 fn footer_buttons_are_wired() {
     let mut d = project_driver();

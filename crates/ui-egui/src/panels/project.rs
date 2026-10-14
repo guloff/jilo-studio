@@ -621,7 +621,9 @@ fn footer(app: &mut FilmcraftApp, ui: &mut egui::Ui, bar: Rect, v: &View, action
                     let parent = (v.bin != app.session.project.root.id).then_some(v.bin.0);
                     actions.push(("file.newBin".into(), json!({"name": "New Bin", "parent": parent})));
                 }
-                "project.delete" if app.session.state.project_selection.is_empty() => app.ui.status = tl!("Select items to clear").into(),
+                "project.delete" if app.session.state.project_selection.is_empty() && app.ui.project_panel.selected_bin.is_none() => {
+                    app.ui.status = tl!("Select items to clear").into()
+                }
                 _ => actions.push((id.into(), json!({}))),
             }
         }
@@ -724,7 +726,7 @@ pub fn panel_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui) -> bool {
         if item(ui, "rename", tl!("Rename"), has_sel, None) {
             actions.push(("projectPanel.rename".into(), json!({})));
         }
-        if item(ui, "delete", tl!("Delete"), !app.session.state.project_selection.is_empty(), Some("Backspace")) {
+        if item(ui, "delete", tl!("Delete"), has_sel, Some("Backspace")) {
             actions.push(("project.delete".into(), json!({})));
         }
         ui.separator();

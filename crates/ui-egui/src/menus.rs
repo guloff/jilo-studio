@@ -171,6 +171,18 @@ pub fn targets_source(app: &FilmcraftApp, params: &Value) -> bool {
 
 /// Execute a UI or engine command by id.
 pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params: Value) -> Result<Value, String> {
+    // Clear (Delete / Backspace, the trash button, the panel menu) with a bin selected in the Project
+    // panel and no items: a bin is not an item, so it is not in the item selection; delete the bin.
+    if id == "project.delete" && params.get("items").is_none() && app.session.state.project_selection.is_empty() {
+        let bin = app.ui.project_panel.selected_bin.filter(|b| app.session.project.root.find_bin(filmcraft_project::BinId(*b)).is_some());
+        if let Some(bin) = bin {
+            let r = app.session.execute("project.delete", json!({"items": [bin]})).map_err(|e| e.to_string());
+            if r.is_ok() {
+                app.ui.project_panel.selected_bin = None;
+            }
+            return r;
+        }
+    }
     if filmcraft_engine::source_monitor::source_command(id) && targets_source(app, &params) && params.get("target").is_none() {
         let object = params.as_object_mut().ok_or("command parameters must be an object")?;
         object.insert("target".into(), json!("source"));
