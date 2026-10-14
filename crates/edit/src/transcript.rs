@@ -271,6 +271,71 @@ pub fn find_fillers(words: &[SeqWord], fillers: &[String]) -> Vec<std::ops::Rang
     out
 }
 
+/// What a found retake is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RetakeKind {
+    /// A phrase said again: the earlier attempt goes, the last one stays.
+    Retake,
+    /// A false start: two words, said again right away.
+    FalseStart,
+    /// The same word twice in a row.
+    Stutter,
+}
+
+/// A stretch of words to remove because it is said again right after.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Retake {
+    pub kind: RetakeKind,
+    /// The words removed (indices into the sequence words).
+    pub remove: std::ops::Range<usize>,
+}
+
+/// Find failed takes in `words` (sequence order): a phrase of three words or more that starts
+/// again within `max_gap` (the earlier attempt, up to where it restarts, is removed), two words
+/// said again right away (a false start), and a word said twice in a row (a stutter). Matching is
+/// on normalised words (case and punctuation ignored). Found stretches never overlap.
+pub fn find_retakes(words: &[SeqWord], max_gap: Tick) -> Vec<Retake> {
+    let norm: Vec<String> = words.iter().map(SeqWord::normalized).collect();
+    let same_from = |a: usize, b: usize| (0..).take_while(|k| b + k < norm.len() && a + k < b && !norm[a + k].is_empty() && norm[a + k] == norm[b + k]).count();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < norm.len() {
+        if norm[i].is_empty() {
+            i += 1;
+            continue;
+        }
+        // the nearest restart of the phrase starting at i
+        let mut hit = None;
+        for j in i + 1..norm.len().min(i + 80) {
+            if words[j].start - words[i].start > max_gap {
+                break;
+            }
+            let k = same_from(i, j);
+            let gap = j - i;
+            if k >= 3 {
+                hit = Some((j, RetakeKind::Retake));
+                break;
+            }
+            if k == 2 && gap <= 3 && norm[i].chars().count() + norm[i + 1].chars().count() >= 5 {
+                hit = Some((j, RetakeKind::FalseStart));
+                break;
+            }
+            if k == 1 && gap == 1 && words[j].start - words[i].end < Tick::from_seconds_f64(1.0) {
+                hit = Some((j, RetakeKind::Stutter));
+                break;
+            }
+        }
+        match hit {
+            Some((j, kind)) => {
+                out.push(Retake { kind, remove: i..j });
+                i = j;
+            }
+            None => i += 1,
+        }
+    }
+    out
+}
+
 /// Timeline ranges removing the filler words `hits`: each word range snapped to the nearest frames
 /// (never into the neighbouring words' frames).
 pub fn filler_ranges(words: &[SeqWord], hits: &[std::ops::Range<usize>], rate: FrameRate) -> Vec<TimeRange> {

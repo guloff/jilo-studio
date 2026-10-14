@@ -430,6 +430,52 @@ fn remove_fillers(s: &mut Session, p: &Value) -> Result<Value> {
     remove_ranges(s, "Remove Filler Words", ranges)
 }
 
+/// Failed takes in the sequence transcript: retakes (a phrase said again within `maxSeconds`, 20 by
+/// default), false starts and stutters, each with the words removed and the words that stay after it.
+fn find_retakes(s: &mut Session, p: &Value) -> Result<Value> {
+    let words = sequence_words(s);
+    let gap = Tick::from_seconds_f64(f64_p(p, "maxSeconds").unwrap_or(20.0).clamp(1.0, 120.0));
+    let text = |r: std::ops::Range<usize>| words.get(r).map(|ws| ws.iter().map(|w| w.text.as_str()).collect::<Vec<_>>().join(" ")).unwrap_or_default();
+    let found: Vec<Value> = tx::find_retakes(&words, gap)
+        .into_iter()
+        .map(|r| {
+            let kept = r.remove.end..(r.remove.end + 6).min(words.len());
+            json!({
+                "from": r.remove.start,
+                "to": r.remove.end,
+                "kind": format!("{:?}", r.kind).to_lowercase(),
+                "removed": text(r.remove.clone()),
+                "kept": text(kept),
+                "start": words[r.remove.start].start.seconds(),
+                "end": words[r.remove.end - 1].end.seconds(),
+            })
+        })
+        .collect();
+    Ok(json!({"retakes": found}))
+}
+
+/// Remove failed takes: the word ranges `ranges` ([[from, to], …] as `transcript.findRetakes` gives
+/// them), else every one found; one undo step.
+fn remove_retakes(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "transcript.removeRetakes";
+    let words = sequence_words(s);
+    let hits: Vec<std::ops::Range<usize>> = match p.get("ranges").and_then(Value::as_array) {
+        Some(a) => a
+            .iter()
+            .map(|r| match (r.get(0).and_then(Value::as_u64), r.get(1).and_then(Value::as_u64)) {
+                (Some(a), Some(b)) if a < b && (b as usize) <= words.len() => Ok(a as usize..b as usize),
+                _ => Err(bad(cmd, format!("`ranges`: [from, to] word indices below {}", words.len()))),
+            })
+            .collect::<Result<_>>()?,
+        None => {
+            let gap = Tick::from_seconds_f64(f64_p(p, "maxSeconds").unwrap_or(20.0).clamp(1.0, 120.0));
+            tx::find_retakes(&words, gap).into_iter().map(|r| r.remove).collect()
+        }
+    };
+    let ranges = tx::filler_ranges(&words, &hits, s.sequence_rate());
+    remove_ranges(s, "Remove Retakes", ranges)
+}
+
 fn create_captions(s: &mut Session, p: &Value) -> Result<Value> {
     let words = sequence_words(s);
     let d = CaptionRules::default();
@@ -536,6 +582,16 @@ pub fn commands() -> Vec<CommandSpec> {
         ),
         spec("transcript.removePauses", "Remove Pauses", crate::ai_menu::SPEECH, r#"{"minSeconds":f?,"keepSeconds":f?}"#, has_transcript, remove_pauses, true),
         spec("transcript.fillers", "List Filler Words", &[], r#"{"language":"ru|tg|en"?}"#, has_transcript, list_fillers, false),
+        spec("transcript.findRetakes", "Find Retakes", &[], r#"{"maxSeconds":1..120=20}"#, has_transcript, find_retakes, false),
+        spec(
+            "transcript.removeRetakes",
+            "Remove Retakes and Stumbles…",
+            crate::ai_menu::SPEECH,
+            r#"{"ranges":[[from,to]]? (word ranges from transcript.findRetakes; default: all found),"maxSeconds":1..120=20}"#,
+            has_transcript,
+            remove_retakes,
+            true,
+        ),
         spec(
             "transcript.removeFillers",
             "Remove Filler Words",

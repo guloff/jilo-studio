@@ -48,6 +48,7 @@ pub mod recipes;
 pub mod reference;
 pub mod reframe;
 pub mod remix;
+pub mod retakes;
 pub mod scopes;
 pub mod sequence_settings;
 pub mod settings;

@@ -117,3 +117,26 @@ fn run_a_built_in_recipe_and_discard_a_recording() {
     d.click("recipes.discardRecording");
     assert!(d.app().session.recording.is_none());
 }
+
+#[test]
+fn retakes_are_listed_and_cut_from_the_ai_menu() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let a = s.active_sequence().unwrap().audio_tracks[0].items[0].clone();
+    let mut t = Transcript { language: "en".into(), ..Default::default() };
+    for (i, w) in ["So", "the", "new", "model", "the", "new", "model", "works."].iter().enumerate() {
+        let at = a.source_in + Tick::from_seconds_f64(0.2 + i as f64 * 0.4);
+        t.words.push(Word::new(*w, at, at + Tick::from_seconds_f64(0.3)));
+    }
+    t.normalize();
+    s.transcriber = Some(Arc::new(filmcraft_speech::FixedTranscriber { transcript: t, id: "fixed".into() }));
+    s.execute("transcript.generate", json!({"items": [a.item.0]})).unwrap();
+    let mut d = Driver::new(s);
+    let before = d.app().session.active_sequence().unwrap().duration();
+    d.ok("ui.menu.invoke", json!({"id": "transcript.removeRetakes"}));
+    d.frames(3);
+    assert!(d.has("retakes.dialog") && d.has("retakes.item.0"));
+    d.click("retakes.remove");
+    assert!(!d.app().ui.retakes.open);
+    assert!(d.app().session.active_sequence().unwrap().duration() < before, "the first take was cut");
+}

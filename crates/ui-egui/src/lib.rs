@@ -1743,6 +1743,7 @@ impl FilmcraftApp {
         panels::batch::show(self, &ctx);
         panels::recipes::show(self, &ctx);
         panels::palette::show(self, &ctx);
+        panels::retakes::show(self, &ctx);
         if !self.ui.show_status_bar {
             // no bar to draw the job in, but a finished preview render still plays
             self.watch_jobs(ui.ctx());

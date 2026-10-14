@@ -100,6 +100,7 @@
 	Cerulean	Лазурный
 	Chapter Card	Карточка главы
 	Chapter number and title beside an accent bar.	Номер и название главы рядом с акцентной полосой.
+	Checked stretches are cut; the take after each one stays. Click a row to move the playhead there.	Отмеченные фрагменты вырезаются; дубль после каждого остаётся. Щелчок по строке переводит курсор туда.
 	Choose a recipe.	Выберите рецепт.
 	Cinema	Кино
 	Circle Color	Цвет круга
@@ -180,6 +181,7 @@
 	Export Markers as CSV…	Экспортировать маркеры в CSV…
 	Extract	Извлечь
 	Extract Audio	Извлечь аудио
+	False start	Фальстарт
 	Field Options…	Параметры полей…
 	File	Файл
 	File…	Файл…
@@ -310,6 +312,7 @@
 	Next in Sequence	Следующий в секвенции
 	Next in Track	Следующий на дорожке
 	No command matches.	Нет подходящих команд.
+	No retakes or stumbles found in the transcript.	В расшифровке нет дублей и оговорок.
 	No sequence is open.	Нет открытой секвенции.
 	Normalize Mix Track…	Нормализовать дорожку микса…
 	Number	Номер
@@ -375,8 +378,12 @@
 	Remove Attributes…	Удалить атрибуты…
 	Remove Filler Words	Удалить слова-паразиты
 	Remove Pauses	Удалить паузы
+	Remove Retakes and Stumbles	Убрать дубли и оговорки
+	Remove Retakes and Stumbles…	Убрать дубли и оговорки…
 	Remove the pauses and filler words	Убери паузы и слова-паразиты
 	Remove Unused	Удалить неиспользуемое
+	Remove {n}	Убрать: {n}
+	Removed {n} retakes ({seconds} s)	Убрано дублей: {n} ({seconds} с)
 	Rename…	Переименовать…
 	Render Audio	Отрендерить аудио
 	Render Effects In to Out	Отрендерить эффекты от входа до выхода
@@ -390,6 +397,7 @@
 	Reset Style	Сбросить стиль
 	Reset to Saved Layout	Вернуть сохранённую раскладку
 	Restore Captions from Source Clip	Восстановить субтитры из исходного клипа
+	Retake	Дубль
 	Reveal Log Files…	Показать файлы журнала…
 	Reverse Match Frame	Обратное сопоставление кадра
 	Revert	Вернуть
@@ -463,6 +471,7 @@
 	Step	Шаг
 	Step Label	Метка шага
 	Stop and Save	Остановить и сохранить
+	Stutter	Запинка
 	Styles…	Стили…
 	Subscribe Button	Кнопка «Подписаться»
 	Subtle Box	Мягкая подложка

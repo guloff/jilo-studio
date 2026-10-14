@@ -78,8 +78,13 @@ pub fn builtin() -> Vec<Recipe> {
     vec![
         r(
             "Clean Talking Head",
-            "Transcribe the open sequence, then remove filler words and pauses.",
-            vec![step("transcript.generate", json!({})), step("transcript.removeFillers", json!({})), step("transcript.removePauses", json!({}))],
+            "Transcribe the open sequence, then remove retakes and stumbles, filler words and pauses.",
+            vec![
+                step("transcript.generate", json!({})),
+                step("transcript.removeRetakes", json!({})),
+                step("transcript.removeFillers", json!({})),
+                step("transcript.removePauses", json!({})),
+            ],
         ),
         r(
             "Karaoke Captions",

@@ -296,3 +296,42 @@ fn captions_never_overlap_with_dense_words() {
     let b = caption_blocks(&words, &rules, R);
     check_blocks(&b, &rules);
 }
+
+/// Words a quarter of a second apart, one every 0.4 s.
+fn spoken(text: &str) -> Vec<SeqWord> {
+    text.split_whitespace()
+        .enumerate()
+        .map(|(i, w)| SeqWord {
+            text: w.into(),
+            start: s(i as f64 * 0.4),
+            end: s(i as f64 * 0.4 + 0.3),
+            clip: ClipId(1),
+            item: MEDIA,
+            index: i,
+            track: 0,
+            speaker: None,
+            confidence: 1.0,
+        })
+        .collect()
+}
+
+#[test]
+fn retakes_false_starts_and_stutters_are_found() {
+    // a retake: "the new model is" restarts, the last attempt stays
+    let w = spoken("So the new model is, the new model is really fast. Thanks.");
+    let r = find_retakes(&w, s(20.0));
+    assert_eq!(r, vec![Retake { kind: RetakeKind::Retake, remove: 1..5 }]);
+    // a false start of two words, and a stutter; Russian works the same
+    let w = spoken("Мы хотим мы хотим показать я я думаю");
+    let r = find_retakes(&w, s(20.0));
+    assert_eq!(r.iter().map(|x| (x.kind, x.remove.clone())).collect::<Vec<_>>(), vec![(RetakeKind::FalseStart, 0..2), (RetakeKind::Stutter, 5..6)]);
+    // too far apart: not a retake
+    let mut w = spoken("the new model is great and the new model is cheap");
+    for x in w.iter_mut().skip(6) {
+        x.start += s(30.0);
+        x.end += s(30.0);
+    }
+    assert!(find_retakes(&w, s(20.0)).is_empty());
+    // ordinary speech has none
+    assert!(find_retakes(&spoken("This is a perfectly normal sentence without any repeats at all."), s(20.0)).is_empty());
+}

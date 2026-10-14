@@ -107,6 +107,7 @@
 	Cerulean	Cerúleo
 	Chapter Card	Tarjeta de capítulo
 	Chapter number and title beside an accent bar.	Número y título del capítulo junto a una barra de acento.
+	Checked stretches are cut; the take after each one stays. Click a row to move the playhead there.	Se cortan los tramos marcados; queda la toma posterior. Haz clic en una fila para llevar el cabezal allí.
 	Choose a recipe.	Elige una receta.
 	Cinema	Cine
 	Circle Color	Color del círculo
@@ -187,6 +188,7 @@
 	Export Markers as CSV…	Exportar marcadores como CSV…
 	Extract	Extraer
 	Extract Audio	Extraer audio
+	False start	Arranque en falso
 	Field Options…	Opciones de campo…
 	File	Archivo
 	File…	Archivo…
@@ -317,6 +319,7 @@
 	Next in Sequence	Siguiente en la secuencia
 	Next in Track	Siguiente en la pista
 	No command matches.	Ningún comando coincide.
+	No retakes or stumbles found in the transcript.	No se encontraron repeticiones ni tropiezos en la transcripción.
 	No sequence is open.	No hay ninguna secuencia abierta.
 	Normalize Mix Track…	Normalizar pista de mezcla…
 	Number	Número
@@ -382,8 +385,12 @@
 	Remove Attributes…	Quitar atributos…
 	Remove Filler Words	Quitar muletillas
 	Remove Pauses	Quitar pausas
+	Remove Retakes and Stumbles	Quitar repeticiones y tropiezos
+	Remove Retakes and Stumbles…	Quitar repeticiones y tropiezos…
 	Remove the pauses and filler words	Quita las pausas y las muletillas
 	Remove Unused	Quitar no utilizados
+	Remove {n}	Quitar {n}
+	Removed {n} retakes ({seconds} s)	Se quitaron {n} repeticiones ({seconds} s)
 	Rename…	Cambiar nombre…
 	Render Audio	Procesar audio
 	Render Effects In to Out	Procesar efectos de entrada a salida
@@ -397,6 +404,7 @@
 	Reset Style	Restablecer estilo
 	Reset to Saved Layout	Restablecer al diseño guardado
 	Restore Captions from Source Clip	Restaurar subtítulos del clip de origen
+	Retake	Repetición
 	Reveal Log Files…	Mostrar archivos de registro…
 	Reverse Match Frame	Fotograma coincidente inverso
 	Revert	Revertir
@@ -470,6 +478,7 @@
 	Step	Paso
 	Step Label	Etiqueta de paso
 	Stop and Save	Detener y guardar
+	Stutter	Tartamudeo
 	Styles…	Estilos…
 	Subscribe Button	Botón de suscripción
 	Subtle Box	Caja sutil

@@ -15,7 +15,7 @@ pub(crate) const REMIX: &[&str] = &["AI", "Automatic Editing", "Remix"];
 pub(crate) const TOP: &[&str] = &["AI"];
 
 /// The AI menu, top to bottom.
-pub const AI_MENU: [&str; 18] = [
+pub const AI_MENU: [&str; 19] = [
     "sequence.transcribe",
     "transcript.generate",
     "transcript.createCaptions",
@@ -23,6 +23,7 @@ pub const AI_MENU: [&str; 18] = [
     "transcript.removePauses",
     "audio.removeSilences",
     "transcript.removeFillers",
+    "transcript.removeRetakes",
     "transcript.delete",
     "highlights.find",
     "clip.autoZoom",

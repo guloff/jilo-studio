@@ -241,3 +241,14 @@ keys a clip already has (Auto Zoom) keep their zooms relative to the new scale.
 - Transcription runs synchronously inside the command (no background job or progress bar yet).
 - Track items that refer to a subclip are looked up by the subclip's id, so a transcript made for
   the parent media is not shown through subclip clips yet.
+
+## Retakes and stumbles
+
+AI ▸ Speech and Captions ▸ Remove Retakes and Stumbles… lists the failed takes the transcript
+shows (`transcript.findRetakes`, `filmcraft_edit::transcript::find_retakes`, on this computer):
+a phrase of three words or more said again within 20 seconds (`maxSeconds`) — the earlier attempt,
+up to where it restarts, is cut and the last take stays; two words said again right away (a false
+start); a word said twice in a row (a stutter). Matching ignores case and punctuation and works in
+any language. Each one has a checkbox; Remove cuts the checked ones in one undo step
+(`transcript.removeRetakes {ranges}`; without `ranges`, every one found — the Clean Talking Head
+recipe does that).

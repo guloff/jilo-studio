@@ -462,6 +462,10 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         "ai.assistant" => {
             return crate::panels::assistant::ask(app, params.get("request").and_then(Value::as_str).map(str::to_string));
         }
+        // AI ▸ Remove Retakes and Stumbles… opens the list; with params it removes directly.
+        "transcript.removeRetakes" if params.as_object().is_none_or(|m| m.is_empty()) => {
+            return crate::panels::retakes::open(app);
+        }
         "ai.recipes" => {
             return crate::panels::recipes::open(app);
         }

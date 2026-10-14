@@ -280,6 +280,7 @@
 	Chaos	混乱
 	Chapter Card	章节卡
 	Chapter number and title beside an accent bar.	强调条旁的章节编号和标题。
+	Checked stretches are cut; the take after each one stays. Click a row to move the playhead there.	勾选的片段会被剪掉，其后的重录保留。点击一行可将播放头移到该处。
 	Checker Wipe	棋盘划像
 	Choose a recipe.	请选择配方。
 	Choose folder	选择文件夹
@@ -547,6 +548,7 @@
 	Faded Print	褪色印相
 	Failed	失败
 	Failed: {e}	失败：{e}
+	False start	错误开头
 	Faux Bold	仿粗体
 	Faux Italic	仿斜体
 	Favorites	收藏夹
@@ -949,6 +951,7 @@
 	No events.	无事件。
 	no Japanese font is installed on this system; the interface stays in English	当前系统未安装日文字体；界面保持英文
 	No matching captions.	没有匹配的字幕。
+	No retakes or stumbles found in the transcript.	转录中没有发现重录或口误。
 	No saved guide templates.	没有已保存的参考线模板。
 	No sequence is open.	没有打开的序列。
 	No templates match.	没有匹配的模板。
@@ -1147,8 +1150,12 @@
 	Remove from Favorites	从收藏夹中移除
 	Remove from favorites	从收藏夹中移除
 	Remove Pauses	删除停顿
+	Remove Retakes and Stumbles	删除重录和口误
+	Remove Retakes and Stumbles…	删除重录和口误…
 	Remove the pauses and filler words	删除停顿和口头禅
 	Remove Unused	删除未使用项
+	Remove {n}	删除 {n} 处
+	Removed {n} retakes ({seconds} s)	已删除 {n} 处重录（{seconds} 秒）
 	Rename	重命名
 	Rename…	重命名…
 	Render at Maximum Depth	以最高深度渲染
@@ -1179,6 +1186,7 @@
 	Restore Workspace	还原工作区
 	Restrict Trims to Subclip Boundaries	将修剪限制为子剪辑边界
 	Resulting Project	生成的项目
+	Retake	重录
 	Retry	重试
 	Reveal in Finder	在资源管理器中显示
 	Reveal in Project	在项目中显示
@@ -1410,6 +1418,7 @@
 	Stroke	描边
 	Stroke 2	描边 2
 	Studio Reverb	录音室混响
+	Stutter	口吃
 	Style	样式
 	Styles…	样式…
 	Stylize	风格化

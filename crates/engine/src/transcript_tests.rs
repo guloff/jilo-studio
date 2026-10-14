@@ -185,3 +185,35 @@ fn generate_without_a_transcriber() {
     let r = s.execute("transcript.generate", json!({})).unwrap();
     assert!(r["items"].as_array().unwrap().len() >= 2, "{r}");
 }
+
+#[test]
+fn retakes_are_listed_and_removed_in_one_undo_step() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let q = s.active_sequence().unwrap();
+    let a = &q.audio_tracks[0].items[0];
+    let (item, sin) = (a.item, a.source_in);
+    let mut t = Transcript { language: "en".into(), ..Default::default() };
+    for (i, w) in ["So", "the", "new", "model", "the", "new", "model", "works."].iter().enumerate() {
+        let at = sin + Tick::from_seconds_f64(0.2 + i as f64 * 0.4);
+        t.words.push(Word::new(*w, at, at + Tick::from_seconds_f64(0.3)));
+    }
+    t.normalize();
+    s.transcriber = Some(Arc::new(FixedTranscriber { transcript: t, id: "fixed".into() }));
+    s.execute("transcript.generate", json!({"items": [item.0]})).unwrap();
+    let r = s.execute("transcript.findRetakes", json!({})).unwrap();
+    let found = r["retakes"].as_array().unwrap();
+    assert_eq!(found.len(), 1, "{r}");
+    assert_eq!(
+        (found[0]["kind"].as_str(), found[0]["removed"].as_str(), found[0]["from"].as_u64(), found[0]["to"].as_u64()),
+        (Some("retake"), Some("the new model"), Some(1), Some(4))
+    );
+    let before = s.active_sequence().unwrap().duration();
+    let undo = s.history.undo.len();
+    let r = s.execute("transcript.removeRetakes", json!({})).unwrap();
+    assert_eq!(r["removed"], 1);
+    assert!(s.active_sequence().unwrap().duration() < before);
+    assert_eq!(words(&mut s), ["So", "the", "new", "model", "works."], "the last take stays");
+    assert_eq!(s.history.undo.len(), undo + 1);
+    assert!(s.execute("transcript.removeRetakes", json!({"ranges": [[3, 99]]})).is_err());
+}

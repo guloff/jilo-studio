@@ -704,6 +704,9 @@ pub struct UiState {
     /// AI ▸ AI Assistant…: the conversation and the plans.
     #[serde(skip)]
     pub assistant: crate::panels::assistant::AssistantUi,
+    /// AI ▸ Speech and Captions ▸ Remove Retakes and Stumbles….
+    #[serde(skip)]
+    pub retakes: crate::panels::retakes::RetakesUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -1203,6 +1206,7 @@ impl Default for UiState {
             recipes: Default::default(),
             palette: Default::default(),
             assistant: Default::default(),
+            retakes: Default::default(),
             ai_task: None,
             translate_track: None,
             translate_to: String::new(),
