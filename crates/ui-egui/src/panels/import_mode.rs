@@ -22,7 +22,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             1
         };
         let recent: Vec<String> = app.session.prefs.general.recent_projects.iter().take(10).cloned().collect();
-        let recent_y = 90.0 + (4 / columns) as f32 * 166.0 + 20.0;
+        let recent_y = 90.0 + 5usize.div_ceil(columns) as f32 * 166.0 + 20.0;
         let recent_h = if recent.is_empty() { 76.0 } else { recent.len() as f32 * 68.0 };
         let community_y = recent_y + 54.0 + recent_h + 36.0;
         let (content, _) = ui.allocate_exact_size(vec2(ui.available_width(), community_y + 76.0), Sense::hover());
@@ -44,6 +44,7 @@ fn sources(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, width: f32, co
     );
     let ctx = ui.ctx().clone();
     let cards = [
+        (tl!("Start from a Video…"), "start.fromVideo", tl!("Pick a video and choose what to make")),
         (tl!("Browse files…"), "file.import", tl!("Movies, audio and stills from disk")),
         (tl!("Demo footage"), "file.importDemoFootage", tl!("Six procedural 1080p clips with sound")),
         (tl!("Demo project"), "file.openDemoProject", tl!("A cut sequence with transitions, effects and music")),
@@ -60,10 +61,12 @@ fn sources(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, width: f32, co
         crate::icons::paint(
             ui.painter(),
             Rect::from_min_size(r.min + vec2(16.0, 18.0), vec2(56.0, 56.0)),
-            [crate::icons::Icon::Folder, crate::icons::Icon::Film, crate::icons::Icon::Sequence, crate::icons::Icon::Grid][i],
+            [crate::icons::Icon::Film, crate::icons::Icon::Folder, crate::icons::Icon::Film, crate::icons::Icon::Sequence, crate::icons::Icon::Grid][i],
             Color32::from_rgb(140, 150, 255),
         );
-        if resp.clicked() {
+        if resp.clicked() && *cmd == "start.fromVideo" {
+            crate::panels::start::pick(app);
+        } else if resp.clicked() {
             let _ = crate::menus::invoke(app, &ctx, cmd, json!({}));
             app.ui.mode = crate::state::Mode::Edit;
         }

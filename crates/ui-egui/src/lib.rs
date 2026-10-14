@@ -1480,6 +1480,15 @@ impl FilmcraftApp {
         if !paths.is_empty() {
             let pointer = self.drop_pointer(ctx);
             let imported = self.session.execute("file.import", json!({"paths": paths, "bin": self.import_bin().0}));
+            // dropped on the home screen: what to make of them
+            if self.ui.mode == state::Mode::Import
+                && let Ok(v) = &imported
+            {
+                let mut items: Vec<u64> = v["items"].as_array().into_iter().flatten().filter_map(Value::as_u64).collect();
+                items.extend(v["duplicates"].as_array().into_iter().flatten().filter_map(|d| d["item"].as_u64()));
+                panels::start::offer(self, items);
+                return;
+            }
             if let Ok(v) = imported
                 && let Some(pos) = pointer
                 && self.session.prefs.timeline.drop_import_to_timeline
@@ -1788,6 +1797,7 @@ impl FilmcraftApp {
         panels::automulticam::show(self, &ctx);
         panels::broll::show(self, &ctx);
         panels::automix::show(self, &ctx);
+        panels::start::show(self, &ctx);
         panels::recipes::show(self, &ctx);
         panels::palette::show(self, &ctx);
         panels::retakes::show(self, &ctx);

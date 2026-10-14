@@ -39,6 +39,11 @@ pub fn speech_available() -> bool {
     filmcraft_speech::available()
 }
 
+/// Whether Whisper can run now: the build has it and a speech model is downloaded.
+pub fn whisper_ready() -> bool {
+    speech_available() && models_dir().is_some_and(|d| filmcraft_speech::models::catalogue().iter().any(|m| filmcraft_speech::models::installed(&d, m)))
+}
+
 /// The words of the active sequence's transcript.
 pub fn sequence_words(s: &Session) -> Vec<SeqWord> {
     match s.active_sequence() {

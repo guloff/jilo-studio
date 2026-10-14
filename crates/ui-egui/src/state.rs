@@ -728,6 +728,9 @@ pub struct UiState {
     /// AI ▸ Batch Process…: the dialog, its choices and the batch it started.
     #[serde(skip)]
     pub batch: BatchUi,
+    /// The start from a video: the clips to offer the choices for, and the batch of a choice.
+    #[serde(skip)]
+    pub start: crate::panels::start::StartUi,
     /// The Library panel: the tab shown and the search.
     #[serde(skip)]
     pub library: crate::panels::library::LibraryUi,
@@ -1266,6 +1269,7 @@ impl Default for UiState {
             broll: Default::default(),
             auto_mix: Default::default(),
             library: Default::default(),
+            start: Default::default(),
             recipes: Default::default(),
             palette: Default::default(),
             assistant: Default::default(),

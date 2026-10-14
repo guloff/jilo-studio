@@ -4263,3 +4263,20 @@ mode	Edit	Монтаж
 	Double-click to add	Двойной клик — добавить
 	Added.	Добавлено.
 	Add to Timeline at Playhead	Добавить на таймлайн у курсора
+# Start from a video (15.B7)
+	Start from a Video…	Начать с видео…
+	Pick a video and choose what to make	Выберите видео и что из него сделать
+	What Do You Want to Make?	Что сделать?
+	{n} clips imported.	Импортировано клипов: {n}.
+	Vertical Short with Captions	Вертикальный шортс с субтитрами
+	9:16, the speaker in frame, pauses out, bold captions word by word.	9:16, говорящий в кадре, без пауз, яркие субтитры по словам.
+	Filler words and pauses out, captions added; the frame stays as shot.	Без слов-паразитов и пауз, с субтитрами; кадр как снят.
+	Just Captions	Только субтитры
+	The speech transcribed and captioned, nothing cut.	Речь расшифрована и подписана, ничего не вырезано.
+	Just Edit	Просто монтаж
+	A sequence from the clips, open on the timeline.	Секвенция из клипов, открытая на таймлайне.
+	Needs a Whisper model: download one in AI Settings.	Нужна модель Whisper: скачайте её в настройках AI.
+	Everything runs on this computer and can be undone; the clips stay in the Project panel either way.	Всё делается на этом компьютере и отменяется; клипы в любом случае остаются в панели «Проект».
+	Working on it in the background: the result opens when it is ready.	Работаю в фоне: результат откроется, когда будет готов.
+	Ready: the result is open on the timeline.	Готово: результат открыт на таймлайне.
+	Done, with problems: {errors}	Готово, но с проблемами: {errors}

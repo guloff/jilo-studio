@@ -4268,3 +4268,20 @@
 	Double-click to add	Doble clic para añadir
 	Added.	Añadido.
 	Add to Timeline at Playhead	Añadir a la línea de tiempo en el cabezal
+# Start from a video (15.B7)
+	Start from a Video…	Empezar con un vídeo…
+	Pick a video and choose what to make	Elija un vídeo y lo que quiere hacer
+	What Do You Want to Make?	¿Qué quiere hacer?
+	{n} clips imported.	{n} clips importados.
+	Vertical Short with Captions	Short vertical con subtítulos
+	9:16, the speaker in frame, pauses out, bold captions word by word.	9:16, quien habla en el encuadre, sin pausas, subtítulos llamativos palabra a palabra.
+	Filler words and pauses out, captions added; the frame stays as shot.	Sin muletillas ni pausas, con subtítulos; el encuadre queda como se grabó.
+	Just Captions	Solo subtítulos
+	The speech transcribed and captioned, nothing cut.	La voz transcrita y subtitulada, sin cortes.
+	Just Edit	Solo editar
+	A sequence from the clips, open on the timeline.	Una secuencia con los clips, abierta en la línea de tiempo.
+	Needs a Whisper model: download one in AI Settings.	Necesita un modelo Whisper: descárguelo en Ajustes de IA.
+	Everything runs on this computer and can be undone; the clips stay in the Project panel either way.	Todo se hace en este ordenador y se puede deshacer; los clips quedan en el panel Proyecto en cualquier caso.
+	Working on it in the background: the result opens when it is ready.	Trabajando en segundo plano: el resultado se abrirá cuando esté listo.
+	Ready: the result is open on the timeline.	Listo: el resultado está abierto en la línea de tiempo.
+	Done, with problems: {errors}	Hecho, con problemas: {errors}

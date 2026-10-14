@@ -4303,3 +4303,20 @@
 	Double-click to add	双击添加
 	Added.	已添加。
 	Add to Timeline at Playhead	在播放头处添加到时间线
+# Start from a video (15.B7)
+	Start from a Video…	从视频开始…
+	Pick a video and choose what to make	选择视频并决定要做什么
+	What Do You Want to Make?	你想做什么？
+	{n} clips imported.	已导入 {n} 个片段。
+	Vertical Short with Captions	带字幕的竖屏短视频
+	9:16, the speaker in frame, pauses out, bold captions word by word.	9:16，说话人保持在画面内，去除停顿，逐词醒目字幕。
+	Filler words and pauses out, captions added; the frame stays as shot.	去除语气词和停顿并添加字幕；画面保持原样。
+	Just Captions	仅字幕
+	The speech transcribed and captioned, nothing cut.	转写语音并添加字幕，不做剪切。
+	Just Edit	直接剪辑
+	A sequence from the clips, open on the timeline.	用片段创建序列并在时间线上打开。
+	Needs a Whisper model: download one in AI Settings.	需要 Whisper 模型：请在 AI 设置中下载。
+	Everything runs on this computer and can be undone; the clips stay in the Project panel either way.	全部在本机完成且可撤销；无论如何片段都会保留在项目面板中。
+	Working on it in the background: the result opens when it is ready.	正在后台处理：完成后会打开结果。
+	Ready: the result is open on the timeline.	完成：结果已在时间线上打开。
+	Done, with problems: {errors}	已完成，但有问题：{errors}
