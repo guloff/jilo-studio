@@ -90,6 +90,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("view.compare.setReference", "Set Comparison Reference", [], None),
     uic!("view.dynamicAudioWaveforms", "Dynamic Audio Waveforms", ["View"], None),
     uic!("view.quickActions", "Quick Actions", ["View"], None),
+    uic!("view.simpleMode", "Simple Mode", ["View"], None),
     uic!("multicam.toggleView", "Multi-Camera View", ["View"], Some("Shift+0")),
     uic!("multicam.recordToggle", "Multi-Camera Record On/Off Toggle", [], Some("0")),
     uic!("multicam.editCamerasDialog", "Edit Cameras…", [], None),

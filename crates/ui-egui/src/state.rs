@@ -117,6 +117,11 @@ impl Tool {
             .find(|t| format!("{t:?}").to_ascii_lowercase() == n || t.label().to_ascii_lowercase().replace([' ', '-'], "").replace("tool", "") == n)
     }
     /// Tools-panel groups (Premiere groups related tools under one button with a flyout).
+    /// The tools of Simple mode: select, cut, move around, write.
+    pub fn simple_groups() -> Vec<Vec<Tool>> {
+        vec![vec![Tool::Selection], vec![Tool::Razor], vec![Tool::Hand, Tool::Zoom], vec![Tool::Type]]
+    }
+
     pub fn groups() -> Vec<Vec<Tool>> {
         vec![
             vec![Tool::Selection],
@@ -614,6 +619,12 @@ pub struct UiState {
     pub tool: Tool,
     pub mode: Mode,
     pub workspace: String,
+    /// The workspace before Simple mode, given back when it ends.
+    #[serde(default)]
+    pub pro_workspace: String,
+    /// Simple mode as last applied ([`crate::FilmcraftApp::apply_simple_mode`]).
+    #[serde(skip)]
+    pub simple_applied: Option<bool>,
     pub dock: DockNode,
     /// Focused panel (blue outline, receives shortcuts).
     pub focused: PanelKind,
@@ -1206,6 +1217,8 @@ impl Default for UiState {
             tool: Tool::Selection,
             mode: Mode::Edit,
             workspace: "Editing".into(),
+            pro_workspace: String::new(),
+            simple_applied: None,
             dock: crate::dock::workspace("Editing"),
             focused: PanelKind::Timeline,
             timeline: TimelineView::default(),

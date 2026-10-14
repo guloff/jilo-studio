@@ -4191,3 +4191,8 @@ mode	Edit	Монтаж
 	List Finder Quick Actions	Список быстрых действий Finder
 	Remove Finder Quick Action	Удалить быстрое действие Finder
 	Process Files	Обработать файлы
+# Simple mode and workspaces (16.12, 15.B2)
+	Simple Mode	Простой режим
+	Simple	Простой
+	AI Editing	AI-монтаж
+	Simple mode: fewer panels and tools (everything stays in the menus and the command palette, ⌘J)	Простой режим: меньше панелей и инструментов (всё остаётся в меню и в палитре команд, ⌘J)

@@ -4196,3 +4196,8 @@
 	List Finder Quick Actions	Listar acciones rápidas de Finder
 	Remove Finder Quick Action	Quitar acción rápida de Finder
 	Process Files	Procesar archivos
+# Simple mode and workspaces (16.12, 15.B2)
+	Simple Mode	Modo sencillo
+	Simple	Sencillo
+	AI Editing	Edición con IA
+	Simple mode: fewer panels and tools (everything stays in the menus and the command palette, ⌘J)	Modo sencillo: menos paneles y herramientas (todo sigue en los menús y en la paleta de comandos, ⌘J)

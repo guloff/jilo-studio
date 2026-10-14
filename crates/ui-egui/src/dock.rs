@@ -168,7 +168,8 @@ fn vsplit(size: SplitSize, a: DockNode, b: DockNode) -> DockNode {
     DockNode::Split { vertical: true, size, a: Box::new(a), b: Box::new(b) }
 }
 
-pub const WORKSPACES: [&str; 9] = ["Editing", "Assembly", "Color", "Effects", "Audio", "Captions and Graphics", "Learning", "Review", "All Panels"];
+pub const WORKSPACES: [&str; 11] =
+    ["Editing", "Assembly", "Color", "Effects", "Audio", "Captions and Graphics", "Learning", "Review", "All Panels", "AI Editing", "Simple"];
 
 /// The user's workspaces file, beside `preferences.json` in the data directory.
 pub const WORKSPACES_FILE: &str = "workspaces.json";
@@ -287,6 +288,23 @@ pub fn workspace(name: &str) -> DockNode {
                 hsplit(Ratio(0.3), tabs(&[Project, MediaBrowser, Libraries], 0), bottom_editing()),
             ),
             tabs(&[EssentialGraphics, Properties, CaptionStyle], 0),
+        ),
+        // AI first: the transcript to edit by text beside the picture, the assistant and the styles
+        // on the right, the timeline under them.
+        "AI Editing" => vsplit(
+            Ratio(0.6),
+            hsplit(
+                FixedB(400.0),
+                hsplit(Ratio(0.38), tabs(&[Text, Project, Libraries], 0), tabs(&[Program], 0)),
+                tabs(&[Assistant, CaptionStyle, Properties, EssentialGraphics], 0),
+            ),
+            hsplit(Ratio(0.2), tabs(&[Project, MediaBrowser, Effects, History], 0), bottom_editing()),
+        ),
+        // Simple mode: the picture, the media, the timeline and one panel of settings.
+        "Simple" => vsplit(
+            Ratio(0.6),
+            hsplit(FixedB(380.0), hsplit(FixedA(300.0), tabs(&[Project, Libraries], 0), tabs(&[Program], 0)), tabs(&[Properties, CaptionStyle, Assistant], 0)),
+            hsplit(FixedA(64.0), tabs(&[Tools], 0), tabs(&[Timeline], 0)),
         ),
         "All Panels" => vsplit(
             Ratio(0.5),

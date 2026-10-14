@@ -4231,3 +4231,8 @@
 	List Finder Quick Actions	列出访达快速操作
 	Remove Finder Quick Action	移除访达快速操作
 	Process Files	处理文件
+# Simple mode and workspaces (16.12, 15.B2)
+	Simple Mode	简易模式
+	Simple	简易
+	AI Editing	AI 剪辑
+	Simple mode: fewer panels and tools (everything stays in the menus and the command palette, ⌘J)	简易模式：更少的面板和工具（所有功能仍在菜单和命令面板 ⌘J 中）

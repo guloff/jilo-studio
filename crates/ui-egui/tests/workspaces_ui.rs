@@ -162,6 +162,7 @@ fn save_switch_reset_rename_delete_and_restart() {
     assert_eq!(
         names,
         [
+            "AI Editing",
             "All Panels",
             "Assembly",
             "Audio",
@@ -172,6 +173,7 @@ fn save_switch_reset_rename_delete_and_restart() {
             "Effects",
             "Learning",
             "Review",
+            "Simple",
             "Reset to Saved Layout",
             "Save Changes to this Workspace",
             "Save as New Workspace…",

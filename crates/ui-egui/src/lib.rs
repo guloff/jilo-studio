@@ -834,6 +834,38 @@ impl FilmcraftApp {
         }
     }
 
+    /// Simple mode on or off (Settings ▸ General, View ▸ Simple Mode, the workspace menu): its
+    /// workspace and tools when it starts, the workspace before it when it ends.
+    pub fn apply_simple_mode(&mut self) {
+        let on = self.session.prefs.general.simple_mode;
+        if self.ui.simple_applied == Some(on) {
+            return;
+        }
+        let first = self.ui.simple_applied.is_none();
+        self.ui.simple_applied = Some(on);
+        if on && self.ui.workspace != "Simple" {
+            self.ui.pro_workspace = self.ui.workspace.clone();
+            self.set_workspace("Simple");
+        } else if !on && !first && self.ui.workspace == "Simple" {
+            let back =
+                if self.ui.pro_workspace.is_empty() || self.ui.pro_workspace == "Simple" { "Editing".to_string() } else { self.ui.pro_workspace.clone() };
+            self.set_workspace(&back);
+        }
+        if on && !state::Tool::simple_groups().iter().flatten().any(|t| *t == self.ui.tool) {
+            self.ui.tool = state::Tool::Selection;
+        }
+    }
+
+    /// Turn Simple mode on or off and keep the preference.
+    pub fn set_simple_mode(&mut self, on: bool) {
+        let mut p = self.session.prefs.clone();
+        p.general.simple_mode = on;
+        if let Err(e) = self.session.set_prefs(p) {
+            self.ui.status = format!("saving preferences: {e}");
+        }
+        self.apply_simple_mode();
+    }
+
     pub fn show_panel(&mut self, p: PanelKind) {
         if p == PanelKind::Timeline {
             self.ui.dock.restore_timeline();
@@ -1740,6 +1772,7 @@ impl FilmcraftApp {
         self.pending_timeline_drop = None;
         panels::dialogs::show(self, &ctx);
         notifications::watch(self, &ctx);
+        self.apply_simple_mode();
         panels::ai_tasks::show(self, &ctx);
         panels::highlights::show(self, &ctx);
         panels::autozoom::show(self, &ctx);

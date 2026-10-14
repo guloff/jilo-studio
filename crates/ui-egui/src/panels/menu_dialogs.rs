@@ -105,6 +105,7 @@ pub fn checked(app: &FilmcraftApp, id: &str) -> Option<bool> {
     match id {
         "view.dynamicAudioWaveforms" => Some(app.ui.extras.dynamic_waveforms),
         "view.quickActions" => Some(app.ui.quick_actions),
+        "view.simpleMode" => Some(app.session.prefs.general.simple_mode),
         _ => None,
     }
 }
@@ -176,6 +177,11 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
         "view.dynamicAudioWaveforms" => {
             app.ui.extras.dynamic_waveforms = params.get("on").and_then(Value::as_bool).unwrap_or(!app.ui.extras.dynamic_waveforms);
             return Some(Ok(json!({"dynamicAudioWaveforms": app.ui.extras.dynamic_waveforms})));
+        }
+        "view.simpleMode" => {
+            let on = params.get("on").and_then(Value::as_bool).unwrap_or(!app.session.prefs.general.simple_mode);
+            app.set_simple_mode(on);
+            return Some(Ok(json!({"simpleMode": on, "workspace": app.ui.workspace})));
         }
         "view.quickActions" => {
             app.ui.quick_actions = params.get("on").and_then(Value::as_bool).unwrap_or(!app.ui.quick_actions);

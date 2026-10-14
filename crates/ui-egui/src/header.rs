@@ -150,6 +150,14 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         let area = egui::Area::new(popup_id.with("area")).order(egui::Order::Foreground).fixed_pos(anchor).show(ui.ctx(), |ui| {
             egui::Frame::popup(ui.style()).show(ui, |ui| {
                 ui.set_min_width(220.0);
+                let mut simple = app.session.prefs.general.simple_mode;
+                let r = ui.checkbox(&mut simple, tl!("Simple Mode"));
+                app.auto.add("header.simpleMode", r.rect, "Simple Mode");
+                if r.changed() {
+                    app.set_simple_mode(simple);
+                    ui.ctx().data_mut(|d| d.insert_temp(popup_id, false));
+                }
+                ui.separator();
                 for w in crate::dock::names(&app.workspaces) {
                     let sel = app.ui.workspace == w;
                     if ui.selectable_label(sel, crate::i18n::t(&w)).clicked() {

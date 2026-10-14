@@ -62,6 +62,9 @@ pub struct GeneralPrefs {
     /// A system notification when an export or a long AI task ends while the app is in the
     /// background.
     pub notify_when_done: bool,
+    /// Simple mode: the Simple workspace and the everyday tools only (everything else stays in the
+    /// menus and the command palette).
+    pub simple_mode: bool,
     /// When the daily check last ran (unix seconds; not shown in the dialog).
     pub last_update_check: i64,
     /// The release the daily check last offered, so each one is offered once (not shown).
@@ -94,6 +97,7 @@ impl Default for GeneralPrefs {
             show_mask_tracker_preview: true,
             check_for_updates: true,
             notify_when_done: true,
+            simple_mode: false,
             last_update_check: 0,
             update_offered: String::new(),
             update_installing: String::new(),
@@ -924,6 +928,7 @@ static CATEGORIES: &[Category] = &[
             b("general.showCompatibilityIssues", "Show system compatibility issues at startup", false),
             b("general.showProjectBinInTab", "Show \"Project:\" and \"Bin:\" in Project panel tab", false),
             b("general.showMaskTrackerPreview", "Show Mask Tracker Preview", false),
+            b("general.simpleMode", "Simple mode: fewer panels and tools (everything stays in the menus and the command palette, ⌘J)", true),
             b("general.checkForUpdates", "Check for updates once a day", true),
             b("general.notifyWhenDone", "Notify when an export or a long AI task ends while the app is in the background", true),
             Row::Note("The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once."),
