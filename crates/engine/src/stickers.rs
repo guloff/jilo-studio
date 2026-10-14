@@ -2,7 +2,8 @@
 //! badge, an underline) put on the picture in one click, with an entrance animation.
 //!
 //! Emoji are drawn on this computer from the system's colour emoji font (the host installs an
-//! [`EmojiRenderer`]), saved once as PNG in `<data dir>/stickers/emoji/` and imported into a
+//! [`EmojiRenderer`]), saved once as PNG in `<data dir>/stickers/emoji/` (beside the preferences;
+//! the temporary directory for a session without them) and imported into a
 //! Stickers bin; the shapes are graphics templates (category Stickers). Every emoji in the
 //! catalogue has English and Russian words, for the search and for placing emoji by what is said.
 //!
@@ -150,7 +151,14 @@ fn emoji_file_name(e: &str) -> String {
 
 /// The PNG of emoji `e`, drawn once and kept.
 fn emoji_png(s: &Session, e: &str) -> Result<std::path::PathBuf> {
-    let dir = crate::autosave::default_data_dir().map(|d| d.join("stickers/emoji")).unwrap_or_else(|| crate::temp_dir().join("jilo-stickers"));
+    // beside the preferences (the app's data directory); a session without them (tests, scripts)
+    // keeps its own in the temporary directory, so it never mixes with the app's
+    let dir = s
+        .prefs_path
+        .as_ref()
+        .and_then(|p| p.parent())
+        .map(|d| d.join("stickers/emoji"))
+        .unwrap_or_else(|| crate::temp_dir().join(format!("jilo-stickers-{}", std::process::id())));
     let path = dir.join(emoji_file_name(e));
     if path.is_file() {
         return Ok(path);

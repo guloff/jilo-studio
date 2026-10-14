@@ -303,6 +303,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
             eyedropper(app, ui, &pic_resp, pic, target, rate, time);
         } else {
             crate::panels::graphics::monitor_overlay(app, ui, pic, frame_size);
+            crate::panels::clip_transform::monitor_overlay(app, ui, pic, frame_size);
             crate::panels::masks::monitor_overlay(app, ui, pic, frame_size);
             crate::panels::quick_actions::show(app, ui, pic.intersect(video_area));
         }

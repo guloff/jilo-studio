@@ -89,7 +89,7 @@ pub fn selected_graphic(app: &FilmcraftApp) -> Option<(ClipId, TrackItem)> {
 /// visibility is off is not in the picture, so it has no box and cannot be clicked either.
 /// Sequence pixels → screen points on the monitor picture `pic`. The picture shows the frame at its
 /// display aspect, so with non-square sequence pixels the two axes scale differently.
-fn frame_to_screen(pic: Rect, frame: (u32, u32)) -> Affine {
+pub(crate) fn frame_to_screen(pic: Rect, frame: (u32, u32)) -> Affine {
     let (kx, ky) = (pic.width() as f64 / frame.0.max(1) as f64, pic.height() as f64 / frame.1.max(1) as f64);
     Affine::translate(pic.min.x as f64, pic.min.y as f64).then_apply(&Affine::scale(kx, ky))
 }
