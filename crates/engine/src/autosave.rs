@@ -173,6 +173,8 @@ pub struct Preferences {
     pub media_browser: crate::media_browser::MediaBrowserPrefs,
     /// The inbox folder: new files there are imported and run through a batch.
     pub inbox: crate::inbox::InboxPrefs,
+    /// Favourite and recent stickers.
+    pub stickers: crate::stickers::StickerPrefs,
 }
 
 impl Default for Preferences {
@@ -202,6 +204,7 @@ impl Default for Preferences {
             project_panel: Default::default(),
             media_browser: Default::default(),
             inbox: Default::default(),
+            stickers: Default::default(),
         }
     }
 }

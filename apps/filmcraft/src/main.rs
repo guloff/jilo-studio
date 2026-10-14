@@ -197,6 +197,7 @@ fn main() -> eframe::Result {
             let mut session = Session::default();
             session.face_detector = face_detector();
             session.image_classifier = image_classifier();
+            session.emoji_renderer = emoji_renderer();
             if let Some(dir) = data_dir.clone().or_else(default_data_dir) {
                 // updates download beside the app's other data (`--data-dir` included)
                 session.updates_dir = Some(dir.join("Updates"));
@@ -465,6 +466,14 @@ fn image_classifier() -> Option<filmcraft_engine::broll::ImageClassifier> {
         let c: filmcraft_engine::broll::ImageClassifier =
             std::sync::Arc::new(|rgba: &[u8], w: usize, h: usize| filmcraft_platform::vision::classify_image(rgba, w, h, 8, 0.1));
         c
+    })
+}
+
+/// Stickers draw emoji from the system's colour emoji font where the system has it.
+fn emoji_renderer() -> Option<filmcraft_engine::stickers::EmojiRenderer> {
+    filmcraft_platform::emoji::available().then(|| {
+        let r: filmcraft_engine::stickers::EmojiRenderer = std::sync::Arc::new(filmcraft_platform::emoji::render);
+        r
     })
 }
 

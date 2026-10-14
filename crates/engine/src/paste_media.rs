@@ -103,7 +103,7 @@ fn import_and_place(s: &mut Session, paths: &[String], bin: Option<BinId>, place
 
 /// The first unlocked track of `kind` from the targeted one outward with nothing in `start..end`.
 /// When every track is busy there, a new one is added (on top for video, at the bottom for audio).
-fn free_track(s: &mut Session, kind: TrackKind, start: Tick, end: Tick) -> Result<TrackId> {
+pub(crate) fn free_track(s: &mut Session, kind: TrackKind, start: Tick, end: Tick) -> Result<TrackId> {
     let seq = s.active_sequence().ok_or(EngineError::NoSequence)?;
     let tg = s.targeting();
     let (tracks, dest) = match kind {

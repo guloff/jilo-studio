@@ -39,6 +39,7 @@ mod annexb;
 mod biplanar;
 pub mod cursor;
 pub mod display;
+pub mod emoji;
 #[cfg(target_os = "macos")]
 pub mod hardware_encode;
 pub mod hybrid;

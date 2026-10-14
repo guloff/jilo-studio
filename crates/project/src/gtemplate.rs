@@ -698,6 +698,136 @@ pub fn builtin_templates() -> Vec<GraphicsTemplate> {
         v.push(t);
     }
     v.extend(social_and_short_video_templates());
+    v.extend(sticker_templates());
+    v
+}
+
+/// A path shape layer: `points` in pixels around its position (a closed outline).
+fn path(uid: u64, name: &str, pos: (f64, f64), points: &[(f32, f32)], color: u32) -> EffectInstance {
+    let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    for p in points {
+        (x0, y0, x1, y1) = (x0.min(p.0), y0.min(p.1), x1.max(p.0), y1.max(p.1));
+    }
+    let mut e = new_shape_layer(3, Vec2::new(pos.0, pos.1), Vec2::new(f64::from(x1 - x0), f64::from(y1 - y0)), points.iter().map(|p| [p.0, p.1]).collect());
+    set(&mut e, "name", ParamValue::Text(name.into()));
+    set(&mut e, "fill_color", rgb(color));
+    e.layer = Some(Box::new(LayerExtra { uid, ..Default::default() }));
+    e
+}
+
+fn outline(e: &mut EffectInstance, color: u32, width: f64) {
+    set(e, "stroke", ParamValue::Bool(true));
+    set(e, "stroke_color", rgb(color));
+    set(e, "stroke_width", ParamValue::Float(width));
+}
+
+/// Our own stickers: arrows, a speech bubble, a subscribe button, a ring to circle something, a
+/// "new" badge and a hand-drawn-style underline — shapes and text, coloured and sized freely.
+fn sticker_templates() -> Vec<GraphicsTemplate> {
+    let mut v = Vec::new();
+    let arrow: [(f32, f32); 7] = [(-150.0, -22.0), (40.0, -22.0), (40.0, -60.0), (150.0, 0.0), (40.0, 60.0), (40.0, 22.0), (-150.0, 22.0)];
+    for (id, name, rot, desc) in [
+        ("sticker-arrow-right", "Arrow", 0.0, "A bold arrow to point at something."),
+        ("sticker-arrow-down", "Arrow Down", 90.0, "A bold arrow pointing down."),
+        ("sticker-arrow-diagonal", "Arrow – Diagonal", 45.0, "A bold arrow pointing down and to the right."),
+    ] {
+        let mut a = path(1, "Arrow", (960.0, 540.0), &arrow, 0xef4444);
+        outline(&mut a, 0xffffff, 8.0);
+        set(&mut a, "rotation", ParamValue::Float(rot));
+        v.push(builtin(
+            id,
+            name,
+            "Stickers",
+            desc,
+            3,
+            vec![a],
+            vec![ctl("color", "Color", 1, "fill_color"), ctl("outline", "Outline Color", 1, "stroke_color")],
+        ));
+    }
+    {
+        let mut bubble = shape(1, "Bubble", 0, (960.0, 520.0), (460.0, 200.0), 0xffffff);
+        set(&mut bubble, "corner_radius", ParamValue::Float(60.0));
+        let tail = path(2, "Tail", (860.0, 650.0), &[(-20.0, -40.0), (60.0, -40.0), (-50.0, 40.0)], 0xffffff);
+        let mut words = text(3, "Text", "Wow!", (960.0, 545.0), 96.0, "Bold");
+        set(&mut words, "align", ParamValue::Choice(1));
+        set(&mut words, "fill_color", rgb(0x111827));
+        v.push(builtin(
+            "sticker-speech-bubble",
+            "Speech Bubble",
+            "Stickers",
+            "A comic speech bubble with a word or two.",
+            3,
+            vec![bubble, tail, words],
+            vec![
+                ctl("text", "Text", 3, "text"),
+                ctl("bubble_color", "Bubble Color", 1, "fill_color"),
+                ctl("tail_color", "Tail Color", 2, "fill_color"),
+                ctl("text_color", "Text Color", 3, "fill_color"),
+            ],
+        ));
+    }
+    {
+        let mut button = shape(1, "Button", 0, (960.0, 540.0), (520.0, 130.0), 0xdc2626);
+        set(&mut button, "corner_radius", ParamValue::Float(26.0));
+        let mut label = text(2, "Label", "SUBSCRIBE", (960.0, 568.0), 72.0, "Bold");
+        set(&mut label, "align", ParamValue::Choice(1));
+        set(&mut label, "fill_color", rgb(0xffffff));
+        v.push(builtin(
+            "sticker-subscribe",
+            "Subscribe Button",
+            "Stickers",
+            "A red subscribe button; the word can be changed.",
+            3,
+            vec![button, label],
+            vec![ctl("text", "Text", 2, "text"), ctl("button_color", "Button Color", 1, "fill_color"), ctl("text_color", "Text Color", 2, "fill_color")],
+        ));
+    }
+    {
+        // one outline around and back inside: a ring (an ellipse 420 × 300, 16 px thick)
+        let n = 72;
+        let around = |rx: f32, ry: f32, rev: bool| -> Vec<(f32, f32)> {
+            (0..=n)
+                .map(|i| {
+                    let k = if rev { n - i } else { i };
+                    let a = std::f32::consts::TAU * k as f32 / n as f32;
+                    (a.cos() * rx, a.sin() * ry)
+                })
+                .collect()
+        };
+        let mut pts = around(210.0, 150.0, false);
+        pts.extend(around(194.0, 134.0, true));
+        let ring = path(1, "Ring", (960.0, 540.0), &pts, 0xfacc15);
+        v.push(builtin("sticker-ring", "Circle It", "Stickers", "A ring to circle what matters.", 3, vec![ring], vec![ctl("color", "Color", 1, "fill_color")]));
+    }
+    {
+        let mut badge = shape(1, "Badge", 2, (960.0, 540.0), (300.0, 300.0), 0xfacc15);
+        set(&mut badge, "sides", ParamValue::Float(12.0));
+        let mut label = text(2, "Label", "NEW", (960.0, 568.0), 84.0, "Bold");
+        set(&mut label, "align", ParamValue::Choice(1));
+        set(&mut label, "fill_color", rgb(0x111827));
+        v.push(builtin(
+            "sticker-badge",
+            "Badge",
+            "Stickers",
+            "A starburst badge: NEW, SALE, -50%…",
+            3,
+            vec![badge, label],
+            vec![ctl("text", "Text", 2, "text"), ctl("badge_color", "Badge Color", 1, "fill_color"), ctl("text_color", "Text Color", 2, "fill_color")],
+        ));
+    }
+    {
+        let swoosh: [(f32, f32); 6] = [(-260.0, 10.0), (-120.0, -14.0), (60.0, -20.0), (260.0, -6.0), (240.0, 14.0), (-250.0, 30.0)];
+        let line = path(1, "Underline", (960.0, 640.0), &swoosh, 0xfacc15);
+        v.push(builtin(
+            "sticker-underline",
+            "Underline",
+            "Stickers",
+            "A marker stroke under a word.",
+            3,
+            vec![line],
+            vec![ctl("color", "Color", 1, "fill_color")],
+        ));
+    }
     v
 }
 

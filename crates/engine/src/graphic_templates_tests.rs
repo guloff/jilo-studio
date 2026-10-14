@@ -132,7 +132,8 @@ fn builtin_templates_apply_and_thumbnail() {
     for e in s.execute("graphics.template.list", json!({"source": "builtin"})).unwrap().as_array().unwrap().clone() {
         let id = e["id"].as_str().unwrap();
         let r = s.execute("graphics.template.apply", json!({"template": id})).unwrap();
-        assert!(!texts(&s, clip_of(&r)).is_empty(), "{id}");
+        // stickers may be shapes alone; every other template has text to edit
+        assert!(e["category"] == "Stickers" || !texts(&s, clip_of(&r)).is_empty(), "{id}");
         let th = s.execute("graphics.template.thumbnail", json!({"template": id, "width": 160})).unwrap();
         assert_eq!((th["width"].as_u64(), th["height"].as_u64()), (Some(160), Some(90)));
         let png = filmcraft_project::gtemplate::base64_decode(th["pngBase64"].as_str().unwrap()).unwrap();

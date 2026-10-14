@@ -43,7 +43,9 @@ objc2-core-foundation = "0.3.2"
 # (`open_documents.rs`); already in the lockfile through winit / wgpu.
 objc2 = "0.6"
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSAppleEventManager", "NSArray", "NSDictionary", "NSObject", "NSString", "NSURL"] }
-objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "CGColorSpace", "CGDataProvider", "CGDirectDisplay", "CGError", "CGEvent", "CGEventTypes", "CGImage"] }
+objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "CGBitmapContext", "CGColorSpace", "CGContext", "CGDataProvider", "CGDirectDisplay", "CGError", "CGEvent", "CGEventTypes", "CGImage"] }
+# Emoji pictures for stickers (`emoji.rs`): the system's colour emoji font drawn through AppKit; already in the lockfile through winit.
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "objc2-core-graphics", "NSAttributedString", "NSFont", "NSGraphicsContext", "NSStringDrawing"] }
 # Completion handlers for system notifications (`notify.rs`); already in the lockfile through winit.
 block2 = "0.6"
 # Faces for Auto Reframe to faces (`vision.rs`): Apple Vision's face rectangles (MIT OR Apache-2.0 OR Zlib).

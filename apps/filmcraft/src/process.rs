@@ -24,6 +24,7 @@ pub fn run(params: &str, files: &[String], data_dir: Option<std::path::PathBuf>)
     let mut s = filmcraft_engine::Session::default();
     s.face_detector = crate::face_detector();
     s.image_classifier = crate::image_classifier();
+    s.emoji_renderer = crate::emoji_renderer();
     // the user's preferences, export presets and keys, read only
     if let Some(dir) = data_dir.or_else(filmcraft_engine::autosave::default_data_dir) {
         s.prefs = filmcraft_engine::autosave::Preferences::load(&dir.join("preferences.json"));

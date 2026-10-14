@@ -75,6 +75,7 @@ pub mod shortcut_presets;
 pub mod shortcuts;
 pub mod silence_tools;
 pub mod source_monitor;
+pub mod stickers;
 pub mod sync;
 pub mod transcript;
 pub mod translate;
@@ -484,6 +485,8 @@ pub struct Session {
     pub face_detector: Option<reframe::FaceDetector>,
     /// Scene labels of a picture (Apple Vision), for B-roll (`broll.*`); None where unavailable.
     pub image_classifier: Option<broll::ImageClassifier>,
+    /// Emoji pictures from the system font, for stickers (`stickers.*`); None where unavailable.
+    pub emoji_renderer: Option<stickers::EmojiRenderer>,
     /// Pictures being drawn for B-roll, placed by [`broll::pump`] when ready.
     pub broll_pending: broll::Pending,
     /// Faces found per clip's media range, for this session.
@@ -599,6 +602,7 @@ impl Session {
             recipe: None,
             recording: None,
             image_classifier: None,
+            emoji_renderer: None,
             broll_pending: Vec::new(),
             face_detector: None,
             face_cache: Default::default(),

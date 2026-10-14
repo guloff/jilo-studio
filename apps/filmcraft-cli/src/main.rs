@@ -150,6 +150,14 @@ fn image_classifier() -> Option<filmcraft_engine::broll::ImageClassifier> {
     })
 }
 
+/// Stickers draw emoji from the system's colour emoji font where the system has it.
+fn emoji_renderer() -> Option<filmcraft_engine::stickers::EmojiRenderer> {
+    filmcraft_platform::emoji::available().then(|| {
+        let r: filmcraft_engine::stickers::EmojiRenderer = std::sync::Arc::new(filmcraft_platform::emoji::render);
+        r
+    })
+}
+
 fn usage(msg: impl std::fmt::Display) -> ! {
     diag(format_args!("filmcraft-cli: {msg}\nRun `filmcraft-cli help` for usage."));
     std::process::exit(2)
@@ -177,6 +185,7 @@ impl Backend {
         let mut s = Session::default();
         s.face_detector = face_detector();
         s.image_classifier = image_classifier();
+        s.emoji_renderer = emoji_renderer();
         // user export presets (and other per-user libraries) from the data directory
         if let Some(dir) = a.opt("--data-dir").map(std::path::PathBuf::from).or_else(filmcraft_engine::autosave::default_data_dir) {
             s.export_presets.set_dir(&dir);
