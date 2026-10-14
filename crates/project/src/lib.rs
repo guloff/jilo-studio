@@ -805,17 +805,15 @@ impl Track {
     pub fn check(&self) -> Result<(), String> {
         // Validate before calling end(), including on a single-item track.
         self.check_bounds()?;
-        for w in self.items.windows(2) {
-            if w[0].end() > w[1].start {
-                return Err(format!("{}: items {:?} and {:?} overlap", self.name, w[0].id, w[1].id));
-            }
-        }
-        for i in &self.items {
-            if i.duration.0 <= 0 {
-                return Err(format!("{}: item {:?} has non-positive duration", self.name, i.id));
-            }
-        }
-        Ok(())
+        self.violations().into_iter().next().map_or(Ok(()), Err)
+    }
+    /// Every break of the structural rules (overlaps, non-positive durations), one message each.
+    /// Call after [`Track::check_bounds`].
+    pub fn violations(&self) -> Vec<String> {
+        let overlaps =
+            self.items.windows(2).filter(|w| w[0].end() > w[1].start).map(|w| format!("{}: items {:?} and {:?} overlap", self.name, w[0].id, w[1].id));
+        let empty = self.items.iter().filter(|i| i.duration.0 <= 0).map(|i| format!("{}: item {:?} has non-positive duration", self.name, i.id));
+        overlaps.chain(empty).collect()
     }
     /// Only the value bounds that keep timeline arithmetic from overflowing (no structural rules
     /// such as overlap or positive duration); what a loaded project must satisfy.
@@ -1098,6 +1096,23 @@ impl Sequence {
             t.check()?;
         }
         Ok(())
+    }
+    /// Every break of the structural rules on every track (see [`Sequence::check`]). Call after
+    /// [`Sequence::check_bounds`].
+    pub fn violations(&self) -> Vec<String> {
+        self.all_tracks().flat_map(Track::violations).chain(self.caption_tracks.iter().flat_map(CaptionTrack::violations)).collect()
+    }
+    /// The check after an edit of `before`: the bounds, and no break of the rules that `before`
+    /// did not have already. A project written by an older build (or by hand) may hold an overlap;
+    /// refusing every later edit over it would leave the whole sequence uneditable.
+    pub fn check_since(&self, before: &Sequence) -> Result<(), String> {
+        self.check_bounds()?;
+        let now = self.violations();
+        if now.is_empty() {
+            return Ok(());
+        }
+        let had = if before.check_bounds().is_ok() { before.violations() } else { Vec::new() };
+        now.into_iter().find(|v| !had.contains(v)).map_or(Ok(()), Err)
     }
     /// The hostile-value bounds alone (settings, marks and every time range), without the
     /// structural invariants of [`Sequence::check`]: a project that breaks only those (e.g. an

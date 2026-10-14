@@ -785,8 +785,13 @@ fn empty_items_do_not_panic_keyframe_commands() {
         s.execute("effects.toggleAnimation", json!({"clip":clip.0,"effect":"motion","param":"position"}))
     }));
     assert!(result.is_ok(), "an empty clip must not supply reversed clamp bounds");
-    let error = result.unwrap().unwrap_err();
-    assert!(error.to_string().contains("non-positive duration"), "expected the ordinary invariant error, got: {error}");
+    // the empty clip was there before: the edit is not refused over it (see `Sequence::check_since`),
+    // and nothing new breaks the rules
+    if let Err(error) = result.unwrap() {
+        assert!(error.to_string().contains("non-positive duration"), "expected the ordinary invariant error, got: {error}");
+    }
+    let q = s.active_sequence().unwrap();
+    assert_eq!(q.violations().len(), 1, "only the empty clip: {:?}", q.violations());
 }
 
 /// #201: a drag of an effect parameter (`merge`, starting with `begin`) is one undo step, and the

@@ -3805,7 +3805,34 @@ fn open_project(s: &mut Session, path: &str) -> Result<Value> {
         s.toast(format!("Upgraded project from schema v{from} to v{}; the original is kept as a backup when you save", filmcraft_format::SCHEMA_VERSION));
     }
     let missing = crate::relink::on_open(s);
-    Ok(json!({"path": path, "schemaVersion": from, "migrated": migrated, "missingMedia": missing}))
+    let fixed = fix_caption_overlaps(s);
+    Ok(json!({"path": path, "schemaVersion": from, "migrated": migrated, "missingMedia": missing, "fixedCaptions": fixed}))
+}
+
+/// Captions that run into the next one on their track (written by an older build, a script or by
+/// hand) end where the next one starts, as one undoable step; the user is told. Returns how many.
+pub(crate) fn fix_caption_overlaps(s: &mut Session) -> usize {
+    let broken =
+        |q: &filmcraft_project::Sequence| q.caption_tracks.iter().any(|t| t.check_bounds().is_ok() && t.violations().iter().any(|v| v.ends_with("overlap")));
+    if !s.project.sequences().any(|i| i.as_sequence().is_some_and(broken)) {
+        return 0;
+    }
+    let ids: Vec<ItemId> = s.project.sequences().filter(|i| i.as_sequence().is_some_and(broken)).map(|i| i.id).collect();
+    let n = s
+        .edit("Fix Overlapping Captions", |p, _| {
+            let mut n = 0;
+            for id in &ids {
+                if let Some(q) = p.sequence_mut(*id) {
+                    n += q.caption_tracks.iter_mut().map(filmcraft_project::CaptionTrack::fix_overlaps).sum::<usize>();
+                }
+            }
+            Ok(n)
+        })
+        .unwrap_or(0);
+    if n > 0 {
+        s.toast(format!("{n} captions ran into the next one: each now ends where the next starts (Undo puts them back)"));
+    }
+    n
 }
 
 /// Load a recovery candidate (newest when `id` is None) as the current, unsaved project.
@@ -3823,6 +3850,7 @@ fn recover(s: &mut Session, id: Option<&str>) -> Result<Value> {
         s.events.push(crate::Event::OpenSequence(seq));
     }
     crate::relink::on_open(s);
+    fix_caption_overlaps(s);
     // Our own journal must hold the recovered state before the old one is deleted.
     s.sync_persistence();
     if let Some(per) = s.persistence.as_mut() {

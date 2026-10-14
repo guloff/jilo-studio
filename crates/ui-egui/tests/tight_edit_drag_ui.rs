@@ -190,3 +190,49 @@ fn a_trim_held_at_the_next_clip_says_so() {
     assert_eq!(d.clip(a), Some((sec(0.0), sec(8.0))), "the edge stays at the cut");
     assert!(d.status().contains("next clip"), "status: {}", d.status());
 }
+
+/// (e) A project saved with two captions overlapping on a caption track (an older build, a script,
+/// a hand edit) still edits: a clip dragged on the picture track stays where it is dropped instead
+/// of going back, and so do deleting and trimming. Only a new overlap is refused.
+#[test]
+fn an_old_caption_overlap_does_not_undo_every_edit() {
+    let (mut d, [a, b, _]) = tight();
+    let s = &mut d.harness.state_mut().session;
+    s.execute("captions.newTrack", json!({})).expect("caption track");
+    s.set_playhead(sec(20.0));
+    s.execute("captions.add", json!({"text": "first"})).expect("caption");
+    s.set_playhead(sec(30.0));
+    s.execute("captions.add", json!({"text": "second"})).expect("caption");
+    s.set_playhead(sec(60.0));
+    // the first one runs into the second, as in the file
+    s.edit("overlap", |p, st| {
+        let q = p.sequence_mut(st.active_sequence.expect("sequence")).expect("sequence");
+        let caps = &mut q.caption_tracks[0].captions;
+        caps[0].duration = caps[1].start - caps[0].start + sec(1.0);
+        Ok(())
+    })
+    .expect("overlap");
+    let old = s.active_sequence().unwrap().check().expect_err("the sequence holds an overlap");
+    assert!(old.contains("overlap"), "{old}");
+    d.frames(2);
+    // a move by dragging is kept
+    let shift = d.rate().tick_of(12);
+    let px = shift.seconds() as f32 * d.pps();
+    let from = centre(d.rect(&format!("timeline.clip.{}", b.0)));
+    d.drag(from, from + egui::vec2(px, 0.0));
+    assert_eq!(d.clip(b), Some((sec(8.0) + shift, sec(9.0) + shift)), "the dropped clip stays: {}", d.status());
+    // deleting and trimming too
+    let s = &mut d.harness.state_mut().session;
+    s.state.selection = vec![b];
+    s.execute("edit.rippleDelete", json!({"clips": [b.0]})).expect("ripple delete");
+    s.execute("timeline.trim", json!({"clip": a.0, "edge": "out", "delta": -sec(1.0).0})).expect("trim");
+    // the old overlap is still there (nothing is changed behind the user's back)
+    let caps = s.active_sequence().unwrap().caption_tracks[0].captions.clone();
+    assert!(caps[0].end() > caps[1].start, "the old overlap is kept as it was");
+    // a new one is refused: the second caption stretched over a third
+    s.set_playhead(sec(40.0));
+    s.execute("captions.add", json!({"text": "third"})).expect("caption in free space");
+    let third = s.active_sequence().unwrap().caption_tracks[0].captions[2].clone();
+    let r = s.execute("captions.setTimes", json!({"caption": caps[1].id.0, "endTime": (third.start + sec(1.0)).0}));
+    assert!(r.is_err() || s.active_sequence().unwrap().caption_tracks[0].captions[1].end() <= third.start, "no new overlap: {r:?}");
+}

@@ -1013,6 +1013,8 @@ impl Session {
         let body = move |p: &mut Project, st: &mut EditorState| {
             let project_snapshot = std::sync::Arc::new(p.clone());
             let snap = project_snapshot.clone();
+            // what the sequence was: an edit is refused only for rule breaks of its own
+            let before = project_snapshot.clone();
             let durations = move |id: ItemId| -> Option<Tick> { media_duration(&project_snapshot, &media, id) };
             let starts = move |id: ItemId| media_start(&snap, id);
             let min = p.sequence(seq_id).map(|s| s.settings.frame_rate.frame_duration()).unwrap_or(Tick(1));
@@ -1023,8 +1025,8 @@ impl Session {
                 f(seq, &mut ctx, st)?
             };
             p.next_id = next;
-            if let Some(s) = p.sequence(seq_id) {
-                s.check().map_err(EngineError::Other)?;
+            if let (Some(s), Some(b)) = (p.sequence(seq_id), before.sequence(seq_id)) {
+                s.check_since(b).map_err(EngineError::Other)?;
             }
             Ok(r)
         };

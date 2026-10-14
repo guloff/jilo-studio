@@ -299,17 +299,40 @@ impl CaptionTrack {
     /// Invariant check: captions sorted, positive duration, no overlaps.
     pub fn check(&self) -> Result<(), String> {
         self.check_bounds()?;
-        for c in &self.captions {
-            if c.duration.0 <= 0 {
-                return Err(format!("{}: caption {:?} has non-positive duration", self.name, c.id));
+        self.violations().into_iter().next().map_or(Ok(()), Err)
+    }
+    /// Every break of the structural rules (non-positive durations, overlaps), one message each.
+    /// Call after [`CaptionTrack::check_bounds`].
+    pub fn violations(&self) -> Vec<String> {
+        let empty = self.captions.iter().filter(|c| c.duration.0 <= 0).map(|c| format!("{}: caption {:?} has non-positive duration", self.name, c.id));
+        let overlaps =
+            self.captions.windows(2).filter(|w| w[0].end() > w[1].start).map(|w| format!("{}: captions {:?} and {:?} overlap", self.name, w[0].id, w[1].id));
+        empty.chain(overlaps).collect()
+    }
+    /// End every caption at the next one's start at the latest (a caption that starts with the
+    /// one before it begins where that one ends instead, when it still has time left); returns
+    /// how many were changed. What cannot be fixed that way is left as it is.
+    pub fn fix_overlaps(&mut self) -> usize {
+        if self.check_bounds().is_err() {
+            return 0;
+        }
+        self.sort();
+        let mut fixed = 0;
+        for i in 1..self.captions.len() {
+            let (prev, next) = (self.captions[i - 1].clone(), self.captions[i].clone());
+            if prev.duration.0 <= 0 || next.duration.0 <= 0 || prev.end() <= next.start {
+                continue;
+            }
+            if next.start > prev.start {
+                self.captions[i - 1].duration = next.start - prev.start;
+                fixed += 1;
+            } else if next.end() > prev.end() {
+                self.captions[i].start = prev.end();
+                self.captions[i].duration = next.end() - prev.end();
+                fixed += 1;
             }
         }
-        for w in self.captions.windows(2) {
-            if w[0].end() > w[1].start {
-                return Err(format!("{}: captions {:?} and {:?} overlap", self.name, w[0].id, w[1].id));
-            }
-        }
-        Ok(())
+        fixed
     }
     /// Only the time bounds that keep caption arithmetic from overflowing (see `Track::check_bounds`).
     pub fn check_bounds(&self) -> Result<(), String> {

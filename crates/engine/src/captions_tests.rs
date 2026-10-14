@@ -158,3 +158,66 @@ fn caption_list_track_filter_never_falls_back_to_every_track() {
         assert!(s.execute("captions.list", json!({"track": sel})).is_err(), "{sel} names no caption track");
     }
 }
+
+/// A project saved with captions running into each other (an older build, a script, a hand edit)
+/// opens with them ending where the next starts, as one undoable step, and every edit works.
+#[test]
+fn overlapping_captions_are_fixed_when_the_project_opens() {
+    let dir = std::env::temp_dir().join(format!("fc-cap-overlap-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("overlap.fcproj");
+    let mut s = demo();
+    s.execute("captions.newTrack", json!({})).unwrap();
+    let sec = |x: f64| Tick::from_seconds_f64(x);
+    for (t, text) in [(2.0, "one"), (12.0, "two"), (22.0, "three")] {
+        s.set_playhead(sec(t));
+        s.execute("captions.add", json!({"text": text})).unwrap();
+    }
+    s.edit("overlap", |p, st| {
+        let q = p.sequence_mut(st.active_sequence.unwrap()).unwrap();
+        let caps = &mut q.caption_tracks[0].captions;
+        caps[0].duration = caps[1].start - caps[0].start + sec(1.0); // runs into "two"
+        Ok(())
+    })
+    .unwrap();
+    assert!(s.active_sequence().unwrap().check().is_err());
+    s.execute("file.saveAs", json!({"path": path.to_string_lossy()})).unwrap();
+
+    let mut s = Session::default();
+    let r = s.execute("file.open", json!({"path": path.to_string_lossy()})).unwrap();
+    assert_eq!(r["fixedCaptions"], 1, "{r}");
+    let q = s.active_sequence().unwrap();
+    q.check().unwrap();
+    let caps = &q.caption_tracks[0].captions;
+    assert_eq!((caps[0].start, caps[0].end()), (caps[0].start, caps[1].start), "ends where the next starts");
+    assert_eq!(caps.iter().map(|c| c.text.as_str()).collect::<Vec<_>>(), ["one", "two", "three"], "nothing dropped");
+    // Undo puts the overlap back
+    s.execute("edit.undo", json!({})).unwrap();
+    assert!(s.active_sequence().unwrap().check().is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn an_edit_is_refused_only_for_an_overlap_of_its_own() {
+    let mut s = demo();
+    s.execute("captions.newTrack", json!({})).unwrap();
+    let sec = |x: f64| Tick::from_seconds_f64(x);
+    for t in [2.0, 12.0, 22.0] {
+        s.set_playhead(sec(t));
+        s.execute("captions.add", json!({"text": "x"})).unwrap();
+    }
+    s.edit("overlap", |p, st| {
+        let q = p.sequence_mut(st.active_sequence.unwrap()).unwrap();
+        let caps = &mut q.caption_tracks[0].captions;
+        caps[0].duration = caps[1].start - caps[0].start + sec(1.0);
+        Ok(())
+    })
+    .unwrap();
+    // an edit elsewhere goes through
+    let clip = s.active_sequence().unwrap().video_tracks[0].items[0].id;
+    s.execute("timeline.trim", json!({"clip": clip.0, "edge": "out", "deltaFrames": -5})).unwrap();
+    // a new overlap does not
+    let caps = s.active_sequence().unwrap().caption_tracks[0].captions.clone();
+    let r = s.execute("captions.setTimes", json!({"caption": caps[1].id.0, "endTime": (caps[2].start + sec(1.0)).0}));
+    assert!(r.is_err(), "a new overlap is refused: {r:?}");
+}
