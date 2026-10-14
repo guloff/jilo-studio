@@ -8,7 +8,17 @@
 //! |---|---|
 //! | `captions.stylePresets` | the presets: `id`, `name`, `style` (as `captions.setStyle` takes it) |
 //! | `captions.applyStylePreset` | `{preset, track: id \| "C1" \| "all"}`: the preset replaces the track's style (one undo step) |
+//! | `captions.saveStylePreset` | `{name, track?}`: the track's style as one of the user's own (`user:<name>`) |
+//! | `captions.deleteStylePreset` | `{name}` |
+//! | `captions.exportStylePreset` | `{preset, path}`: a style as a `.json` file to share |
+//! | `captions.importStylePreset` | `{path}`: a shared style among the user's own |
+//!
+//! The user's own styles are JSON files in `<data dir>/caption-styles/` (a `dir` parameter points
+//! the commands elsewhere); their ids are `user:<name>`.
 
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use filmcraft_project::{CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle};
@@ -182,24 +192,135 @@ pub fn find(id: &str) -> Option<Preset> {
     builtin().into_iter().find(|p| p.id == id)
 }
 
-fn list(_: &mut Session, _: &Value) -> Result<Value> {
-    Ok(json!(builtin().iter().map(|p| json!({"id": p.id, "name": p.name, "style": style_json(&p.style)})).collect::<Vec<_>>()))
+/// A caption style of the user's own, as saved and shared.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct UserStyle {
+    /// `jilo-caption-style`.
+    pub format: String,
+    pub name: String,
+    pub style: CaptionStyle,
+}
+
+const FORMAT: &str = "jilo-caption-style";
+
+/// Where the user's own styles live.
+pub fn user_dir() -> Option<PathBuf> {
+    crate::autosave::default_data_dir().map(|d| d.join("caption-styles"))
+}
+
+fn file_name(name: &str) -> String {
+    let s: String = name.trim().chars().map(|c| if c.is_alphanumeric() { c.to_lowercase().next().unwrap_or(c) } else { '-' }).collect();
+    format!("{}.json", s.trim_matches('-'))
+}
+
+/// The user's own styles in `dir`, by name.
+pub fn user_styles_in(dir: &Path) -> Vec<UserStyle> {
+    let mut v: Vec<UserStyle> = std::fs::read_dir(dir)
+        .map(|rd| {
+            rd.flatten()
+                .filter(|e| e.path().extension().is_some_and(|x| x == "json"))
+                .filter_map(|e| std::fs::read(e.path()).ok())
+                .filter_map(|b| serde_json::from_slice::<UserStyle>(&b).ok())
+                .filter(|u| u.format == FORMAT && !u.name.trim().is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+    v.sort_by_key(|u| u.name.to_lowercase());
+    v
+}
+
+fn save_in(dir: &Path, u: &UserStyle) -> std::io::Result<PathBuf> {
+    std::fs::create_dir_all(dir)?;
+    let path = dir.join(file_name(&u.name));
+    std::fs::write(&path, serde_json::to_vec_pretty(u).map_err(std::io::Error::other)?)?;
+    Ok(path)
+}
+
+fn dir_p(p: &Value, cmd: &str) -> Result<PathBuf> {
+    match str_p(p, "dir") {
+        Some(d) => Ok(PathBuf::from(d)),
+        None => user_dir().ok_or_else(|| bad(cmd, "no data directory for caption styles")),
+    }
+}
+
+/// The style `id` names: a built-in preset id, or `user:<name>` (in `dir`).
+pub fn style_of(id: &str, dir: Option<&Path>) -> Option<(String, CaptionStyle)> {
+    match id.strip_prefix("user:") {
+        Some(name) => dir.and_then(|d| user_styles_in(d).into_iter().find(|u| u.name == name)).map(|u| (u.name, u.style)),
+        None => find(id).map(|p| (p.name.to_string(), p.style)),
+    }
+}
+
+fn list(_: &mut Session, p: &Value) -> Result<Value> {
+    let mut v: Vec<Value> = builtin().iter().map(|p| json!({"id": p.id, "name": p.name, "style": style_json(&p.style)})).collect();
+    if let Ok(d) = dir_p(p, "captions.stylePresets") {
+        v.extend(user_styles_in(&d).iter().map(|u| json!({"id": format!("user:{}", u.name), "name": u.name, "user": true, "style": style_json(&u.style)})));
+    }
+    Ok(json!(v))
+}
+
+fn save(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "captions.saveStylePreset";
+    let name =
+        str_p(p, "name").map(str::trim).filter(|n| !n.is_empty() && n.chars().count() <= 60).ok_or_else(|| bad(cmd, "`name`: what to call the style"))?;
+    let track = *style_targets(s, p, cmd)?.first().ok_or_else(|| bad(cmd, "the sequence has no caption track"))?;
+    let style = s.active_sequence().and_then(|q| q.caption_tracks.iter().find(|t| t.id == track)).map(|t| t.style.clone()).ok_or(EngineError::NoSequence)?;
+    let u = UserStyle { format: FORMAT.into(), name: name.to_string(), style };
+    let path = save_in(&dir_p(p, cmd)?, &u).map_err(|e| EngineError::Other(e.to_string()))?;
+    Ok(json!({"id": format!("user:{name}"), "path": path.to_string_lossy()}))
+}
+
+fn delete(_: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "captions.deleteStylePreset";
+    let name = str_p(p, "name").ok_or_else(|| bad(cmd, "`name`"))?;
+    let name = name.strip_prefix("user:").unwrap_or(name);
+    let d = dir_p(p, cmd)?;
+    if !user_styles_in(&d).iter().any(|u| u.name == name) {
+        return Err(bad(cmd, format!("no style of yours named `{name}`")));
+    }
+    std::fs::remove_file(d.join(file_name(name))).map_err(|e| EngineError::Other(e.to_string()))?;
+    Ok(json!({"deleted": name}))
+}
+
+fn export(_: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "captions.exportStylePreset";
+    let id = str_p(p, "preset").ok_or_else(|| bad(cmd, "`preset`"))?;
+    let path = str_p(p, "path").ok_or_else(|| bad(cmd, "`path`: the .json file to write"))?;
+    let d = dir_p(p, cmd).ok();
+    let (name, style) = style_of(id, d.as_deref()).ok_or_else(|| bad(cmd, format!("unknown preset `{id}`")))?;
+    let u = UserStyle { format: FORMAT.into(), name, style };
+    std::fs::write(path, serde_json::to_vec_pretty(&u).map_err(|e| EngineError::Other(e.to_string()))?)
+        .map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    Ok(json!({"path": path}))
+}
+
+fn import(_: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "captions.importStylePreset";
+    let path = str_p(p, "path").ok_or_else(|| bad(cmd, "`path`: a caption style .json"))?;
+    let bytes = std::fs::read(path).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    let u: UserStyle = serde_json::from_slice(&bytes).map_err(|e| bad(cmd, format!("{path} is not a caption style: {e}")))?;
+    if u.format != FORMAT || u.name.trim().is_empty() {
+        return Err(bad(cmd, format!("{path} is not a Jilo Studio caption style")));
+    }
+    save_in(&dir_p(p, cmd)?, &u).map_err(|e| EngineError::Other(e.to_string()))?;
+    Ok(json!({"id": format!("user:{}", u.name), "name": u.name}))
 }
 
 fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "captions.applyStylePreset";
     let id = str_p(p, "preset").ok_or_else(|| bad(cmd, "`preset` (an id from captions.stylePresets) is required"))?;
-    let preset = find(id).ok_or_else(|| bad(cmd, format!("unknown preset `{id}`")))?;
+    let d = dir_p(p, cmd).ok();
+    let (_, style) = style_of(id, d.as_deref()).ok_or_else(|| bad(cmd, format!("unknown preset `{id}`")))?;
     let tracks = style_targets(s, p, cmd)?;
     s.edit("Caption Style", |pr, st| {
         let seq = st.active_sequence.ok_or(EngineError::NoSequence)?;
         let q = pr.sequence_mut(seq).ok_or(EngineError::NoSequence)?;
         for tid in &tracks {
-            q.caption_track_mut(*tid).ok_or(EngineError::NoSequence)?.style = preset.style.clone();
+            q.caption_track_mut(*tid).ok_or(EngineError::NoSequence)?.style = style.clone();
         }
         Ok(())
     })?;
-    Ok(json!({"preset": preset.id, "tracks": tracks.iter().map(|t| t.0).collect::<Vec<_>>()}))
+    Ok(json!({"preset": id, "tracks": tracks.iter().map(|t| t.0).collect::<Vec<_>>()}))
 }
 
 pub fn commands() -> Vec<CommandSpec> {
@@ -223,6 +344,46 @@ pub fn commands() -> Vec<CommandSpec> {
             enabled: has_caption_track,
             run: apply,
             journal: true,
+        },
+        CommandSpec {
+            id: "captions.saveStylePreset",
+            label: "Save Caption Style",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"name":str,"track":id|"C1"?,"dir":path?}"#,
+            enabled: has_caption_track,
+            run: save,
+            journal: false,
+        },
+        CommandSpec {
+            id: "captions.deleteStylePreset",
+            label: "Delete Caption Style",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"name":str,"dir":path?}"#,
+            enabled: always,
+            run: delete,
+            journal: false,
+        },
+        CommandSpec {
+            id: "captions.exportStylePreset",
+            label: "Export Caption Style",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"preset":id,"path":file,"dir":path?}"#,
+            enabled: always,
+            run: export,
+            journal: false,
+        },
+        CommandSpec {
+            id: "captions.importStylePreset",
+            label: "Import Caption Style",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"path":file,"dir":path?}"#,
+            enabled: always,
+            run: import,
+            journal: false,
         },
     ]
 }
@@ -273,5 +434,35 @@ mod tests {
             assert!(y.shadow && y.shadow_offset == [2.0, 4.0] && y.font_style == "Bold");
         }
         assert!(s.execute("captions.setStyle", json!({"shadowOffset": [1]})).is_err());
+    }
+
+    #[test]
+    fn own_styles_are_saved_shared_and_applied() {
+        let d = std::env::temp_dir().join(format!("jilo-cap-styles-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let dir = d.join("mine").to_string_lossy().to_string();
+        let mut s = Session::default();
+        s.execute("file.openDemoProject", json!({})).unwrap();
+        s.execute("captions.newTrack", json!({})).unwrap();
+        s.execute("captions.applyStylePreset", json!({"preset": "neon-cyan", "track": "C1"})).unwrap();
+        s.execute("captions.setStyle", json!({"track": "C1", "size": 77.0})).unwrap();
+        let r = s.execute("captions.saveStylePreset", json!({"name": "Channel Look", "track": "C1", "dir": dir})).unwrap();
+        assert_eq!(r["id"], "user:Channel Look");
+        let listed = s.execute("captions.stylePresets", json!({"dir": dir})).unwrap();
+        assert!(listed.as_array().unwrap().iter().any(|p| p["id"] == "user:Channel Look" && p["user"] == true));
+        // shared as a file and taken in elsewhere
+        let file = d.join("look.json").to_string_lossy().to_string();
+        s.execute("captions.exportStylePreset", json!({"preset": "user:Channel Look", "path": file, "dir": dir})).unwrap();
+        let other = d.join("theirs").to_string_lossy().to_string();
+        assert_eq!(s.execute("captions.importStylePreset", json!({"path": file, "dir": other})).unwrap()["id"], "user:Channel Look");
+        // applied like a built-in one
+        s.execute("captions.applyStylePreset", json!({"preset": "classic", "track": "C1"})).unwrap();
+        s.execute("captions.applyStylePreset", json!({"preset": "user:Channel Look", "track": "C1", "dir": other})).unwrap();
+        assert_eq!(s.active_sequence().unwrap().caption_tracks[0].style.size, 77.0);
+        s.execute("captions.deleteStylePreset", json!({"name": "user:Channel Look", "dir": dir})).unwrap();
+        assert!(user_styles_in(Path::new(&dir)).is_empty());
+        std::fs::write(d.join("bad.json"), b"{}").unwrap();
+        assert!(s.execute("captions.importStylePreset", json!({"path": d.join("bad.json").to_string_lossy(), "dir": other})).is_err());
+        let _ = std::fs::remove_dir_all(&d);
     }
 }

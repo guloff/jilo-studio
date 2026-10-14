@@ -4320,3 +4320,12 @@
 	Working on it in the background: the result opens when it is ready.	正在后台处理：完成后会打开结果。
 	Ready: the result is open on the timeline.	完成：结果已在时间线上打开。
 	Done, with problems: {errors}	已完成，但有问题：{errors}
+# Caption Style: my styles (15.C3)
+	My Styles	我的样式
+	Save the current look to use it again in any project, or import one someone shared.	保存当前外观以在任何项目中重复使用，或导入他人分享的样式。
+	Name for this look	此样式的名称
+	Save Style	保存样式
+	Save Caption Style	保存字幕样式
+	Delete Caption Style	删除字幕样式
+	Export Caption Style	导出字幕样式
+	Import Caption Style	导入字幕样式

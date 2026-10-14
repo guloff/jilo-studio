@@ -4285,3 +4285,12 @@
 	Working on it in the background: the result opens when it is ready.	Trabajando en segundo plano: el resultado se abrirá cuando esté listo.
 	Ready: the result is open on the timeline.	Listo: el resultado está abierto en la línea de tiempo.
 	Done, with problems: {errors}	Hecho, con problemas: {errors}
+# Caption Style: my styles (15.C3)
+	My Styles	Mis estilos
+	Save the current look to use it again in any project, or import one someone shared.	Guarde el aspecto actual para usarlo en cualquier proyecto, o importe uno compartido.
+	Name for this look	Nombre para este aspecto
+	Save Style	Guardar estilo
+	Save Caption Style	Guardar estilo de subtítulos
+	Delete Caption Style	Eliminar estilo de subtítulos
+	Export Caption Style	Exportar estilo de subtítulos
+	Import Caption Style	Importar estilo de subtítulos

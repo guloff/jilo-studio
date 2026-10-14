@@ -352,7 +352,7 @@ fn start(s: &mut Session, p: &Value) -> Result<Value> {
         s.execute("brandKit.get", json!({"name": name})).map_err(|_| bad(cmd, format!("no brand kit `{name}`")))?;
     }
     if let Some(preset) = crate::commands::str_p(p, "captionPreset")
-        && crate::caption_presets::find(preset).is_none()
+        && crate::caption_presets::style_of(preset, crate::caption_presets::user_dir().as_deref()).is_none()
     {
         return Err(bad(cmd, format!("no caption style preset `{preset}`")));
     }

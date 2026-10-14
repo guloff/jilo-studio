@@ -181,6 +181,9 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
             Target::Item(i) => app.item_revision(i),
             _ => app.session.revision,
         };
+        // a caption style hovered in the Caption Style panel shows in the paused Program monitor
+        let preview = if which == Which::Program && !playing { caption_preview(app, ui.ctx()) } else { None };
+        let rev = preview.as_ref().map_or(rev, |p| p.0);
         let size_key = (scale * 1000.0) as u32;
         let channel = display.is_channel();
         // EDR monitors show an HDR sequence from the CPU path (its half-float picture); the GPU
@@ -196,7 +199,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
         // Draft decoding (opt-in): only while playing at 1/2 resolution or lower.
         let draft = crate::frames::draft_playback(playing, scale, app.session.prefs.playback.draft_decode);
         let key = FrameKey { target, frame, size: size_key, revision: rev, draft };
-        let project = app.session.project.clone();
+        let project = preview.map_or_else(|| app.session.project.clone(), |p| p.1);
         if playing {
             let preroll = which == Which::Program && app.playback.preroll.is_some();
             let speed = if which == Which::Program { app.playback.speed } else { app.source_playback.clock.speed };
@@ -928,6 +931,35 @@ fn source_nav(app: &mut FilmcraftApp, cmd: &str) {
         _ => rate.tick_of(rate.frame_at(cur).saturating_add(1)),
     };
     let _ = app.session.execute("source.setPlayhead", json!({"time": t.0}));
+}
+
+/// The project with the hovered caption style on the open sequence's caption tracks, and a
+/// revision of its own for the frame cache; None when nothing is hovered (this pass or the last).
+fn caption_preview(app: &mut FilmcraftApp, ctx: &egui::Context) -> Option<(u64, std::sync::Arc<filmcraft_project::Project>)> {
+    let pass = ctx.cumulative_pass_nr();
+    let (id, style, seen) = app.ui.caption_hover.clone()?;
+    if seen + 1 < pass {
+        app.ui.caption_hover = None;
+        return None;
+    }
+    let seq = app.session.state.active_sequence?;
+    let rev = app.session.revision;
+    let tag = id.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x100_0000_01b3));
+    let key = rev ^ tag.rotate_left(7) ^ 0x7c47_0000_0000_0001;
+    if let Some((k, p)) = &app.ui.caption_hover_project
+        && *k == key
+    {
+        return Some((key, p.clone()));
+    }
+    let mut p = (*app.session.project).clone();
+    if let Some(q) = p.sequence_mut(seq) {
+        for t in &mut q.caption_tracks {
+            t.style = style.clone();
+        }
+    }
+    let p = std::sync::Arc::new(p);
+    app.ui.caption_hover_project = Some((key, p.clone()));
+    Some((key, p))
 }
 
 /// Short-video safe zone: shade the parts of a vertical frame that the feeds of short-video apps

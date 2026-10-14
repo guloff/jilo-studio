@@ -9,7 +9,11 @@
 //! pack is downloaded (the button above the gallery says its size, source and licence); until then
 //! they draw in Inter.
 //!
-//! Automation ids: `captionStyle.track`, `captionStyle.all`, `captionStyle.preset.<id>`,
+//! The user's own styles follow (My Styles: Save Style, Import…, right-click a tile for Export… and
+//! Delete). Hovering any tile previews its look in the paused Program monitor.
+//!
+//! Automation ids: `captionStyle.track`, `captionStyle.all`, `captionStyle.preset.<id>` (own
+//! styles: `user:<name>`), `captionStyle.saveName`, `captionStyle.save`, `captionStyle.import`,
 //! `captionStyle.downloadFonts`,
 //! `captionStyle.<field>` (font, fontStyle, size, uppercase, color, outline, outlineColor,
 //! background, backgroundColor, boxRadius, shadow, shadowColor, shadowBlur, shadowX, shadowY,
@@ -147,6 +151,9 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         if current { t.text } else { t.text_dim },
                     );
                     app.auto.add(&format!("captionStyle.preset.{}", p.id), r, name);
+                    if resp.hovered() {
+                        app.ui.caption_hover = Some((p.id.to_string(), p.style.clone(), ui.ctx().cumulative_pass_nr()));
+                    }
                     if resp.clicked() {
                         actions.push(("captions.applyStylePreset".into(), json!({"preset": p.id, "track": target})));
                     }
@@ -154,6 +161,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             });
             ui.add_space(6.0);
         }
+        my_styles(app, ui, &style, &target, sample, pack, &mut actions);
         ui.add_space(6.0);
         let mut set = |field: &str, v: Value| actions.push(("captions.setStyle".into(), json!({"track": target, field: v})));
 
@@ -392,6 +400,89 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 }
 
 /// Whether the caption font pack is installed (checked on disk at most every 2 seconds).
+/// The user's own styles: tiles like the presets (right-click: Export…, Delete), and Save /
+/// Import. Hovering a tile previews it in the Program monitor, as for the presets.
+fn my_styles(app: &mut FilmcraftApp, ui: &mut egui::Ui, style: &CaptionStyle, target: &Value, sample: &str, pack: bool, actions: &mut Vec<(String, Value)>) {
+    let t = app.tokens;
+    heading(ui, tl!("My Styles"), &t);
+    let mine: Vec<filmcraft_engine::caption_presets::UserStyle> =
+        filmcraft_engine::caption_presets::user_dir().map(|d| filmcraft_engine::caption_presets::user_styles_in(&d)).unwrap_or_default();
+    if mine.is_empty() {
+        ui.label(RichText::new(tl!("Save the current look to use it again in any project, or import one someone shared.")).size(11.5).color(t.text_dim));
+    }
+    let cols = ((ui.available_width() + 8.0) / (TILE_W + 8.0)).floor().max(1.0) as usize;
+    for row in mine.chunks(cols) {
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 8.0;
+            for u in row {
+                let id = format!("user:{}", u.name);
+                let (r, resp) = ui.allocate_exact_size(vec2(TILE_W, TILE_H + 18.0), Sense::click());
+                let frame = Rect::from_min_size(r.min, vec2(TILE_W, TILE_H));
+                let tex = preview_texture(ui.ctx(), &id, &u.style, sample, pack);
+                ui.painter().image(tex.id(), frame, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                let current = u.style == *style;
+                let stroke = if current {
+                    Stroke::new(2.0, t.accent)
+                } else if resp.hovered() {
+                    Stroke::new(1.5, t.text_dim)
+                } else {
+                    Stroke::new(1.0, t.field_border)
+                };
+                ui.painter().rect_stroke(frame, 4.0, stroke, StrokeKind::Inside);
+                ui.painter().text(
+                    pos2(frame.center().x, frame.max.y + 9.0),
+                    egui::Align2::CENTER_CENTER,
+                    &u.name,
+                    Tokens::ui(11.5),
+                    if current { t.text } else { t.text_dim },
+                );
+                app.auto.add(&format!("captionStyle.preset.{id}"), r, &u.name);
+                if resp.hovered() {
+                    app.ui.caption_hover = Some((id.clone(), u.style.clone(), ui.ctx().cumulative_pass_nr()));
+                }
+                if resp.clicked() {
+                    actions.push(("captions.applyStylePreset".into(), json!({"preset": id, "track": target})));
+                }
+                resp.context_menu(|ui| {
+                    if ui.button(tl!("Export…")).clicked() {
+                        let file = format!("{}.json", u.name);
+                        if let Some(path) = app.hooks.pick_save_as.as_mut().and_then(|f| f("Caption style", &["json"], &file)) {
+                            actions.push(("captions.exportStylePreset".into(), json!({"preset": id, "path": path})));
+                        }
+                        ui.close();
+                    }
+                    if ui.button(tl!("Delete")).clicked() {
+                        actions.push(("captions.deleteStylePreset".into(), json!({"name": u.name})));
+                        ui.close();
+                    }
+                });
+            }
+        });
+        ui.add_space(6.0);
+    }
+    let name_id = egui::Id::new("caption-style-save-name");
+    let mut name: String = ui.ctx().data(|d| d.get_temp(name_id)).unwrap_or_default();
+    ui.horizontal(|ui| {
+        let r = ui.add(egui::TextEdit::singleline(&mut name).hint_text(tl!("Name for this look")).desired_width(170.0));
+        app.auto.add("captionStyle.saveName", r.rect, "Name for this look");
+        let r = ui.add_enabled(!name.trim().is_empty(), egui::Button::new(tl!("Save Style")));
+        app.auto.add("captionStyle.save", r.rect, "Save Style");
+        if r.clicked() {
+            let track = if target == "all" { json!("C1") } else { target.clone() };
+            actions.push(("captions.saveStylePreset".into(), json!({"name": name.trim(), "track": track})));
+            name.clear();
+        }
+        let r = ui.add_enabled(app.hooks.pick_open_file.is_some(), egui::Button::new(tl!("Import…")));
+        app.auto.add("captionStyle.import", r.rect, "Import style");
+        if r.clicked()
+            && let Some(path) = app.hooks.pick_open_file.as_mut().and_then(|f| f("Caption style", &["json"]))
+        {
+            actions.push(("captions.importStylePreset".into(), json!({"path": path})));
+        }
+    });
+    ui.ctx().data_mut(|d| d.insert_temp(name_id, name));
+}
+
 fn pack_installed(ctx: &egui::Context) -> bool {
     let id = egui::Id::new("caption-style-pack");
     let now = ctx.input(|i| i.time);

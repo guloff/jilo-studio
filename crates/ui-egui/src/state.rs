@@ -728,6 +728,13 @@ pub struct UiState {
     /// AI ▸ Batch Process…: the dialog, its choices and the batch it started.
     #[serde(skip)]
     pub batch: BatchUi,
+    /// A caption style hovered in the Caption Style panel (id, style, pass), previewed in the paused
+    /// Program monitor.
+    #[serde(skip)]
+    pub caption_hover: Option<(String, filmcraft_project::CaptionStyle, u64)>,
+    /// The project the preview renders (key, project).
+    #[serde(skip)]
+    pub caption_hover_project: Option<(u64, std::sync::Arc<filmcraft_project::Project>)>,
     /// The start from a video: the clips to offer the choices for, and the batch of a choice.
     #[serde(skip)]
     pub start: crate::panels::start::StartUi,
@@ -1270,6 +1277,8 @@ impl Default for UiState {
             auto_mix: Default::default(),
             library: Default::default(),
             start: Default::default(),
+            caption_hover: None,
+            caption_hover_project: None,
             recipes: Default::default(),
             palette: Default::default(),
             assistant: Default::default(),

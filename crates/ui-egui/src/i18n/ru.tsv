@@ -4280,3 +4280,12 @@ mode	Edit	Монтаж
 	Working on it in the background: the result opens when it is ready.	Работаю в фоне: результат откроется, когда будет готов.
 	Ready: the result is open on the timeline.	Готово: результат открыт на таймлайне.
 	Done, with problems: {errors}	Готово, но с проблемами: {errors}
+# Caption Style: my styles (15.C3)
+	My Styles	Мои стили
+	Save the current look to use it again in any project, or import one someone shared.	Сохраните текущий вид, чтобы использовать его в любом проекте, или импортируйте чужой.
+	Name for this look	Название стиля
+	Save Style	Сохранить стиль
+	Save Caption Style	Сохранить стиль субтитров
+	Delete Caption Style	Удалить стиль субтитров
+	Export Caption Style	Экспорт стиля субтитров
+	Import Caption Style	Импорт стиля субтитров
