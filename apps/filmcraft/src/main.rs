@@ -292,6 +292,14 @@ fn main() -> eframe::Result {
                 Some(Box::new(|dir: &str| rfd::FileDialog::new().set_directory(dir).pick_folder().map(|p| p.to_string_lossy().into_owned())));
             app.hooks.open_path = Some(Box::new(open_path));
             app.hooks.clipboard_media = Some(Box::new(clipboard_media));
+            // a notification when a long job ends in the background (the app bundle only)
+            if filmcraft_platform::notify::available() {
+                app.hooks.notify = Some(Box::new(|title: &str, body: &str| {
+                    if let Err(e) = filmcraft_platform::notify::send(title, body) {
+                        log::warn!("notification: {e}");
+                    }
+                }));
+            }
             // Settings ▸ General ▸ Interface Language ▸ System Language (#218).
             app.hooks.cursor_screen_position = Some(Box::new(filmcraft_platform::cursor::cursor_screen_position));
             // Finder / Dock "open" requests and the system's recent documents (macOS).

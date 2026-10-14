@@ -4178,3 +4178,7 @@ mode	Edit	Монтаж
 	Cuts on the beat: {n} of {all}	Склеек под бит: {n} из {all}
 	Find Beats	Найти доли
 	Cut to the Beat	Склейки под бит
+# Notifications (16.10)
+	{task} stopped: {error}	{task} — остановлено: {error}
+	{task} is done	{task} — готово
+	Notify when an export or a long AI task ends while the app is in the background	Уведомлять, когда экспорт или долгая ИИ-задача закончились, пока приложение в фоне

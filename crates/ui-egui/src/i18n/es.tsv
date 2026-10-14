@@ -4183,3 +4183,7 @@
 	Cuts on the beat: {n} of {all}	Cortes al ritmo: {n} de {all}
 	Find Beats	Buscar tiempos
 	Cut to the Beat	Cortar al ritmo
+# Notifications (16.10)
+	{task} stopped: {error}	{task} se detuvo: {error}
+	{task} is done	{task}: listo
+	Notify when an export or a long AI task ends while the app is in the background	Notificar cuando termine una exportación o una tarea larga de IA con la aplicación en segundo plano

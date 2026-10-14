@@ -4218,3 +4218,7 @@
 	Cuts on the beat: {n} of {all}	踩点剪辑：{n}/{all}
 	Find Beats	查找节拍
 	Cut to the Beat	按节拍剪切
+# Notifications (16.10)
+	{task} stopped: {error}	{task} 已停止：{error}
+	{task} is done	{task} 已完成
+	Notify when an export or a long AI task ends while the app is in the background	应用在后台时，导出或耗时的 AI 任务结束后发送通知

@@ -43,6 +43,7 @@ pub mod i18n;
 pub mod icons;
 pub mod links;
 pub mod menus;
+pub mod notifications;
 pub mod panels;
 pub mod perf;
 #[cfg(not(target_arch = "wasm32"))]
@@ -154,6 +155,9 @@ pub struct HostHooks {
     /// Files or an image on the system clipboard, for Paste in the Timeline and the Project panel
     /// (#611). Without it Paste only pastes clips copied in FilmCraft.
     pub clipboard_media: Option<Box<dyn FnMut() -> Option<ClipboardMedia>>>,
+    /// Post a system notification (title, body) when a long job ends in the background
+    /// ([`notifications`]). Without it nothing is posted.
+    pub notify: Option<Box<dyn FnMut(&str, &str)>>,
 }
 
 /// What [`HostHooks::clipboard_media`] found on the system clipboard.
@@ -265,6 +269,8 @@ pub struct FilmcraftApp {
     /// Audio during scrubbing (#211).
     pub scrub: scrub::ScrubAudio,
     pub hooks: HostHooks,
+    /// Long jobs being watched for a notification when they end.
+    pub notify_watch: notifications::Watch,
     pub dialog: Option<Dialog>,
     pub file_dialogs: panels::file_dialogs::FileDialogState,
     pub auto: automation::Registry,
@@ -559,6 +565,7 @@ impl FilmcraftApp {
             audio: None,
             scrub: Default::default(),
             hooks: HostHooks::default(),
+            notify_watch: Default::default(),
             // Unsaved changes left by a session that died are offered first thing.
             dialog: recovery.then_some(Dialog::Recovery),
             file_dialogs: Default::default(),
@@ -1732,6 +1739,7 @@ impl FilmcraftApp {
         // the Timeline has had its chance to place a file drop this frame; anything left stays a bin import
         self.pending_timeline_drop = None;
         panels::dialogs::show(self, &ctx);
+        notifications::watch(self, &ctx);
         panels::ai_tasks::show(self, &ctx);
         panels::highlights::show(self, &ctx);
         panels::autozoom::show(self, &ctx);
