@@ -136,6 +136,12 @@ pub fn ensure_consent(s: &mut Session, provider: Provider, p: &Value, cmd: &str,
 
 /// [`ensure_consent`] for sending `what` (text of the transcript, captions…).
 pub fn ensure_consent_for(s: &mut Session, provider: Provider, p: &Value, cmd: &str, what: &str) -> Result<()> {
+    if s.prefs.ai.local_only {
+        return Err(bad(
+            cmd,
+            format!("Only on this computer is on (Settings ▸ AI): {} is not used. Choose an engine on this computer, or turn it off.", provider.name()),
+        ));
+    }
     if s.prefs.ai.confirmed(provider) {
         return Ok(());
     }

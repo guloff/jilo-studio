@@ -4196,3 +4196,19 @@ mode	Edit	Монтаж
 	Simple	Простой
 	AI Editing	AI-монтаж
 	Simple mode: fewer panels and tools (everything stays in the menus and the command palette, ⌘J)	Простой режим: меньше панелей и инструментов (всё остаётся в меню и в палитре команд, ⌘J)
+# Settings ▸ AI ▸ on this computer (15.A2)
+	Only on this computer: never use a cloud engine	Только на этом компьютере: никогда не использовать облачные движки
+	Models on this computer	Модели на этом компьютере
+	Downloaded · {size}	Загружено · {size}
+	{name} deleted: {size} freed.	{name} удалена: освобождено {size}.
+	{name} is downloading: see the Progress panel.	{name} загружается: см. панель «Ход выполнения».
+	Kept in {dir} ({size} in all).	Хранятся в {dir} (всего {size}).
+	Cloud consents	Согласия на облако
+	Nothing has been agreed to yet.	Согласий пока нет.
+	Agreed to send material to: {list}	Разрешено отправлять материал в: {list}
+	Ask Again	Спрашивать снова
+	Each cloud engine asks again before its first use.	Каждый облачный движок снова спросит перед первым использованием.
+	Local AI Models	Локальные модели ИИ
+	Download AI Model	Загрузить модель ИИ
+	Delete AI Model	Удалить модель ИИ
+	Reset Cloud Consents	Сбросить согласия на облако

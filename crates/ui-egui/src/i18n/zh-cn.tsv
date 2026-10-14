@@ -4236,3 +4236,19 @@
 	Simple	简易
 	AI Editing	AI 剪辑
 	Simple mode: fewer panels and tools (everything stays in the menus and the command palette, ⌘J)	简易模式：更少的面板和工具（所有功能仍在菜单和命令面板 ⌘J 中）
+# Settings ▸ AI ▸ on this computer (15.A2)
+	Only on this computer: never use a cloud engine	仅限本机：从不使用云端引擎
+	Models on this computer	本机上的模型
+	Downloaded · {size}	已下载 · {size}
+	{name} deleted: {size} freed.	已删除 {name}：释放 {size}。
+	{name} is downloading: see the Progress panel.	{name} 正在下载：见进度面板。
+	Kept in {dir} ({size} in all).	保存在 {dir}（共 {size}）。
+	Cloud consents	云端许可
+	Nothing has been agreed to yet.	尚未同意任何内容。
+	Agreed to send material to: {list}	已同意向以下服务发送素材：{list}
+	Ask Again	重新询问
+	Each cloud engine asks again before its first use.	每个云端引擎在首次使用前会再次询问。
+	Local AI Models	本地 AI 模型
+	Download AI Model	下载 AI 模型
+	Delete AI Model	删除 AI 模型
+	Reset Cloud Consents	重置云端许可

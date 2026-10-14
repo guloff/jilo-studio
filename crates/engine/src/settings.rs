@@ -460,6 +460,8 @@ pub struct AiPrefs {
     pub elevenlabs_voice_model: String,
     /// Cloud providers the user has agreed to send material to (asked once per provider).
     pub confirmed_providers: Vec<String>,
+    /// Only on this computer: every cloud engine is refused.
+    pub local_only: bool,
 }
 
 impl Default for AiPrefs {
@@ -479,6 +481,7 @@ impl Default for AiPrefs {
             gemini_image_model: Provider::Gemini.default_image_model().into(),
             elevenlabs_voice_model: filmcraft_ai::elevenlabs::DEFAULT_VOICE_MODEL.into(),
             confirmed_providers: Vec::new(),
+            local_only: false,
         }
     }
 }
@@ -942,7 +945,9 @@ static CATEGORIES: &[Category] = &[
                 "Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.",
             ),
             // API keys first: what a cloud engine needs before anything else on this page works
+            b("ai.localOnly", "Only on this computer: never use a cloud engine", true),
             Row::Custom("aiKeys"),
+            Row::Custom("aiLocal"),
             Row::Group(
                 "Speech Recognition",
                 &[

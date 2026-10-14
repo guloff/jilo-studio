@@ -607,6 +607,7 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
         }
         "appearanceModes" => appearance_modes(app, ui, d),
         "aiKeys" => ai_keys(app, ui, d),
+        "aiLocal" => ai_local(app, ui, d),
         "autoSaveStatus" => {
             let status = app.session.execute("file.autoSaveStatus", json!({})).unwrap_or_default();
             if let Some(dir) = status["autoSaveDir"].as_str() {
@@ -627,6 +628,83 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
         }
         _ => {}
     }
+}
+
+/// Settings ▸ AI ▸ On this computer: the local models with their size, downloaded in the
+/// background or deleted to free the disk (`ai.localModels`, `ai.downloadModel`, `ai.deleteModel`),
+/// and the cloud consents given so far, forgotten (`ai.resetConsents`).
+fn ai_local(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
+    let t = app.tokens;
+    let list = app.session.execute("ai.localModels", json!({})).unwrap_or_default();
+    let mb = |b: u64| format!("{:.0} MB", b as f64 / 1_000_000.0);
+    group(ui, &t, tl!("Models on this computer"), |ui| {
+        for m in list["models"].as_array().cloned().unwrap_or_default() {
+            let id = m["id"].as_str().unwrap_or_default().to_string();
+            let name = m["name"].as_str().unwrap_or_default().to_string();
+            // a download of this model running as a job
+            let running = app
+                .session
+                .jobs
+                .iter()
+                .map(|j| j.to_json())
+                .find(|j| j["finished"] != true && j["label"].as_str().is_some_and(|l| l.starts_with("Downloading") && l.contains(name.as_str())));
+            ui.horizontal(|ui| {
+                field_label(ui, &name);
+                let state = match (&running, m["installed"] == true) {
+                    (Some(j), _) => format!("{} {:.0} %", tl!("Downloading…"), j["progress"].as_f64().unwrap_or(0.0) * 100.0),
+                    (None, true) => tlf!("Downloaded · {size}", size = mb(m["size"].as_u64().unwrap_or(0))),
+                    (None, false) => mb(m["size"].as_u64().unwrap_or(0)),
+                };
+                ui.label(RichText::new(state).size(12.5).color(t.text_dim));
+                if running.is_none() {
+                    if m["installed"] == true {
+                        if button(app, ui, &format!("settings.aiLocal.{id}.delete"), tl!("Delete"), false) {
+                            d.message = match app.session.execute("ai.deleteModel", json!({"model": id})) {
+                                Ok(r) => tlf!("{name} deleted: {size} freed.", name, size = mb(r["freed"].as_u64().unwrap_or(0))),
+                                Err(e) => e.to_string(),
+                            };
+                        }
+                    } else if button(app, ui, &format!("settings.aiLocal.{id}.download"), tl!("Download"), false) {
+                        d.message = match app.session.execute("ai.downloadModel", json!({"model": id})) {
+                            Ok(_) => tlf!("{name} is downloading: see the Progress panel.", name),
+                            Err(e) => e.to_string(),
+                        };
+                    }
+                }
+            });
+            if running.is_some() {
+                ui.ctx().request_repaint_after(std::time::Duration::from_millis(250));
+            }
+        }
+        if let Some(dir) = list["dir"].as_str() {
+            note(ui, &t, &tlf!("Kept in {dir} ({size} in all).", dir, size = mb(list["used"].as_u64().unwrap_or(0))));
+        }
+    });
+    let given = app.session.prefs.ai.confirmed_providers.clone();
+    group(ui, &t, tl!("Cloud consents"), |ui| {
+        let names: Vec<String> = given.iter().filter_map(|p| filmcraft_ai::Provider::from_id(p).map(|x| x.name().to_string())).collect();
+        ui.horizontal(|ui| {
+            field_label(ui, "");
+            let text = if names.is_empty() {
+                tl!("Nothing has been agreed to yet.").to_string()
+            } else {
+                tlf!("Agreed to send material to: {list}", list = names.join(", "))
+            };
+            ui.label(RichText::new(text).size(12.5));
+            if !names.is_empty() && button(app, ui, "settings.aiLocal.resetConsents", tl!("Ask Again"), false) {
+                d.message = match app.session.execute("ai.resetConsents", json!({})) {
+                    Ok(_) => {
+                        // the draft OK applies must not bring them back
+                        if let Some(ai) = d.values.get_mut("ai") {
+                            ai["confirmedProviders"] = json!([]);
+                        }
+                        tl!("Each cloud engine asks again before its first use.").to_string()
+                    }
+                    Err(e) => e.to_string(),
+                };
+            }
+        });
+    });
 }
 
 /// Settings ▸ AI ▸ API keys: save, remove and check each provider's key, and pick a model from what

@@ -42,6 +42,7 @@ mod import_duplicates;
 pub mod inbox;
 pub mod interchange;
 pub mod keyboard;
+pub mod local_ai;
 mod marker_export;
 pub mod masks;
 pub mod media_browser;

@@ -4201,3 +4201,19 @@
 	Simple	Sencillo
 	AI Editing	Edición con IA
 	Simple mode: fewer panels and tools (everything stays in the menus and the command palette, ⌘J)	Modo sencillo: menos paneles y herramientas (todo sigue en los menús y en la paleta de comandos, ⌘J)
+# Settings ▸ AI ▸ on this computer (15.A2)
+	Only on this computer: never use a cloud engine	Solo en este ordenador: no usar nunca un motor en la nube
+	Models on this computer	Modelos en este ordenador
+	Downloaded · {size}	Descargado · {size}
+	{name} deleted: {size} freed.	{name} eliminado: {size} liberados.
+	{name} is downloading: see the Progress panel.	{name} se está descargando: vea el panel Progreso.
+	Kept in {dir} ({size} in all).	Guardados en {dir} ({size} en total).
+	Cloud consents	Consentimientos de la nube
+	Nothing has been agreed to yet.	Aún no se ha aceptado nada.
+	Agreed to send material to: {list}	Se aceptó enviar material a: {list}
+	Ask Again	Volver a preguntar
+	Each cloud engine asks again before its first use.	Cada motor en la nube volverá a preguntar antes de usarse.
+	Local AI Models	Modelos de IA locales
+	Download AI Model	Descargar modelo de IA
+	Delete AI Model	Eliminar modelo de IA
+	Reset Cloud Consents	Restablecer consentimientos de la nube
