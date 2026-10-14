@@ -557,6 +557,10 @@ pub struct BatchUi {
     /// The inbox folder field and its "watch" switch (shown from the preferences when opened).
     pub inbox_folder: String,
     pub inbox_on: bool,
+    /// Name of the Finder Quick Action to make from the steps.
+    pub quick_action: String,
+    /// Where Quick Actions go (None: `~/Library/Services`; tests point elsewhere).
+    pub quick_action_dir: Option<String>,
     /// `whisper`, `gemini` or `openai`.
     pub speech: String,
     /// `auto`, `ru`, `tg`, `en`…
@@ -580,6 +584,8 @@ impl Default for BatchUi {
             formats: [false, true, false, false],
             inbox_folder: String::new(),
             inbox_on: false,
+            quick_action: String::new(),
+            quick_action_dir: None,
             speech: "whisper".into(),
             language: "auto".into(),
             preset: String::new(),

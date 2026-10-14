@@ -27,7 +27,7 @@ use std::sync::atomic::Ordering;
 
 use filmcraft_export::presets::{DEFAULT_PRESET, preset_key};
 use filmcraft_export::{BitrateMode, ExportPreset, ExportSettings, Format, GpuRendering, HardwareEncoding};
-use filmcraft_project::{ItemId, Project};
+use filmcraft_project::{ItemId, ItemKind, Project};
 use filmcraft_time::{FrameRate, Tick, TimeRange};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -397,13 +397,48 @@ fn output_path(s: &Session, p: &Value, seq: ItemId, settings: &ExportSettings, s
         None => default_export_dir(s).join(file_safe(&name)).to_string_lossy().to_string(),
     };
     let path = with_extension(&base, settings);
-    match suffix {
+    let path = match suffix {
         Some(n) if n > 0 => match path.rsplit_once('.') {
             Some((a, e)) => format!("{a}_{}.{e}", n + 1),
             None => format!("{path}_{}", n + 1),
         },
         _ => path,
+    };
+    not_a_source(s, path)
+}
+
+/// `path`, unless it is a media file of the project (a sequence named after its clip exported
+/// beside it, `clip.mp4` → `clip.mp4`): then `clip export.mp4` (numbered when that is one too).
+/// An export never writes over the footage it is made from.
+pub fn not_a_source(s: &Session, path: String) -> String {
+    let same = |a: &str, b: &str| a == b || std::fs::canonicalize(a).ok().zip(std::fs::canonicalize(b).ok()).is_some_and(|(x, y)| x == y);
+    let sources: Vec<&str> = s
+        .project
+        .items
+        .values()
+        .filter_map(|i| match &i.kind {
+            ItemKind::Media(m) => match &m.media {
+                filmcraft_project::MediaRef::File { path } => Some(path.as_str()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect();
+    if !sources.iter().any(|x| same(x, &path)) {
+        return path;
     }
+    let (stem, ext) = path.rsplit_once('.').filter(|(a, _)| !a.ends_with('/')).map_or((path.as_str(), None), |(a, e)| (a, Some(e)));
+    for n in 1.. {
+        let tag = if n == 1 { " export".to_string() } else { format!(" export {n}") };
+        let candidate = match ext {
+            Some(e) => format!("{stem}{tag}.{e}"),
+            None => format!("{stem}{tag}"),
+        };
+        if !sources.iter().any(|x| same(x, &candidate)) {
+            return candidate;
+        }
+    }
+    path
 }
 
 /// Write the caption sidecar (`settings.caption_sidecar`) next to `path` for `range` of `seq`.
@@ -615,7 +650,13 @@ pub fn pump_queue(s: &mut Session, wait: bool) {
             }
             finished_any = true;
         }
-        if s.export_queue.items.iter().any(|i| i.status == QueueStatus::Encoding) || !s.export_queue.running {
+        let encoding = s.export_queue.items.iter().any(|i| i.status == QueueStatus::Encoding);
+        // waiting: an encode already running (started without waiting) is waited for too
+        if wait && encoding && !cfg!(target_arch = "wasm32") {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            continue;
+        }
+        if encoding || !s.export_queue.running {
             return;
         }
         let Some(i) = s.export_queue.items.iter().position(|i| i.status == QueueStatus::Ready) else {

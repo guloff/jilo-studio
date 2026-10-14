@@ -12,6 +12,9 @@ Options:
   --empty            start with an empty project
   --recover          recover the newest unsaved changes without asking
   --no-recover       start without asking about unsaved changes
+  --process '<steps>' <files...>
+                     process the files without a window (Finder Quick Actions, Shortcuts):
+                     the steps are AI ▸ Batch Process's as JSON (`{}`: export only)
   --data-dir <dir>   folder for auto-save, crash recovery and logs
                      (also: FILMCRAFT_DATA_DIR)
   --version          print the version and exit
@@ -22,6 +25,12 @@ Options:
 #[derive(Debug, PartialEq)]
 pub enum Cli {
     Run(Launch),
+    /// `--process '<steps>' [--data-dir <dir>] <files…>`: process files without a window.
+    Process {
+        params: String,
+        files: Vec<String>,
+        data_dir: Option<std::path::PathBuf>,
+    },
     Help,
     Version,
 }
@@ -49,7 +58,20 @@ pub struct Launch {
 pub fn parse(env_control_port: Option<String>, args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut l = Launch { control_port: None, files: Vec::new(), demo: true, startup_flag: false, recover: None, data_dir: None };
     let (mut help, mut version) = (false, false);
-    let mut args = args.into_iter();
+    let mut args = args.into_iter().peekable();
+    if args.peek().is_some_and(|a| a == "--process") {
+        args.next();
+        let params = args.next().ok_or("--process needs the steps (JSON, `{}` for export only) and files")?;
+        let (mut files, mut data_dir) = (Vec::new(), None);
+        while let Some(a) = args.next() {
+            match a.as_str() {
+                "--data-dir" => data_dir = Some(args.next().map(std::path::PathBuf::from).ok_or("--data-dir needs a folder")?),
+                "--" => files.extend(args.by_ref()),
+                _ => files.push(a),
+            }
+        }
+        return Ok(Cli::Process { params, files, data_dir });
+    }
     while let Some(a) = args.next() {
         match a.as_str() {
             "-h" | "--help" => help = true,
@@ -168,5 +190,18 @@ mod tests {
         // `--` ends the options; a lone `-` and macOS' process serial number are not options
         assert_eq!(launch(&["--", "--odd name.mov", "-h"]).files, ["--odd name.mov", "-h"]);
         assert_eq!(launch(&["-", "-psn_0_12345"]).files, ["-"]);
+    }
+
+    #[test]
+    fn process_takes_the_steps_and_the_files() {
+        match parse_args(&["--process", "{\"export\":true}", "--data-dir", "/d", "a.mov", "--", "-b.mov"]) {
+            Ok(Cli::Process { params, files, data_dir }) => {
+                assert_eq!(params, "{\"export\":true}");
+                assert_eq!(files, ["a.mov", "-b.mov"]);
+                assert_eq!(data_dir, Some(std::path::PathBuf::from("/d")));
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(parse_args(&["--process"]).is_err());
     }
 }

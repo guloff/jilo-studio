@@ -59,6 +59,7 @@ pub mod project_panel;
 pub mod project_templates;
 pub mod project_tools;
 pub mod proxies;
+pub mod quick_action;
 pub mod recipes;
 pub mod recognition;
 pub mod reframe;

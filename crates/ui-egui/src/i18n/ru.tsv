@@ -4182,3 +4182,12 @@ mode	Edit	Монтаж
 	{task} stopped: {error}	{task} — остановлено: {error}
 	{task} is done	{task} — готово
 	Notify when an export or a long AI task ends while the app is in the background	Уведомлять, когда экспорт или долгая ИИ-задача закончились, пока приложение в фоне
+# Finder Quick Actions (16.11)
+	Finder Quick Action	Быстрое действие Finder
+	Name in Finder	Название в Finder
+	Add to Finder	Добавить в Finder
+	In Finder: right-click files ▸ Quick Actions ▸ {name}	В Finder: правый клик по файлам ▸ Быстрые действия ▸ {name}
+	Make Finder Quick Action	Создать быстрое действие Finder
+	List Finder Quick Actions	Список быстрых действий Finder
+	Remove Finder Quick Action	Удалить быстрое действие Finder
+	Process Files	Обработать файлы

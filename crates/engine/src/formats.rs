@@ -46,7 +46,12 @@ fn make(s: &mut Session, aspect: &str, follow: &str, name: Option<&str>) -> Resu
     let short = q.settings.width.min(q.settings.height);
     let (q_w, q_h) = (q.settings.width, q.settings.height);
     let (w, h) = frame_for(aspect, short).ok_or_else(|| bad(cmd, format!("`aspect`: 16:9, 9:16, 1:1 or 4:5, not `{aspect}`")))?;
+    // a sequence made from a clip is named like its file: the copy without the file's extension
     let base = s.project.item(src).map(|i| i.name.clone()).unwrap_or_default();
+    let base = match base.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() && (2..=4).contains(&ext.len()) && ext.chars().all(|c| c.is_ascii_alphanumeric()) => stem.to_string(),
+        _ => base,
+    };
     let new_name = name.map(str::to_string).unwrap_or_else(|| format!("{base} {aspect}"));
     let selection = s.state.project_selection.clone();
     let before = std::sync::Arc::as_ptr(&s.project) as usize;

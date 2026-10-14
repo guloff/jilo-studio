@@ -125,7 +125,7 @@ fn choice(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: &str, value: &mut Strin
 
 fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let t = app.tokens;
-    let (mut go, mut cancel, mut keep, mut browse) = (false, false, false, false);
+    let (mut go, mut cancel, mut keep, mut browse, mut finder) = (false, false, false, false, false);
     let w = 500.0;
     let names: Vec<String> =
         app.ui.batch.items.iter().filter_map(|i| app.session.project.item(filmcraft_project::ItemId(*i)).map(|x| x.name.clone())).collect();
@@ -277,6 +277,17 @@ fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
                 app.auto.add("batch.inboxFolder", r.rect, "Choose inbox folder");
                 browse = r.clicked();
             });
+            // the same steps as a Finder Quick Action
+            ui.horizontal(|ui| {
+                ui.label(tl!("Finder Quick Action"));
+                let b = &mut app.ui.batch;
+                let r = ui.add(egui::TextEdit::singleline(&mut b.quick_action).hint_text(tl!("Name in Finder")).desired_width(180.0));
+                app.auto.add("batch.quickActionName", r.rect, "Quick Action name");
+                let ok = !b.quick_action.trim().is_empty() && b.steps.iter().any(|x| *x);
+                let r = ui.add_enabled(ok, egui::Button::new(tl!("Add to Finder")).small());
+                app.auto.add("batch.quickAction", r.rect, "Add to Finder");
+                finder = r.clicked();
+            });
             crate::dialog_style::actions(ui, |ui| {
                 let b = &app.ui.batch;
                 let any = b.steps.iter().any(|x| *x);
@@ -293,6 +304,18 @@ fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
             });
         });
     });
+    if finder {
+        let b = &app.ui.batch;
+        let name = b.quick_action.trim().to_string();
+        let mut q = json!({"name": name, "params": params(b)});
+        if let Some(d) = &b.quick_action_dir {
+            q["dir"] = json!(d);
+        }
+        app.ui.status = match app.session.execute("system.quickAction.install", q) {
+            Ok(_) => tlf!("In Finder: right-click files ▸ Quick Actions ▸ {name}", name),
+            Err(e) => e.to_string(),
+        };
+    }
     if browse && let Some(d) = app.hooks.pick_folder.as_mut().and_then(|f| f()) {
         app.ui.batch.inbox_folder = d;
     }

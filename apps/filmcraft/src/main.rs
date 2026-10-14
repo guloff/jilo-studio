@@ -36,6 +36,7 @@ mod graphics;
 mod logging;
 #[cfg(target_os = "macos")]
 mod native_menu;
+mod process;
 mod window_raise;
 
 use args::{Cli, Launch};
@@ -85,6 +86,10 @@ fn main() -> eframe::Result {
         Ok(Cli::Help) => {
             tell(args::USAGE, false);
             return Ok(());
+        }
+        Ok(Cli::Process { params, files, data_dir }) => {
+            register_hardware_decoders();
+            std::process::exit(process::run(&params, &files, data_dir));
         }
         Ok(Cli::Version) => {
             tell(&format!("filmcraft {}\n", env!("CARGO_PKG_VERSION")), false);

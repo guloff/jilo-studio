@@ -237,3 +237,27 @@ and uses the host's file service (atomic
 on desktop, a download on web). It exports sequence markers only, not clip/source markers;
 reports are limited to 100000 markers and a conservative 16 MiB output budget. Invalid timing or a
 failed write reports an error. The menu opens the normal save dialog; cancelling writes nothing.
+
+## Finder Quick Actions and Shortcuts
+
+Jilo Studio processes files without opening a window:
+
+```sh
+"/Applications/Jilo Studio.app/Contents/MacOS/Jilo Studio" --process '<steps>' <files…>
+```
+
+`<steps>` are the parameters of `batch.start` as JSON — the same steps as AI ▸ Batch Process…
+(`transcribe`, `fillers`, `pauses`, `captions` + `captionPreset`, `autoZoom`, `recipe` +
+`recipeName`, `brandKit` + `brandKitName`, `highlights`, `youtube`, `formats` + `aspects`,
+`export` + `preset`, `path`). `{}` exports each file as it is. The files are imported, every step
+runs on each, the exports are written beside the first file (or into `path`; an export never
+writes over the file it comes from) and the call returns when they are done. The result is printed
+as JSON, the exit status is 0 when everything worked, and a notification says how it went.
+
+- **Finder:** in AI ▸ Batch Process…, choose the steps, type a name next to *Finder Quick Action*
+  and click *Add to Finder*. Then right-click files in Finder ▸ Quick Actions ▸ that name. The
+  action is `~/Library/Services/<name>.workflow` (`system.quickAction.install`, `.list`,
+  `.remove`); System Settings ▸ Keyboard ▸ Keyboard Shortcuts ▸ Services can give it a key.
+- **Shortcuts:** add a *Run Shell Script* action (input: *as arguments*) with the command line above
+  and `"$@"` for the files, after a *Receive files* or *Get selected Finder items* step.
+- **Scripts:** `filmcraft-cli exec batch.processFiles '{"paths": ["a.mov"], "formats": true, "aspects": ["9:16"], "export": true}'`.

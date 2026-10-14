@@ -146,3 +146,24 @@ fn the_steps_are_kept_for_the_inbox_folder() {
     assert!(!app.ui.batch.dialog);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_steps_become_a_finder_quick_action() {
+    let dir = std::env::temp_dir().join(format!("jilo-qa-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "batch.start"}));
+    d.frames(3);
+    d.click("batch.step.transcribe");
+    d.click("batch.step.formats");
+    d.app().ui.batch.quick_action = "Vertical Copy".into();
+    d.app().ui.batch.quick_action_dir = Some(dir.to_string_lossy().to_string());
+    d.frames(1);
+    d.click("batch.quickAction");
+    let doc = std::fs::read_to_string(dir.join("Vertical Copy.workflow/Contents/document.wflow")).unwrap();
+    assert!(doc.contains("--process") && doc.contains("&quot;formats&quot;:true") && doc.contains("&quot;export&quot;:true"), "{doc}");
+    assert!(d.app().ui.status.contains("Vertical Copy"), "{}", d.app().ui.status);
+    let _ = std::fs::remove_dir_all(&dir);
+}

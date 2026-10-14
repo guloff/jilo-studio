@@ -202,7 +202,8 @@ fn start_step(s: &mut Session, b: &mut BatchRun, seq: ItemId, step: &str) -> Res
                     q[k] = v.clone();
                 }
             }
-            s.execute("export.queue.add", q).map(|_| None)
+            // with the item's sequence open: export settings start from the open sequence
+            on_sequence(s, seq, "export.queue.add", q).map(|_| None)
         }
         other => Err(EngineError::Other(format!("unknown step `{other}`"))),
     }
@@ -414,6 +415,53 @@ fn start(s: &mut Session, p: &Value) -> Result<Value> {
     status(s, &json!({}))
 }
 
+/// Files to finished files, with no one at the keyboard (Finder Quick Actions, Shortcuts, the
+/// inbox of a script): the files are imported, a batch runs its steps on each (`batch.start`'s
+/// parameters; with no step given, just `export`) and waits, then the exports run and are waited
+/// for. Exports go to `path`, else beside the first file.
+fn process_files(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "batch.processFiles";
+    let paths: Vec<String> =
+        p.get("paths").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
+    if paths.is_empty() {
+        return Err(bad(cmd, "`paths`: the files to process"));
+    }
+    if let Some(missing) = paths.iter().find(|x| !std::path::Path::new(x.as_str()).is_file()) {
+        return Err(bad(cmd, format!("no file {missing}")));
+    }
+    let r = s.execute("file.import", json!({"paths": paths}))?;
+    let mut items: Vec<u64> = r["items"].as_array().into_iter().flatten().filter_map(Value::as_u64).collect();
+    items.extend(r["duplicates"].as_array().into_iter().flatten().filter_map(|d| d["item"].as_u64()));
+    if items.is_empty() {
+        return Err(EngineError::Other("none of the files could be imported".into()));
+    }
+    let mut q = p.clone();
+    if let Some(m) = q.as_object_mut() {
+        m.remove("paths");
+    }
+    if !STEPS.iter().any(|k| bool_p(&q, k).unwrap_or(false)) {
+        q["export"] = json!(true);
+    }
+    if q.get("path").is_none_or(Value::is_null)
+        && let Some(dir) = std::path::Path::new(&paths[0]).parent()
+    {
+        q["path"] = json!(format!("{}/", dir.to_string_lossy()));
+    }
+    q["items"] = json!(items);
+    q["wait"] = json!(true);
+    let batch = s.execute("batch.start", q)?;
+    // the exports the batch queued, to the end
+    let mut exports = Vec::new();
+    if s.export_queue.items.iter().any(|i| matches!(i.status, crate::export_tools::QueueStatus::Ready | crate::export_tools::QueueStatus::Encoding)) {
+        s.execute("export.queue.start", json!({"wait": true}))?;
+    }
+    for i in &s.export_queue.items {
+        exports.push(json!({"sequence": i.sequence_name, "path": i.settings.path, "status": format!("{:?}", i.status).to_lowercase(), "error": i.error}));
+    }
+    let failed = batch["items"].as_array().into_iter().flatten().any(|i| i["status"] != "done") || s.export_queue.items.iter().any(|i| i.error.is_some());
+    Ok(json!({"batch": batch, "exports": exports, "ok": !failed}))
+}
+
 fn status(s: &mut Session, _: &Value) -> Result<Value> {
     s.batch.as_ref().map(BatchRun::to_json).ok_or_else(|| bad("batch.status", "no batch has run in this session"))
 }
@@ -436,6 +484,16 @@ pub fn commands() -> Vec<CommandSpec> {
             enabled: crate::commands::always,
             run: start,
             journal: true,
+        },
+        CommandSpec {
+            id: "batch.processFiles",
+            label: "Process Files",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"paths":[file],"…":"batch.start's steps and options (default: export)","path":dir? (default: beside the first file)}"#,
+            enabled: crate::commands::always,
+            run: process_files,
+            journal: false,
         },
         CommandSpec {
             id: "batch.status",

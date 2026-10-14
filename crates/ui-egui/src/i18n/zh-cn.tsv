@@ -4222,3 +4222,12 @@
 	{task} stopped: {error}	{task} 已停止：{error}
 	{task} is done	{task} 已完成
 	Notify when an export or a long AI task ends while the app is in the background	应用在后台时，导出或耗时的 AI 任务结束后发送通知
+# Finder Quick Actions (16.11)
+	Finder Quick Action	访达快速操作
+	Name in Finder	在访达中的名称
+	Add to Finder	添加到访达
+	In Finder: right-click files ▸ Quick Actions ▸ {name}	在访达中：右键点按文件 ▸ 快速操作 ▸ {name}
+	Make Finder Quick Action	创建访达快速操作
+	List Finder Quick Actions	列出访达快速操作
+	Remove Finder Quick Action	移除访达快速操作
+	Process Files	处理文件

@@ -861,3 +861,27 @@ fn an_elevenlabs_voice_speaks_a_narration_with_its_pauses() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Files in, finished files out, with nobody at the keyboard (Finder Quick Actions): the export
+/// beside a file named like it never writes over it, and the call returns once it is written.
+#[test]
+fn processing_files_exports_beside_them_without_overwriting_them() {
+    let dir = std::env::temp_dir().join(format!("jilo-process-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let rate = 48_000u32;
+    let pcm: Vec<f32> = (0..rate as usize * 2 * 2).map(|i| ((i / 2) as f32 * 0.03).sin() * 0.3).collect();
+    let src = dir.join("tone.wav");
+    let bytes = crate::previews::write_wav_f32(&pcm, rate);
+    std::fs::write(&src, &bytes).unwrap();
+    let mut s = Session::default();
+    let r = s.execute("batch.processFiles", json!({"paths": [src.to_string_lossy()], "preset": "Waveform Audio 48 kHz 16-bit"})).unwrap();
+    assert_eq!(r["ok"], true, "{r}");
+    let out = r["exports"][0]["path"].as_str().unwrap().to_string();
+    assert!(out.ends_with("tone export.wav"), "{out}");
+    assert_eq!(r["exports"][0]["status"], "done", "waited for: {r}");
+    assert!(std::fs::metadata(&out).unwrap().len() > 1000);
+    assert_eq!(std::fs::read(&src).unwrap(), bytes, "the source is untouched");
+    assert!(s.execute("batch.processFiles", json!({"paths": [dir.join("missing.mov").to_string_lossy()]})).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
