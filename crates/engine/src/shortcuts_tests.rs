@@ -164,6 +164,11 @@ fn compat_presets_map_other_editors() {
     assert_eq!(s.shortcuts.primary("sequence.lift").as_deref(), Some("Z"));
     assert_eq!(s.shortcuts.for_command("markers.markIn").len(), 2, "I and E");
     assert!(!s.shortcuts.modified);
+    s.execute("shortcuts.loadPreset", json!({"name": "CapCut Compatible"})).unwrap();
+    assert_eq!(s.shortcuts.primary("sequence.addEdit").as_deref(), Some("Cmd+B"));
+    assert_eq!(s.shortcuts.primary("trim.ripplePrevious").as_deref(), Some("Q"));
+    assert_eq!(s.shortcuts.primary("trim.rippleNext").as_deref(), Some("W"));
+    assert_eq!(s.shortcuts.primary("clip.nest").as_deref(), Some("Alt+G"));
     assert!(s.execute("shortcuts.loadPreset", json!({"name": "Nope"})).is_err());
     s.execute("shortcuts.loadPreset", json!({"name": "FilmCraft Default"})).unwrap();
     assert_eq!(s.shortcuts.primary("source.insert").as_deref(), Some(","));

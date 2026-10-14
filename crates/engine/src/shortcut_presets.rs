@@ -410,6 +410,30 @@ pub const FINAL_CUT: &[Entry] = &[
     ("sequence.renderInToOut", "Ctrl+Shift+R", ""),
 ];
 
+/// CapCut desktop's keys (macOS) for the equivalent commands: A / B select and split tools,
+/// ⌘B splits at the playhead, Q / W split and remove the part before / after the playhead,
+/// Delete removes and closes the gap (the main track's magnet), ⌥G makes a compound clip.
+pub const CAPCUT: &[Entry] = &[
+    ("tool.selection", "A", ""),
+    ("tool.razor", "B", ""),
+    ("sequence.addEdit", "Cmd+B", ""),
+    ("trim.ripplePrevious", "Q", ""),
+    ("trim.rippleNext", "W", ""),
+    ("edit.rippleDelete", "Backspace", ""),
+    ("playback.toggle", "Space", ""),
+    ("markers.markIn", "I", ""),
+    ("markers.markOut", "O", ""),
+    ("markers.add", "M", ""),
+    ("sequence.snap", "N", ""),
+    ("playhead.prevEdit", "Up", ""),
+    ("playhead.nextEdit", "Down", ""),
+    ("view.zoomIn", "Cmd+=", ""),
+    ("view.zoomOut", "Cmd+-", ""),
+    ("view.zoomToSequence", "Shift+Z", ""),
+    ("clip.nest", "Alt+G", ""),
+    ("mode.export", "Cmd+E", ""),
+];
+
 /// Avid Media Composer's default keys for the equivalent FilmCraft commands.
 pub const AVID: &[Entry] = &[
     ("playback.reverse", "J", ""),
