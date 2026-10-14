@@ -78,6 +78,7 @@
 	Caption Styles…	Estilos de subtítulos…
 	Captions	Subtítulos
 	Captions and Graphics	Subtítulos y gráficos
+	Captions made from a transcript know when each word is spoken; for other captions the timing is estimated from word lengths.	Los subtítulos creados a partir de una transcripción saben cuándo se dice cada palabra; en los demás, el tiempo se estima por la longitud de las palabras.
 	Captions…	Subtítulos…
 	Caribbean	Caribe
 	Center Horizontally	Centrar horizontalmente
@@ -145,6 +146,7 @@
 	Ellipse	Elipse
 	Enable	Activar
 	Enable Remix	Activar remezcla
+	Entrance	Entrada
 	Essential Graphics	Gráficos esenciales
 	Essential Sound	Sonido esencial
 	Events	Eventos
@@ -209,6 +211,8 @@
 	Install Motion Graphics Template…	Instalar plantilla de animación…
 	Interpret Footage…	Interpretar material…
 	Italic Quote	Cita en cursiva
+	Karaoke Green	Karaoke verde
+	Karaoke Yellow	Karaoke amarillo
 	Keyboard Shortcuts…	Atajos de teclado…
 	Label	Etiqueta
 	Labels…	Etiquetas…
@@ -264,6 +268,7 @@
 	No sequence is open.	No hay ninguna secuencia abierta.
 	Normalize Mix Track…	Normalizar pista de mezcla…
 	Offline File…	Archivo sin conexión…
+	One Word	Una palabra
 	Open a sequence to style its captions.	Abre una secuencia para dar estilo a sus subtítulos.
 	Open Project…	Abrir proyecto…
 	Optical Flow	Flujo óptico
@@ -276,10 +281,12 @@
 	Pastel	Pastel
 	Paused Resolution	Resolución en pausa
 	Place	Ubicación
+	Plain	Normal
 	Playback Resolution	Resolución de reproducción
 	Playback…	Reproducción…
 	Plugins…	Complementos…
 	Polygon	Polígono
+	Pop	Pop
 	Preferences	Preferencias
 	Presets and every style setting in the Caption Style panel	Ajustes preestablecidos y todos los ajustes de estilo en el panel Estilo de subtítulos
 	Presets marked ↓ use the caption fonts: Montserrat, Oswald, Fira Sans Condensed and five more, with Russian and Tajik letters. {size} from Google Fonts, SIL Open Font License.	Los ajustes marcados con ↓ usan las fuentes de subtítulos: Montserrat, Oswald, Fira Sans Condensed y cinco más, con letras rusas y tayikas. {size} de Google Fonts, licencia SIL Open Font License.
@@ -293,6 +300,7 @@
 	Project…	Proyecto…
 	Properties	Propiedades
 	Punch	Impacto
+	Punch Karaoke	Impacto karaoke
 	Punch Yellow	Impacto amarillo
 	Purple	Púrpura
 	Reconnect Full Resolution Media…	Reconectar medios de resolución completa…
@@ -366,12 +374,16 @@
 	Show Through Edits	Mostrar ediciones pasantes
 	Simplify Sequence…	Simplificar secuencia…
 	Sky Blue	Azul cielo
+	Slide Up	Deslizar arriba
 	Snap in Program Monitor	Ajustar en el monitor de programa
 	Snap in Timeline	Ajustar en la línea de tiempo
+	Soft Fade	Fundido suave
 	Source	Origen
 	Source Settings…	Ajustes de origen…
 	Speech and Captions	Voz y subtítulos
 	Speed/Duration…	Velocidad/duración…
+	Spoken Word	Palabra hablada
+	Spoken Word Size	Tamaño de la palabra hablada
 	Styles…	Estilos…
 	Subtle Box	Caja sutil
 	Synchronize…	Sincronizar…
@@ -417,6 +429,9 @@
 	Whisper model (on this computer)	Modelo Whisper (en este ordenador)
 	White Pill	Cápsula blanca
 	Window	Ventana
+	Word Box	Caja de palabra
+	Word Box Red	Caja de palabra roja
+	Words at Once	Palabras a la vez
 	Workspaces	Espacios de trabajo
 	Yellow	Amarillo
 	Yellow Pop	Amarillo vivo

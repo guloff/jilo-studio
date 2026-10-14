@@ -10,7 +10,9 @@ use serde_json::{Value, json};
 use filmcraft_captions::{Document, Format, WriteOptions};
 use filmcraft_edit as edit;
 use filmcraft_edit::Edge;
-use filmcraft_project::{CaptionAlign, CaptionAnchor, CaptionFormat, CaptionStyle, CaptionTrack, ClipId, SequenceSettings, TrackId};
+use filmcraft_project::{
+    CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionFormat, CaptionHighlight, CaptionStyle, CaptionTrack, ClipId, SequenceSettings, TrackId,
+};
 use filmcraft_time::{Tick, TimeDisplay, format_time};
 
 use crate::commands::{CommandSpec, always, bad, bool_p, f64_p, has_seq, str_p, time_p, u64_p};
@@ -97,7 +99,7 @@ fn hex(c: [u8; 4]) -> String {
 
 /// Parameters of `captions.setStyle`: every field of [`CaptionStyle`]; `track: "all"` styles every
 /// caption track of the sequence in one undo step.
-const STYLE_PARAMS: &str = r##"{"track":id|"C1"|"all","font":str?,"fontStyle":str?,"size":f32?,"uppercase":bool?,"color":"#rrggbb[aa]"?,"background":bool?,"backgroundColor":"#rrggbbaa"?,"boxRadius":f32?,"align":"left|center|right"?,"anchor":"top|middle|bottom"?,"margin":0..0.45 (fraction of frame height)?,"lineSpacing":f32?,"outline":f32?,"outlineColor":str?,"shadow":bool?,"shadowColor":str?,"shadowOffset":[x,y]?,"shadowBlur":f32?,"reset":bool?}"##;
+const STYLE_PARAMS: &str = r##"{"track":id|"C1"|"all","font":str?,"fontStyle":str?,"size":f32?,"uppercase":bool?,"color":"#rrggbb[aa]"?,"background":bool?,"backgroundColor":"#rrggbbaa"?,"boxRadius":f32?,"align":"left|center|right"?,"anchor":"top|middle|bottom"?,"margin":0..0.45 (fraction of frame height)?,"lineSpacing":f32?,"outline":f32?,"outlineColor":str?,"shadow":bool?,"shadowColor":str?,"shadowOffset":[x,y]?,"shadowBlur":f32?,"highlight":"none|color|box"?,"highlightColor":str?,"highlightScale":1..2?,"chunkWords":0..8?,"animation":"none|fade|pop|slide|typewriter"?,"reset":bool?}"##;
 
 /// A caption style as JSON (the `style` of `captions.inspect`, `captions.setStyle`'s parameters).
 pub fn style_json(y: &CaptionStyle) -> Value {
@@ -107,6 +109,8 @@ pub fn style_json(y: &CaptionStyle) -> Value {
         "align": format!("{:?}", y.align).to_lowercase(), "anchor": format!("{:?}", y.anchor).to_lowercase(),
         "margin": y.margin, "lineSpacing": y.line_spacing, "outline": y.outline, "outlineColor": hex(y.outline_color),
         "shadow": y.shadow, "shadowColor": hex(y.shadow_color), "shadowOffset": y.shadow_offset, "shadowBlur": y.shadow_blur,
+        "highlight": format!("{:?}", y.highlight).to_lowercase(), "highlightColor": hex(y.highlight_color), "highlightScale": y.highlight_scale,
+        "chunkWords": y.chunk_words, "animation": format!("{:?}", y.animation).to_lowercase(),
     })
 }
 
@@ -167,6 +171,31 @@ pub(crate) fn apply_style(y: &mut CaptionStyle, p: &Value, cmd: &str) -> Result<
     }
     if let Some(v) = f64_p(p, "shadowBlur") {
         y.shadow_blur = (v as f32).clamp(0.0, 100.0);
+    }
+    match str_p(p, "highlight") {
+        Some("none") => y.highlight = CaptionHighlight::None,
+        Some("color") => y.highlight = CaptionHighlight::Color,
+        Some("box") => y.highlight = CaptionHighlight::Box,
+        Some(o) => return Err(bad(cmd, format!("unknown highlight `{o}` (none, color, box)"))),
+        None => {}
+    }
+    if let Some(c) = p.get("highlightColor").and_then(parse_color) {
+        y.highlight_color = c;
+    }
+    if let Some(v) = f64_p(p, "highlightScale") {
+        y.highlight_scale = (v as f32).clamp(1.0, 2.0);
+    }
+    if let Some(v) = p.get("chunkWords").and_then(Value::as_u64) {
+        y.chunk_words = v.min(8) as u8;
+    }
+    match str_p(p, "animation") {
+        Some("none") => y.animation = CaptionAnimation::None,
+        Some("fade") => y.animation = CaptionAnimation::Fade,
+        Some("pop") => y.animation = CaptionAnimation::Pop,
+        Some("slide") => y.animation = CaptionAnimation::Slide,
+        Some("typewriter") => y.animation = CaptionAnimation::Typewriter,
+        Some(o) => return Err(bad(cmd, format!("unknown animation `{o}` (none, fade, pop, slide, typewriter)"))),
+        None => {}
     }
     match str_p(p, "align") {
         Some("left") => y.align = CaptionAlign::Left,

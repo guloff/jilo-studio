@@ -70,6 +70,32 @@ pub enum CaptionAnchor {
     Bottom,
 }
 
+/// How the word being spoken stands out (needs the caption's word times, else they are estimated).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CaptionHighlight {
+    #[default]
+    None,
+    /// The spoken word in the highlight colour.
+    Color,
+    /// A box in the highlight colour behind the spoken word.
+    Box,
+}
+
+/// How a caption appears.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CaptionAnimation {
+    #[default]
+    None,
+    /// Fades in.
+    Fade,
+    /// Grows from smaller with a little overshoot.
+    Pop,
+    /// Rises into place while fading in.
+    Slide,
+    /// Words appear one by one as they are spoken.
+    Typewriter,
+}
+
 /// Track-level caption style (Premiere's caption track style / Essential Graphics text settings).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -107,6 +133,14 @@ pub struct CaptionStyle {
     pub shadow_offset: [f32; 2],
     /// Shadow softness (blur radius) in pixels at 1080 lines.
     pub shadow_blur: f32,
+    /// The spoken word: none, in a colour or on a box (karaoke captions).
+    pub highlight: CaptionHighlight,
+    pub highlight_color: [u8; 4],
+    /// The spoken word drawn this much larger (1 = same size).
+    pub highlight_scale: f32,
+    /// Show this many words at a time around the spoken one (0 = the whole caption).
+    pub chunk_words: u8,
+    pub animation: CaptionAnimation,
 }
 
 impl Default for CaptionStyle {
@@ -130,6 +164,11 @@ impl Default for CaptionStyle {
             shadow_color: [0, 0, 0, 160],
             shadow_offset: [0.0, 3.0],
             shadow_blur: 4.0,
+            highlight: CaptionHighlight::None,
+            highlight_color: [255, 225, 77, 255],
+            highlight_scale: 1.0,
+            chunk_words: 0,
+            animation: CaptionAnimation::None,
         }
     }
 }
@@ -152,6 +191,10 @@ pub struct Caption {
     /// WebVTT cue settings (`line:90% align:start`…), kept verbatim.
     #[serde(default)]
     pub settings: String,
+    /// When each word starts, from the caption's start (captions made from a transcript). Used while
+    /// they match the words of the text; otherwise word times are estimated from word lengths.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub words: Vec<Tick>,
 }
 
 impl Caption {
@@ -164,6 +207,32 @@ impl Caption {
     /// The caption's text with markup removed and entities decoded (what is drawn).
     pub fn plain_lines(&self) -> Vec<String> {
         plain_text(&self.text).lines().map(str::to_string).collect()
+    }
+    /// When each word of the drawn text is spoken, `(start, end)` from the caption's start: the
+    /// stored word times while they match the words, else spread over the caption by word length.
+    pub fn word_times(&self) -> Vec<(Tick, Tick)> {
+        let text = plain_text(&self.text);
+        let words: Vec<&str> = text.split_whitespace().collect();
+        let n = words.len();
+        if n == 0 {
+            return Vec::new();
+        }
+        let starts: Vec<Tick> = if self.words.len() == n && self.words.windows(2).all(|w| w[0] <= w[1]) {
+            self.words.iter().map(|t| Tick(t.0.clamp(0, self.duration.0))).collect()
+        } else {
+            // by length: each word takes its characters plus one for the space after it
+            let total: i64 = words.iter().map(|w| w.chars().count() as i64 + 1).sum();
+            let mut at = 0i64;
+            words
+                .iter()
+                .map(|w| {
+                    let s = Tick(self.duration.0 * at / total.max(1));
+                    at += w.chars().count() as i64 + 1;
+                    s
+                })
+                .collect()
+        };
+        (0..n).map(|i| (starts[i], starts.get(i + 1).copied().unwrap_or(self.duration))).collect()
     }
 }
 
@@ -339,6 +408,7 @@ mod tests {
                 speaker: None,
                 cue_id: None,
                 settings: String::new(),
+                words: Vec::new(),
             });
         }
         assert_eq!(t.caption_at(Tick(120)).unwrap().text, "c1");
@@ -360,6 +430,7 @@ mod tests {
                 speaker: None,
                 cue_id: None,
                 settings: String::new(),
+                words: Vec::new(),
             });
         }
         let result = std::panic::catch_unwind(|| track.check());

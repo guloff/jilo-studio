@@ -11,7 +11,7 @@
 
 use serde_json::{Value, json};
 
-use filmcraft_project::{CaptionAlign, CaptionAnchor, CaptionStyle};
+use filmcraft_project::{CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle};
 
 use crate::captions::{has_caption_track, style_json, style_targets};
 use crate::commands::{CommandSpec, always, bad, str_p};
@@ -53,6 +53,16 @@ fn shadowed(mut y: CaptionStyle, color: [u8; 4], offset: [f32; 2], blur: f32) ->
     y.shadow_color = color;
     y.shadow_offset = offset;
     y.shadow_blur = blur;
+    y
+}
+
+/// The spoken word stands out (karaoke), `chunk` words at a time (0 = all), with an entrance.
+fn karaoke(mut y: CaptionStyle, how: CaptionHighlight, color: [u8; 4], scale: f32, chunk: u8, animation: CaptionAnimation) -> CaptionStyle {
+    y.highlight = how;
+    y.highlight_color = color;
+    y.highlight_scale = scale;
+    y.chunk_words = chunk;
+    y.animation = animation;
     y
 }
 
@@ -112,6 +122,58 @@ pub fn builtin() -> Vec<Preset> {
         p("tech", "Tech", shadowed(outlined(font("Exo 2", "Bold", 64.0, [95, 245, 255, 255]), 3.0, [8, 30, 48, 255]), [0, 200, 255, 160], [0.0, 0.0], 10.0)),
         p("handwritten", "Handwritten", shadowed(font("Caveat", "Bold", 78.0, WHITE), [0, 0, 0, 170], [0.0, 3.0], 6.0)),
         p("elegant", "Elegant", shadowed(font("Raleway", "Medium", 54.0, WHITE), [0, 0, 0, 150], [0.0, 2.0], 8.0)),
+        // karaoke: the spoken word stands out
+        p(
+            "karaoke-yellow",
+            "Karaoke Yellow",
+            karaoke(outlined(caps(text("Bold", 68.0, WHITE)), 7.0, BLACK), CaptionHighlight::Color, [255, 225, 77, 255], 1.12, 3, CaptionAnimation::Pop),
+        ),
+        p(
+            "karaoke-green",
+            "Karaoke Green",
+            karaoke(outlined(caps(text("Bold", 68.0, WHITE)), 7.0, BLACK), CaptionHighlight::Color, [57, 255, 120, 255], 1.12, 3, CaptionAnimation::Pop),
+        ),
+        p("word-box", "Word Box", karaoke(caps(text("Bold", 64.0, WHITE)), CaptionHighlight::Box, [110, 68, 255, 255], 1.0, 3, CaptionAnimation::Fade)),
+        p("word-box-red", "Word Box Red", karaoke(caps(text("Bold", 64.0, WHITE)), CaptionHighlight::Box, [224, 38, 43, 255], 1.0, 3, CaptionAnimation::None)),
+        p(
+            "one-word",
+            "One Word",
+            at(karaoke(outlined(caps(text("Bold", 96.0, WHITE)), 8.0, BLACK), CaptionHighlight::None, WHITE, 1.0, 1, CaptionAnimation::Pop), Middle, 0.08),
+        ),
+        p(
+            "typewriter",
+            "Typewriter",
+            karaoke(
+                shadowed(text("SemiBold", 56.0, WHITE), [0, 0, 0, 200], [0.0, 3.0], 5.0),
+                CaptionHighlight::None,
+                WHITE,
+                1.0,
+                0,
+                CaptionAnimation::Typewriter,
+            ),
+        ),
+        p(
+            "fade-in",
+            "Soft Fade",
+            karaoke(shadowed(text("Medium", 52.0, WHITE), [0, 0, 0, 170], [0.0, 2.0], 8.0), CaptionHighlight::None, WHITE, 1.0, 0, CaptionAnimation::Fade),
+        ),
+        p(
+            "slide-up",
+            "Slide Up",
+            karaoke(boxed("SemiBold", 52.0, WHITE, [0, 0, 0, 200], 22.0), CaptionHighlight::None, WHITE, 1.0, 0, CaptionAnimation::Slide),
+        ),
+        p(
+            "punch-karaoke",
+            "Punch Karaoke",
+            karaoke(
+                shadowed(outlined(caps(font("Montserrat", "Black", 72.0, WHITE)), 7.0, BLACK), [0, 0, 0, 170], [0.0, 5.0], 3.0),
+                CaptionHighlight::Color,
+                [255, 225, 77, 255],
+                1.15,
+                3,
+                CaptionAnimation::Pop,
+            ),
+        ),
         p("clean-box", "Clean Box", CaptionStyle { font: "Roboto".into(), ..boxed("Medium", 50.0, WHITE, [0, 0, 0, 160], 10.0) }),
     ]
 }

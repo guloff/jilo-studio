@@ -125,6 +125,12 @@ fn remove_fillers_pauses_and_create_captions() {
     let tr = &q.caption_tracks[0];
     assert_eq!(tr.captions[0].text, "Hello world.");
     assert_eq!(tr.captions[1].speaker.as_deref(), Some("Speaker 2"));
+    // each caption keeps when its words start (karaoke highlighting), from its own start
+    let c = &tr.captions[0];
+    assert_eq!(c.words.len(), 2);
+    // the caption starts on a frame boundary at or before its first word
+    assert!(c.words[0] >= Tick(0) && c.words[0] < Tick::from_seconds_f64(0.05), "{:?}", c.words);
+    assert!(c.words[1] > Tick(0) && c.words[1] < c.duration);
     q.check().unwrap();
 }
 

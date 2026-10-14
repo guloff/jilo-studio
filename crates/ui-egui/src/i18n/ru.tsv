@@ -71,6 +71,7 @@
 	Caption Styles…	Стили субтитров…
 	Captions	Субтитры
 	Captions and Graphics	Субтитры и графика
+	Captions made from a transcript know when each word is spoken; for other captions the timing is estimated from word lengths.	Субтитры из расшифровки знают, когда звучит каждое слово; для остальных время оценивается по длине слов.
 	Captions…	Субтитры…
 	Caribbean	Карибский
 	Center Horizontally	Центрировать по горизонтали
@@ -138,6 +139,7 @@
 	Ellipse	Эллипс
 	Enable	Включить
 	Enable Remix	Включить ремикс
+	Entrance	Появление
 	Essential Graphics	Основная графика
 	Essential Sound	Основной звук
 	Events	События
@@ -202,6 +204,8 @@
 	Install Motion Graphics Template…	Установить шаблон анимированной графики…
 	Interpret Footage…	Интерпретировать материал…
 	Italic Quote	Цитата курсивом
+	Karaoke Green	Караоке зелёный
+	Karaoke Yellow	Караоке жёлтый
 	Keyboard Shortcuts…	Сочетания клавиш…
 	Label	Метка
 	Labels…	Метки…
@@ -257,6 +261,7 @@
 	No sequence is open.	Нет открытой секвенции.
 	Normalize Mix Track…	Нормализовать дорожку микса…
 	Offline File…	Офлайн-файл…
+	One Word	По одному слову
 	Open a sequence to style its captions.	Откройте секвенцию, чтобы настроить стиль её субтитров.
 	Open Project…	Открыть проект…
 	Optical Flow	Оптический поток
@@ -269,10 +274,12 @@
 	Pastel	Пастель
 	Paused Resolution	Разрешение на паузе
 	Place	Расположение
+	Plain	Обычное
 	Playback Resolution	Разрешение воспроизведения
 	Playback…	Воспроизведение…
 	Plugins…	Плагины…
 	Polygon	Многоугольник
+	Pop	Выскок
 	Preferences	Настройки
 	Presets and every style setting in the Caption Style panel	Пресеты и все настройки стиля — в панели «Стиль субтитров»
 	Presets marked ↓ use the caption fonts: Montserrat, Oswald, Fira Sans Condensed and five more, with Russian and Tajik letters. {size} from Google Fonts, SIL Open Font License.	Пресеты со значком ↓ используют шрифты для субтитров: Montserrat, Oswald, Fira Sans Condensed и ещё пять, с русскими и таджикскими буквами. {size} из Google Fonts, лицензия SIL Open Font License.
@@ -286,6 +293,7 @@
 	Project…	Проект…
 	Properties	Свойства
 	Punch	Удар
+	Punch Karaoke	Удар караоке
 	Punch Yellow	Удар жёлтый
 	Purple	Пурпурный
 	Reconnect Full Resolution Media…	Переподключить медиа в полном разрешении…
@@ -359,12 +367,16 @@
 	Show Through Edits	Показывать сквозные монтажные точки
 	Simplify Sequence…	Упростить секвенцию…
 	Sky Blue	Небесный
+	Slide Up	Выезд снизу
 	Snap in Program Monitor	Привязка в мониторе программы
 	Snap in Timeline	Привязка на таймлайне
+	Soft Fade	Мягкое проявление
 	Source	Источник
 	Source Settings…	Настройки источника…
 	Speech and Captions	Речь и субтитры
 	Speed/Duration…	Скорость/длительность…
+	Spoken Word	Звучащее слово
+	Spoken Word Size	Размер звучащего слова
 	Styles…	Стили…
 	Subtle Box	Мягкая подложка
 	Synchronize…	Синхронизировать…
@@ -410,6 +422,9 @@
 	Whisper model (on this computer)	Модель Whisper (на этом компьютере)
 	White Pill	Белая капсула
 	Window	Окно
+	Word Box	Слово на плашке
+	Word Box Red	Слово на красной плашке
+	Words at Once	Слов за раз
 	Workspaces	Рабочие среды
 	Yellow	Жёлтый
 	Yellow Pop	Жёлтый акцент

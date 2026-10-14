@@ -1,7 +1,7 @@
 //! Caption Style panel: how captions look, in one place. A gallery of presets (each tile is a
 //! frame drawn by the same caption renderer as playback and export) applies a look with one click;
 //! below it every field of the track's style — font, style, size, capitals, colour, outline, box,
-//! shadow, position. Changes go to the caption track chosen at the top, or to every caption track
+//! shadow, the spoken word (karaoke highlight, words at once, entrance animation), position. Changes go to the caption track chosen at the top, or to every caption track
 //! of the sequence when "All caption tracks" is on. Every change is `captions.setStyle` or
 //! `captions.applyStylePreset`, so the panel, MCP and the control channel share one path.
 //!
@@ -17,7 +17,7 @@
 //! `captionStyle.newTrack`.
 
 use egui::{Color32, Rect, RichText, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_project::{Caption, CaptionAlign, CaptionAnchor, CaptionStyle, ClipId};
+use filmcraft_project::{Caption, CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle, ClipId};
 use filmcraft_time::Tick;
 use serde_json::{Value, json};
 
@@ -278,6 +278,65 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             }
         });
 
+        // ---- the spoken word and how captions appear
+        heading(ui, tl!("Animation"), &t);
+        row(ui, tl!("Spoken Word"), |ui| {
+            for (h, name, label) in [
+                (CaptionHighlight::None, "none", tl!("Plain")),
+                (CaptionHighlight::Color, "color", tl!("Color")),
+                (CaptionHighlight::Box, "box", tl!("Box")),
+            ] {
+                let r = ui.selectable_label(style.highlight == h, label);
+                app.auto.add(&format!("captionStyle.highlight.{name}"), r.rect, label);
+                if r.clicked() {
+                    set("highlight", json!(name));
+                }
+            }
+            if let Some(c) = color(ui, style.highlight_color, false) {
+                set("highlightColor", json!(c));
+            }
+        });
+        row(ui, tl!("Spoken Word Size"), |ui| {
+            let mut v = style.highlight_scale * 100.0;
+            let r = ui.add(egui::DragValue::new(&mut v).range(100.0..=200.0).speed(0.5).suffix(" %"));
+            app.auto.add("captionStyle.highlightScale", r.rect, "Spoken word size");
+            if commit(ui, &r) {
+                set("highlightScale", json!(v / 100.0));
+            }
+        });
+        row(ui, tl!("Words at Once"), |ui| {
+            for (n, label) in [(0u8, tl!("All")), (1, "1"), (2, "2"), (3, "3"), (4, "4")] {
+                let r = ui.selectable_label(style.chunk_words == n, label);
+                app.auto.add(&format!("captionStyle.chunkWords.{n}"), r.rect, label);
+                if r.clicked() {
+                    set("chunkWords", json!(n));
+                }
+            }
+        });
+        row(ui, tl!("Entrance"), |ui| {
+            let names = [
+                (CaptionAnimation::None, "none", tl!("None")),
+                (CaptionAnimation::Fade, "fade", tl!("Fade")),
+                (CaptionAnimation::Pop, "pop", tl!("Pop")),
+                (CaptionAnimation::Slide, "slide", tl!("Slide Up")),
+                (CaptionAnimation::Typewriter, "typewriter", tl!("Typewriter")),
+            ];
+            let cur = names.iter().find(|n| n.0 == style.animation).map_or("", |n| n.2);
+            let r = egui::ComboBox::from_id_salt("caption-style-animation").selected_text(cur).width(160.0).show_ui(ui, |ui| {
+                for (a, name, label) in names {
+                    if ui.selectable_label(style.animation == a, label).clicked() {
+                        set("animation", json!(name));
+                    }
+                }
+            });
+            app.auto.add("captionStyle.animation", r.response.rect, "Entrance");
+        });
+        ui.label(
+            RichText::new(tl!("Captions made from a transcript know when each word is spoken; for other captions the timing is estimated from word lengths."))
+                .size(11.0)
+                .color(t.text_dim),
+        );
+
         // ---- position
         heading(ui, tl!("Position"), &t);
         row(ui, tl!("Alignment"), |ui| {
@@ -422,8 +481,20 @@ pub fn preview_rgba(style: &CaptionStyle, sample: &str) -> Vec<u8> {
             canvas[i + 3] = 1.0;
         }
     }
-    let cap = Caption { id: ClipId(0), start: Tick(0), duration: Tick(1), text: sample.into(), speaker: None, cue_id: None, settings: String::new() };
-    if let Some(o) = filmcraft_captions::burn::render_caption(&cap, &zoomed(style, PREVIEW_ZOOM), w, h) {
+    // a second per word, shown during the second word: the highlight, chunks and typewriter show
+    let sec = filmcraft_time::TICKS_PER_SECOND;
+    let n = sample.split_whitespace().count() as i64;
+    let cap = Caption {
+        id: ClipId(0),
+        start: Tick(0),
+        duration: Tick(n.max(1) * sec),
+        text: sample.into(),
+        speaker: None,
+        cue_id: None,
+        settings: String::new(),
+        words: (0..n).map(|i| Tick(i * sec)).collect(),
+    };
+    if let Some(o) = filmcraft_captions::burn::render_caption_at(&cap, &zoomed(style, PREVIEW_ZOOM), w, h, Some(Tick(sec + sec / 2))) {
         o.composite_onto(&mut canvas, w, h);
     }
     canvas.chunks(4).flat_map(|p| [0, 1, 2].map(|k| (linear_to_srgb(p[k].clamp(0.0, 1.0)) * 255.0).round() as u8).into_iter().chain([255])).collect()

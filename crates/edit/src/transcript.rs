@@ -460,10 +460,12 @@ pub fn caption_blocks(words: &[SeqWord], rules: &CaptionRules, rate: FrameRate) 
 }
 
 /// Caption blocks as captions (ids from `ctx`).
-pub fn blocks_to_captions(blocks: &[CaptionBlock], ctx: &mut EditCtx) -> Vec<Caption> {
+/// Captions for `blocks` of `words`, each keeping when its words start (for karaoke highlighting).
+pub fn blocks_to_captions(blocks: &[CaptionBlock], words: &[SeqWord], ctx: &mut EditCtx) -> Vec<Caption> {
     blocks
         .iter()
         .map(|b| Caption {
+            words: words.get(b.words.clone()).map(|ws| ws.iter().map(|w| Tick((w.start - b.start).0.max(0))).collect()).unwrap_or_default(),
             id: ClipId(ctx.alloc()),
             start: b.start,
             duration: b.end - b.start,

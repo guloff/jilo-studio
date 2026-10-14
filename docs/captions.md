@@ -14,7 +14,13 @@ version 2; version 1 projects open with no caption tracks).
   background box, its colour and corner radius, outline width and colour, drop shadow (colour,
   offset, softness), alignment (left/centre/right), position (top/middle/bottom) and margin (a
   fraction of the frame height, default 0.08; `captions.setStyle` clamps it to 0–0.45), line
-  spacing. Styles saved before fonts, capitals, corners and shadows load unchanged.
+  spacing; the spoken word (karaoke): none, in a highlight colour or on a highlight box, optionally
+  larger; words at once (all, or chunks of 1–8 around the spoken word); entrance animation (fade,
+  pop, slide up, typewriter — words appear as spoken). Styles saved before fonts, capitals, corners,
+  shadows and animation load unchanged.
+- **Caption words**: captions made from a transcript keep when each word starts (`words`, ticks from
+  the caption's start). While they match the words of the text they drive the karaoke features;
+  for other captions (typed, imported, edited) word times are spread over the caption by word length.
 - **Caption**: in/out in exact `Tick`s, text (lines separated by `\n`; `<i>`, `<b>`, `<u>` kept
   as written), optional speaker, and the WebVTT cue id and cue settings, kept for round trips.
   Captions on a track never overlap.

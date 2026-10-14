@@ -238,6 +238,7 @@
 	Caption track options	字幕轨道选项
 	Captions	字幕
 	Captions and Graphics	字幕和图形
+	Captions made from a transcript know when each word is spoken; for other captions the timing is estimated from word lengths.	由转录生成的字幕知道每个词的时间；其他字幕按词长估算时间。
 	Captions…	字幕…
 	Caribbean	加勒比蓝
 	CBR	CBR
@@ -480,6 +481,7 @@
 	End Off Screen	在屏幕外结束
 	Enhance Speech	增强语音
 	Entire Source	整个源
+	Entrance	入场
 	Errors Only	仅限错误
 	Essential Graphics	基本图形
 	Essential Sound	基本声音
@@ -693,6 +695,8 @@
 	just now	刚刚
 	Justify	两端对齐
 	Kaleidoscope	万花筒
+	Karaoke Green	卡拉OK 绿
+	Karaoke Yellow	卡拉OK 黄
 	Kerning	字偶间距
 	Key Frame Distance	关键帧距离
 	Keyboard Shortcuts	快捷键
@@ -916,6 +920,7 @@
 	Offset	偏移
 	OK	确定
 	OMF…	OMF…
+	One Word	单词逐个
 	Opacity	不透明度
 	Open a sequence to export	打开序列以进行导出
 	Open a sequence to see its transcript	打开序列以查看其文本转录
@@ -974,6 +979,7 @@
 	Pitch Shifter	音高换位器
 	Place	位置
 	Placement	放置位置
+	Plain	普通
 	Plateau Wipe	台地划像
 	Play Around Edit (Space loops, Shift+K once)	环绕编辑点播放 (空格键循环，Shift+K 单次)
 	Play In to Out	从入点播放到出点
@@ -987,6 +993,7 @@
 	Point Text	点文本
 	Polygon	多边形
 	Polygon Sides	多边形边数
+	Pop	弹出
 	Pop Motion	弹出动画
 	Position	位置
 	Position:	位置：
@@ -1024,6 +1031,7 @@
 	Pull Motion	拉入动画
 	Pulls back soft clipping in the top 10%	拉回顶部 10% 的柔和裁切高光
 	Punch	冲击
+	Punch Karaoke	冲击卡拉OK
 	Punch Yellow	冲击黄
 	Punched-up black & white with crushed shadows	强化对比黑白，压暗阴影
 	Purple	紫色
@@ -1252,6 +1260,7 @@
 	Slide	滑动
 	Slide (Legacy)	滑动(旧版)
 	Slide Tool	滑动工具
+	Slide Up	上滑
 	Slip Tool	错位工具
 	Small	小
 	Small Caps	小型大写字母
@@ -1263,6 +1272,7 @@
 	Snap in Timeline (S)	在时间轴中对齐 (S)
 	Snap to grid	对齐到网格
 	Social Vertical 1080×1920	社交竖屏 1080×1920
+	Soft Fade	柔和淡入
 	Soft Light	柔光
 	Soft Vignette	柔和晕影
 	Soft Wipe	柔和划像
@@ -1286,6 +1296,8 @@
 	Split	拆分
 	Split (Legacy)	拆分(旧版)
 	Split caption at playhead	在播放头位置分割字幕
+	Spoken Word	当前词
+	Spoken Word Size	当前词大小
 	Spotlight	聚光灯
 	Spring Motion	弹簧动画
 	Square Pixels (1.0)	方形像素 (1.0)
@@ -1491,6 +1503,9 @@
 	Window	窗口
 	Wipe	划像
 	Without keyframes	不包含关键帧
+	Word Box	词底框
+	Word Box Red	红色词底框
+	Words at Once	每次显示词数
 	Work Area	工作区
 	Working Color Space	工作色彩空间
 	Workspaces	工作区
