@@ -487,6 +487,8 @@ pub struct Session {
     pub image_classifier: Option<broll::ImageClassifier>,
     /// Emoji pictures from the system font, for stickers (`stickers.*`); None where unavailable.
     pub emoji_renderer: Option<stickers::EmojiRenderer>,
+    /// Cuts a picture's subject out of its background (Apple Vision), for stickers.
+    pub cutout: Option<stickers::Cutout>,
     /// Pictures being drawn for B-roll, placed by [`broll::pump`] when ready.
     pub broll_pending: broll::Pending,
     /// Faces found per clip's media range, for this session.
@@ -603,6 +605,7 @@ impl Session {
             recording: None,
             image_classifier: None,
             emoji_renderer: None,
+            cutout: None,
             broll_pending: Vec::new(),
             face_detector: None,
             face_cache: Default::default(),

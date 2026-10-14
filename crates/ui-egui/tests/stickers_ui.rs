@@ -134,3 +134,41 @@ fn a_sticker_from_the_library_is_placed_moved_and_scaled() {
     let (_, s1) = pos(&mut d);
     assert!(s1 > s0, "scaled up: {s0} → {s1}");
 }
+
+#[test]
+fn the_selected_clip_is_cut_out_into_my_stickers() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    // the "subject" is the middle quarter of the picture
+    s.cutout = Some(Arc::new(|rgba: &[u8], w: usize, h: usize| {
+        let (cw, ch) = (w / 2, h / 2);
+        let mut out = Vec::with_capacity(cw * ch * 4);
+        for y in h / 4..h / 4 + ch {
+            out.extend_from_slice(&rgba[(y * w + w / 4) * 4..(y * w + w / 4 + cw) * 4]);
+        }
+        Ok((cw as u32, ch as u32, out))
+    }));
+    let t = s.playhead();
+    let clip = s.active_sequence().unwrap().video_tracks.iter().flat_map(|tr| tr.items.iter()).find(|i| i.range().contains(t)).unwrap().id;
+    s.state.selection = vec![clip];
+    let mut d = Driver::new(s);
+    if std::env::var("FILMCRAFT_UI_LANG").as_deref() == Ok("ru") {
+        d.ok("ui.menu.invoke", json!({"id": "app.language.russian"}));
+    }
+    d.ok("ui.menu.invoke", json!({"id": "window.panel.Libraries"}));
+    d.frames(2);
+    d.click("library.tab.stickers");
+    d.click("library.stickers.cat.mine");
+    d.frames(2);
+    let undo = d.app().session.history.undo.len();
+    d.click("library.stickers.cutOut");
+    d.frames(3);
+    let app = d.app();
+    assert_eq!(app.session.history.undo.len(), undo + 1, "{}", app.ui.status);
+    let mine = app.session.execute("stickers.list", json!({"category": "mine"})).unwrap();
+    let id = mine["stickers"][0]["id"].as_str().unwrap().to_string();
+    let path = mine["stickers"][0]["path"].as_str().unwrap().to_string();
+    assert!(d.has(&format!("library.sticker.{id}")), "the tile shows");
+    snapshot(&mut d, "my-stickers");
+    let _ = std::fs::remove_dir_all(std::path::Path::new(&path).parent().unwrap().parent().unwrap());
+}

@@ -50,6 +50,12 @@ fn sticker_texture(app: &FilmcraftApp, ctx: &egui::Context, id: &str) -> Option<
         app.session.emoji_renderer.as_ref().and_then(|r| r(e, 96).ok()).map(|(w, h, rgba)| {
             ctx.load_texture(format!("sticker-{id}"), egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &rgba), egui::TextureOptions::LINEAR)
         })
+    } else if let Some(f) = id.strip_prefix("file:") {
+        std::fs::read(f).ok().and_then(|b| image::load_from_memory_with_format(&b, image::ImageFormat::Png).ok()).map(|img| {
+            let img = img.thumbnail(192, 192).to_rgba8();
+            let size = [img.width() as usize, img.height() as usize];
+            ctx.load_texture(format!("sticker-{id}"), egui::ColorImage::from_rgba_unmultiplied(size, img.as_raw()), egui::TextureOptions::LINEAR)
+        })
     } else {
         filmcraft_engine::graphic_templates::find_template(&app.session, id).ok().map(|e| {
             let (w, h, rgba) = filmcraft_engine::graphic_templates::thumbnail(&e.template, 192);
@@ -100,12 +106,27 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
         });
         app.auto.add("library.stickers.animation", r.response.rect, "Animation");
     });
+    let mut cut = false;
+    if cat == "mine" && query.is_empty() {
+        child.horizontal(|ui| {
+            let can = list["cutout"] == true;
+            let b = ui.add_enabled(can, egui::Button::new(tl!("Cut Out of the Selected Clip")).small());
+            app.auto.add("library.stickers.cutOut", b.rect, "Cut Out of the Selected Clip");
+            cut = b.clicked();
+            if !can {
+                b.on_disabled_hover_text(tl!("Needs Apple Vision (macOS 14 or later)."));
+            }
+        });
+    }
     let items: Vec<Value> = list["stickers"].as_array().cloned().unwrap_or_default();
     egui::ScrollArea::vertical().id_salt(("library-stickers", cat.as_str())).auto_shrink([false, false]).show(&mut child, |ui| {
         if items.is_empty() {
             let text = match cat.as_str() {
                 "recent" if query.is_empty() => tl!("Stickers you add show here. Pick a category above."),
                 "favorites" if query.is_empty() => tl!("Right-click a sticker to keep it here."),
+                "mine" if query.is_empty() => {
+                    tl!("Select a photo or a video clip under the playhead and cut its subject out: it becomes a sticker of your own.")
+                }
                 _ => tl!("Nothing matches the search."),
             };
             ui.add_space(10.0);
@@ -164,6 +185,13 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
         let a = if app.ui.library.sticker_animation.is_empty() { "pop".to_string() } else { app.ui.library.sticker_animation.clone() };
         app.ui.status = match app.session.execute("stickers.add", json!({"id": id, "animation": a})) {
             Ok(_) => tl!("Sticker added at the playhead; drag it in the Program monitor.").to_string(),
+            Err(e) => e.to_string(),
+        };
+    }
+    if cut {
+        let a = if app.ui.library.sticker_animation.is_empty() { "pop".to_string() } else { app.ui.library.sticker_animation.clone() };
+        app.ui.status = match app.session.execute("stickers.fromClip", json!({"animation": a})) {
+            Ok(_) => tl!("Cut out: the sticker is in My Stickers and on the picture at the playhead.").to_string(),
             Err(e) => e.to_string(),
         };
     }

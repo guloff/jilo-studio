@@ -12,6 +12,7 @@
 //! | `stickers.list` | `{category?, query?}`: the catalogue (`emoji:<char>` and `builtin:sticker-…` ids), favourites and recent |
 //! | `stickers.add` | `{id, time?, seconds=3, animation: pop\|fade\|slide\|none, size=0.22, x?, y?}`: on a free track above, one undo step |
 //! | `stickers.favorite` | `{id, on?}` |
+//! | `stickers.fromClip` | `{item?, time?, name?, place=true}`: the subject of the selected clip cut out of its background (the host's [`Cutout`], Apple Vision), kept in `<data dir>/stickers/mine/` (category `mine`, ids `file:<path>`) and put on the picture |
 //! | `stickers.byWords` | `{maxCount?, minGap?}`: an emoji on the phrases that mention one (by words, ru/en) |
 
 use std::sync::Arc;
@@ -27,6 +28,9 @@ use crate::{EngineError, Result, Session};
 
 /// Draws an emoji `size` pixels tall: (width, height, straight RGBA).
 pub type EmojiRenderer = Arc<dyn Fn(&str, u32) -> std::result::Result<(u32, u32, Vec<u8>), String> + Send + Sync>;
+
+/// Cuts the subject of an RGBA picture (`w`×`h`) out of its background: (width, height, RGBA).
+pub type Cutout = Arc<dyn Fn(&[u8], usize, usize) -> std::result::Result<(u32, u32, Vec<u8>), String> + Send + Sync>;
 
 /// Sticker preferences (`Preferences::stickers`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -149,16 +153,34 @@ fn emoji_file_name(e: &str) -> String {
     format!("{}.png", hex.join("-"))
 }
 
-/// The PNG of emoji `e`, drawn once and kept.
-fn emoji_png(s: &Session, e: &str) -> Result<std::path::PathBuf> {
-    // beside the preferences (the app's data directory); a session without them (tests, scripts)
-    // keeps its own in the temporary directory, so it never mixes with the app's
-    let dir = s
-        .prefs_path
+/// Where stickers made on this computer are kept: beside the preferences (the app's data
+/// directory); a session without them (tests, scripts) keeps its own in the temporary directory,
+/// so they never mix with the app's.
+fn stickers_dir(s: &Session) -> std::path::PathBuf {
+    s.prefs_path
         .as_ref()
         .and_then(|p| p.parent())
-        .map(|d| d.join("stickers/emoji"))
-        .unwrap_or_else(|| crate::temp_dir().join(format!("jilo-stickers-{}", std::process::id())));
+        .map(|d| d.join("stickers"))
+        .unwrap_or_else(|| crate::temp_dir().join(format!("jilo-stickers-{}", std::process::id())))
+}
+
+/// The user's own stickers (cut out of their pictures), newest first.
+pub fn my_stickers(s: &Session) -> Vec<std::path::PathBuf> {
+    let mut v: Vec<(std::time::SystemTime, std::path::PathBuf)> = std::fs::read_dir(stickers_dir(s).join("mine"))
+        .map(|rd| {
+            rd.flatten()
+                .filter(|e| e.path().extension().is_some_and(|x| x == "png"))
+                .map(|e| (e.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH), e.path()))
+                .collect()
+        })
+        .unwrap_or_default();
+    v.sort_by_key(|x| std::cmp::Reverse(x.0));
+    v.into_iter().map(|x| x.1).collect()
+}
+
+/// The PNG of emoji `e`, drawn once and kept.
+fn emoji_png(s: &Session, e: &str) -> Result<std::path::PathBuf> {
+    let dir = stickers_dir(s).join("emoji");
     let path = dir.join(emoji_file_name(e));
     if path.is_file() {
         return Ok(path);
@@ -197,10 +219,18 @@ fn list(s: &mut Session, p: &Value) -> Result<Value> {
         .filter(|e| e.template.category == "Stickers")
         .map(|e| (e.template.id.clone(), e.template.name.clone()))
         .collect();
+    let mine: Vec<Value> = my_stickers(s)
+        .iter()
+        .map(|p| {
+            let name = p.file_stem().map(|x| x.to_string_lossy().to_string()).unwrap_or_default();
+            json!({"id": format!("file:{}", p.to_string_lossy()), "name": name, "category": "mine", "words": name.to_lowercase(), "path": p.to_string_lossy()})
+        })
+        .collect();
     let mut all: Vec<Value> = EMOJI
         .iter()
         .map(|(e, name, c, words)| json!({"id": format!("emoji:{e}"), "emoji": e, "name": name, "category": c, "words": words}))
         .chain(templates.iter().map(|(id, name)| json!({"id": id, "name": name, "category": "shapes", "words": name.to_lowercase()})))
+        .chain(mine)
         .collect();
     for v in &mut all {
         let id = v["id"].as_str().unwrap_or_default().to_string();
@@ -223,9 +253,12 @@ fn list(s: &mut Session, p: &Value) -> Result<Value> {
     if cat == Some("recent") {
         out.sort_by_key(|v| prefs.recent.iter().position(|r| v["id"] == r.as_str()).unwrap_or(usize::MAX));
     }
-    Ok(
-        json!({"stickers": out, "categories": CATEGORIES.iter().map(|(id, n)| json!({"id": id, "name": n})).collect::<Vec<_>>(), "emoji": s.emoji_renderer.is_some()}),
-    )
+    Ok(json!({
+        "stickers": out,
+        "categories": CATEGORIES.iter().map(|(id, n)| json!({"id": id, "name": n})).chain(std::iter::once(json!({"id": "mine", "name": "My Stickers"}))).collect::<Vec<_>>(),
+        "emoji": s.emoji_renderer.is_some(),
+        "cutout": s.cutout.is_some(),
+    }))
 }
 
 /// Keyframes of an entrance on `clip`'s Motion and Opacity, from `start` (sequence time).
@@ -271,11 +304,21 @@ fn add_one(s: &mut Session, id: &str, at: Tick, seconds: f64, how: &str, size: f
     let dur = rate.snap_nearest(Tick::from_seconds_f64(seconds));
     let at = rate.snap_nearest(at);
     let pos = (x * w, y * h);
-    if let Some(e) = id.strip_prefix("emoji:") {
+    let picture = if let Some(e) = id.strip_prefix("emoji:") {
         if find(id).is_none() && e.chars().count() > 8 {
             return Err(bad(cmd, format!("unknown sticker `{id}`")));
         }
-        let png = emoji_png(s, e)?;
+        Some(emoji_png(s, e)?)
+    } else if let Some(f) = id.strip_prefix("file:") {
+        let f = std::path::PathBuf::from(f);
+        if !f.is_file() {
+            return Err(bad(cmd, format!("no sticker file {}", f.display())));
+        }
+        Some(f)
+    } else {
+        None
+    };
+    if let Some(png) = picture {
         let bin = stickers_bin(s);
         let r = s.execute("file.import", json!({"paths": [png.to_string_lossy()], "bin": bin}))?;
         let item = r["items"][0]
@@ -342,6 +385,49 @@ fn add(s: &mut Session, p: &Value) -> Result<Value> {
             Err(e)
         }
     }
+}
+
+/// `stickers.fromClip`: the subject of the selected clip's picture at the playhead (or of `item`
+/// at `time`) cut out of its background, kept among the user's own stickers and put on the
+/// picture at the playhead.
+fn from_clip(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "stickers.fromClip";
+    let cut = s.cutout.clone().ok_or_else(|| EngineError::Other("cutting out needs Apple Vision (macOS 14 or later)".into()))?;
+    let (item, mt) = match u64_p(p, "item") {
+        Some(i) => (ItemId(i), p.get("time").and_then(Value::as_i64).map(Tick).unwrap_or(Tick::ZERO)),
+        None => {
+            let q = s.active_sequence().ok_or(EngineError::NoSequence)?;
+            let t = s.playhead();
+            let it = q
+                .video_tracks
+                .iter()
+                .flat_map(|tr| tr.items.iter())
+                .find(|i| s.state.selection.contains(&i.id) && i.range().contains(t))
+                .ok_or_else(|| bad(cmd, "select a clip under the playhead (a photo or a video)"))?;
+            (it.item, it.source_time_at(t))
+        }
+    };
+    let src = s.source(item).ok_or_else(|| bad(cmd, "no picture for that item"))?;
+    let vw = src.info().video.as_ref().map_or(1024, |v| v.width).max(1);
+    let f = src.video_frame(filmcraft_media::FrameRequest { time: mt, scale: (1280.0 / vw as f32).min(1.0) }).map_err(|e| EngineError::Other(e.to_string()))?;
+    let (w, h, rgba) = cut(&f.to_rgba8(), f.width as usize, f.height as usize).map_err(EngineError::Other)?;
+    let name = str_p(p, "name").map(str::to_string).unwrap_or_else(|| {
+        let base = s.project.item(item).map(|i| i.name.rsplit_once('.').map_or(i.name.clone(), |x| x.0.to_string())).unwrap_or_else(|| "Sticker".into());
+        let stamp = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+        format!("{base} {stamp}")
+    });
+    let safe: String = name.chars().map(|c| if c.is_alphanumeric() || " -_".contains(c) { c } else { '_' }).collect();
+    let dir = stickers_dir(s).join("mine");
+    std::fs::create_dir_all(&dir).map_err(|e| EngineError::Other(e.to_string()))?;
+    let path = dir.join(format!("{}.png", safe.trim()));
+    let png = filmcraft_export::encode_png(rgba, w, h).map_err(|e| EngineError::Other(e.to_string()))?;
+    std::fs::write(&path, png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
+    let id = format!("file:{}", path.to_string_lossy());
+    if bool_p(p, "place").unwrap_or(true) && s.active_sequence().is_some() {
+        let r = s.execute("stickers.add", json!({"id": id, "animation": str_p(p, "animation").unwrap_or("pop"), "size": f64_p(p, "size").unwrap_or(0.4)}))?;
+        return Ok(json!({"id": id, "path": path.to_string_lossy(), "clip": r["clip"]}));
+    }
+    Ok(json!({"id": id, "path": path.to_string_lossy()}))
 }
 
 fn favorite(s: &mut Session, p: &Value) -> Result<Value> {
@@ -425,6 +511,16 @@ pub fn commands() -> Vec<CommandSpec> {
             params: r#"{"id":"emoji:😀|builtin:sticker-…","time":ticks?,"seconds":f=3,"animation":"pop|fade|slide|none"="pop","size":0.02..1=0.22,"x":0..1=0.5,"y":0..1=0.35}"#,
             enabled: has_seq,
             run: add,
+            journal: true,
+        },
+        CommandSpec {
+            id: "stickers.fromClip",
+            label: "Sticker from Clip",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"item":id?,"time":ticks? (default: the selected clip at the playhead),"name":str?,"place":bool=true,"animation":str?,"size":f?}"#,
+            enabled: always,
+            run: from_clip,
             journal: true,
         },
         CommandSpec {
@@ -521,5 +617,32 @@ mod tests {
         let got: Vec<&str> = r["placed"].as_array().unwrap().iter().filter_map(|p| p["emoji"].as_str()).collect();
         assert_eq!(got, ["🔥", "🙏"], "{r}");
         assert_eq!(s.history.undo.len(), undo + 1);
+    }
+
+    #[test]
+    fn a_clip_becomes_a_sticker_of_its_own() {
+        let mut s = Session::default();
+        s.execute("file.openDemoProject", json!({})).unwrap();
+        // the "subject" is the middle quarter of the picture
+        s.cutout = Some(Arc::new(|rgba: &[u8], w: usize, h: usize| {
+            let (cw, ch) = (w / 2, h / 2);
+            let mut out = Vec::with_capacity(cw * ch * 4);
+            for y in h / 4..h / 4 + ch {
+                out.extend_from_slice(&rgba[(y * w + w / 4) * 4..(y * w + w / 4 + cw) * 4]);
+            }
+            Ok((cw as u32, ch as u32, out))
+        }));
+        let t = s.playhead();
+        let clip = s.active_sequence().unwrap().video_tracks.iter().flat_map(|tr| tr.items.iter()).find(|i| i.range().contains(t)).unwrap().id;
+        s.state.selection = vec![clip];
+        let r = s.execute("stickers.fromClip", json!({"name": "My Sunset"})).unwrap();
+        assert!(r["path"].as_str().unwrap().ends_with("My Sunset.png"), "{r}");
+        assert!(r["clip"].as_u64().is_some(), "{r}");
+        let mine = s.execute("stickers.list", json!({"category": "mine"})).unwrap();
+        assert_eq!(mine["stickers"][0]["name"], "My Sunset", "{mine}");
+        assert_eq!(mine["cutout"], true);
+        s.state.selection.clear();
+        assert!(s.execute("stickers.fromClip", json!({})).is_err(), "nothing selected");
+        let _ = std::fs::remove_dir_all(stickers_dir(&s));
     }
 }

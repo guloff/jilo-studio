@@ -7,6 +7,10 @@
 //! neighbouring tiles are merged (intersection over union above 0.3 keeps the more confident box),
 //! as Jilo Studio does. Other systems report that face detection is not available.
 //!
+//! The subject of a picture cut out from its background (`VNGenerateForegroundInstanceMaskRequest`,
+//! macOS 14+): people, animals and things in front, as a picture with transparency — for stickers
+//! made from the user's own photos and frames.
+//!
 //! What a picture shows, as Vision's scene labels (`VNClassifyImageRequest`: "beach", "food",
 //! "people"…), for finding B-roll that fits what is being said.
 
@@ -87,8 +91,58 @@ pub fn classify_image(rgba: &[u8], w: usize, h: usize, max: usize, min_confidenc
     Ok(v)
 }
 
+/// Whether this system can cut a picture's subject out (Vision's foreground mask, macOS 14).
+pub fn cut_out_available() -> bool {
+    #[cfg(target_os = "macos")]
+    return objc2::runtime::AnyClass::get(c"VNGenerateForegroundInstanceMaskRequest").is_some();
+    #[cfg(not(target_os = "macos"))]
+    false
+}
+
+/// The foreground of an 8-bit RGBA picture of `w`×`h` with the background made transparent, cropped
+/// to it: (width, height, straight RGBA). An error when nothing stands out.
+pub fn cut_out(rgba: &[u8], w: usize, h: usize) -> Result<(u32, u32, Vec<u8>), String> {
+    let need = w.checked_mul(h).and_then(|n| n.checked_mul(4)).ok_or("the picture is too large")?;
+    if w < 8 || h < 8 || rgba.len() < need {
+        return Err(format!("a {w}×{h} picture needs {need} bytes of RGBA"));
+    }
+    if !cut_out_available() {
+        return Err("cutting out needs macOS 14 or later".into());
+    }
+    let mask = imp::foreground_mask(&rgba[..need], w, h)?;
+    apply_mask(&rgba[..need], w, h, &mask).ok_or_else(|| "nothing stands out from the background".to_string())
+}
+
+/// `rgba` with `mask` (0–1 per pixel) as its alpha, cropped to where the mask is.
+pub fn apply_mask(rgba: &[u8], w: usize, h: usize, mask: &[f32]) -> Option<(u32, u32, Vec<u8>)> {
+    let (mut x0, mut y0, mut x1, mut y1) = (usize::MAX, usize::MAX, 0usize, 0usize);
+    for y in 0..h {
+        for x in 0..w {
+            if mask.get(y * w + x).copied().unwrap_or(0.0) > 0.05 {
+                (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x), y1.max(y));
+            }
+        }
+    }
+    if x0 == usize::MAX {
+        return None;
+    }
+    let (cw, ch) = (x1 - x0 + 1, y1 - y0 + 1);
+    let mut out = Vec::with_capacity(cw * ch * 4);
+    for y in y0..=y1 {
+        for x in x0..=x1 {
+            let i = (y * w + x) * 4;
+            let a = (mask[y * w + x].clamp(0.0, 1.0) * f32::from(rgba[i + 3])).round() as u8;
+            out.extend_from_slice(&[rgba[i], rgba[i + 1], rgba[i + 2], a]);
+        }
+    }
+    Some((cw as u32, ch as u32, out))
+}
+
 #[cfg(not(target_os = "macos"))]
 mod imp {
+    pub fn foreground_mask(_: &[u8], _: usize, _: usize) -> Result<Vec<f32>, String> {
+        Err("cutting out needs macOS (Apple Vision)".into())
+    }
     pub fn detect(_: &[u8], _: usize, _: usize) -> Result<Vec<super::Face>, String> {
         Err("face detection needs macOS (Apple Vision)".into())
     }
@@ -105,8 +159,70 @@ mod imp {
     use objc2::rc::autoreleasepool;
     use objc2_core_foundation::{CFData, CGPoint, CGRect, CGSize};
     use objc2_core_graphics::{CGBitmapInfo, CGColorRenderingIntent, CGColorSpace, CGDataProvider, CGImage, CGImageAlphaInfo};
+    use objc2_core_video::{
+        CVPixelBufferGetBaseAddress, CVPixelBufferGetBytesPerRow, CVPixelBufferGetHeight, CVPixelBufferGetPixelFormatType, CVPixelBufferGetWidth,
+        CVPixelBufferLockBaseAddress, CVPixelBufferLockFlags, CVPixelBufferUnlockBaseAddress,
+    };
     use objc2_foundation::{NSArray, NSDictionary};
-    use objc2_vision::{VNClassifyImageRequest, VNDetectFaceRectanglesRequest, VNImageRequestHandler, VNRequest};
+    use objc2_vision::{VNClassifyImageRequest, VNDetectFaceRectanglesRequest, VNGenerateForegroundInstanceMaskRequest, VNImageRequestHandler, VNRequest};
+
+    /// kCVPixelFormatType_OneComponent32Float ('L00f') and OneComponent8 ('L008').
+    const F32: u32 = u32::from_be_bytes(*b"L00f");
+    const U8: u32 = u32::from_be_bytes(*b"L008");
+
+    /// The foreground mask (0–1 per pixel, `w`×`h`) of every instance Vision finds.
+    pub fn foreground_mask(rgba: &[u8], w: usize, h: usize) -> Result<Vec<f32>, String> {
+        autoreleasepool(|_| {
+            let image = cg_image(rgba, w, h)?;
+            // SAFETY: a plain `new` of a Vision request class (no arguments).
+            let request = unsafe { VNGenerateForegroundInstanceMaskRequest::new() };
+            let options = NSDictionary::new();
+            // SAFETY: `image` is a valid CGImage and `options` an empty dictionary of the declared
+            // key and value types.
+            let handler = unsafe { VNImageRequestHandler::initWithCGImage_options(VNImageRequestHandler::alloc(), &image, &options) };
+            let as_request: objc2::rc::Retained<VNRequest> = objc2::rc::Retained::into_super(objc2::rc::Retained::into_super(request.clone()));
+            let requests = NSArray::from_retained_slice(&[as_request]);
+            handler.performRequests_error(&requests).map_err(|e| format!("Vision could not cut out the picture: {e}"))?;
+            // SAFETY: the request has been performed; `results` is its NSArray of observations.
+            let obs = unsafe { request.results() }.and_then(|r| r.firstObject()).ok_or("nothing stands out from the background")?;
+            // SAFETY: plain reads of the observation, and a mask of its instances at the image's
+            // size for the handler that analysed it.
+            let pb = unsafe {
+                let all = obs.allInstances();
+                obs.generateScaledMaskForImageForInstances_fromRequestHandler_error(&all, &handler)
+                    .map_err(|e| format!("Vision could not make the mask: {e}"))?
+            };
+            // SAFETY: the buffer is locked read-only while its rows are read, and unlocked after.
+            unsafe {
+                if CVPixelBufferLockBaseAddress(&pb, CVPixelBufferLockFlags(1)) != 0 {
+                    return Err("the mask could not be read".to_string());
+                }
+                let (mw, mh, row, fmt) =
+                    (CVPixelBufferGetWidth(&pb), CVPixelBufferGetHeight(&pb), CVPixelBufferGetBytesPerRow(&pb), CVPixelBufferGetPixelFormatType(&pb));
+                let base = CVPixelBufferGetBaseAddress(&pb).cast::<u8>();
+                let mut mask = vec![0f32; w * h];
+                if !base.is_null() && mw > 0 && mh > 0 {
+                    for y in 0..h {
+                        let my = (y * mh / h).min(mh - 1);
+                        let line = base.add(my * row);
+                        for x in 0..w {
+                            let mx = (x * mw / w).min(mw - 1);
+                            mask[y * w + x] = match fmt {
+                                F32 => line.add(mx * 4).cast::<f32>().read_unaligned(),
+                                U8 => f32::from(*line.add(mx)) / 255.0,
+                                _ => 0.0,
+                            };
+                        }
+                    }
+                }
+                CVPixelBufferUnlockBaseAddress(&pb, CVPixelBufferLockFlags(1));
+                if !matches!(fmt, F32 | U8) {
+                    return Err(format!("unexpected mask format {fmt:#x}"));
+                }
+                Ok(mask)
+            }
+        })
+    }
 
     /// A CGImage over a copy of 8-bit RGBA rows (the alpha is ignored).
     fn cg_image(rgba: &[u8], w: usize, h: usize) -> Result<objc2_core_foundation::CFRetained<CGImage>, String> {
@@ -246,6 +362,43 @@ mod tests {
         assert!(labels.iter().all(|(l, c)| !l.is_empty() && (0.0..=1.0).contains(c)), "{labels:?}");
         assert!(labels.windows(2).all(|p| p[0].1 >= p[1].1), "most confident first");
         assert!(classify_image(&[0; 10], 4, 4, 5, 0.0).is_err());
+    }
+
+    #[test]
+    fn a_mask_makes_the_background_clear_and_crops() {
+        let rgba = vec![200u8; 4 * 4 * 4];
+        let mut mask = vec![0f32; 16];
+        mask[5] = 1.0;
+        mask[6] = 0.5;
+        let (w, h, out) = apply_mask(&rgba, 4, 4, &mask).unwrap();
+        assert_eq!((w, h), (2, 1));
+        assert_eq!((out[3], out[7]), (200, 100));
+        assert!(apply_mask(&rgba, 4, 4, &[0.0; 16]).is_none());
+        assert!(cut_out(&[0; 10], 4, 4).is_err());
+    }
+
+    /// Vision cuts a bright disc out of a dark background.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn vision_cuts_out_a_subject() {
+        let (w, h) = (256usize, 256usize);
+        let mut rgba = Vec::with_capacity(w * h * 4);
+        for y in 0..h {
+            for x in 0..w {
+                let d = ((x as f32 - 128.0).powi(2) + (y as f32 - 128.0).powi(2)).sqrt();
+                rgba.extend_from_slice(if d < 60.0 { &[230, 60, 40, 255] } else { &[20, 30, 40, 255] });
+            }
+        }
+        match cut_out(&rgba, w, h) {
+            // the subject is the disc: cropped near its size, its middle opaque, corners clear
+            Ok((cw, ch, out)) => {
+                assert!(cw < 200 && ch < 200, "{cw}×{ch}");
+                let mid = ((ch / 2 * cw + cw / 2) * 4 + 3) as usize;
+                assert!(out[mid] > 200, "the disc stays");
+            }
+            // a plain synthetic picture may hold no subject for Vision
+            Err(e) => assert!(e.contains("nothing stands out"), "{e}"),
+        }
     }
 
     /// A blank picture has no faces (Vision runs, finds nothing).

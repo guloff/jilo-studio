@@ -4326,3 +4326,11 @@ mode	Edit	Монтаж
 	Stickers you add show here. Pick a category above.	Здесь появятся добавленные стикеры. Выберите категорию выше.
 	Right-click a sticker to keep it here.	Правый клик по стикеру — и он будет здесь.
 	Sticker added at the playhead; drag it in the Program monitor.	Стикер добавлен у курсора; перетащите его в мониторе программы.
+# My stickers
+	My Stickers	Мои стикеры
+	Cut Out of the Selected Clip	Вырезать из выделенного клипа
+	Needs Apple Vision (macOS 14 or later).	Нужен Apple Vision (macOS 14 или новее).
+	Select a photo or a video clip under the playhead and cut its subject out: it becomes a sticker of your own.	Выделите фото или видеоклип под указателем и вырежьте главный объект — он станет вашим стикером.
+	Cut out: the sticker is in My Stickers and on the picture at the playhead.	Вырезано: стикер в «Моих стикерах» и на кадре у указателя.
+# My stickers
+	Sticker from Clip	Стикер из клипа
