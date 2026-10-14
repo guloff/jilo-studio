@@ -4113,3 +4113,18 @@ mode	Edit	Монтаж
 	The steps are kept for the inbox folder.	Шаги сохранены для папки-входящих.
 	Inbox: {n} new files imported	Входящие: импортировано новых файлов — {n}
 	Inbox: processing {n} new files	Входящие: обрабатывается новых файлов — {n}
+# AI ▸ Automatic Editing ▸ Auto Multi-Camera by Speaker (16.7)
+	Auto Multi-Camera by Speaker…	Автомультикам по говорящему…
+	Auto Multi-Camera by Speaker	Автомультикам по говорящему
+	Who speaks is on screen	В кадре тот, кто говорит
+	By the transcript's speakers when it has them, else by loudness.	По говорящим из расшифровки, если они есть, иначе по громкости.
+	By the transcript's speakers	По говорящим из расшифровки
+	Speaker 1 on camera 1, speaker 2 on camera 2… Needs a transcript with speakers.	Говорящий 1 — камера 1, говорящий 2 — камера 2… Нужна расшифровка с говорящими.
+	By each camera's microphone	По микрофону каждой камеры
+	The camera whose own sound is loudest. Works on this computer, no transcript needed.	Камера, чей звук громче. Работает на этом компьютере, расшифровка не нужна.
+	Shortest shot	Самый короткий план
+	 s	 с
+	Wide shot	Общий план
+	Cut before the speech	Склейка до начала речи
+	The wide shot takes crosstalk and long silences. The selected multi-camera clips are cut, or all of them when none is selected; every cut can be changed afterwards. One Undo takes it back.	Общий план — когда говорят одновременно и в долгих паузах. Режутся выбранные мультикам-клипы, а если ничего не выбрано — все; каждую склейку потом можно поправить. Одна отмена всё вернёт.
+	Multi-camera cuts: {n}	Мультикам-склеек: {n}

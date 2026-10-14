@@ -489,6 +489,10 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         "batch.start" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::batch::open(app);
         }
+        // Auto Multi-Camera by Speaker… from the menu opens the dialog; with params it cuts directly.
+        "multicam.autoSwitch" if params.as_object().is_none_or(|m| m.is_empty()) => {
+            return crate::panels::automulticam::open(app);
+        }
         // Export in All Formats… from the menu opens the dialog; with params it exports directly.
         "export.allFormats" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::formats::open(app);

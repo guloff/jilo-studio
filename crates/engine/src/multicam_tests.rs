@@ -841,3 +841,43 @@ fn perf_grid_of_four_1080p_angles() {
         "Multi-Camera grid (4 × 1080p H.264, ¼-scale cells): {grid_ms:.1} ms/frame wall, {grid_cpu:.1} ms/frame CPU; one angle at ½ scale: {one_ms:.1} ms/frame wall (24 fps budget 41.7 ms)"
     );
 }
+
+#[test]
+fn auto_multicam_follows_the_transcript_speakers() {
+    let (mut s, items, _src, _) = mc_session("switch");
+    // camera a's recording holds both voices: speaker 0, then 1, then 0 again
+    let w =
+        |text: &str, sp: u32, a: f64, b: f64| json!({"text": text, "start": Tick::from_seconds_f64(a).0, "end": Tick::from_seconds_f64(b).0, "speaker": sp});
+    let words = json!([w("Hello", 0, 0.0, 1.4), w("there.", 0, 1.4, 1.5), w("Hi!", 1, 1.6, 3.2), w("Bye.", 0, 3.3, 4.0)]);
+    s.execute(
+        "transcript.set",
+        json!({"item": items[0].0, "transcript": {"language": "en", "speakers": [{"name": "Host"}, {"name": "Guest"}], "words": words}}),
+    )
+    .unwrap();
+    s.execute("multicam.audioFollowsVideo", json!({"enabled": true})).unwrap();
+    let undo = s.history.undo.len();
+    let r = s.execute("multicam.autoSwitch", json!({"minShot": 0.5, "lead": 0})).unwrap();
+    assert_eq!(r["clips"][0]["method"], "speakers", "{r}");
+    assert_eq!(r["cuts"], 2, "{r}");
+    // speaker 0 on camera 1, speaker 1 on camera 2; cuts at 1.5 s and 3.25 s (24 fps)
+    assert_eq!(v1(&s), vec![(0, 0), (36, 1), (78, 0)]);
+    assert_eq!(a1(&s), vec![(0, 0), (36, 1), (78, 0)], "the audio follows the video when set to");
+    assert_eq!(s.history.undo.len(), undo + 1, "one undo step");
+    // speakers mapped to other cameras, and a longest shot that swallows the short one
+    s.execute("edit.undo", json!({})).unwrap();
+    s.execute("multicam.autoSwitch", json!({"minShot": 0.5, "lead": 0, "speakerCameras": [3, 2]})).unwrap();
+    assert_eq!(v1(&s), vec![(0, 2), (36, 1), (78, 2)]);
+    s.execute("edit.undo", json!({})).unwrap();
+    s.execute("multicam.autoSwitch", json!({"minShot": 1.0, "lead": 0})).unwrap();
+    assert_eq!(v1(&s), vec![(0, 0), (36, 1)]);
+    assert!(s.execute("multicam.autoSwitch", json!({"method": "nope"})).is_err());
+    assert!(s.execute("multicam.autoSwitch", json!({"wide": 9})).is_err());
+}
+
+#[test]
+fn auto_multicam_by_loudness_without_speakers() {
+    let (mut s, _items, _src, _) = mc_session("switch");
+    let r = s.execute("multicam.autoSwitch", json!({})).unwrap();
+    assert_eq!(r["clips"][0]["method"], "loudness", "{r}");
+    assert!(s.execute("multicam.autoSwitch", json!({"method": "speakers"})).is_err(), "no speakers in a transcript");
+}

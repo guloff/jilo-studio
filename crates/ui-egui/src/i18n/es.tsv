@@ -4118,3 +4118,18 @@
 	The steps are kept for the inbox folder.	Los pasos se guardaron para la carpeta de entrada.
 	Inbox: {n} new files imported	Entrada: {n} archivos nuevos importados
 	Inbox: processing {n} new files	Entrada: procesando {n} archivos nuevos
+# AI ▸ Automatic Editing ▸ Auto Multi-Camera by Speaker (16.7)
+	Auto Multi-Camera by Speaker…	Multicámara automática por hablante…
+	Auto Multi-Camera by Speaker	Multicámara automática por hablante
+	Who speaks is on screen	Quien habla aparece en pantalla
+	By the transcript's speakers when it has them, else by loudness.	Por los hablantes de la transcripción si los tiene; si no, por volumen.
+	By the transcript's speakers	Por los hablantes de la transcripción
+	Speaker 1 on camera 1, speaker 2 on camera 2… Needs a transcript with speakers.	Hablante 1 en la cámara 1, hablante 2 en la cámara 2… Requiere una transcripción con hablantes.
+	By each camera's microphone	Por el micrófono de cada cámara
+	The camera whose own sound is loudest. Works on this computer, no transcript needed.	La cámara cuyo sonido es más fuerte. Funciona en este ordenador, sin transcripción.
+	Shortest shot	Plano más corto
+	 s	 s
+	Wide shot	Plano general
+	Cut before the speech	Corte antes de hablar
+	The wide shot takes crosstalk and long silences. The selected multi-camera clips are cut, or all of them when none is selected; every cut can be changed afterwards. One Undo takes it back.	El plano general se usa cuando hablan a la vez y en silencios largos. Se cortan los clips multicámara seleccionados, o todos si no hay selección; cada corte se puede cambiar después. Un solo Deshacer lo revierte.
+	Multi-camera cuts: {n}	Cortes multicámara: {n}

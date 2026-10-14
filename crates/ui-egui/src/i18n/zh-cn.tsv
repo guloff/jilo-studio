@@ -4153,3 +4153,18 @@
 	The steps are kept for the inbox folder.	已为收件文件夹保存这些步骤。
 	Inbox: {n} new files imported	收件：已导入 {n} 个新文件
 	Inbox: processing {n} new files	收件：正在处理 {n} 个新文件
+# AI ▸ Automatic Editing ▸ Auto Multi-Camera by Speaker (16.7)
+	Auto Multi-Camera by Speaker…	按说话人自动多机位…
+	Auto Multi-Camera by Speaker	按说话人自动多机位
+	Who speaks is on screen	谁说话就显示谁
+	By the transcript's speakers when it has them, else by loudness.	若文字稿有说话人则按说话人，否则按响度。
+	By the transcript's speakers	按文字稿中的说话人
+	Speaker 1 on camera 1, speaker 2 on camera 2… Needs a transcript with speakers.	说话人 1 对应摄像机 1，说话人 2 对应摄像机 2……需要带说话人的文字稿。
+	By each camera's microphone	按各摄像机的麦克风
+	The camera whose own sound is loudest. Works on this computer, no transcript needed.	自身声音最响的摄像机。在本机运行，无需文字稿。
+	Shortest shot	最短镜头
+	 s	 秒
+	Wide shot	全景镜头
+	Cut before the speech	在说话前切换
+	The wide shot takes crosstalk and long silences. The selected multi-camera clips are cut, or all of them when none is selected; every cut can be changed afterwards. One Undo takes it back.	多人同时说话和长时间静默时使用全景镜头。剪切所选多机位片段，未选择时剪切全部；之后可修改每个剪辑点。一次撤销即可撤回。
+	Multi-camera cuts: {n}	多机位剪辑点：{n}
