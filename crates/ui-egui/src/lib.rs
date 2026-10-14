@@ -1743,6 +1743,7 @@ impl FilmcraftApp {
         panels::batch::show(self, &ctx);
         panels::formats::show(self, &ctx);
         panels::brand_kit::show(self, &ctx);
+        panels::templates::show(self, &ctx);
         panels::recipes::show(self, &ctx);
         panels::palette::show(self, &ctx);
         panels::retakes::show(self, &ctx);

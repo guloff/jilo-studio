@@ -695,6 +695,9 @@ pub struct UiState {
     /// AI ▸ Batch Process…: the dialog, its choices and the batch it started.
     #[serde(skip)]
     pub batch: BatchUi,
+    /// File ▸ New ▸ Project from Template….
+    #[serde(skip)]
+    pub templates: crate::panels::templates::TemplatesUi,
     /// Graphics and Titles ▸ Brand Kit…: the window and the kit being edited.
     #[serde(skip)]
     pub brand_kit: crate::panels::brand_kit::BrandKitUi,
@@ -1211,6 +1214,7 @@ impl Default for UiState {
             batch: BatchUi::default(),
             formats: Default::default(),
             brand_kit: Default::default(),
+            templates: Default::default(),
             recipes: Default::default(),
             palette: Default::default(),
             assistant: Default::default(),

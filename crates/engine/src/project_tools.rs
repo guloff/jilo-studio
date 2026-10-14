@@ -91,7 +91,15 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
         }),
         spec("file.saveAsTemplate", "Save as Template…", &["File"], None, r#"{"name":str?,"path":str?}"#, always, save_as_template),
         query("file.templates", "List Project Templates", &[], None, "{}", always, list_templates),
-        spec("file.newProjectFromTemplate", "New Project from Template", &[], None, r#"{"template":name|path,"name":str?}"#, always, new_from_template),
+        spec(
+            "file.newProjectFromTemplate",
+            "New Project from Template",
+            &[],
+            None,
+            r#"{"template":"builtin:shorts|podcast|interview|vlog"|name|path,"name":str?,"force":bool?}"#,
+            always,
+            new_from_template,
+        ),
         spec(
             "file.importFromMediaBrowser",
             "Import from Media Browser",
@@ -644,7 +652,10 @@ fn sanitize(n: &str) -> String {
 }
 
 fn list_templates(s: &mut Session, _: &Value) -> Result<Value> {
-    let Some(dir) = templates_dir(s) else { return Ok(json!([])) };
+    let builtin = crate::project_templates::BUILTIN
+        .iter()
+        .map(|b| json!({"name": b.name, "id": format!("builtin:{}", b.id), "description": b.description, "builtin": true}));
+    let Some(dir) = templates_dir(s) else { return Ok(Value::Array(builtin.collect())) };
     let mut v: Vec<Value> = std::fs::read_dir(&dir)
         .map(|rd| {
             rd.flatten()
@@ -654,7 +665,7 @@ fn list_templates(s: &mut Session, _: &Value) -> Result<Value> {
         })
         .unwrap_or_default();
     v.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
-    Ok(Value::Array(v))
+    Ok(Value::Array(builtin.chain(v).collect()))
 }
 
 fn new_from_template(s: &mut Session, p: &Value) -> Result<Value> {
@@ -664,8 +675,15 @@ fn new_from_template(s: &mut Session, p: &Value) -> Result<Value> {
     } else {
         templates_dir(s).map(|d| d.join(format!("{}.fcproj", sanitize(t))).to_string_lossy().to_string()).unwrap_or_else(|| t.to_string())
     };
-    let bytes = s.services.read_file(&path).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
-    let mut proj = filmcraft_format::decode(&bytes).map_err(|e| EngineError::Other(e.to_string()))?.project;
+    // a saved template of that name first, else a built-in one
+    let builtin = crate::project_templates::find(t).filter(|_| t.starts_with("builtin:") || s.services.read_file(&path).is_err());
+    let mut proj = match builtin {
+        Some(b) => b.project(str_p(p, "name").unwrap_or("Untitled")).0,
+        None => {
+            let bytes = s.services.read_file(&path).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+            filmcraft_format::decode(&bytes).map_err(|e| EngineError::Other(e.to_string()))?.project
+        }
+    };
     if s.is_dirty() && !bool_p(p, "force").unwrap_or(false) {
         return Err(EngineError::Other("the project has unsaved changes: save it first, or pass {\"force\": true} to discard them".into()));
     }

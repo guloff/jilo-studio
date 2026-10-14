@@ -52,6 +52,7 @@ pub mod presets;
 pub mod previews;
 pub mod project_manager;
 pub mod project_panel;
+pub mod project_templates;
 pub mod project_tools;
 pub mod proxies;
 pub mod recipes;
