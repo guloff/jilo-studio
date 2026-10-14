@@ -102,7 +102,11 @@ fn enabled(app: &FilmcraftApp, id: &str) -> Result<(), String> {
 
 /// Checkmark state of this module's toggles in the menus.
 pub fn checked(app: &FilmcraftApp, id: &str) -> Option<bool> {
-    (id == "view.dynamicAudioWaveforms").then_some(app.ui.extras.dynamic_waveforms)
+    match id {
+        "view.dynamicAudioWaveforms" => Some(app.ui.extras.dynamic_waveforms),
+        "view.quickActions" => Some(app.ui.quick_actions),
+        _ => None,
+    }
 }
 
 /// Project Settings ▸ General ▸ Renderer is "Software Only": the Program monitor composites on
@@ -172,6 +176,10 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
         "view.dynamicAudioWaveforms" => {
             app.ui.extras.dynamic_waveforms = params.get("on").and_then(Value::as_bool).unwrap_or(!app.ui.extras.dynamic_waveforms);
             return Some(Ok(json!({"dynamicAudioWaveforms": app.ui.extras.dynamic_waveforms})));
+        }
+        "view.quickActions" => {
+            app.ui.quick_actions = params.get("on").and_then(Value::as_bool).unwrap_or(!app.ui.quick_actions);
+            return Some(Ok(json!({"quickActions": app.ui.quick_actions})));
         }
         "help.revealLogFiles" => {
             let r = write_session_log(app).and_then(|p| {

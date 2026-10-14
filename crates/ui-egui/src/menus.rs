@@ -89,6 +89,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("view.guideTemplates.delete", "Delete Guide Template", [], None),
     uic!("view.compare.setReference", "Set Comparison Reference", [], None),
     uic!("view.dynamicAudioWaveforms", "Dynamic Audio Waveforms", ["View"], None),
+    uic!("view.quickActions", "Quick Actions", ["View"], None),
     uic!("multicam.toggleView", "Multi-Camera View", ["View"], Some("Shift+0")),
     uic!("multicam.recordToggle", "Multi-Camera Record On/Off Toggle", [], Some("0")),
     uic!("multicam.editCamerasDialog", "Edit Cameras…", [], None),
@@ -153,6 +154,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("app.settings.timeline", "Timeline…", ["Edit", "Preferences"], None),
     uic!("app.settings.trim", "Trim…", ["Edit", "Preferences"], None),
     uic!("graphics.captionStyles", "Caption Styles…", ["Graphics and Titles"], None),
+    uic!("ui.commandPalette", "Command Palette…", ["Window"], Some("Cmd+J")),
     // AI ▸ … after the engine's AI commands (`filmcraft_engine::ai_menu`)
     uic!("ai.recipes", "Recipes…", ["AI"], None),
     uic!("ai.textToSpeech", "Text to Speech…", ["AI"], None),
@@ -452,6 +454,9 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         "graphics.captionStyles" => {
             app.show_panel(PanelKind::CaptionStyle);
             return Ok(Value::Null);
+        }
+        "ui.commandPalette" => {
+            return crate::panels::palette::open(app);
         }
         "ai.recipes" => {
             return crate::panels::recipes::open(app);

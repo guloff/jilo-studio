@@ -122,6 +122,8 @@
 	Color Management…	Gestión del color…
 	Color Matte…	Mate de color…
 	Comic	Cómic
+	Command Palette…	Paleta de comandos…
+	Commands you run from here appear first.	Los comandos que ejecutes desde aquí aparecen primero.
 	Comparison View	Vista de comparación
 	Composite Video	Video compuesto
 	Condensed	Condensada
@@ -158,6 +160,7 @@
 	Edge Distance	Distancia al borde
 	Edit	Edición
 	Edit as usual: every change is a step. Moving around and selecting are not recorded; the recipe works on whatever is selected when it runs.	Edita como siempre: cada cambio es un paso. Moverse y seleccionar no se graban; la receta actúa sobre lo seleccionado al ejecutarla.
+	Edit Graphic	Editar gráfico
 	Edit Offline…	Editar sin conexión…
 	Edit Original	Editar original
 	Edit Subclip…	Editar subclip…
@@ -304,6 +307,7 @@
 	News	Noticias
 	Next in Sequence	Siguiente en la secuencia
 	Next in Track	Siguiente en la pista
+	No command matches.	Ningún comando coincide.
 	No sequence is open.	No hay ninguna secuencia abierta.
 	Normalize Mix Track…	Normalizar pista de mezcla…
 	Number	Número
@@ -349,6 +353,7 @@
 	Punch Karaoke	Impacto karaoke
 	Punch Yellow	Impacto amarillo
 	Purple	Púrpura
+	Quick Actions	Acciones rápidas
 	Quote	Cita
 	Quote Card	Tarjeta de cita
 	Recipe name	Nombre de la receta
@@ -391,6 +396,7 @@
 	Role Pill	Cápsula del cargo
 	Rose	Rosa
 	Run	Ejecutar
+	Run Recipe: {name}	Ejecutar receta: {name}
 	Running…	Ejecutando…
 	Safe Margins	Márgenes seguros
 	Sample caption text	Texto de subtítulo de ejemplo
@@ -440,6 +446,7 @@
 	Snap in Timeline	Ajustar en la línea de tiempo
 	Social	Redes sociales
 	Soft Fade	Fundido suave
+	Sound	Sonido
 	Source	Origen
 	Source Settings…	Ajustes de origen…
 	Speech and Captions	Voz y subtítulos
@@ -487,6 +494,7 @@
 	Transparent Video…	Video transparente…
 	Trim Edit	Recortar edición
 	Trim…	Recorte…
+	Type a command, a panel or a recipe…	Escribe un comando, un panel o una receta…
 	Undo	Deshacer
 	Ungroup	Desagrupar
 	Universal Counting Leader…	Cuenta atrás universal…

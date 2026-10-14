@@ -115,6 +115,8 @@
 	Color Management…	Управление цветом…
 	Color Matte…	Цветная подложка…
 	Comic	Комикс
+	Command Palette…	Палитра команд…
+	Commands you run from here appear first.	Команды, запущенные отсюда, будут показаны первыми.
 	Comparison View	Режим сравнения
 	Composite Video	Композитное видео
 	Condensed	Узкий
@@ -151,6 +153,7 @@
 	Edge Distance	Отступ от края
 	Edit	Правка
 	Edit as usual: every change is a step. Moving around and selecting are not recorded; the recipe works on whatever is selected when it runs.	Монтируйте как обычно: каждое изменение — шаг. Перемещение и выделение не записываются; рецепт работает с тем, что выделено при запуске.
+	Edit Graphic	Править графику
 	Edit Offline…	Редактировать офлайн…
 	Edit Original	Редактировать оригинал
 	Edit Subclip…	Изменить подклип…
@@ -297,6 +300,7 @@
 	News	Новости
 	Next in Sequence	Следующий в секвенции
 	Next in Track	Следующий на дорожке
+	No command matches.	Нет подходящих команд.
 	No sequence is open.	Нет открытой секвенции.
 	Normalize Mix Track…	Нормализовать дорожку микса…
 	Number	Номер
@@ -342,6 +346,7 @@
 	Punch Karaoke	Удар караоке
 	Punch Yellow	Удар жёлтый
 	Purple	Пурпурный
+	Quick Actions	Быстрые действия
 	Quote	Цитата
 	Quote Card	Карточка цитаты
 	Recipe name	Название рецепта
@@ -384,6 +389,7 @@
 	Role Pill	Капсула должности
 	Rose	Розовый
 	Run	Запустить
+	Run Recipe: {name}	Запустить рецепт: {name}
 	Running…	Выполняется…
 	Safe Margins	Безопасные поля
 	Sample caption text	Пример текста субтитров
@@ -433,6 +439,7 @@
 	Snap in Timeline	Привязка на таймлайне
 	Social	Соцсети
 	Soft Fade	Мягкое проявление
+	Sound	Звук
 	Source	Источник
 	Source Settings…	Настройки источника…
 	Speech and Captions	Речь и субтитры
@@ -480,6 +487,7 @@
 	Transparent Video…	Прозрачное видео…
 	Trim Edit	Подрезка монтажной точки
 	Trim…	Подрезка…
+	Type a command, a panel or a recipe…	Введите команду, панель или рецепт…
 	Undo	Отменить
 	Ungroup	Разгруппировать
 	Universal Counting Leader…	Универсальный обратный отсчёт…

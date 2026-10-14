@@ -336,6 +336,8 @@
 	Color…	颜色…
 	Column order	列顺序
 	Comic	漫画
+	Command Palette…	命令面板…
+	Commands you run from here appear first.	从这里运行过的命令会排在最前。
 	Comment	注释
 	Comparison View	对比视图
 	Composite Video	复合视频
@@ -478,6 +480,7 @@
 	Edit Cameras…	编辑机位…
 	Edit Columns	编辑列
 	Edit Columns…	编辑列…
+	Edit Graphic	编辑图形
 	Edit Offline…	脱机编辑…
 	Edit Original	编辑原始文件
 	Edit Subclip…	编辑子剪辑…
@@ -932,6 +935,7 @@
 	No background jobs.	无后台任务。
 	No captions on this track. Press + to add one at the playhead.	此轨道上没有字幕。按 + 可在播放头位置添加字幕。
 	no Chinese font is installed on this system; the interface stays in English	当前系统未安装中文字体；界面保持英文
+	No command matches.	没有匹配的命令。
 	No effects	无效果
 	No events.	无事件。
 	no Japanese font is installed on this system; the interface stays in English	当前系统未安装日文字体；界面保持英文
@@ -1085,6 +1089,7 @@
 	Push (Legacy)	推进(旧版)
 	Quality	质量
 	Queue	队列
+	Quick Actions	快捷操作
 	Quick Export	快速导出
 	QuickTime	QuickTime
 	Quote	引语
@@ -1189,6 +1194,7 @@
 	Rose	玫瑰色
 	Rotation	旋转
 	Run	运行
+	Run Recipe: {name}	运行配方：{name}
 	Running…	运行中…
 	Safe Margins	安全边距
 	Sample caption text	示例字幕文本
@@ -1340,6 +1346,7 @@
 	Soft Wipe	柔和划像
 	Solarize	曝光过度
 	Sort Icons	排列图标
+	Sound	声音
 	Source	源
 	Source channels the selected audio clips play:	所选音频剪辑播放的源声道：
 	Source code on GitHub	GitHub 源码仓库
@@ -1493,6 +1500,7 @@
 	Tube-modeled Compressor	电子管模拟压缩器
 	TV Power	电视电源
 	Twirl	旋转扭曲
+	Type a command, a panel or a recipe…	输入命令、面板或配方…
 	Type Tool	文字工具
 	Typewriter	打字机
 	Ultra Key	超级键

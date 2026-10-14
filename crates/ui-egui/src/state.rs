@@ -616,6 +616,9 @@ pub struct UiState {
     /// The status bar (hints, messages, job progress). An app that embeds FilmCraft can hide it.
     #[serde(default = "shown")]
     pub show_status_bar: bool,
+    /// View ▸ Quick Actions: the row of actions for the selection over the Program monitor.
+    #[serde(default = "shown")]
+    pub quick_actions: bool,
     pub dark: bool,
     /// Lumetri scopes visible in the Program monitor area.
     pub show_scopes: bool,
@@ -695,6 +698,9 @@ pub struct UiState {
     /// AI ▸ Recipes…: the window, the recipe shown and the run being watched.
     #[serde(skip)]
     pub recipes: crate::panels::recipes::RecipesUi,
+    /// Window ▸ Command Palette… (⌘J).
+    #[serde(skip)]
+    pub palette: crate::panels::palette::PaletteUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -1168,6 +1174,7 @@ impl Default for UiState {
             show_menu_bar: true,
             show_header: true,
             show_status_bar: true,
+            quick_actions: true,
             dark: true,
             show_scopes: false,
             status: String::new(),
@@ -1191,6 +1198,7 @@ impl Default for UiState {
             youtube: YouTubeUi::default(),
             batch: BatchUi::default(),
             recipes: Default::default(),
+            palette: Default::default(),
             ai_task: None,
             translate_track: None,
             translate_to: String::new(),
