@@ -26,6 +26,7 @@
 	Add Audio Submix Track	Añadir pista de submezcla de audio
 	Add Caption at Playhead	Añadir subtítulo en el cabezal
 	Add Caption Track	Añadir pista de subtítulos
+	Add captions in the Karaoke Yellow style	Añade subtítulos con el estilo Karaoke amarillo
 	Add Chapter Marker…	Añadir marcador de capítulo…
 	Add Edit	Añadir edición
 	Add Edit to All Tracks	Añadir edición a todas las pistas
@@ -38,6 +39,8 @@
 	Add Range Marker to In and Out	Añadir marcador de rango de entrada a salida
 	Add Tracks…	Añadir pistas…
 	Adjustment Layer…	Capa de ajuste…
+	AI Assistant	Asistente de IA
+	AI Assistant…	Asistente de IA…
 	AI Settings…	Ajustes de IA…
 	AI…	IA…
 	Alert	Alerta
@@ -48,13 +51,17 @@
 	All caption tracks	Todas las pistas de subtítulos
 	All Panels	Todos los paneles
 	Alpha	Alfa
+	Another AI task is running; wait for it to finish.	Hay otra tarea de IA en curso; espera a que termine.
 	Appearance	Apariencia
 	Appearance…	Apariencia…
 	Apply Audio Transition	Aplicar transición de audio
 	Apply Default Transitions to Selection	Aplicar transiciones predeterminadas a la selección
 	Apply Video Transition	Aplicar transición de video
 	Arrange	Organizar
+	Ask in your own words, for example:	Pide con tus propias palabras, por ejemplo:
+	Ask the AI assistant: “{request}”	Preguntar al asistente de IA: «{request}»
 	Assembly	Ensamblaje
+	Assistant	Asistente
 	Attach Proxies…	Adjuntar proxies…
 	Audio Channels…	Canales de audio…
 	Audio Clip Mixer	Mezclador de clips de audio
@@ -187,6 +194,7 @@
 	FilmCraft Help…	Ayuda de FilmCraft…
 	FilmCraft on GitHub	FilmCraft en GitHub
 	Find Next	Buscar siguiente
+	Find the best moments for a short	Encuentra los mejores momentos para un short
 	Find…	Buscar…
 	Fit	Ajustar
 	Fit to frame	Ajustar al fotograma
@@ -253,6 +261,7 @@
 	Lavender	Lavanda
 	Learning	Aprendizaje
 	Left	Izquierda
+	Left out (not allowed): {list}	Omitido (no permitido): {list}
 	Letter Spacing	Espaciado
 	Libraries	Bibliotecas
 	Lift	Levantar
@@ -331,6 +340,8 @@
 	Place	Ubicación
 	Place and Date	Lugar y fecha
 	Plain	Normal
+	Planning	Planificando
+	Planning…	Planificando…
 	Playback Resolution	Resolución de reproducción
 	Playback…	Reproducción…
 	Plugins…	Complementos…
@@ -371,6 +382,7 @@
 	Remove Attributes…	Quitar atributos…
 	Remove Filler Words	Quitar muletillas
 	Remove Pauses	Quitar pausas
+	Remove the pauses and filler words	Quita las pausas y las muletillas
 	Remove Unused	Quitar no utilizados
 	Rename…	Cambiar nombre…
 	Render Audio	Procesar audio
@@ -402,11 +414,13 @@
 	Sample caption text	Texto de subtítulo de ejemplo
 	Save	Guardar
 	Save All	Guardar todo
+	Save as Recipe	Guardar como receta
 	Save As…	Guardar como…
 	Save Changes	Guardar cambios
 	Save Guides as Template…	Guardar guías como plantilla…
 	Save a Copy…	Guardar una copia…
 	Save as Template…	Guardar como plantilla…
+	Saved as the recipe {name}	Guardado como la receta {name}
 	Saved.	Guardado.
 	Scale to Frame Size	Escalar al tamaño del fotograma
 	Scene Edit Detection…	Detección de cambios de escena…
@@ -469,7 +483,9 @@
 	Text to Speech…	Texto a voz…
 	Thanks	Gracias
 	Thanks for watching, with a call to subscribe.	Gracias por ver, con una llamada a suscribirse.
+	The assistant needs an API key for the text engine.	El asistente necesita una clave de API para el motor de texto.
 	The recipe stopped: {error}	La receta se detuvo: {error}
+	The request was not sent.	La petición no se envió.
 	The sequence has no captions to translate. Create captions from the transcript first.	La secuencia no tiene subtítulos para traducir. Crea primero subtítulos a partir de la transcripción.
 	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	Esta secuencia aún no tiene subtítulos. Créalos a partir de la transcripción (IA ▸ Voz y subtítulos) o añade una pista de subtítulos.
 	Time Interpolation	Interpolación de tiempo
@@ -509,6 +525,7 @@
 	View	Ver
 	Violet	Violeta
 	Violet Box	Caja violeta
+	What should I do?	¿Qué hago?
 	Where and when, as a small two-line label.	Dónde y cuándo, en una pequeña etiqueta de dos líneas.
 	Whisper model (on this computer)	Modelo Whisper (en este ordenador)
 	White Pill	Cápsula blanca
@@ -519,8 +536,11 @@
 	Workspaces	Espacios de trabajo
 	Yellow	Amarillo
 	Yellow Pop	Amarillo vivo
+	You see the plan before anything changes; it runs as one undo step.	Ves el plan antes de que cambie nada; se ejecuta como un solo paso de deshacer.
 	Your @handle on a translucent pill, for a watermark or an end card.	Tu @usuario en una cápsula translúcida, como marca de agua o en el cierre.
+	your request and a summary of the project	tu petición y un resumen del proyecto
 	Zoom In	Acercar
+	Zoom in on the loud moments	Acerca en los momentos fuertes
 	Zoom Out	Alejar
 	Zoom to Sequence	Ajustar zoom a la secuencia
 	Home	Inicio

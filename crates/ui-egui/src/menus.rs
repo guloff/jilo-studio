@@ -156,6 +156,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("graphics.captionStyles", "Caption Styles…", ["Graphics and Titles"], None),
     uic!("ui.commandPalette", "Command Palette…", ["Window"], Some("Cmd+J")),
     // AI ▸ … after the engine's AI commands (`filmcraft_engine::ai_menu`)
+    uic!("ai.assistant", "AI Assistant…", ["AI"], None),
     uic!("ai.recipes", "Recipes…", ["AI"], None),
     uic!("ai.textToSpeech", "Text to Speech…", ["AI"], None),
     uic!("ai.settings", "AI Settings…", ["AI"], None),
@@ -457,6 +458,9 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         }
         "ui.commandPalette" => {
             return crate::panels::palette::open(app);
+        }
+        "ai.assistant" => {
+            return crate::panels::assistant::ask(app, params.get("request").and_then(Value::as_str).map(str::to_string));
         }
         "ai.recipes" => {
             return crate::panels::recipes::open(app);

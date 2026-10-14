@@ -19,6 +19,7 @@
 	Add Audio Submix Track	Добавить дорожку аудиосубмикса
 	Add Caption at Playhead	Добавить субтитр в позиции курсора воспроизведения
 	Add Caption Track	Добавить дорожку субтитров
+	Add captions in the Karaoke Yellow style	Добавь субтитры в стиле «Караоке жёлтый»
 	Add Chapter Marker…	Добавить маркер главы…
 	Add Edit	Добавить монтажную точку
 	Add Edit to All Tracks	Добавить монтажную точку на все дорожки
@@ -31,6 +32,8 @@
 	Add Range Marker to In and Out	Добавить маркер диапазона от входа до выхода
 	Add Tracks…	Добавить дорожки…
 	Adjustment Layer…	Корректирующий слой…
+	AI Assistant	ИИ-ассистент
+	AI Assistant…	ИИ-ассистент…
 	AI Settings…	Настройки AI…
 	AI…	AI…
 	Alert	Тревога
@@ -41,13 +44,17 @@
 	All caption tracks	Все дорожки субтитров
 	All Panels	Все панели
 	Alpha	Альфа
+	Another AI task is running; wait for it to finish.	Выполняется другая задача ИИ; дождитесь её окончания.
 	Appearance	Оформление
 	Appearance…	Оформление…
 	Apply Audio Transition	Применить аудиопереход
 	Apply Default Transitions to Selection	Применить переходы по умолчанию к выделению
 	Apply Video Transition	Применить видеопереход
 	Arrange	Упорядочить
+	Ask in your own words, for example:	Попросите своими словами, например:
+	Ask the AI assistant: “{request}”	Спросить ИИ-ассистента: «{request}»
 	Assembly	Сборка
+	Assistant	Ассистент
 	Attach Proxies…	Прикрепить прокси…
 	Audio Channels…	Аудиоканалы…
 	Audio Clip Mixer	Микшер аудиоклипов
@@ -180,6 +187,7 @@
 	FilmCraft Help…	Справка FilmCraft…
 	FilmCraft on GitHub	FilmCraft на GitHub
 	Find Next	Найти далее
+	Find the best moments for a short	Найди лучшие моменты для шортса
 	Find…	Найти…
 	Fit	Вписать
 	Fit to frame	Вписать в кадр
@@ -246,6 +254,7 @@
 	Lavender	Лавандовый
 	Learning	Обучение
 	Left	Слева
+	Left out (not allowed): {list}	Пропущено (не разрешено): {list}
 	Letter Spacing	Межбуквенный интервал
 	Libraries	Библиотеки
 	Lift	Поднять
@@ -324,6 +333,8 @@
 	Place	Расположение
 	Place and Date	Место и дата
 	Plain	Обычное
+	Planning	Составление плана
+	Planning…	Составляю план…
 	Playback Resolution	Разрешение воспроизведения
 	Playback…	Воспроизведение…
 	Plugins…	Плагины…
@@ -364,6 +375,7 @@
 	Remove Attributes…	Удалить атрибуты…
 	Remove Filler Words	Удалить слова-паразиты
 	Remove Pauses	Удалить паузы
+	Remove the pauses and filler words	Убери паузы и слова-паразиты
 	Remove Unused	Удалить неиспользуемое
 	Rename…	Переименовать…
 	Render Audio	Отрендерить аудио
@@ -395,11 +407,13 @@
 	Sample caption text	Пример текста субтитров
 	Save	Сохранить
 	Save All	Сохранить все
+	Save as Recipe	Сохранить как рецепт
 	Save As…	Сохранить как…
 	Save Changes	Сохранить изменения
 	Save Guides as Template…	Сохранить направляющие как шаблон…
 	Save a Copy…	Сохранить копию…
 	Save as Template…	Сохранить как шаблон…
+	Saved as the recipe {name}	Сохранено как рецепт «{name}»
 	Saved.	Сохранено.
 	Scale to Frame Size	Масштабировать до размера кадра
 	Scene Edit Detection…	Определение смены сцен…
@@ -462,7 +476,9 @@
 	Text to Speech…	Синтез речи…
 	Thanks	Спасибо
 	Thanks for watching, with a call to subscribe.	«Спасибо за просмотр» с призывом подписаться.
+	The assistant needs an API key for the text engine.	Ассистенту нужен API-ключ текстового движка.
 	The recipe stopped: {error}	Рецепт остановлен: {error}
+	The request was not sent.	Запрос не отправлен.
 	The sequence has no captions to translate. Create captions from the transcript first.	В секвенции нет субтитров для перевода. Сначала создайте субтитры из расшифровки.
 	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	В этой секвенции пока нет субтитров. Создайте их из расшифровки (AI ▸ Речь и субтитры) или добавьте дорожку субтитров.
 	Time Interpolation	Интерполяция времени
@@ -502,6 +518,7 @@
 	View	Вид
 	Violet	Фиолетовый
 	Violet Box	Фиолетовая подложка
+	What should I do?	Что сделать?
 	Where and when, as a small two-line label.	Где и когда — небольшая метка в две строки.
 	Whisper model (on this computer)	Модель Whisper (на этом компьютере)
 	White Pill	Белая капсула
@@ -512,8 +529,11 @@
 	Workspaces	Рабочие среды
 	Yellow	Жёлтый
 	Yellow Pop	Жёлтый акцент
+	You see the plan before anything changes; it runs as one undo step.	Сначала вы видите план; он выполняется одним шагом отмены.
 	Your @handle on a translucent pill, for a watermark or an end card.	Ваш @ник на полупрозрачной капсуле — как водяной знак или в концовке.
+	your request and a summary of the project	ваш запрос и краткое описание проекта
 	Zoom In	Увеличить
+	Zoom in on the loud moments	Сделай зумы на громких местах
 	Zoom Out	Уменьшить
 	Zoom to Sequence	Масштаб по секвенции
 	Home	Главная

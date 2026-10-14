@@ -1,6 +1,7 @@
 //! Headless UI tests of the command palette (⌘J) — it opens, finds commands, panels and recipes by a
 //! few letters, runs the chosen one with Return and closes with Escape — and of the quick actions
-//! over the Program monitor for the selection.
+//! over the Program monitor for the selection, and the AI assistant reached from the palette (over a
+//! scripted cloud engine).
 
 #![allow(dead_code)]
 
@@ -133,4 +134,61 @@ fn quick_actions_follow_the_selection() {
     d.ok("ui.menu.invoke", json!({"id": "view.quickActions"}));
     d.frames(3);
     assert!(!d.has("quick.graphics.captionStyles"));
+}
+
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn the_assistant_plans_from_the_palette_and_runs_the_plan_as_one_undo_step() {
+    use filmcraft_ai::Response;
+    use filmcraft_ai::transport::FakeTransport;
+    let dir = std::env::temp_dir().join(format!("jilo-assistant-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = std::sync::Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |_| {
+            let plan = json!({"reply": "Yellow karaoke captions.", "steps": [
+                {"command": "captions.applyStylePreset", "params": "{\"preset\": \"karaoke-yellow\", \"track\": \"all\"}", "why": "the style"}]});
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": plan.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(std::sync::Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "gemini", "key": "test-key"})).unwrap();
+    s.execute("prefs.set", json!({"key": "ai.textEngine", "value": "gemini"})).unwrap();
+    s.execute("captions.add", json!({"text": "hello", "seconds": 1})).unwrap();
+    let mut d = Driver::new(s);
+    key(&mut d, "Cmd+J");
+    d.ok("ui.type", json!({"text": "qqq make the captions yellow karaoke"}));
+    d.frames(3);
+    assert!(d.has("palette.ask"), "nothing matches: ask the assistant");
+    d.click("palette.ask");
+    d.frames(3);
+    assert!(d.has("aiTask.consent.send"), "asks once before sending");
+    d.click("aiTask.consent.send");
+    for _ in 0..400 {
+        d.frames(1);
+        if d.has("assistant.plan.1.run") {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(d.has("assistant.plan.1.step.0"), "the plan is shown before anything changes");
+    assert_ne!(d.app().session.active_sequence().unwrap().caption_tracks[0].style, filmcraft_engine::caption_presets::find("karaoke-yellow").unwrap().style);
+    let undo = d.app().session.history.undo.len();
+    d.click("assistant.plan.1.run");
+    for _ in 0..200 {
+        d.frames(1);
+        if d.app().session.recipe.as_ref().is_some_and(|r| r.finished) {
+            break;
+        }
+    }
+    let app = d.app();
+    assert_eq!(app.session.active_sequence().unwrap().caption_tracks[0].style, filmcraft_engine::caption_presets::find("karaoke-yellow").unwrap().style);
+    assert_eq!(app.session.history.undo.len(), undo + 1);
+    let _ = std::fs::remove_dir_all(&dir);
 }

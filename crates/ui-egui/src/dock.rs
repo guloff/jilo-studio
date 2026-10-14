@@ -32,6 +32,7 @@ pub enum PanelKind {
     EssentialSound,
     TextToSpeech,
     CaptionStyle,
+    Assistant,
     Properties,
     Text,
     Events,
@@ -41,7 +42,7 @@ pub enum PanelKind {
 }
 
 impl PanelKind {
-    pub const ALL: [PanelKind; 28] = [
+    pub const ALL: [PanelKind; 29] = [
         PanelKind::Project,
         PanelKind::MediaBrowser,
         PanelKind::Libraries,
@@ -64,6 +65,7 @@ impl PanelKind {
         PanelKind::EssentialSound,
         PanelKind::TextToSpeech,
         PanelKind::CaptionStyle,
+        PanelKind::Assistant,
         PanelKind::Properties,
         PanelKind::Text,
         PanelKind::Events,
@@ -95,6 +97,7 @@ impl PanelKind {
             PanelKind::EssentialSound => "Essential Sound",
             PanelKind::TextToSpeech => "Text to Speech",
             PanelKind::CaptionStyle => "Caption Style",
+            PanelKind::Assistant => "AI Assistant",
             PanelKind::Properties => "Properties",
             PanelKind::Text => "Text",
             PanelKind::Events => "Events",
@@ -305,7 +308,7 @@ pub fn workspace(name: &str) -> DockNode {
             hsplit(
                 FixedB(450.0),
                 hsplit(Ratio(0.5), tabs(&[Source, EffectControls, AudioClipMixer, Metadata], 0), tabs(&[Program], 0)),
-                tabs(&[Properties, EssentialGraphics, Text, CaptionStyle], 0),
+                tabs(&[Properties, EssentialGraphics, Text, CaptionStyle, Assistant], 0),
             ),
             hsplit(
                 Ratio(0.29),

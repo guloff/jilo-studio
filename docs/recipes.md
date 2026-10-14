@@ -34,3 +34,16 @@ Saved recipes are `<data dir>/recipes/<name>.json`:
 
 The built-in recipes (Clean Talking Head, Karaoke Captions, Shorts Pack) are defined in code; a
 saved recipe of the same name replaces one, and deleting it brings the built-in one back.
+
+## The AI assistant
+
+AI ▸ AI Assistant… (also the command palette when nothing matches what was typed) turns a request
+in the user's own words into a plan (`assistant.plan`, `crates/engine/src/assistant.rs`). The text
+engine of Settings ▸ AI gets the request, a summary of the open project (sequence length and frame,
+clips per track, caption tracks, how many transcript words, the selection, the caption style
+presets — no media and no transcript text) and the commands it may use with their parameters. It
+answers with a reply and steps; steps naming a command that does not exist or that the assistant may
+not use (files, settings, keys, quitting, recipes, undo) are dropped and reported. Nothing changes
+until the plan runs: the panel shows the steps (any can be turned off), runs them as a recipe — one
+undo step — or saves them as a recipe. As with every cloud feature, the first request to a provider
+asks for consent.

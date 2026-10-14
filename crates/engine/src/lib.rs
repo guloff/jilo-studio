@@ -14,6 +14,7 @@ pub mod aaf_omf;
 pub mod ai;
 pub mod ai_menu;
 pub mod ai_tasks;
+pub mod assistant;
 pub mod autosave;
 pub mod autozoom;
 pub mod batch;

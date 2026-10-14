@@ -701,6 +701,9 @@ pub struct UiState {
     /// Window ▸ Command Palette… (⌘J).
     #[serde(skip)]
     pub palette: crate::panels::palette::PaletteUi,
+    /// AI ▸ AI Assistant…: the conversation and the plans.
+    #[serde(skip)]
+    pub assistant: crate::panels::assistant::AssistantUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.
     #[serde(default = "yes")]
     pub play_after_render: bool,
@@ -1199,6 +1202,7 @@ impl Default for UiState {
             batch: BatchUi::default(),
             recipes: Default::default(),
             palette: Default::default(),
+            assistant: Default::default(),
             ai_task: None,
             translate_track: None,
             translate_to: String::new(),

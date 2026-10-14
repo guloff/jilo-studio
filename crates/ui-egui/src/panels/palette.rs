@@ -2,7 +2,8 @@
 //! a menu item in the interface language or in English, a panel, a recipe — and press Return.
 //! Matching forgives gaps ("rmpau" finds Remove Pauses); whole words and starts of words rank
 //! first. With nothing typed it lists the commands run from it recently. Up / Down choose, Return
-//! runs, Escape closes. Commands that are not available right now are listed dimmed with the reason.
+//! runs, Escape closes. Commands that are not available right now are listed dimmed. When nothing
+//! matches, the words go to the AI assistant (Return or the button).
 //!
 //! Automation ids: `palette.query`, `palette.item.<n>` (the n-th result).
 
@@ -149,6 +150,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     p.selected = p.selected.min(n.saturating_sub(1));
     let mut run: Option<usize> = (enter && n > 0).then(|| found[p.selected]);
     let mut close = esc;
+    let mut ask: Option<String> = None;
     let w = 560.0;
     egui::Area::new(egui::Id::new("command-palette")).anchor(Align2::CENTER_TOP, vec2(0.0, 90.0)).order(egui::Order::Foreground).show(ctx, |ui| {
         crate::dialog_style::frame(&t).show(ui, |ui| {
@@ -167,8 +169,18 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
             }
             ui.add_space(4.0);
             if n == 0 {
-                let msg = if app.ui.palette.query.trim().is_empty() { tl!("Commands you run from here appear first.") } else { tl!("No command matches.") };
-                ui.label(RichText::new(msg).color(t.text_dim));
+                let q = app.ui.palette.query.trim().to_string();
+                if q.is_empty() {
+                    ui.label(RichText::new(tl!("Commands you run from here appear first.")).color(t.text_dim));
+                } else {
+                    // nothing matches: ask the assistant in these words
+                    ui.label(RichText::new(tl!("No command matches.")).color(t.text_dim));
+                    let r = ui.button(tlf!("Ask the AI assistant: “{request}”", request = q));
+                    app.auto.add("palette.ask", r.rect, "Ask the AI assistant");
+                    if r.clicked() || enter {
+                        ask = Some(q);
+                    }
+                }
             }
             for (k, &i) in found.iter().take(MAX_SHOWN).enumerate() {
                 let e = &all[i];
@@ -209,6 +221,12 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
             None => crate::menus::invoke(app, ctx, &e.id, json!({})),
         };
         if let Err(err) = r {
+            app.ui.status = err;
+        }
+    }
+    if let Some(q) = ask {
+        close = true;
+        if let Err(err) = crate::panels::assistant::ask(app, Some(q)) {
             app.ui.status = err;
         }
     }

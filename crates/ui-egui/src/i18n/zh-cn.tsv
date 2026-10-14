@@ -44,6 +44,7 @@
 	Add caption at playhead	在播放头位置添加字幕
 	Add Caption Track	添加字幕轨道
 	Add captions	添加字幕
+	Add captions in the Karaoke Yellow style	添加“卡拉OK 黄”样式的字幕
 	Add Chapter Marker…	添加章节标记…
 	Add Edit	添加剪辑点
 	Add Edit to All Tracks	给所有轨道添加剪辑点
@@ -73,6 +74,8 @@
 	After First Track	在第一个轨道之后
 	After Last Track	在最后一个轨道之后
 	AI	AI
+	AI Assistant	AI 助手
+	AI Assistant…	AI 助手…
 	AI Settings…	AI 设置…
 	AIFF 48 kHz 16-bit	AIFF 48 kHz 16 位
 	AI…	AI…
@@ -114,6 +117,7 @@
 	Animated GIF	动画 GIF
 	Animated GIF 640×360	动画 GIF 640×360
 	Animation	动画
+	Another AI task is running; wait for it to finish.	另一个 AI 任务正在运行，请等待完成。
 	Anti-flicker Filter	防闪烁筛选
 	Appearance	外观
 	Appearance…	外观…
@@ -129,8 +133,11 @@
 	Apply to Selected Clips	应用到所选剪辑
 	Apply Video Transition	应用视频过渡
 	Arrange	排列
+	Ask in your own words, for example:	用你自己的话提问，例如：
+	Ask the AI assistant: “{request}”	询问 AI 助手：“{request}”
 	Aspect	宽高比
 	Assembly	组装
+	Assistant	助手
 	Attach Proxies…	附加代理…
 	Audio	音频
 	Audio Attributes	音频属性
@@ -569,6 +576,7 @@
 	Final Cut Pro XML…	Final Cut Pro XML…
 	Find Edges	查找边缘
 	Find Next	查找下一个
+	Find the best moments for a short	找出适合短视频的精彩片段
 	Find…	查找…
 	Fit	适应
 	Fit to frame	适应帧
@@ -749,6 +757,7 @@
 	Left	左
 	left	左
 	Left Align Text	文本左对齐
+	Left out (not allowed): {list}	已省略（不允许）：{list}
 	Legacy	旧版
 	Legal Range Squeeze	合规范围压缩
 	Lens Blur	镜头模糊
@@ -1029,6 +1038,8 @@
 	Place and Date	地点和日期
 	Placement	放置位置
 	Plain	普通
+	Planning	规划中
+	Planning…	正在规划…
 	Plateau Wipe	台地划像
 	Play Around Edit (Space loops, Shift+K once)	环绕编辑点播放 (空格键循环，Shift+K 单次)
 	Play In to Out	从入点播放到出点
@@ -1136,6 +1147,7 @@
 	Remove from Favorites	从收藏夹中移除
 	Remove from favorites	从收藏夹中移除
 	Remove Pauses	删除停顿
+	Remove the pauses and filler words	删除停顿和口头禅
 	Remove Unused	删除未使用项
 	Rename	重命名
 	Rename…	重命名…
@@ -1209,6 +1221,7 @@
 	Save Arrangement…	保存排列…
 	Save As New View Preset	另存为新视图预设
 	Save as New Workspace…	另存为新工作区…
+	Save as Recipe	另存为配方
 	Save as Template…	另存为模板…
 	Save As…	另存为…
 	Save Changes	保存更改
@@ -1221,6 +1234,7 @@
 	Save Preset	保存预设
 	Save Preset…	保存预设…
 	Save Project	保存项目
+	Saved as the recipe {name}	已另存为配方 {name}
 	Saved.	已保存。
 	Saves the view, columns, sort, thumbnail and font size.	保存视图、列、排序、缩略图和字号。
 	Scale	缩放
@@ -1430,8 +1444,10 @@
 	Text to Speech…	文本转语音…
 	Thanks	感谢
 	Thanks for watching, with a call to subscribe.	感谢观看，并号召订阅。
+	The assistant needs an API key for the text engine.	助手需要文本引擎的 API 密钥。
 	The project had not been saved yet.	项目尚未保存。
 	The recipe stopped: {error}	配方已停止：{error}
+	The request was not sent.	请求未发送。
 	The sequence has no caption track.	序列没有字幕轨道。
 	The sequence has no captions to translate. Create captions from the transcript first.	序列中没有可翻译的字幕。请先从转录创建字幕。
 	This build has no speech-to-text; import a transcript with transcript.set.	当前版本未包含语音转文本功能；可通过 transcript.set 导入转录文本。
@@ -1578,6 +1594,7 @@
 	Waveform Audio 48 kHz 24-bit	波形音频 48 kHz 24 位
 	Web & Social	网页和社交
 	WebVTT (.vtt)	WebVTT (.vtt)
+	What should I do?	要我做什么？
 	Where and when, as a small two-line label.	地点和时间，两行小标签。
 	Whip	甩动
 	Whip (Legacy)	甩动(旧版)
@@ -1597,12 +1614,15 @@
 	Yellow Pop	亮黄
 	Yellow-green highlights and blue-lifted shadows from crossed channel curves	交叉通道曲线带来的黄绿高光和泛蓝阴影
 	Yes	是
+	You see the plan before anything changes; it runs as one undo step.	在任何更改之前你会先看到计划；它作为一步撤销运行。
 	Your @handle on a translucent pill, for a watermark or an end card.	半透明胶囊上的 @账号，可作水印或片尾卡。
+	your request and a summary of the project	你的请求和项目摘要
 	YouTube 1080p Full HD	YouTube 1080p 全高清
 	YouTube 2160p 4K Ultra HD	YouTube 2160p 4K 超高清
 	Zoom	缩放
 	Zoom Blur	缩放模糊
 	Zoom In	放大
+	Zoom in on the loud moments	在响亮处放大
 	Zoom Out	缩小
 	Zoom to Sequence	缩放至序列
 	Zoom Tool	缩放工具
