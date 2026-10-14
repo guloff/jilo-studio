@@ -20,6 +20,7 @@ pub mod autosave;
 pub mod autozoom;
 pub mod batch;
 pub mod brand_kit;
+pub mod broll;
 pub mod caption_fonts;
 pub mod caption_presets;
 pub mod captions;
@@ -478,6 +479,10 @@ pub struct Session {
     pub recording: Option<Vec<recipes::Step>>,
     /// Finds faces for Reframe to Face (the host installs Apple Vision on macOS; None: not available).
     pub face_detector: Option<reframe::FaceDetector>,
+    /// Scene labels of a picture (Apple Vision), for B-roll (`broll.*`); None where unavailable.
+    pub image_classifier: Option<broll::ImageClassifier>,
+    /// Pictures being drawn for B-roll, placed by [`broll::pump`] when ready.
+    pub broll_pending: broll::Pending,
     /// Faces found per clip's media range, for this session.
     pub face_cache: reframe::FaceCache,
     /// The last Help ▸ Check for Updates… of this session (`app.updateStatus`).
@@ -590,6 +595,8 @@ impl Session {
             inbox: Default::default(),
             recipe: None,
             recording: None,
+            image_classifier: None,
+            broll_pending: Vec::new(),
             face_detector: None,
             face_cache: Default::default(),
             update_check: Default::default(),
@@ -693,6 +700,7 @@ impl Session {
         export_tools::pump_queue(self, false);
         batch::pump(self);
         inbox::pump(self);
+        broll::pump(self);
         recipes::pump(self);
         panels::log_jobs(self);
         let Some(p) = self.persistence.as_mut() else { return };

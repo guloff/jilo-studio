@@ -4128,3 +4128,26 @@ mode	Edit	Монтаж
 	Cut before the speech	Склейка до начала речи
 	The wide shot takes crosstalk and long silences. The selected multi-camera clips are cut, or all of them when none is selected; every cut can be changed afterwards. One Undo takes it back.	Общий план — когда говорят одновременно и в долгих паузах. Режутся выбранные мультикам-клипы, а если ничего не выбрано — все; каждую склейку потом можно поправить. Одна отмена всё вернёт.
 	Multi-camera cuts: {n}	Мультикам-склеек: {n}
+# AI ▸ Automatic Editing ▸ Auto B-roll (16.8)
+	Auto B-roll…	Авто-B-roll…
+	Auto B-roll	Авто-B-roll
+	B-roll placed: {n}	Поставлено B-roll: {n}
+	Pictures being drawn: {n}	Рисуется картинок: {n}
+	No footage fits what is said. Name the clips after what they show, or try the AI method.	Ни один клип не подходит к сказанному. Назовите клипы по тому, что в них видно, или попробуйте способ с ИИ.
+	Choosing B-roll…	Подбираю B-roll…
+	Footage: the {n} clips selected in the Project panel.	Материал: клипы, выбранные в панели «Проект» ({n}).
+	Footage: every video and still of the project that the sequence does not use yet.	Материал: все видео и картинки проекта, которых ещё нет в секвенции.
+	By words, on this computer	По словам, на этом компьютере
+	Clip names, descriptions and keywords, and what Apple Vision sees in the clips, matched with the words of each phrase.	Названия, описания и ключевые слова клипов и то, что Apple Vision видит в кадре, сопоставляются со словами каждой фразы.
+	By meaning, with AI	По смыслу, с ИИ
+	The phrases and the clips' descriptions go to {provider}, which picks what fits. Any language.	Фразы и описания клипов уходят в {provider}, он подбирает подходящее. Любой язык.
+	Each clip	Длина клипа
+	At least apart	Не чаще чем раз в
+	At most	Не больше
+	Draw pictures for phrases without footage ({provider}, cloud)	Рисовать картинки для фраз без материала ({provider}, облако)
+	Starting agrees to send what is described above to the cloud. One Undo takes the footage back.	Запуск означает согласие отправить описанное выше в облако. Одна отмена уберёт материал.
+	Nothing is sent. One Undo takes the footage back.	Ничего не отправляется. Одна отмена уберёт материал.
+	Place B-roll	Поставить B-roll
+# B-roll commands
+	Broll	B-roll
+	Label Footage with Vision	Разметить материал через Vision

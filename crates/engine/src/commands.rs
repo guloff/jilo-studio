@@ -2926,6 +2926,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::brand_kit::commands());
     v.extend(crate::inbox::commands());
     v.extend(crate::automulticam::commands());
+    v.extend(crate::broll::commands());
     v.extend(crate::reframe::commands());
     v.extend(crate::updates::commands());
     v.extend(crate::updater::commands());

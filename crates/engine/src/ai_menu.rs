@@ -15,7 +15,7 @@ pub(crate) const REMIX: &[&str] = &["AI", "Automatic Editing", "Remix"];
 pub(crate) const TOP: &[&str] = &["AI"];
 
 /// The AI menu, top to bottom.
-pub const AI_MENU: [&str; 20] = [
+pub const AI_MENU: [&str; 21] = [
     "sequence.transcribe",
     "transcript.generate",
     "transcript.createCaptions",
@@ -29,6 +29,7 @@ pub const AI_MENU: [&str; 20] = [
     "clip.autoZoom",
     "clip.reframeToFace",
     "multicam.autoSwitch",
+    "broll.auto",
     "clip.sceneEditDetection",
     "clip.remix.enable",
     "clip.remix.properties",

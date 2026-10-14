@@ -191,6 +191,7 @@ fn main() -> eframe::Result {
         Box::new(move |cc| {
             let mut session = Session::default();
             session.face_detector = face_detector();
+            session.image_classifier = image_classifier();
             if let Some(dir) = data_dir.clone().or_else(default_data_dir) {
                 // updates download beside the app's other data (`--data-dir` included)
                 session.updates_dir = Some(dir.join("Updates"));
@@ -442,6 +443,15 @@ fn face_detector() -> Option<filmcraft_engine::reframe::FaceDetector> {
             })
         });
         d
+    })
+}
+
+/// Auto B-roll labels footage with Apple Vision's scene classifier where the system has it.
+fn image_classifier() -> Option<filmcraft_engine::broll::ImageClassifier> {
+    filmcraft_platform::vision::available().then(|| {
+        let c: filmcraft_engine::broll::ImageClassifier =
+            std::sync::Arc::new(|rgba: &[u8], w: usize, h: usize| filmcraft_platform::vision::classify_image(rgba, w, h, 8, 0.1));
+        c
     })
 }
 

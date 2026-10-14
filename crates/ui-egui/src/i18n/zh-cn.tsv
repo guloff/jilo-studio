@@ -4168,3 +4168,26 @@
 	Cut before the speech	在说话前切换
 	The wide shot takes crosstalk and long silences. The selected multi-camera clips are cut, or all of them when none is selected; every cut can be changed afterwards. One Undo takes it back.	多人同时说话和长时间静默时使用全景镜头。剪切所选多机位片段，未选择时剪切全部；之后可修改每个剪辑点。一次撤销即可撤回。
 	Multi-camera cuts: {n}	多机位剪辑点：{n}
+# AI ▸ Automatic Editing ▸ Auto B-roll (16.8)
+	Auto B-roll…	自动 B-roll…
+	Auto B-roll	自动 B-roll
+	B-roll placed: {n}	已放置 B-roll：{n}
+	Pictures being drawn: {n}	正在生成的图片：{n}
+	No footage fits what is said. Name the clips after what they show, or try the AI method.	没有与所说内容相符的素材。请按画面内容命名片段，或尝试 AI 方式。
+	Choosing B-roll…	正在选择 B-roll…
+	Footage: the {n} clips selected in the Project panel.	素材：项目面板中选择的 {n} 个片段。
+	Footage: every video and still of the project that the sequence does not use yet.	素材：项目中序列尚未使用的所有视频和静态图片。
+	By words, on this computer	按词语，在本机
+	Clip names, descriptions and keywords, and what Apple Vision sees in the clips, matched with the words of each phrase.	将片段名称、描述、关键词以及 Apple Vision 识别出的内容与每句话的词语进行匹配。
+	By meaning, with AI	按含义，使用 AI
+	The phrases and the clips' descriptions go to {provider}, which picks what fits. Any language.	句子和片段描述会发送到 {provider}，由其挑选合适的素材。支持任何语言。
+	Each clip	每个片段
+	At least apart	最小间隔
+	At most	最多
+	Draw pictures for phrases without footage ({provider}, cloud)	为没有素材的句子生成图片（{provider}，云端）
+	Starting agrees to send what is described above to the cloud. One Undo takes the footage back.	开始即表示同意将上述内容发送到云端。一次撤销即可移除素材。
+	Nothing is sent. One Undo takes the footage back.	不会发送任何内容。一次撤销即可移除素材。
+	Place B-roll	放置 B-roll
+# B-roll commands
+	Broll	B-roll
+	Label Footage with Vision	使用 Vision 标注素材

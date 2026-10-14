@@ -6,6 +6,9 @@
 //! searched, the boxes are brought back to fractions of the whole picture and duplicates from
 //! neighbouring tiles are merged (intersection over union above 0.3 keeps the more confident box),
 //! as Jilo Studio does. Other systems report that face detection is not available.
+//!
+//! What a picture shows, as Vision's scene labels (`VNClassifyImageRequest`: "beach", "food",
+//! "people"…), for finding B-roll that fits what is being said.
 
 /// A face: its box in fractions of the picture, `y` from the top, and Vision's confidence (0–1).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -70,10 +73,27 @@ pub fn detect_faces(rgba: &[u8], w: usize, h: usize) -> Result<Vec<Face>, String
     imp::detect(&rgba[..need], w, h)
 }
 
+/// Labels of what an 8-bit RGBA picture of `w`×`h` shows, most confident first: at most `max`,
+/// each at least `min_confidence` (0–1).
+pub fn classify_image(rgba: &[u8], w: usize, h: usize, max: usize, min_confidence: f32) -> Result<Vec<(String, f32)>, String> {
+    let need = w.checked_mul(h).and_then(|n| n.checked_mul(4)).ok_or("the picture is too large")?;
+    if w < 8 || h < 8 || rgba.len() < need {
+        return Err(format!("a {w}×{h} picture needs {need} bytes of RGBA"));
+    }
+    let mut v = imp::classify(&rgba[..need], w, h)?;
+    v.retain(|(l, c)| *c >= min_confidence && !l.is_empty());
+    v.sort_by(|a, b| b.1.total_cmp(&a.1));
+    v.truncate(max);
+    Ok(v)
+}
+
 #[cfg(not(target_os = "macos"))]
 mod imp {
     pub fn detect(_: &[u8], _: usize, _: usize) -> Result<Vec<super::Face>, String> {
         Err("face detection needs macOS (Apple Vision)".into())
+    }
+    pub fn classify(_: &[u8], _: usize, _: usize) -> Result<Vec<(String, f32)>, String> {
+        Err("scene labels need macOS (Apple Vision)".into())
     }
 }
 
@@ -86,33 +106,60 @@ mod imp {
     use objc2_core_foundation::{CFData, CGPoint, CGRect, CGSize};
     use objc2_core_graphics::{CGBitmapInfo, CGColorRenderingIntent, CGColorSpace, CGDataProvider, CGImage, CGImageAlphaInfo};
     use objc2_foundation::{NSArray, NSDictionary};
-    use objc2_vision::{VNDetectFaceRectanglesRequest, VNImageRequestHandler, VNRequest};
+    use objc2_vision::{VNClassifyImageRequest, VNDetectFaceRectanglesRequest, VNImageRequestHandler, VNRequest};
+
+    /// A CGImage over a copy of 8-bit RGBA rows (the alpha is ignored).
+    fn cg_image(rgba: &[u8], w: usize, h: usize) -> Result<objc2_core_foundation::CFRetained<CGImage>, String> {
+        let len = isize::try_from(rgba.len()).map_err(|_| "the picture is too large".to_string())?;
+        // SAFETY: `rgba` is a live slice of `len` bytes; CFDataCreate copies them.
+        let data = unsafe { CFData::new(None, rgba.as_ptr(), len) }.ok_or("CoreFoundation could not hold the picture")?;
+        let provider = CGDataProvider::with_cf_data(Some(&data)).ok_or("CoreGraphics could not read the picture")?;
+        let space = CGColorSpace::new_device_rgb().ok_or("no RGB colour space")?;
+        // SAFETY: the provider holds w*h*4 bytes laid out as 8-bit RGBX rows of w*4 bytes, as
+        // declared; `decode` may be null.
+        unsafe {
+            CGImage::new(
+                w,
+                h,
+                8,
+                32,
+                w * 4,
+                Some(&space),
+                CGBitmapInfo(CGImageAlphaInfo::NoneSkipLast.0),
+                Some(&provider),
+                std::ptr::null(),
+                false,
+                CGColorRenderingIntent::RenderingIntentDefault,
+            )
+        }
+        .ok_or_else(|| "CoreGraphics could not make an image".to_string())
+    }
+
+    pub fn classify(rgba: &[u8], w: usize, h: usize) -> Result<Vec<(String, f32)>, String> {
+        autoreleasepool(|_| {
+            let image = cg_image(rgba, w, h)?;
+            // SAFETY: a plain `new` of a Vision request class (no arguments).
+            let request = unsafe { VNClassifyImageRequest::new() };
+            let options = NSDictionary::new();
+            // SAFETY: `image` is a valid CGImage and `options` an empty dictionary of the declared
+            // key and value types.
+            let handler = unsafe { VNImageRequestHandler::initWithCGImage_options(VNImageRequestHandler::alloc(), &image, &options) };
+            let as_request: objc2::rc::Retained<VNRequest> = objc2::rc::Retained::into_super(objc2::rc::Retained::into_super(request.clone()));
+            let requests = NSArray::from_retained_slice(&[as_request]);
+            handler.performRequests_error(&requests).map_err(|e| format!("Vision could not label the picture: {e}"))?;
+            // SAFETY: the request has been performed; `results` is its NSArray of observations.
+            let Some(results) = (unsafe { request.results() }) else { return Ok(Vec::new()) };
+            Ok(results
+                .iter()
+                // SAFETY: plain property reads of a classification observation Vision returned.
+                .map(|obs| unsafe { (obs.identifier().to_string(), obs.confidence()) })
+                .collect())
+        })
+    }
 
     pub fn detect(rgba: &[u8], w: usize, h: usize) -> Result<Vec<Face>, String> {
         autoreleasepool(|_| {
-            let len = isize::try_from(rgba.len()).map_err(|_| "the picture is too large".to_string())?;
-            // SAFETY: `rgba` is a live slice of `len` bytes; CFDataCreate copies them.
-            let data = unsafe { CFData::new(None, rgba.as_ptr(), len) }.ok_or("CoreFoundation could not hold the picture")?;
-            let provider = CGDataProvider::with_cf_data(Some(&data)).ok_or("CoreGraphics could not read the picture")?;
-            let space = CGColorSpace::new_device_rgb().ok_or("no RGB colour space")?;
-            // SAFETY: the provider holds w*h*4 bytes laid out as 8-bit RGBX rows of w*4 bytes, as
-            // declared; `decode` may be null.
-            let image = unsafe {
-                CGImage::new(
-                    w,
-                    h,
-                    8,
-                    32,
-                    w * 4,
-                    Some(&space),
-                    CGBitmapInfo(CGImageAlphaInfo::NoneSkipLast.0),
-                    Some(&provider),
-                    std::ptr::null(),
-                    false,
-                    CGColorRenderingIntent::RenderingIntentDefault,
-                )
-            }
-            .ok_or("CoreGraphics could not make an image")?;
+            let image = cg_image(rgba, w, h)?;
             let mut faces: Vec<Face> = Vec::new();
             for (tx, ty, tw, th) in tiles(w, h) {
                 let rect = CGRect { origin: CGPoint { x: tx as f64, y: ty as f64 }, size: CGSize { width: tw as f64, height: th as f64 } };
@@ -182,6 +229,23 @@ mod tests {
         let _ = tiles(1, 1);
         assert!(detect_faces(&[0; 10], 4, 4).is_err());
         assert!(detect_faces(&[], usize::MAX, 2).is_err());
+    }
+
+    /// Vision labels a picture: a plain sky-blue picture gets some labels, all within 0–1.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn vision_labels_a_picture() {
+        let mut rgba = Vec::with_capacity(320 * 240 * 4);
+        for y in 0..240 {
+            for _ in 0..320 {
+                rgba.extend_from_slice(if y < 140 { &[110, 170, 235, 255] } else { &[30, 110, 60, 255] });
+            }
+        }
+        let labels = classify_image(&rgba, 320, 240, 5, 0.0).unwrap();
+        assert!(labels.len() <= 5);
+        assert!(labels.iter().all(|(l, c)| !l.is_empty() && (0.0..=1.0).contains(c)), "{labels:?}");
+        assert!(labels.windows(2).all(|p| p[0].1 >= p[1].1), "most confident first");
+        assert!(classify_image(&[0; 10], 4, 4, 5, 0.0).is_err());
     }
 
     /// A blank picture has no faces (Vision runs, finds nothing).

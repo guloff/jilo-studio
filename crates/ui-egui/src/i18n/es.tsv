@@ -4133,3 +4133,26 @@
 	Cut before the speech	Corte antes de hablar
 	The wide shot takes crosstalk and long silences. The selected multi-camera clips are cut, or all of them when none is selected; every cut can be changed afterwards. One Undo takes it back.	El plano general se usa cuando hablan a la vez y en silencios largos. Se cortan los clips multicámara seleccionados, o todos si no hay selección; cada corte se puede cambiar después. Un solo Deshacer lo revierte.
 	Multi-camera cuts: {n}	Cortes multicámara: {n}
+# AI ▸ Automatic Editing ▸ Auto B-roll (16.8)
+	Auto B-roll…	B-roll automático…
+	Auto B-roll	B-roll automático
+	B-roll placed: {n}	B-roll colocado: {n}
+	Pictures being drawn: {n}	Imágenes en creación: {n}
+	No footage fits what is said. Name the clips after what they show, or try the AI method.	Ningún material encaja con lo que se dice. Nombre los clips según lo que muestran o pruebe el método con IA.
+	Choosing B-roll…	Eligiendo B-roll…
+	Footage: the {n} clips selected in the Project panel.	Material: los {n} clips seleccionados en el panel Proyecto.
+	Footage: every video and still of the project that the sequence does not use yet.	Material: todos los vídeos e imágenes del proyecto que la secuencia aún no usa.
+	By words, on this computer	Por palabras, en este ordenador
+	Clip names, descriptions and keywords, and what Apple Vision sees in the clips, matched with the words of each phrase.	Nombres, descripciones y palabras clave de los clips, y lo que Apple Vision ve en ellos, comparados con las palabras de cada frase.
+	By meaning, with AI	Por significado, con IA
+	The phrases and the clips' descriptions go to {provider}, which picks what fits. Any language.	Las frases y las descripciones de los clips se envían a {provider}, que elige lo que encaja. Cualquier idioma.
+	Each clip	Cada clip
+	At least apart	Separación mínima
+	At most	Como máximo
+	Draw pictures for phrases without footage ({provider}, cloud)	Crear imágenes para frases sin material ({provider}, nube)
+	Starting agrees to send what is described above to the cloud. One Undo takes the footage back.	Al empezar acepta enviar a la nube lo descrito arriba. Un solo Deshacer retira el material.
+	Nothing is sent. One Undo takes the footage back.	No se envía nada. Un solo Deshacer retira el material.
+	Place B-roll	Colocar B-roll
+# B-roll commands
+	Broll	B-roll
+	Label Footage with Vision	Etiquetar material con Vision

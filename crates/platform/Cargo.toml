@@ -45,7 +45,7 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSAppleEventManager", "NSArray", "NSDictionary", "NSObject", "NSString", "NSURL"] }
 objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "CGColorSpace", "CGDataProvider", "CGDirectDisplay", "CGError", "CGEvent", "CGEventTypes", "CGImage"] }
 # Faces for Auto Reframe to faces (`vision.rs`): Apple Vision's face rectangles (MIT OR Apache-2.0 OR Zlib).
-objc2-vision = { version = "0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "objc2-core-graphics", "VNDetectFaceRectanglesRequest", "VNObservation", "VNRequest", "VNRequestHandler", "VNTypes"] }
+objc2-vision = { version = "0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "objc2-core-graphics", "VNClassifyImageRequest", "VNDetectFaceRectanglesRequest", "VNObservation", "VNRequest", "VNRequestHandler", "VNTypes"] }
 objc2-core-media = "0.3.2"
 objc2-core-video = "0.3.2"
 objc2-video-toolbox = "0.3.2"

@@ -141,6 +141,15 @@ fn face_detector() -> Option<filmcraft_engine::reframe::FaceDetector> {
     })
 }
 
+/// Auto B-roll labels footage with Apple Vision's scene classifier where the system has it.
+fn image_classifier() -> Option<filmcraft_engine::broll::ImageClassifier> {
+    filmcraft_platform::vision::available().then(|| {
+        let c: filmcraft_engine::broll::ImageClassifier =
+            std::sync::Arc::new(|rgba: &[u8], w: usize, h: usize| filmcraft_platform::vision::classify_image(rgba, w, h, 8, 0.1));
+        c
+    })
+}
+
 fn usage(msg: impl std::fmt::Display) -> ! {
     diag(format_args!("filmcraft-cli: {msg}\nRun `filmcraft-cli help` for usage."));
     std::process::exit(2)
@@ -167,6 +176,7 @@ impl Backend {
         }
         let mut s = Session::default();
         s.face_detector = face_detector();
+        s.image_classifier = image_classifier();
         // user export presets (and other per-user libraries) from the data directory
         if let Some(dir) = a.opt("--data-dir").map(std::path::PathBuf::from).or_else(filmcraft_engine::autosave::default_data_dir) {
             s.export_presets.set_dir(&dir);

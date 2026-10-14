@@ -711,6 +711,9 @@ pub struct UiState {
     /// AI ▸ Batch Process…: the dialog, its choices and the batch it started.
     #[serde(skip)]
     pub batch: BatchUi,
+    /// AI ▸ Automatic Editing ▸ Auto B-roll….
+    #[serde(skip)]
+    pub broll: crate::panels::broll::BrollUi,
     /// AI ▸ Automatic Editing ▸ Auto Multi-Camera by Speaker….
     #[serde(skip)]
     pub auto_multicam: crate::panels::automulticam::AutoMulticamUi,
@@ -1235,6 +1238,7 @@ impl Default for UiState {
             brand_kit: Default::default(),
             templates: Default::default(),
             auto_multicam: Default::default(),
+            broll: Default::default(),
             recipes: Default::default(),
             palette: Default::default(),
             assistant: Default::default(),
