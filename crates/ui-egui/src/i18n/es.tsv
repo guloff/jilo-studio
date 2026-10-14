@@ -4103,3 +4103,18 @@
 	1920×1080 at 30 fps: three cameras, three microphones and music, ready for multi-camera editing.	1920×1080 a 30 fps: tres cámaras, tres micrófonos y música, listo para editar con varias cámaras.
 	1920×1080 at 25 fps: two cameras and a track for lower thirds; host, guest and music; captions.	1920×1080 a 25 fps: dos cámaras y una pista para rótulos inferiores; presentador, invitado y música; subtítulos.
 	1920×1080 at 30 fps: A-roll, B-roll and titles; voice, music and sound effects; captions.	1920×1080 a 30 fps: plano principal, recursos y títulos; voz, música y efectos de sonido; subtítulos.
+# AI ▸ Batch Process: new steps and the inbox folder (16.6)
+	Captions from the transcript	Subtítulos a partir de la transcripción
+	Run a recipe	Ejecutar una receta
+	Apply a brand kit	Aplicar un kit de marca
+	Copies in other formats	Copias en otros formatos
+	Default style	Estilo predeterminado
+	Nothing is selected in the Project panel: the steps can be kept for the inbox folder.	No hay nada seleccionado en el panel Proyecto: los pasos se pueden guardar para la carpeta de entrada.
+	No brand kits yet: Graphics and Titles ▸ Brand Kit…	Aún no hay kits de marca: Gráficos y títulos ▸ Kit de marca…
+	Inbox folder: new files there get these steps	Carpeta de entrada: los archivos nuevos reciben estos pasos
+	No folder chosen	No se ha elegido carpeta
+	Keep for Inbox	Guardar para la entrada
+	The inbox folder is watched: new files get these steps.	Se vigila la carpeta de entrada: los archivos nuevos reciben estos pasos.
+	The steps are kept for the inbox folder.	Los pasos se guardaron para la carpeta de entrada.
+	Inbox: {n} new files imported	Entrada: {n} archivos nuevos importados
+	Inbox: processing {n} new files	Entrada: procesando {n} archivos nuevos

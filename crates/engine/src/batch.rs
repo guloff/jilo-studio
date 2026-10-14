@@ -4,9 +4,12 @@
 //! The items are sequences, or clips of the Project panel (a sequence is made from each, as File ▸
 //! New Sequence From Clip). The steps, in this order, each optional:
 //! `transcribe` (only the media without a transcript; the engine of the batch, local Whisper by
-//! default), `fillers` (remove hesitations), `pauses` (remove silent pauses by sound), `autoZoom`
-//! (by loudness), `highlights` and `youtube` (the text engine), `export` (an export queue item per
-//! sequence, started at the end). The batch is one job in the status bar and the Progress panel
+//! default), `fillers` (remove hesitations), `pauses` (remove silent pauses by sound), `captions`
+//! (captions from the transcript, in the `captionPreset` style), `autoZoom` (by loudness),
+//! `recipe` (the recipe named `recipeName`), `brandKit` (the kit named `brandKitName`), `highlights` and
+//! `youtube` (the text engine), `formats` (a copy in each of `aspects`, 9:16 by default, its clips
+//! filling the frame), `export` (an export queue item per sequence and per copy, started at the
+//! end). The batch is one job in the status bar and the Progress panel
 //! (Cancel stops it after the current step); `batch.status` reports every item. A failed step is
 //! noted and the item goes on with its next step; one item's failure never stops the others. The
 //! cloud is used only for the steps that need it, after the consent given with `batch.start`
@@ -28,7 +31,7 @@ use crate::{EngineError, Result, Session};
 pub const BATCH_LIMIT: usize = 50;
 
 /// The steps of a batch, in the order they run.
-pub const STEPS: [&str; 7] = ["transcribe", "fillers", "pauses", "autoZoom", "highlights", "youtube", "export"];
+pub const STEPS: [&str; 11] = ["transcribe", "fillers", "pauses", "captions", "autoZoom", "recipe", "brandKit", "highlights", "youtube", "formats", "export"];
 
 /// What happened to one item.
 #[derive(Clone, Debug, Default)]
@@ -40,6 +43,8 @@ pub struct ItemReport {
     pub done: Vec<String>,
     /// (step, error) of the steps that failed.
     pub errors: Vec<(String, String)>,
+    /// Copies made by the `formats` step (exported with the sequence).
+    pub formats: Vec<ItemId>,
 }
 
 /// A running batch.
@@ -70,6 +75,7 @@ impl BatchRun {
                 "status": r.status,
                 "done": r.done,
                 "errors": r.errors.iter().map(|(s, e)| json!({"step": s, "error": e})).collect::<Vec<_>>(),
+                "formats": r.formats.iter().map(|f| f.0).collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
         })
     }
@@ -111,9 +117,60 @@ fn with_engine(params: &Value, key: &str) -> Value {
 }
 
 /// Start one step of the current item. Ok(Some(..)): a background job to wait for.
-fn start_step(s: &mut Session, b: &BatchRun, seq: ItemId, step: &str) -> Result<Option<(u64, &'static str, Value)>> {
+fn start_step(s: &mut Session, b: &mut BatchRun, seq: ItemId, step: &str) -> Result<Option<(u64, &'static str, Value)>> {
     let p = &b.params;
     match step {
+        "captions" => {
+            if !s.project.sequence(seq).is_some_and(|q| q.audio_tracks.iter().flat_map(|t| t.items.iter()).any(|i| s.project.transcripts.contains_key(&i.item)))
+            {
+                return Err(EngineError::Other("no transcript: add the Transcribe step".into()));
+            }
+            on_sequence(s, seq, "transcript.createCaptions", json!({}))?;
+            if let Some(preset) = p.get("captionPreset").and_then(Value::as_str) {
+                on_sequence(s, seq, "captions.applyStylePreset", json!({"preset": preset, "track": "all"}))?;
+            }
+            Ok(None)
+        }
+        "recipe" => {
+            let name = p.get("recipeName").and_then(Value::as_str).unwrap_or_default();
+            // the recipe runs on the whole sequence (nothing selected) and to its end
+            let selection = std::mem::take(&mut s.state.selection);
+            let r = on_sequence(s, seq, "recipes.run", json!({"name": name, "wait": true}));
+            s.state.selection = selection;
+            match r?["error"].as_str() {
+                Some(e) => Err(EngineError::Other(e.to_string())),
+                None => Ok(None),
+            }
+        }
+        "brandKit" => {
+            let name = p.get("brandKitName").and_then(Value::as_str).unwrap_or_default();
+            on_sequence(s, seq, "brandKit.apply", json!({"name": name})).map(|_| None)
+        }
+        "formats" => {
+            let own = s.project.sequence(seq).map(|q| crate::formats::aspect_of(q.settings.width, q.settings.height)).unwrap_or("16:9");
+            let aspects: Vec<String> = p
+                .get("aspects")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect())
+                .unwrap_or_else(|| vec!["9:16".into()]);
+            let follow = p.get("follow").and_then(Value::as_str).unwrap_or("face").to_string();
+            // the copies open as they are made: the editor keeps its own sequence and tabs
+            let events = s.events.len();
+            let mut made = Vec::new();
+            let mut err = None;
+            for a in aspects.iter().filter(|a| a.as_str() != own) {
+                match on_sequence(s, seq, "sequence.makeFormat", json!({"aspect": a, "follow": follow})) {
+                    Ok(r) => made.extend(r["sequence"].as_u64().map(ItemId)),
+                    Err(e) => {
+                        err = Some(e);
+                        break;
+                    }
+                }
+            }
+            s.events.truncate(events);
+            b.items[b.i].formats.extend(made);
+            err.map_or(Ok(None), Err)
+        }
         "transcribe" => {
             let items = untranscribed(s, seq);
             if items.is_empty() {
@@ -138,7 +195,8 @@ fn start_step(s: &mut Session, b: &BatchRun, seq: ItemId, step: &str) -> Result<
             Ok(r["job"].as_u64().map(|id| (id, cmd, q)))
         }
         "export" => {
-            let mut q = json!({"sequence": seq.0});
+            let seqs: Vec<u64> = std::iter::once(seq).chain(b.items[b.i].formats.iter().copied()).map(|i| i.0).collect();
+            let mut q = json!({"sequences": seqs});
             for k in ["preset", "path"] {
                 if let Some(v) = p.get(k).filter(|v| !v.is_null()) {
                     q[k] = v.clone();
@@ -214,7 +272,7 @@ pub fn pump(s: &mut Session) {
             }
             None => Err("the step's job is gone".into()),
         },
-        None => match start_step(s, &b, seq, step) {
+        None => match start_step(s, &mut b, seq, step) {
             Ok(Some(child)) => {
                 b.child = Some(child);
                 s.batch = Some(b);
@@ -282,6 +340,26 @@ fn start(s: &mut Session, p: &Value) -> Result<Value> {
             Some(_) => return Err(bad(cmd, format!("item {} is neither a sequence nor a clip", id.0))),
             None => return Err(bad(cmd, format!("no item {}", id.0))),
         }
+    }
+    // what the steps name must be there now, not at the first item
+    if steps.contains(&"recipe") {
+        let name = crate::commands::str_p(p, "recipeName").ok_or_else(|| bad(cmd, "the recipe step needs `recipeName`"))?;
+        crate::recipes::find(name).ok_or_else(|| bad(cmd, format!("no recipe `{name}`")))?;
+    }
+    if steps.contains(&"brandKit") {
+        let name = crate::commands::str_p(p, "brandKitName").ok_or_else(|| bad(cmd, "the brand kit step needs `brandKitName`"))?;
+        s.execute("brandKit.get", json!({"name": name})).map_err(|_| bad(cmd, format!("no brand kit `{name}`")))?;
+    }
+    if let Some(preset) = crate::commands::str_p(p, "captionPreset")
+        && crate::caption_presets::find(preset).is_none()
+    {
+        return Err(bad(cmd, format!("no caption style preset `{preset}`")));
+    }
+    if steps.contains(&"formats")
+        && let Some(a) =
+            p.get("aspects").and_then(Value::as_array).into_iter().flatten().find(|a| a.as_str().and_then(|a| crate::formats::frame_for(a, 1080)).is_none())
+    {
+        return Err(bad(cmd, format!("`aspects`: 9:16, 1:1, 4:5 or 16:9, not {a}")));
     }
     // the engines are checked now, not at the first item: keys, network and consent
     let needs_text = steps.iter().any(|k| matches!(*k, "highlights" | "youtube"));
@@ -354,7 +432,7 @@ pub fn commands() -> Vec<CommandSpec> {
             label: "Batch Process…",
             menu: crate::ai_menu::TOP,
             shortcut: None,
-            params: r#"{"items":[id],"transcribe":bool?,"fillers":bool?,"pauses":bool?,"autoZoom":bool?,"highlights":bool?,"youtube":bool?,"export":bool?,"speechEngine":"whisper|gemini|openai|elevenlabs"?,"textEngine":"gemini|openai|anthropic"?,"language":"ru|tg|en|auto"?,"preset":str?,"path":dir?,"confirm":bool?,"wait":bool?}"#,
+            params: r#"{"items":[id],"transcribe":bool?,"fillers":bool?,"pauses":bool?,"autoZoom":bool?,"highlights":bool?,"youtube":bool?,"export":bool?,"captions":bool?,"captionPreset":str?,"recipe":bool?,"recipeName":str?,"brandKit":bool?,"brandKitName":str?,"formats":bool?,"aspects":["9:16"|"1:1"|"4:5"|"16:9"]=["9:16"],"follow":"face|center"?,"speechEngine":"whisper|gemini|openai|elevenlabs"?,"textEngine":"gemini|openai|anthropic"?,"language":"ru|tg|en|auto"?,"preset":str?,"path":dir?,"confirm":bool?,"wait":bool?}"#,
             enabled: crate::commands::always,
             run: start,
             journal: true,

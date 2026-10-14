@@ -546,7 +546,17 @@ pub struct BatchUi {
     /// Project items to process.
     pub items: Vec<u64>,
     /// The steps chosen, in `filmcraft_engine::batch::STEPS` order.
-    pub steps: [bool; 7],
+    pub steps: [bool; 11],
+    /// Caption style preset for the captions step ("" = the default style).
+    pub caption_preset: String,
+    /// Recipe and brand kit for their steps.
+    pub recipe: String,
+    pub brand_kit: String,
+    /// Formats for the formats step, in `panels::formats::ASPECTS` order.
+    pub formats: [bool; 4],
+    /// The inbox folder field and its "watch" switch (shown from the preferences when opened).
+    pub inbox_folder: String,
+    pub inbox_on: bool,
     /// `whisper`, `gemini` or `openai`.
     pub speech: String,
     /// `auto`, `ru`, `tg`, `en`…
@@ -563,7 +573,13 @@ impl Default for BatchUi {
         Self {
             dialog: false,
             items: Vec::new(),
-            steps: [true, false, false, false, false, false, true],
+            steps: [true, false, false, false, false, false, false, false, false, false, true],
+            caption_preset: String::new(),
+            recipe: String::new(),
+            brand_kit: String::new(),
+            formats: [false, true, false, false],
+            inbox_folder: String::new(),
+            inbox_on: false,
             speech: "whisper".into(),
             language: "auto".into(),
             preset: String::new(),

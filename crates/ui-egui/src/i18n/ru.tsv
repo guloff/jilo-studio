@@ -4098,3 +4098,18 @@ mode	Edit	Монтаж
 	1920×1080 at 30 fps: three cameras, three microphones and music, ready for multi-camera editing.	1920×1080, 30 кадров/с: три камеры, три микрофона и музыка — готово к многокамерному монтажу.
 	1920×1080 at 25 fps: two cameras and a track for lower thirds; host, guest and music; captions.	1920×1080, 25 кадров/с: две камеры и дорожка для нижних третей; ведущий, гость и музыка; субтитры.
 	1920×1080 at 30 fps: A-roll, B-roll and titles; voice, music and sound effects; captions.	1920×1080, 30 кадров/с: основной план, B-roll и титры; голос, музыка и звуковые эффекты; субтитры.
+# AI ▸ Batch Process: new steps and the inbox folder (16.6)
+	Captions from the transcript	Субтитры из расшифровки
+	Run a recipe	Выполнить рецепт
+	Apply a brand kit	Применить бренд-кит
+	Copies in other formats	Копии в других форматах
+	Default style	Стиль по умолчанию
+	Nothing is selected in the Project panel: the steps can be kept for the inbox folder.	В панели «Проект» ничего не выбрано: шаги можно сохранить для папки-входящих.
+	No brand kits yet: Graphics and Titles ▸ Brand Kit…	Бренд-китов пока нет: Графика и титры ▸ Бренд-кит…
+	Inbox folder: new files there get these steps	Папка-входящие: новые файлы в ней проходят эти шаги
+	No folder chosen	Папка не выбрана
+	Keep for Inbox	Сохранить для входящих
+	The inbox folder is watched: new files get these steps.	Папка-входящие отслеживается: новые файлы пройдут эти шаги.
+	The steps are kept for the inbox folder.	Шаги сохранены для папки-входящих.
+	Inbox: {n} new files imported	Входящие: импортировано новых файлов — {n}
+	Inbox: processing {n} new files	Входящие: обрабатывается новых файлов — {n}

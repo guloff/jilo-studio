@@ -608,6 +608,44 @@ fn a_batch_runs_its_steps_over_every_item_and_survives_a_failing_one() {
 }
 
 #[test]
+fn a_batch_makes_styled_captions_and_exports_every_format() {
+    let (mut s, _fake, dir) = transcribed("batch-formats");
+    let first = s.state.active_sequence.unwrap();
+    let out = dir.join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    // a step that names something needs it there
+    for bad in [
+        json!({"items": [first.0], "recipe": true}),
+        json!({"items": [first.0], "recipe": true, "recipeName": "no such recipe"}),
+        json!({"items": [first.0], "brandKit": true, "brandKitName": "no such kit"}),
+        json!({"items": [first.0], "captions": true, "captionPreset": "no-such-style"}),
+        json!({"items": [first.0], "formats": true, "aspects": ["3:2"]}),
+    ] {
+        assert!(s.execute("batch.start", bad.clone()).is_err(), "{bad}");
+    }
+    let p = json!({
+        "items": [first.0], "captions": true, "captionPreset": "karaoke-yellow", "formats": true, "follow": "center",
+        "export": true, "preset": "Waveform Audio 48 kHz 16-bit", "path": out.to_string_lossy(), "wait": true,
+    });
+    let r = s.execute("batch.start", p).unwrap();
+    let item = &r["items"][0];
+    assert_eq!(item["status"], "done", "{r}");
+    assert_eq!(item["done"], json!(["captions", "formats", "export"]), "{r}");
+    let q = s.project.sequence(first).unwrap();
+    assert_eq!(q.caption_tracks.len(), 1, "captions from the transcript");
+    let preset = crate::caption_presets::find("karaoke-yellow").unwrap();
+    assert_eq!(q.caption_tracks[0].style.highlight, preset.style.highlight);
+    // the default format is 9:16; the copy is exported with the sequence
+    let copies: Vec<u64> = item["formats"].as_array().unwrap().iter().filter_map(serde_json::Value::as_u64).collect();
+    assert_eq!(copies.len(), 1);
+    let c = s.project.sequence(filmcraft_project::ItemId(copies[0])).unwrap();
+    assert_eq!((c.settings.width, c.settings.height), (1080, 1920));
+    assert_eq!(s.export_queue.items.len(), 2, "the sequence and its copy");
+    assert_eq!(s.state.active_sequence, Some(first), "the editor keeps its sequence");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn a_batch_transcribes_what_has_no_transcript_and_can_be_stopped() {
     let (mut s, fake, dir) = session("batch-asr");
     gemini_for_batch(&fake);

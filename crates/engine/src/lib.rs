@@ -36,6 +36,7 @@ pub mod graphics;
 pub mod highlights;
 pub mod imagegen;
 mod import_duplicates;
+pub mod inbox;
 pub mod interchange;
 pub mod keyboard;
 mod marker_export;
@@ -468,6 +469,8 @@ pub struct Session {
     pub ai_task_cache: ai_tasks::TaskCache,
     /// The batch running or last run (`batch.*`), advanced by [`batch::pump`].
     pub batch: Option<batch::BatchRun>,
+    /// The inbox folder being watched (`inbox.*`), looked at by [`inbox::pump`].
+    pub inbox: inbox::InboxState,
     /// The recipe running or last run (`recipes.run`), advanced by [`recipes::pump`].
     pub recipe: Option<recipes::RecipeRun>,
     /// Steps of the recipe being recorded (`recipes.recordStart`).
@@ -583,6 +586,7 @@ impl Session {
             recognition_cache: Default::default(),
             ai_task_cache: Default::default(),
             batch: None,
+            inbox: Default::default(),
             recipe: None,
             recording: None,
             face_detector: None,
@@ -687,6 +691,7 @@ impl Session {
         scene_detect::poll(self);
         export_tools::pump_queue(self, false);
         batch::pump(self);
+        inbox::pump(self);
         recipes::pump(self);
         panels::log_jobs(self);
         let Some(p) = self.persistence.as_mut() else { return };

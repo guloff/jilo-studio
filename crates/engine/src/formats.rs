@@ -44,6 +44,7 @@ fn make(s: &mut Session, aspect: &str, follow: &str, name: Option<&str>) -> Resu
     let src = s.state.active_sequence.ok_or(EngineError::NoSequence)?;
     let q = s.active_sequence().ok_or(EngineError::NoSequence)?;
     let short = q.settings.width.min(q.settings.height);
+    let (q_w, q_h) = (q.settings.width, q.settings.height);
     let (w, h) = frame_for(aspect, short).ok_or_else(|| bad(cmd, format!("`aspect`: 16:9, 9:16, 1:1 or 4:5, not `{aspect}`")))?;
     let base = s.project.item(src).map(|i| i.name.clone()).unwrap_or_default();
     let new_name = name.map(str::to_string).unwrap_or_else(|| format!("{base} {aspect}"));
@@ -56,12 +57,13 @@ fn make(s: &mut Session, aspect: &str, follow: &str, name: Option<&str>) -> Resu
         let id = dup["items"][0].as_u64().map(ItemId).ok_or_else(|| EngineError::Other("the sequence could not be copied".into()))?;
         s.execute("sequence.open", json!({"item": id.0}))?;
         s.execute("sequence.settings", json!({"width": w, "height": h, "name": new_name}))?;
-        // the video clips (not graphics) fill the new frame
+        // the video clips (not graphics, not a brand kit's logo) fill the new frame
         let clips: Vec<u64> = s
             .active_sequence()
             .map(|q| {
                 q.video_tracks
                     .iter()
+                    .filter(|t| t.name != crate::brand_kit::LOGO_TRACK)
                     .flat_map(|t| t.items.iter())
                     .filter(|it| !matches!(s.project.item(it.item).map(|i| &i.kind), Some(filmcraft_project::ItemKind::Graphic { .. })))
                     .map(|it| it.id.0)
@@ -75,6 +77,7 @@ fn make(s: &mut Session, aspect: &str, follow: &str, name: Option<&str>) -> Resu
                 let _ = s.execute("clip.reframeToFace", json!({"clips": clips, "target": "speaker"}));
             }
         }
+        refit_logo(s, (q_w, q_h), (w, h))?;
         Ok(id)
     })();
     s.state.project_selection = selection;
@@ -92,6 +95,33 @@ fn make(s: &mut Session, aspect: &str, follow: &str, name: Option<&str>) -> Resu
             Err(e)
         }
     }
+}
+
+/// A brand kit's logo keeps its corner, its margin and its share of the frame width in the new
+/// frame (`from` → `to`, in pixels) instead of filling it.
+fn refit_logo(s: &mut Session, from: (u32, u32), to: (u32, u32)) -> Result<()> {
+    let Some(q) = s.active_sequence() else { return Ok(()) };
+    let logos: Vec<(u64, f64, filmcraft_geom::Vec2)> = q
+        .video_tracks
+        .iter()
+        .filter(|t| t.name == crate::brand_kit::LOGO_TRACK)
+        .flat_map(|t| t.items.iter())
+        .filter_map(|it| {
+            let m = it.effect("motion")?;
+            let t = it.effect_time_at(it.start);
+            Some((it.id.0, m.f64_at("scale", t), m.vec2_at("position", t)))
+        })
+        .collect();
+    let (ow, oh, nw, nh) = (f64::from(from.0), f64::from(from.1), f64::from(to.0), f64::from(to.1));
+    let k = nw / ow.max(1.0);
+    // distance from the nearer edge, scaled with the width
+    let along = |v: f64, old: f64, new: f64| if v > old / 2.0 { new - (old - v) * k } else { v * k };
+    for (clip, scale, pos) in logos {
+        let (x, y) = (along(pos.x, ow, nw), along(pos.y, oh, nh));
+        s.execute("effects.setParam", json!({"clip": clip, "effect": "motion", "param": "scale", "value": scale * k}))?;
+        s.execute("effects.setParam", json!({"clip": clip, "effect": "motion", "param": "position", "value": [x, y]}))?;
+    }
+    Ok(())
 }
 
 fn make_format(s: &mut Session, p: &Value) -> Result<Value> {

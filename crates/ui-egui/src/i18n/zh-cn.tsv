@@ -4138,3 +4138,18 @@
 	1920×1080 at 30 fps: three cameras, three microphones and music, ready for multi-camera editing.	1920×1080、30 fps：三台摄像机、三个麦克风和音乐，可直接进行多机位剪辑。
 	1920×1080 at 25 fps: two cameras and a track for lower thirds; host, guest and music; captions.	1920×1080、25 fps：两台摄像机和一条下方三分之一字幕轨道；主持人、嘉宾和音乐；字幕。
 	1920×1080 at 30 fps: A-roll, B-roll and titles; voice, music and sound effects; captions.	1920×1080、30 fps：主镜头、B-roll 和标题；人声、音乐和音效；字幕。
+# AI ▸ Batch Process: new steps and the inbox folder (16.6)
+	Captions from the transcript	从文字稿生成字幕
+	Run a recipe	运行配方
+	Apply a brand kit	应用品牌套件
+	Copies in other formats	其他格式的副本
+	Default style	默认样式
+	Nothing is selected in the Project panel: the steps can be kept for the inbox folder.	项目面板中未选择任何内容：可以将这些步骤保存给收件文件夹。
+	No brand kits yet: Graphics and Titles ▸ Brand Kit…	尚无品牌套件：图形和标题 ▸ 品牌套件…
+	Inbox folder: new files there get these steps	收件文件夹：其中的新文件将执行这些步骤
+	No folder chosen	未选择文件夹
+	Keep for Inbox	保存给收件文件夹
+	The inbox folder is watched: new files get these steps.	正在监视收件文件夹：新文件将执行这些步骤。
+	The steps are kept for the inbox folder.	已为收件文件夹保存这些步骤。
+	Inbox: {n} new files imported	收件：已导入 {n} 个新文件
+	Inbox: processing {n} new files	收件：正在处理 {n} 个新文件
