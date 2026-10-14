@@ -14,6 +14,14 @@
 # way. Product and technology names (FilmCraft, ArtCraft, Lumetri, ProRes, LUFS…) keep their
 # spelling. "video" is written without an accent, as in the rest of this catalog.
 
+	A bold call to subscribe on a red pill, with an accent dot.	Una llamada a suscribirse en una cápsula roja, con un punto de acento.
+	A full-width bar at the top with centred text — series parts, topics, warnings.	Una barra a lo ancho arriba con texto centrado: partes de una serie, temas, avisos.
+	A light, widely spaced title for calm footage.	Un título ligero y espaciado para imágenes tranquilas.
+	A numbered step for tutorials and how-tos.	Un paso numerado para tutoriales.
+	A quotation with a large mark and its author.	Una cita con unas comillas grandes y su autor.
+	A red label and a white headline bar, news style.	Una etiqueta roja y una barra blanca con el titular, estilo noticias.
+	A small kicker over a big outlined headline.	Un antetítulo pequeño sobre un gran titular con contorno.
+	A white pill asking to like and follow.	Una cápsula blanca que pide «me gusta» y seguir.
 	About FilmCraft	Acerca de FilmCraft
 	Add Audio Submix Track	Añadir pista de submezcla de audio
 	Add Caption at Playhead	Añadir subtítulo en el cabezal
@@ -58,9 +66,11 @@
 	Audio Out	Salida de audio
 	Audio Track Mixer	Mezclador de pistas de audio
 	Audio Waveform	Forma de onda de audio
+	Author	Autor
 	Auto Save…	Guardado automático…
 	Automate to Sequence…	Automatizar a secuencia…
 	Automatic Editing	Edición automática
+	Banners	Banners
 	Bars and Tone…	Barras y tono…
 	Big Center	Grande al centro
 	Bin	Bandeja
@@ -69,10 +79,13 @@
 	Blue	Azul
 	Bold Outline	Contorno grueso
 	Bottom	Abajo
+	Breaking News	Última hora
 	Breakout to Mono	Separar en mono
 	Bring Forward	Traer adelante
 	Bring to Front	Traer al frente
 	Brown	Marrón
+	Call Color	Color de la llamada
+	Call to Action	Llamada a la acción
 	Caption fonts installed	Fuentes de subtítulos instaladas
 	Caption Style	Estilo de subtítulos
 	Caption Styles…	Estilos de subtítulos…
@@ -84,7 +97,10 @@
 	Center Horizontally	Centrar horizontalmente
 	Center Vertically	Centrar verticalmente
 	Cerulean	Cerúleo
+	Chapter Card	Tarjeta de capítulo
+	Chapter number and title beside an accent bar.	Número y título del capítulo junto a una barra de acento.
 	Cinema	Cine
+	Circle Color	Color del círculo
 	Classic	Clásico
 	Clean Box	Caja limpia
 	Clean Shadow	Sombra limpia
@@ -115,6 +131,7 @@
 	Cut	Cortar
 	Dark Pill	Cápsula oscura
 	Darkest	Más oscuro
+	Date	Fecha
 	Delete Render Files	Eliminar archivos de procesamiento
 	Delete Render Files In to Out	Eliminar archivos de procesamiento de entrada a salida
 	Delete Tracks…	Eliminar pistas…
@@ -192,13 +209,17 @@
 	Green	Verde
 	Group	Agrupar
 	Guide Templates	Plantillas de guías
+	Handle	Usuario
 	Handwritten	Manuscrita
+	Headline	Titular
 	Heavy	Pesada
 	Help	Ayuda
 	Hide All Caption Tracks	Ocultar todas las pistas de subtítulos
 	High Quality Playback	Reproducción de alta calidad
 	Highlighter	Marcador
 	History	Historial
+	Hook – Big Words	Gancho: palabras grandes
+	Huge outlined words for the first seconds of a short.	Palabras enormes con contorno para los primeros segundos de un short.
 	Import From	Importar desde
 	Import Image Sequence…	Importar secuencia de imágenes…
 	Import from Media Browser	Importar desde el navegador de medios
@@ -214,21 +235,29 @@
 	Karaoke Green	Karaoke verde
 	Karaoke Yellow	Karaoke amarillo
 	Keyboard Shortcuts…	Atajos de teclado…
+	Kicker	Antetítulo
+	Kicker Color	Color del antetítulo
 	Label	Etiqueta
+	Label Color	Color de la etiqueta
 	Labels…	Etiquetas…
 	Language	Idioma
 	Lavender	Lavanda
 	Learning	Aprendizaje
 	Left	Izquierda
+	Letter Spacing	Espaciado
 	Libraries	Bibliotecas
 	Lift	Levantar
 	Light	Claro
+	Like and Follow	Me gusta y seguir
 	Lime	Lima
 	Line Spacing	Interlineado
 	Link	Vincular
+	Link in Description	Enlace en la descripción
 	Link Media…	Vincular medios…
 	Linked Selection	Selección vinculada
 	Lock Guides	Bloquear guías
+	Lower Third – Minimal	Rótulo inferior: mínimo
+	Lower Third – Pills	Rótulo inferior: cápsulas
 	Lumetri Color	Color Lumetri
 	Lumetri Scopes	Ámbitos Lumetri
 	Magnification	Ampliación
@@ -237,6 +266,7 @@
 	Make Subsequence	Crear subsecuencia
 	Manage Guides…	Gestionar guías…
 	Mark Clip	Marcar clip
+	Mark Color	Color de las comillas
 	Mark In	Marcar entrada
 	Mark Out	Marcar salida
 	Mark Selection	Marcar selección
@@ -256,6 +286,9 @@
 	Motion Graphics Template…	Plantilla de animación…
 	Multi-Camera	Multicámara
 	Multi-Camera View	Vista multicámara
+	Name and role on one line with a thin separator.	Nombre y cargo en una línea con un separador fino.
+	Name and role on two rounded pills.	Nombre y cargo en dos cápsulas redondeadas.
+	Name Pill	Cápsula del nombre
 	Neon Cyan	Neón cian
 	Neon Pink	Neón rosa
 	Nest…	Anidar…
@@ -267,6 +300,7 @@
 	Next in Track	Siguiente en la pista
 	No sequence is open.	No hay ninguna secuencia abierta.
 	Normalize Mix Track…	Normalizar pista de mezcla…
+	Number	Número
 	Offline File…	Archivo sin conexión…
 	One Word	Una palabra
 	Open a sequence to style its captions.	Abre una secuencia para dar estilo a sus subtítulos.
@@ -274,17 +308,23 @@
 	Optical Flow	Flujo óptico
 	Orange Pop	Naranja vivo
 	Outline	Contorno
+	Outline Color	Color del contorno
+	Outro – Thanks	Cierre: gracias
 	Overwrite	Sobrescribir
 	Paste	Pegar
 	Paste Attributes…	Pegar atributos…
 	Paste Insert	Pegar e insertar
 	Pastel	Pastel
 	Paused Resolution	Resolución en pausa
+	Pill Color	Color de la cápsula
+	Pill Opacity	Opacidad de la cápsula
 	Place	Ubicación
+	Place and Date	Lugar y fecha
 	Plain	Normal
 	Playback Resolution	Resolución de reproducción
 	Playback…	Reproducción…
 	Plugins…	Complementos…
+	Points viewers to the link below the video.	Dirige al espectador al enlace bajo el vídeo.
 	Polygon	Polígono
 	Pop	Pop
 	Preferences	Preferencias
@@ -303,6 +343,8 @@
 	Punch Karaoke	Impacto karaoke
 	Punch Yellow	Impacto amarillo
 	Purple	Púrpura
+	Quote	Cita
+	Quote Card	Tarjeta de cita
 	Reconnect Full Resolution Media…	Reconectar medios de resolución completa…
 	Recover Unsaved Changes…	Recuperar cambios no guardados…
 	Rectangle	Rectángulo
@@ -336,6 +378,7 @@
 	Right	Derecha
 	Ripple Delete	Eliminar y cerrar hueco
 	Ripple Sequence Markers	Desplazar marcadores de secuencia
+	Role Pill	Cápsula del cargo
 	Rose	Rosa
 	Safe Margins	Márgenes seguros
 	Sample caption text	Texto de subtítulo de ejemplo
@@ -362,6 +405,7 @@
 	Selection…	Selección…
 	Send Backward	Enviar atrás
 	Send to Back	Enviar al fondo
+	Separator Color	Color del separador
 	Sequence	Secuencia
 	Sequence From Clip	Secuencia a partir de clip
 	Sequence Settings…	Ajustes de secuencia…
@@ -370,6 +414,7 @@
 	Show Active Caption Tracks Only	Mostrar solo pistas de subtítulos activas
 	Show All Caption Tracks	Mostrar todas las pistas de subtítulos
 	Show All Marker Colors	Mostrar todos los colores de marcador
+	Show Date	Mostrar fecha
 	Show Guides	Mostrar guías
 	Show Rulers	Mostrar reglas
 	Show Through Edits	Mostrar ediciones pasantes
@@ -378,6 +423,7 @@
 	Slide Up	Deslizar arriba
 	Snap in Program Monitor	Ajustar en el monitor de programa
 	Snap in Timeline	Ajustar en la línea de tiempo
+	Social	Redes sociales
 	Soft Fade	Fundido suave
 	Source	Origen
 	Source Settings…	Ajustes de origen…
@@ -385,7 +431,10 @@
 	Speed/Duration…	Velocidad/duración…
 	Spoken Word	Palabra hablada
 	Spoken Word Size	Tamaño de la palabra hablada
+	Step	Paso
+	Step Label	Etiqueta de paso
 	Styles…	Estilos…
+	Subscribe Button	Botón de suscripción
 	Subtle Box	Caja sutil
 	Synchronize…	Sincronizar…
 	System Compatibility Report…	Informe de compatibilidad del sistema…
@@ -395,6 +444,8 @@
 	Tech	Tecno
 	Text	Texto
 	Text to Speech…	Texto a voz…
+	Thanks	Gracias
+	Thanks for watching, with a call to subscribe.	Gracias por ver, con una llamada a suscribirse.
 	The sequence has no captions to translate. Create captions from the transcript first.	La secuencia no tiene subtítulos para traducir. Crea primero subtítulos a partir de la transcripción.
 	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	Esta secuencia aún no tiene subtítulos. Créalos a partir de la transcripción (IA ▸ Voz y subtítulos) o añade una pista de subtítulos.
 	Time Interpolation	Interpolación de tiempo
@@ -402,9 +453,12 @@
 	Timecode…	Código de tiempo…
 	Timeline	Línea de tiempo
 	Timeline…	Línea de tiempo…
+	Title – Headline	Título: titular
+	Title – Minimal	Título: mínimo
 	Toggle Proxies	Alternar proxies
 	Tools	Herramientas
 	Top	Arriba
+	Top Banner	Banner superior
 	Top Title	Título superior
 	Transcribe Sequence…	Transcribir secuencia…
 	Transcribe…	Transcribir…
@@ -427,6 +481,7 @@
 	View	Ver
 	Violet	Violeta
 	Violet Box	Caja violeta
+	Where and when, as a small two-line label.	Dónde y cuándo, en una pequeña etiqueta de dos líneas.
 	Whisper model (on this computer)	Modelo Whisper (en este ordenador)
 	White Pill	Cápsula blanca
 	Window	Ventana
@@ -436,6 +491,7 @@
 	Workspaces	Espacios de trabajo
 	Yellow	Amarillo
 	Yellow Pop	Amarillo vivo
+	Your @handle on a translucent pill, for a watermark or an end card.	Tu @usuario en una cápsula translúcida, como marca de agua o en el cierre.
 	Zoom In	Acercar
 	Zoom Out	Alejar
 	Zoom to Sequence	Ajustar zoom a la secuencia

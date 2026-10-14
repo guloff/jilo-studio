@@ -102,7 +102,7 @@ fn browse_search_apply_and_edit_template_properties() {
     d.shot("templates-browse");
     // search narrows the list
     d.ok("ui.click", json!({"id": "gfxTemplates.search"}));
-    d.ok("ui.type", json!({"text": "credits"}));
+    d.ok("ui.type", json!({"text": "roll"}));
     d.frames(3);
     assert_eq!(d.ids("gfxTemplates.item."), vec!["gfxTemplates.item.builtin:end-credits-roll"]);
     // select and apply

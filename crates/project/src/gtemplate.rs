@@ -697,6 +697,388 @@ pub fn builtin_templates() -> Vec<GraphicsTemplate> {
         t.graphic.roll = Roll { mode: RollMode::CrawlLeft, start_off_screen: true, end_off_screen: true, ..Default::default() };
         v.push(t);
     }
+    v.extend(social_and_short_video_templates());
+    v
+}
+
+/// A text layer on its own rounded box (`size` = padding around the text).
+fn on_box(e: &mut EffectInstance, color: u32, opacity: f64, size: f64, radius: f64) {
+    set(e, "background", ParamValue::Bool(true));
+    set(e, "background_color", rgb(color));
+    set(e, "background_opacity", ParamValue::Float(opacity));
+    set(e, "background_size", ParamValue::Float(size));
+    set(e, "background_radius", ParamValue::Float(radius));
+}
+
+fn outlined(e: &mut EffectInstance, color: u32, width: f64) {
+    set(e, "stroke", ParamValue::Bool(true));
+    set(e, "stroke_color", rgb(color));
+    set(e, "stroke_width", ParamValue::Float(width));
+}
+
+fn soft_shadow(e: &mut EffectInstance) {
+    set(e, "shadow", ParamValue::Bool(true));
+    set(e, "shadow_distance", ParamValue::Float(4.0));
+    set(e, "shadow_blur", ParamValue::Float(18.0));
+    set(e, "shadow_opacity", ParamValue::Float(55.0));
+}
+
+fn centred(e: &mut EffectInstance) {
+    set(e, "align", ParamValue::Choice(1));
+}
+
+/// Templates for social and short video (original designs, Jilo Studio): calls to action, handles,
+/// hooks, chapter and quote cards, lower thirds, banners, steps, labels and an outro.
+fn social_and_short_video_templates() -> Vec<GraphicsTemplate> {
+    let mut v = Vec::new();
+    // Subscribe: a red pill with a white label, and a ringing-bell dot.
+    {
+        let mut label = text(1, "Label", "SUBSCRIBE", (960.0, 900.0), 58.0, "Bold");
+        centred(&mut label);
+        set(&mut label, "tracking", ParamValue::Float(40.0));
+        on_box(&mut label, 0xe11d2e, 100.0, 26.0, 40.0);
+        soft_shadow(&mut label);
+        let mut bell = shape(2, "Bell", 1, (1180.0, 880.0), (34.0, 34.0), 0xfacc15);
+        pin(&mut bell, 1, [false, true, true, false], [0.0, -24.0, 54.0, 0.0]);
+        v.push(builtin(
+            "social-subscribe",
+            "Subscribe Button",
+            "Social",
+            "A bold call to subscribe on a red pill, with an accent dot.",
+            4,
+            vec![label, bell],
+            vec![
+                ctl("label", "Label", 1, "text"),
+                ctl("pill", "Pill Color", 1, "background_color"),
+                ctl("text_color", "Text Color", 1, "fill_color"),
+                ctl("dot", "Dot Color", 2, "fill_color"),
+                ctl("show_dot", "Show Dot", 2, "enabled"),
+                ctl("position", "Position", 1, "position"),
+            ],
+        ));
+    }
+    // Like and follow: white pill, dark label.
+    {
+        let mut label = text(1, "Label", "LIKE  •  FOLLOW", (960.0, 920.0), 52.0, "Bold");
+        centred(&mut label);
+        set(&mut label, "fill_color", rgb(0x111111));
+        on_box(&mut label, 0xffffff, 100.0, 24.0, 40.0);
+        soft_shadow(&mut label);
+        v.push(builtin(
+            "social-like-follow",
+            "Like and Follow",
+            "Social",
+            "A white pill asking to like and follow.",
+            4,
+            vec![label],
+            vec![
+                ctl("label", "Label", 1, "text"),
+                ctl("pill", "Pill Color", 1, "background_color"),
+                ctl("text_color", "Text Color", 1, "fill_color"),
+                ctl("position", "Position", 1, "position"),
+            ],
+        ));
+    }
+    // Handle: @name on a translucent dark pill.
+    {
+        let mut handle = text(1, "Handle", "@yourname", (960.0, 980.0), 44.0, "SemiBold");
+        centred(&mut handle);
+        on_box(&mut handle, 0x000000, 60.0, 18.0, 30.0);
+        v.push(builtin(
+            "social-handle",
+            "Handle",
+            "Social",
+            "Your @handle on a translucent pill, for a watermark or an end card.",
+            6,
+            vec![handle],
+            vec![
+                ctl("handle", "Handle", 1, "text"),
+                ctl("pill", "Pill Color", 1, "background_color"),
+                slider("pill_opacity", "Pill Opacity", 1, "background_opacity", 0.0, 100.0),
+                ctl("position", "Position", 1, "position"),
+            ],
+        ));
+    }
+    // Link in the description, with an arrow.
+    {
+        let mut label = text(1, "Label", "Link in the description ↓", (960.0, 940.0), 50.0, "SemiBold");
+        centred(&mut label);
+        on_box(&mut label, 0x6e44ff, 100.0, 22.0, 18.0);
+        soft_shadow(&mut label);
+        v.push(builtin(
+            "social-link",
+            "Link in Description",
+            "Social",
+            "Points viewers to the link below the video.",
+            4,
+            vec![label],
+            vec![ctl("label", "Label", 1, "text"), ctl("box", "Box Color", 1, "background_color"), ctl("position", "Position", 1, "position")],
+        ));
+    }
+    // Hook: huge outlined words in the middle of the frame, for the first seconds.
+    {
+        let mut hook = text(1, "Hook", "WAIT FOR IT…", (960.0, 580.0), 150.0, "Bold");
+        centred(&mut hook);
+        outlined(&mut hook, 0x000000, 12.0);
+        soft_shadow(&mut hook);
+        v.push(builtin(
+            "title-hook",
+            "Hook – Big Words",
+            "Titles",
+            "Huge outlined words for the first seconds of a short.",
+            3,
+            vec![hook],
+            vec![
+                ctl("hook", "Text", 1, "text"),
+                slider("size", "Size", 1, "size", 40.0, 260.0),
+                ctl("text_color", "Text Color", 1, "fill_color"),
+                ctl("outline", "Outline Color", 1, "stroke_color"),
+                ctl("font", "Font", 1, "font"),
+            ],
+        ));
+    }
+    // Video title: a kicker line over a big uppercase headline with a yellow keyword line.
+    {
+        let mut kicker = text(1, "Kicker", "EPISODE 12", (960.0, 420.0), 40.0, "SemiBold");
+        centred(&mut kicker);
+        set(&mut kicker, "tracking", ParamValue::Float(200.0));
+        set(&mut kicker, "fill_color", rgb(0xfacc15));
+        let mut title = text(2, "Title", "HOW WE BUILT IT", (960.0, 560.0), 120.0, "Bold");
+        centred(&mut title);
+        outlined(&mut title, 0x000000, 8.0);
+        soft_shadow(&mut title);
+        v.push(builtin(
+            "title-headline",
+            "Title – Headline",
+            "Titles",
+            "A small kicker over a big outlined headline.",
+            5,
+            vec![kicker, title],
+            vec![
+                ctl("kicker", "Kicker", 1, "text"),
+                ctl("title", "Title", 2, "text"),
+                ctl("kicker_color", "Kicker Color", 1, "fill_color"),
+                ctl("title_color", "Title Color", 2, "fill_color"),
+                ctl("font", "Font", 2, "font"),
+            ],
+        ));
+    }
+    // Minimal title: light, widely spaced.
+    {
+        let mut title = text(1, "Title", "quiet mornings", (960.0, 560.0), 110.0, "Regular");
+        centred(&mut title);
+        set(&mut title, "tracking", ParamValue::Float(160.0));
+        soft_shadow(&mut title);
+        v.push(builtin(
+            "title-minimal",
+            "Title – Minimal",
+            "Titles",
+            "A light, widely spaced title for calm footage.",
+            5,
+            vec![title],
+            vec![
+                ctl("title", "Title", 1, "text"),
+                slider("tracking", "Letter Spacing", 1, "tracking", 0.0, 400.0),
+                ctl("text_color", "Text Color", 1, "fill_color"),
+                ctl("font", "Font", 1, "font"),
+            ],
+        ));
+    }
+    // Chapter card: a number, a title and an accent bar on the left.
+    {
+        let mut bar = shape(1, "Bar", 0, (150.0, 540.0), (12.0, 220.0), 0x6e44ff);
+        pin(&mut bar, 3, [true, false, false, false], [-36.0, 0.0, 0.0, 0.0]);
+        let mut num = text(2, "Number", "CHAPTER 2", (190.0, 480.0), 40.0, "SemiBold");
+        set(&mut num, "tracking", ParamValue::Float(150.0));
+        set(&mut num, "fill_color", rgb(0xc4b5fd));
+        let mut title = text(3, "Title", "The first prototype", (186.0, 580.0), 96.0, "Bold");
+        soft_shadow(&mut title);
+        v.push(builtin(
+            "chapter-card",
+            "Chapter Card",
+            "Titles",
+            "Chapter number and title beside an accent bar.",
+            5,
+            vec![bar, num, title],
+            vec![
+                ctl("number", "Number", 2, "text"),
+                ctl("title", "Title", 3, "text"),
+                ctl("accent", "Accent Color", 1, "fill_color"),
+                ctl("font", "Font", 3, "font"),
+            ],
+        ));
+    }
+    // Quote card: a big quotation mark, the quote and who said it.
+    {
+        let mut mark = text(1, "Mark", "“", (960.0, 400.0), 220.0, "Bold");
+        centred(&mut mark);
+        set(&mut mark, "fill_color", rgb(0xfacc15));
+        let mut quote = text(2, "Quote", "Make it simple,\nbut significant.", (960.0, 540.0), 72.0, "Italic");
+        centred(&mut quote);
+        soft_shadow(&mut quote);
+        let mut who = text(3, "Author", "— Someone wise", (960.0, 720.0), 40.0, "Medium");
+        centred(&mut who);
+        set(&mut who, "fill_color", rgb(0xd1d5db));
+        v.push(builtin(
+            "quote-card",
+            "Quote Card",
+            "Titles",
+            "A quotation with a large mark and its author.",
+            6,
+            vec![mark, quote, who],
+            vec![
+                ctl("quote", "Quote", 2, "text"),
+                ctl("author", "Author", 3, "text"),
+                ctl("mark_color", "Mark Color", 1, "fill_color"),
+                ctl("text_color", "Text Color", 2, "fill_color"),
+            ],
+        ));
+    }
+    // Lower third: name and role on two pills.
+    {
+        let mut name = text(1, "Name", "Dilnoza Karimova", (140.0, 900.0), 56.0, "Bold");
+        set(&mut name, "fill_color", rgb(0x111111));
+        on_box(&mut name, 0xffffff, 100.0, 16.0, 28.0);
+        let mut role = text(2, "Role", "Product Designer", (140.0, 980.0), 36.0, "Medium");
+        on_box(&mut role, 0x6e44ff, 100.0, 12.0, 22.0);
+        v.push(builtin(
+            "lower-third-pills",
+            "Lower Third – Pills",
+            "Lower Thirds",
+            "Name and role on two rounded pills.",
+            6,
+            vec![name, role],
+            vec![
+                ctl("name", "Name", 1, "text"),
+                ctl("role", "Role", 2, "text"),
+                ctl("name_pill", "Name Pill", 1, "background_color"),
+                ctl("role_pill", "Role Pill", 2, "background_color"),
+                ctl("show_role", "Show Role", 2, "enabled"),
+            ],
+        ));
+    }
+    // Lower third: name | role separated by a thin bar.
+    {
+        let mut name = text(1, "Name", "Timur Rahimov", (140.0, 960.0), 54.0, "Bold");
+        soft_shadow(&mut name);
+        let mut sep = shape(2, "Separator", 0, (560.0, 943.0), (4.0, 60.0), 0xffffff);
+        pin(&mut sep, 1, [false, false, true, false], [0.0, 0.0, 30.0, 0.0]);
+        let mut role = text(3, "Role", "Founder", (590.0, 960.0), 44.0, "Regular");
+        pin(&mut role, 2, [true, false, false, false], [30.0, 0.0, 0.0, 0.0]);
+        soft_shadow(&mut role);
+        v.push(builtin(
+            "lower-third-minimal",
+            "Lower Third – Minimal",
+            "Lower Thirds",
+            "Name and role on one line with a thin separator.",
+            6,
+            vec![name, sep, role],
+            vec![ctl("name", "Name", 1, "text"), ctl("role", "Role", 3, "text"), ctl("separator", "Separator Color", 2, "fill_color")],
+        ));
+    }
+    // Breaking news: a red label beside a white bar with the headline.
+    {
+        let mut label = text(1, "Label", "BREAKING", (80.0, 960.0), 44.0, "Bold");
+        on_box(&mut label, 0xe11d2e, 100.0, 16.0, 0.0);
+        // beside the label (pins align like edges, so the bar is placed, not pinned)
+        let mut headline = text(2, "Headline", "City opens a new bridge across the river", (370.0, 960.0), 44.0, "SemiBold");
+        set(&mut headline, "fill_color", rgb(0x111111));
+        on_box(&mut headline, 0xffffff, 100.0, 16.0, 0.0);
+        v.push(builtin(
+            "lower-third-breaking",
+            "Breaking News",
+            "Lower Thirds",
+            "A red label and a white headline bar, news style.",
+            8,
+            vec![label, headline],
+            vec![
+                ctl("label", "Label", 1, "text"),
+                ctl("headline", "Headline", 2, "text"),
+                ctl("label_color", "Label Color", 1, "background_color"),
+                ctl("bar_color", "Bar Color", 2, "background_color"),
+            ],
+        ));
+    }
+    // Top banner: a full-width bar with centred text.
+    {
+        let mut bar = shape(1, "Bar", 0, (960.0, 70.0), (1920.0, 140.0), 0x111827);
+        set(&mut bar, "opacity", ParamValue::Float(85.0));
+        let mut label = text(2, "Text", "PART 1 OF 3", (960.0, 92.0), 56.0, "Bold");
+        centred(&mut label);
+        set(&mut label, "tracking", ParamValue::Float(80.0));
+        v.push(builtin(
+            "banner-top",
+            "Top Banner",
+            "Banners",
+            "A full-width bar at the top with centred text — series parts, topics, warnings.",
+            5,
+            vec![bar, label],
+            vec![ctl("text", "Text", 2, "text"), ctl("bar_color", "Bar Color", 1, "fill_color"), ctl("text_color", "Text Color", 2, "fill_color")],
+        ));
+    }
+    // Step: a number in a circle and the step's text.
+    {
+        let mut circle = shape(1, "Circle", 1, (190.0, 180.0), (96.0, 96.0), 0x22c55e);
+        let mut num = text(2, "Number", "1", (190.0, 200.0), 60.0, "Bold");
+        centred(&mut num);
+        let mut step = text(3, "Step", "Open the settings", (270.0, 200.0), 52.0, "SemiBold");
+        on_box(&mut step, 0x000000, 65.0, 16.0, 14.0);
+        v.push(builtin(
+            "label-step",
+            "Step Label",
+            "Banners",
+            "A numbered step for tutorials and how-tos.",
+            5,
+            vec![circle, num, step],
+            vec![
+                ctl("number", "Number", 2, "text"),
+                ctl("step", "Step", 3, "text"),
+                ctl("circle", "Circle Color", 1, "fill_color"),
+                ctl("position", "Position", 3, "position"),
+            ],
+        ));
+    }
+    // Place and date: a small two-line label.
+    {
+        let mut place = text(1, "Place", "DUSHANBE, TAJIKISTAN", (120.0, 140.0), 40.0, "Bold");
+        set(&mut place, "tracking", ParamValue::Float(120.0));
+        soft_shadow(&mut place);
+        let mut date = text(2, "Date", "14 October 2026", (120.0, 196.0), 34.0, "Regular");
+        set(&mut date, "fill_color", rgb(0xe5e7eb));
+        soft_shadow(&mut date);
+        v.push(builtin(
+            "label-place-date",
+            "Place and Date",
+            "Banners",
+            "Where and when, as a small two-line label.",
+            5,
+            vec![place, date],
+            vec![ctl("place", "Place", 1, "text"), ctl("date", "Date", 2, "text"), ctl("show_date", "Show Date", 2, "enabled")],
+        ));
+    }
+    // Outro: thanks and a call to subscribe.
+    {
+        let mut thanks = text(1, "Thanks", "Thanks for watching!", (960.0, 500.0), 100.0, "Bold");
+        centred(&mut thanks);
+        soft_shadow(&mut thanks);
+        let mut more = text(2, "Call", "Subscribe for more", (960.0, 640.0), 52.0, "SemiBold");
+        centred(&mut more);
+        on_box(&mut more, 0xe11d2e, 100.0, 20.0, 34.0);
+        v.push(builtin(
+            "outro-thanks",
+            "Outro – Thanks",
+            "End Credits",
+            "Thanks for watching, with a call to subscribe.",
+            6,
+            vec![thanks, more],
+            vec![
+                ctl("thanks", "Thanks", 1, "text"),
+                ctl("call", "Call to Action", 2, "text"),
+                ctl("call_color", "Call Color", 2, "background_color"),
+                ctl("font", "Font", 1, "font"),
+            ],
+        ));
+    }
     v
 }
 
@@ -718,11 +1100,11 @@ mod tests {
     #[test]
     fn builtins_are_valid_and_round_trip() {
         let all = builtin_templates();
-        assert!(all.len() >= 8);
+        assert!(all.len() >= 22, "{}", all.len());
         let mut ids: Vec<&str> = all.iter().map(|t| t.id.as_str()).collect();
         ids.dedup();
         assert_eq!(ids.len(), all.len());
-        for cat in ["Lower Thirds", "Titles", "End Credits", "Callouts"] {
+        for cat in ["Lower Thirds", "Titles", "End Credits", "Callouts", "Social", "Banners"] {
             assert!(all.iter().any(|t| t.category == cat), "{cat}");
         }
         for t in all {

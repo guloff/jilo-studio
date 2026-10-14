@@ -21,11 +21,19 @@
 	4 × 4	4 × 4
 	4-Color Gradient	4 色渐变
 	5.1	5.1
+	A bold call to subscribe on a red pill, with an accent dot.	红色胶囊上的醒目订阅号召，带强调圆点。
 	A boxed label with a round pointer; move the label and the pointer follows.	带圆形指针的方框标签；移动标签时指针随之跟随。
 	A cut sequence with transitions, effects and music	带有过渡、效果和音乐的剪辑序列
+	A full-width bar at the top with centred text — series parts, topics, warnings.	顶部通栏居中文字——系列分集、主题、提示。
+	A light, widely spaced title for calm footage.	轻盈宽松的标题，适合舒缓画面。
 	A news-style line that crawls in from the right and leaves at the left.	新闻资讯风格的滚动条，从右侧滑入并从左侧滑出。
+	A numbered step for tutorials and how-tos.	教程用的编号步骤。
+	A quotation with a large mark and its author.	带大引号和作者的引语。
+	A red label and a white headline bar, news style.	红色标签加白色标题栏，新闻风格。
 	A rounded tag that fits its text, with a status dot.	贴合文本大小的圆角标签，带有状态指示圆点。
+	A small kicker over a big outlined headline.	大号描边标题上方的小引题。
 	A title on a rounded card with a soft shadow.	带有柔和阴影的圆角卡片标题。
+	A white pill asking to like and follow.	请求点赞和关注的白色胶囊。
 	AAF…	AAF…
 	About FilmCraft	关于 FilmCraft
 	Adaptive	自适应
@@ -152,6 +160,7 @@
 	Audio Waveform	音频波形
 	Audio Waveforms	音频波形
 	Audio…	音频…
+	Author	作者
 	Auto Save…	自动保存…
 	Auto tone map media (HDR and log into SDR)	自动色调映射媒体 (将 HDR 和 Log 映射到 SDR)
 	Auto-Adjust Multi-Camera Playback Quality	自动调整多机位播放质量
@@ -169,6 +178,7 @@
 	Balance	平衡
 	Band Slide	条带滑动
 	Bandpass	带通
+	Banners	横幅
 	Barn Doors	开门式
 	Bars and Tone	彩条和提示音
 	Bars and Tone…	彩条和测试音…
@@ -207,6 +217,7 @@
 	Bottom Left	左下
 	Bottom Right	右下
 	Box	背景框
+	Breaking News	突发新闻
 	Breakout to Mono	分离为单声道
 	Brightness & Contrast	亮度与对比度
 	Bring Forward	上移一层
@@ -222,6 +233,8 @@
 	Button Editor	按钮编辑器
 	Bypass	旁路
 	Calculate	计算
+	Call Color	号召颜色
+	Call to Action	行动号召
 	Callout – Pointer	标注 – 指针
 	Callout – Tag	标注 – 标签
 	Callouts	标注
@@ -257,6 +270,8 @@
 	Channel Volume	通道音量
 	Channels	声道
 	Chaos	混乱
+	Chapter Card	章节卡
+	Chapter number and title beside an accent bar.	强调条旁的章节编号和标题。
 	Checker Wipe	棋盘划像
 	Choose folder	选择文件夹
 	Choose location…	选择位置…
@@ -266,6 +281,7 @@
 	Cinema	电影
 	Cinematic	电影
 	Circle	圆形
+	Circle Color	圆圈颜色
 	Classic	经典
 	Classic warm monochrome with amber highlights	经典的暖色单色调，带琥珀色高光
 	Clean Box	简洁底框
@@ -367,6 +383,7 @@
 	Darken	变暗
 	Darker Color	深色
 	Darkest	最暗
+	Date	日期
 	Date Created	创建日期
 	Date Modified	修改日期
 	Day for night: darker, cooler and less saturated	白昼变夜景：更暗、更冷、饱和度更低
@@ -622,6 +639,7 @@
 	GuitarSuite	吉他套件
 	Half Saturation	半饱和度
 	Hand Tool	抓手工具
+	Handle	账号
 	Handwritten	手写
 	Hard Light	强光
 	Hard Limiter	强限制位
@@ -631,6 +649,7 @@
 	Hardware (H.265 has no software encoder)	硬件 (H.265 无软件编码器)
 	Hardware Encoding	硬件编码
 	HD Anamorphic 1080 (1.333)	HD 变形 1080 (1.333)
+	Headline	标题
 	Heavy	粗重
 	Help	帮助
 	Hide All Caption Tracks	隐藏所有字幕轨道
@@ -644,11 +663,13 @@
 	History	历史记录
 	Hold On:	定格于：
 	Home	主页
+	Hook – Big Words	钩子——大字
 	Horizontal	水平
 	Horizontal Flip	水平翻转
 	Hover Scrub	悬停滑动
 	HSL Secondary	HSL 次要
 	Hue	色相
+	Huge outlined words for the first seconds of a short.	短视频开头几秒用的超大描边文字。
 	Icon View	图标视图
 	Image	图像
 	Image Control	图像控制
@@ -702,7 +723,10 @@
 	Keyboard Shortcuts	快捷键
 	Keyboard Shortcuts…	键盘快捷键…
 	Keying	键控
+	Kicker	引题
+	Kicker Color	引题颜色
 	Label	标签
+	Label Color	标签颜色
 	Labels…	标签…
 	Language	语言
 	Large	大
@@ -721,6 +745,7 @@
 	Lens Blur	镜头模糊
 	Lens Distortion	镜头扭曲
 	Lens Flare	镜头光晕
+	Letter Spacing	字间距
 	Level	级别
 	Levels	色阶
 	Libraries	库
@@ -737,6 +762,7 @@
 	Lighter Color	浅色
 	Lights & Blurs	光效和模糊
 	Lights & Glows	光效与发光
+	Like and Follow	点赞和关注
 	Lime	青柠
 	Line Spacing	行距
 	Linear Burn	线性加深
@@ -744,6 +770,7 @@
 	Linear Light	线性光
 	Linear Wipe	线性划像
 	Link	链接
+	Link in Description	简介中的链接
 	Link Media	连接媒体
 	Link Media…	链接媒体…
 	Linked Selection	链接选择
@@ -759,6 +786,8 @@
 	Loudness Normalization	响度标准化
 	Louver	百叶窗
 	Lower First	首场从下半部分开始
+	Lower Third – Minimal	下三分之一——极简
+	Lower Third – Pills	下三分之一——胶囊
 	Lower Third – Rule	字幕条 – 标尺
 	Lower Third – Slab	字幕条 – 平板
 	Lower Thirds	字幕条
@@ -785,6 +814,7 @@
 	Manage Saved View Presets	管理已保存的视图预设
 	Mango	芒果黄
 	Mark Clip	标记剪辑
+	Mark Color	引号颜色
 	Mark In	标记入点
 	Mark In (I)	标记入点 (I)
 	Mark Out	标记出点
@@ -859,8 +889,11 @@
 	My Template	我的模板
 	Name	名称
 	Name and role on a coloured slab that widens with the name.	彩色平板上的姓名和职务，平板随姓名宽度自适应延展。
+	Name and role on one line with a thin separator.	姓名和职务一行显示，中间细分隔线。
+	Name and role on two rounded pills.	姓名和职务分别在两个圆角胶囊上。
 	Name over a thin rule that always matches the name's width.	细线之上的姓名，细线始终匹配姓名宽度。
 	Name Overlay	名称叠加
+	Name Pill	姓名胶囊
 	Name:	名称：
 	Neon Cyan	青色霓虹
 	Neon Pink	粉色霓虹
@@ -913,6 +946,7 @@
 	Not Now	暂不
 	Not supported by FilmCraft's encoders yet	FilmCraft 编码器暂不支持
 	Notch Filter	陷波滤波器
+	Number	编号
 	Number of Audio Clips:	音频剪辑数量：
 	Obsolete	已过时
 	Off	关
@@ -945,8 +979,10 @@
 	Out Point	出点
 	Outer	外侧
 	Outline	描边
+	Outline Color	描边颜色
 	Output	输出
 	Outro Duration	出点持续时间
+	Outro – Thanks	片尾——感谢
 	Overlay	叠加
 	Override media colour space:	覆盖媒体色彩空间：
 	Overwrite	覆盖
@@ -972,12 +1008,15 @@
 	Perspective	透视
 	Phaser	移相器
 	Phosphor	荧光划像
+	Pill Color	胶囊颜色
+	Pill Opacity	胶囊不透明度
 	Pin Light	点光
 	Pin To	固定到
 	Pinned Edges	固定的边缘
 	PiP 35% Upper Right	画中画 35% 右上
 	Pitch Shifter	音高换位器
 	Place	位置
+	Place and Date	地点和日期
 	Placement	放置位置
 	Plain	普通
 	Plateau Wipe	台地划像
@@ -991,6 +1030,7 @@
 	PNG or JPEG file	PNG 或 JPEG 文件
 	PNG Sequence	PNG 序列
 	Point Text	点文本
+	Points viewers to the link below the video.	引导观众查看视频下方的链接。
 	Polygon	多边形
 	Polygon Sides	多边形边数
 	Pop	弹出
@@ -1041,6 +1081,8 @@
 	Queue	队列
 	Quick Export	快速导出
 	QuickTime	QuickTime
+	Quote	引语
+	Quote Card	引语卡
 	Radial Blur	径向模糊
 	Radial Wipe	径向划像
 	Radial Wipe (Legacy)	径向划像(旧版)
@@ -1131,6 +1173,7 @@
 	Ripple Edit Tool	波纹编辑工具
 	Ripple Edit, Shifting Trailing Clips	波纹编辑，移动尾随剪辑
 	Ripple Sequence Markers	波纹序列标记
+	Role Pill	职务胶囊
 	Roll	卷动
 	Rolling Edit Tool	滚动编辑工具
 	Rose	玫瑰色
@@ -1205,6 +1248,7 @@
 	Send exports here with Send to Queue, then start the queue.	使用“发送到队列”将导出发送至此处，然后启动队列。
 	Send to Back	置于底层
 	Send to Queue	发送到队列
+	Separator Color	分隔线颜色
 	Sepia Tone	深褐色调
 	Sequence	序列
 	Sequence Color Management	序列色彩管理
@@ -1233,6 +1277,7 @@
 	Show All Marker Colors	显示所有标记颜色
 	Show Audio Waveform	显示音频波形
 	Show clip names	显示剪辑名称
+	Show Date	显示日期
 	Show durations	显示持续时间
 	Show finished jobs	显示已完成任务
 	Show graphs	显示图形
@@ -1272,6 +1317,7 @@
 	Snap in Timeline	在时间轴中吸附
 	Snap in Timeline (S)	在时间轴中对齐 (S)
 	Snap to grid	对齐到网格
+	Social	社交
 	Social Vertical 1080×1920	社交竖屏 1080×1920
 	Soft Fade	柔和淡入
 	Soft Light	柔光
@@ -1309,8 +1355,10 @@
 	Start Off Screen	从屏幕外开始
 	Start Queue	启动队列
 	Steel Blue	钢蓝
+	Step	步骤
 	Step Back 1 Frame (Left)	后退 1 帧 (Left)
 	Step Forward 1 Frame (Right)	前进 1 帧 (Right)
+	Step Label	步骤标签
 	Stereo	立体声
 	Stereo Expander	立体声扩展器
 	Stereo Imagery	立体声声像
@@ -1329,6 +1377,7 @@
 	Styles…	样式…
 	Stylize	风格化
 	SubRip Subtitle (.srt)	SubRip 字幕 (.srt)
+	Subscribe Button	订阅按钮
 	Subtle Box	淡色底框
 	Subtract	减去
 	Summary	摘要
@@ -1356,6 +1405,8 @@
 	Text Properties	文本属性
 	Text Styling	文本样式
 	Text to Speech…	文本转语音…
+	Thanks	感谢
+	Thanks for watching, with a call to subscribe.	感谢观看，并号召订阅。
 	The project had not been saved yet.	项目尚未保存。
 	The sequence has no caption track.	序列没有字幕轨道。
 	The sequence has no captions to translate. Create captions from the transcript first.	序列中没有可翻译的字幕。请先从转录创建字幕。
@@ -1380,6 +1431,8 @@
 	Title	标题
 	Title – Boxed	标题 – 方框
 	Title – Centered	标题 – 居中
+	Title – Headline	标题——大标题
+	Title – Minimal	标题——极简
 	Titles	标题
 	Toggle animation	切换动画
 	Toggle Proxies	切换代理
@@ -1387,6 +1440,7 @@
 	Tools	工具
 	Top	顶部
 	top	顶部
+	Top Banner	顶部横幅
 	Top Center	顶部居中
 	Top Left	左上
 	Top Right	右上
@@ -1496,6 +1550,7 @@
 	Waveform Audio 48 kHz 24-bit	波形音频 48 kHz 24 位
 	Web & Social	网页和社交
 	WebVTT (.vtt)	WebVTT (.vtt)
+	Where and when, as a small two-line label.	地点和时间，两行小标签。
 	Whip	甩动
 	Whip (Legacy)	甩动(旧版)
 	Whisper model (on this computer)	Whisper 模型（本机）
@@ -1514,6 +1569,7 @@
 	Yellow Pop	亮黄
 	Yellow-green highlights and blue-lifted shadows from crossed channel curves	交叉通道曲线带来的黄绿高光和泛蓝阴影
 	Yes	是
+	Your @handle on a translucent pill, for a watermark or an end card.	半透明胶囊上的 @账号，可作水印或片尾卡。
 	YouTube 1080p Full HD	YouTube 1080p 全高清
 	YouTube 2160p 4K Ultra HD	YouTube 2160p 4K 超高清
 	Zoom	缩放

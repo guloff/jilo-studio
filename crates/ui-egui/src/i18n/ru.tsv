@@ -7,6 +7,14 @@
 # copied; add entries the same way. Product and technology names (FilmCraft, ArtCraft, Lumetri,
 # ProRes, LUFS…) keep their spelling. Counts are written as "Файлов: {n}" rather than inflected.
 
+	A bold call to subscribe on a red pill, with an accent dot.	Яркий призыв подписаться на красной капсуле с акцентной точкой.
+	A full-width bar at the top with centred text — series parts, topics, warnings.	Полоса во всю ширину сверху с текстом по центру — части серии, темы, предупреждения.
+	A light, widely spaced title for calm footage.	Лёгкий разреженный заголовок для спокойного видео.
+	A numbered step for tutorials and how-tos.	Нумерованный шаг для уроков и инструкций.
+	A quotation with a large mark and its author.	Цитата с крупной кавычкой и автором.
+	A red label and a white headline bar, news style.	Красная метка и белая полоса с заголовком, в стиле новостей.
+	A small kicker over a big outlined headline.	Небольшая надпись над крупным заголовком с обводкой.
+	A white pill asking to like and follow.	Белая капсула с просьбой поставить лайк и подписаться.
 	About FilmCraft	О программе FilmCraft
 	Add Audio Submix Track	Добавить дорожку аудиосубмикса
 	Add Caption at Playhead	Добавить субтитр в позиции курсора воспроизведения
@@ -51,9 +59,11 @@
 	Audio Out	Аудиовыход
 	Audio Track Mixer	Микшер аудиодорожек
 	Audio Waveform	Форма аудиосигнала
+	Author	Автор
 	Auto Save…	Автосохранение…
 	Automate to Sequence…	Автоматически в секвенцию…
 	Automatic Editing	Автомонтаж
+	Banners	Баннеры
 	Bars and Tone…	Цветные полосы и тон…
 	Big Center	Крупно по центру
 	Bin	Папка
@@ -62,10 +72,13 @@
 	Blue	Синий
 	Bold Outline	Жирная обводка
 	Bottom	Снизу
+	Breaking News	Срочные новости
 	Breakout to Mono	Разделить на моно
 	Bring Forward	Переместить вперёд
 	Bring to Front	На передний план
 	Brown	Коричневый
+	Call Color	Цвет призыва
+	Call to Action	Призыв к действию
 	Caption fonts installed	Шрифты для субтитров установлены
 	Caption Style	Стиль субтитров
 	Caption Styles…	Стили субтитров…
@@ -77,7 +90,10 @@
 	Center Horizontally	Центрировать по горизонтали
 	Center Vertically	Центрировать по вертикали
 	Cerulean	Лазурный
+	Chapter Card	Карточка главы
+	Chapter number and title beside an accent bar.	Номер и название главы рядом с акцентной полосой.
 	Cinema	Кино
+	Circle Color	Цвет круга
 	Classic	Классика
 	Clean Box	Чистая плашка
 	Clean Shadow	Чистая тень
@@ -108,6 +124,7 @@
 	Cut	Вырезать
 	Dark Pill	Тёмная капсула
 	Darkest	Самый тёмный
+	Date	Дата
 	Delete Render Files	Удалить файлы рендера
 	Delete Render Files In to Out	Удалить файлы рендера от входа до выхода
 	Delete Tracks…	Удалить дорожки…
@@ -185,13 +202,17 @@
 	Green	Зелёный
 	Group	Сгруппировать
 	Guide Templates	Шаблоны направляющих
+	Handle	Ник
 	Handwritten	Рукописный
+	Headline	Заголовок
 	Heavy	Тяжёлый
 	Help	Справка
 	Hide All Caption Tracks	Скрыть все дорожки субтитров
 	High Quality Playback	Воспроизведение в высоком качестве
 	Highlighter	Маркер
 	History	История
+	Hook – Big Words	Крючок — крупные слова
+	Huge outlined words for the first seconds of a short.	Огромные слова с обводкой для первых секунд шортса.
 	Import From	Импорт из
 	Import Image Sequence…	Импортировать последовательность изображений…
 	Import from Media Browser	Импортировать из обозревателя медиа
@@ -207,21 +228,29 @@
 	Karaoke Green	Караоке зелёный
 	Karaoke Yellow	Караоке жёлтый
 	Keyboard Shortcuts…	Сочетания клавиш…
+	Kicker	Надзаголовок
+	Kicker Color	Цвет надзаголовка
 	Label	Метка
+	Label Color	Цвет метки
 	Labels…	Метки…
 	Language	Язык
 	Lavender	Лавандовый
 	Learning	Обучение
 	Left	Слева
+	Letter Spacing	Межбуквенный интервал
 	Libraries	Библиотеки
 	Lift	Поднять
 	Light	Светлое
+	Like and Follow	Лайк и подписка
 	Lime	Лайм
 	Line Spacing	Межстрочный интервал
 	Link	Связать
+	Link in Description	Ссылка в описании
 	Link Media…	Связать медиафайлы…
 	Linked Selection	Связанное выделение
 	Lock Guides	Закрепить направляющие
+	Lower Third – Minimal	Плашка — минимал
+	Lower Third – Pills	Плашка — капсулы
 	Lumetri Color	Lumetri Color
 	Lumetri Scopes	Видеоскопы Lumetri
 	Magnification	Увеличение
@@ -230,6 +259,7 @@
 	Make Subsequence	Создать подсеквенцию
 	Manage Guides…	Управление направляющими…
 	Mark Clip	Отметить клип
+	Mark Color	Цвет кавычки
 	Mark In	Отметить вход
 	Mark Out	Отметить выход
 	Mark Selection	Отметить выделение
@@ -249,6 +279,9 @@
 	Motion Graphics Template…	Шаблон анимированной графики…
 	Multi-Camera	Мультикамера
 	Multi-Camera View	Мультикамерный вид
+	Name and role on one line with a thin separator.	Имя и должность в одну строку с тонким разделителем.
+	Name and role on two rounded pills.	Имя и должность на двух скруглённых капсулах.
+	Name Pill	Капсула имени
 	Neon Cyan	Неон бирюзовый
 	Neon Pink	Неон розовый
 	Nest…	Вложить…
@@ -260,6 +293,7 @@
 	Next in Track	Следующий на дорожке
 	No sequence is open.	Нет открытой секвенции.
 	Normalize Mix Track…	Нормализовать дорожку микса…
+	Number	Номер
 	Offline File…	Офлайн-файл…
 	One Word	По одному слову
 	Open a sequence to style its captions.	Откройте секвенцию, чтобы настроить стиль её субтитров.
@@ -267,17 +301,23 @@
 	Optical Flow	Оптический поток
 	Orange Pop	Оранжевый акцент
 	Outline	Обводка
+	Outline Color	Цвет обводки
+	Outro – Thanks	Концовка — спасибо
 	Overwrite	Перезапись
 	Paste	Вставить
 	Paste Attributes…	Вставить атрибуты…
 	Paste Insert	Вставить со сдвигом
 	Pastel	Пастель
 	Paused Resolution	Разрешение на паузе
+	Pill Color	Цвет капсулы
+	Pill Opacity	Непрозрачность капсулы
 	Place	Расположение
+	Place and Date	Место и дата
 	Plain	Обычное
 	Playback Resolution	Разрешение воспроизведения
 	Playback…	Воспроизведение…
 	Plugins…	Плагины…
+	Points viewers to the link below the video.	Направляет зрителей к ссылке под видео.
 	Polygon	Многоугольник
 	Pop	Выскок
 	Preferences	Настройки
@@ -296,6 +336,8 @@
 	Punch Karaoke	Удар караоке
 	Punch Yellow	Удар жёлтый
 	Purple	Пурпурный
+	Quote	Цитата
+	Quote Card	Карточка цитаты
 	Reconnect Full Resolution Media…	Переподключить медиа в полном разрешении…
 	Recover Unsaved Changes…	Восстановить несохранённые изменения…
 	Rectangle	Прямоугольник
@@ -329,6 +371,7 @@
 	Right	Справа
 	Ripple Delete	Удалить со сдвигом
 	Ripple Sequence Markers	Сдвигать маркеры секвенции
+	Role Pill	Капсула должности
 	Rose	Розовый
 	Safe Margins	Безопасные поля
 	Sample caption text	Пример текста субтитров
@@ -355,6 +398,7 @@
 	Selection…	Выделение…
 	Send Backward	Переместить назад
 	Send to Back	На задний план
+	Separator Color	Цвет разделителя
 	Sequence	Секвенция
 	Sequence From Clip	Секвенция из клипа
 	Sequence Settings…	Настройки секвенции…
@@ -363,6 +407,7 @@
 	Show Active Caption Tracks Only	Показывать только активные дорожки субтитров
 	Show All Caption Tracks	Показать все дорожки субтитров
 	Show All Marker Colors	Показать маркеры всех цветов
+	Show Date	Показывать дату
 	Show Guides	Показать направляющие
 	Show Rulers	Показать линейки
 	Show Through Edits	Показывать сквозные монтажные точки
@@ -371,6 +416,7 @@
 	Slide Up	Выезд снизу
 	Snap in Program Monitor	Привязка в мониторе программы
 	Snap in Timeline	Привязка на таймлайне
+	Social	Соцсети
 	Soft Fade	Мягкое проявление
 	Source	Источник
 	Source Settings…	Настройки источника…
@@ -378,7 +424,10 @@
 	Speed/Duration…	Скорость/длительность…
 	Spoken Word	Звучащее слово
 	Spoken Word Size	Размер звучащего слова
+	Step	Шаг
+	Step Label	Метка шага
 	Styles…	Стили…
+	Subscribe Button	Кнопка «Подписаться»
 	Subtle Box	Мягкая подложка
 	Synchronize…	Синхронизировать…
 	System Compatibility Report…	Отчёт о совместимости системы…
@@ -388,6 +437,8 @@
 	Tech	Техно
 	Text	Текст
 	Text to Speech…	Синтез речи…
+	Thanks	Спасибо
+	Thanks for watching, with a call to subscribe.	«Спасибо за просмотр» с призывом подписаться.
 	The sequence has no captions to translate. Create captions from the transcript first.	В секвенции нет субтитров для перевода. Сначала создайте субтитры из расшифровки.
 	This sequence has no captions yet. Create them from the transcript (AI ▸ Speech and Captions) or add a caption track.	В этой секвенции пока нет субтитров. Создайте их из расшифровки (AI ▸ Речь и субтитры) или добавьте дорожку субтитров.
 	Time Interpolation	Интерполяция времени
@@ -395,9 +446,12 @@
 	Timecode…	Таймкод…
 	Timeline	Таймлайн
 	Timeline…	Таймлайн…
+	Title – Headline	Заголовок — крупный
+	Title – Minimal	Заголовок — минимал
 	Toggle Proxies	Переключить прокси
 	Tools	Инструменты
 	Top	Сверху
+	Top Banner	Верхний баннер
 	Top Title	Заголовок сверху
 	Transcribe Sequence…	Расшифровать секвенцию…
 	Transcribe…	Расшифровать…
@@ -420,6 +474,7 @@
 	View	Вид
 	Violet	Фиолетовый
 	Violet Box	Фиолетовая подложка
+	Where and when, as a small two-line label.	Где и когда — небольшая метка в две строки.
 	Whisper model (on this computer)	Модель Whisper (на этом компьютере)
 	White Pill	Белая капсула
 	Window	Окно
@@ -429,6 +484,7 @@
 	Workspaces	Рабочие среды
 	Yellow	Жёлтый
 	Yellow Pop	Жёлтый акцент
+	Your @handle on a translucent pill, for a watermark or an end card.	Ваш @ник на полупрозрачной капсуле — как водяной знак или в концовке.
 	Zoom In	Увеличить
 	Zoom Out	Уменьшить
 	Zoom to Sequence	Масштаб по секвенции
