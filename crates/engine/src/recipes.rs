@@ -320,15 +320,21 @@ pub fn pump(s: &mut Session) {
     s.recipe = Some(r);
 }
 
+/// Make the edits since the project `before` (an `Arc::as_ptr` of `Session::project`) one undo
+/// step named `label`. Nothing happens when that project is not in the undo history (no edits).
+pub(crate) fn collapse_undo(s: &mut Session, before: usize, label: &str) {
+    let h = &mut s.history.undo;
+    if let Some(k) = h.iter().position(|u| std::sync::Arc::as_ptr(&u.1) as usize == before) {
+        h.truncate(k + 1);
+        h[k].0 = label.to_string();
+    }
+}
+
 fn finish(s: &mut Session, r: &mut RecipeRun, res: std::result::Result<String, String>) {
     r.finished = true;
     r.error = res.as_ref().err().cloned();
     // the run's edits become one undo step
-    let h = &mut s.history.undo;
-    if let Some(k) = h.iter().position(|u| std::sync::Arc::as_ptr(&u.1) as usize == r.before) {
-        h.truncate(k + 1);
-        h[k].0 = format!("Recipe: {}", r.name);
-    }
+    collapse_undo(s, r.before, &format!("Recipe: {}", r.name));
     crate::narration::finish(&r.job.progress, &r.job.result, res, web_time::Instant::now());
 }
 

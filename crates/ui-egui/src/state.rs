@@ -695,6 +695,9 @@ pub struct UiState {
     /// AI ▸ Batch Process…: the dialog, its choices and the batch it started.
     #[serde(skip)]
     pub batch: BatchUi,
+    /// File ▸ Export ▸ Export in All Formats…: the dialog and its choices.
+    #[serde(skip)]
+    pub formats: crate::panels::formats::FormatsUi,
     /// AI ▸ Recipes…: the window, the recipe shown and the run being watched.
     #[serde(skip)]
     pub recipes: crate::panels::recipes::RecipesUi,
@@ -1203,6 +1206,7 @@ impl Default for UiState {
             crash_report_taken: false,
             youtube: YouTubeUi::default(),
             batch: BatchUi::default(),
+            formats: Default::default(),
             recipes: Default::default(),
             palette: Default::default(),
             assistant: Default::default(),

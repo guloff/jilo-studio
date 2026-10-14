@@ -1741,6 +1741,7 @@ impl FilmcraftApp {
         panels::crash_report::show(self, &ctx);
         panels::youtube::show(self, &ctx);
         panels::batch::show(self, &ctx);
+        panels::formats::show(self, &ctx);
         panels::recipes::show(self, &ctx);
         panels::palette::show(self, &ctx);
         panels::retakes::show(self, &ctx);

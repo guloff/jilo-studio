@@ -4068,3 +4068,23 @@
 	the downloaded file is damaged (its size or checksum is not the release's); try again	下载的文件已损坏（大小或校验和与发布不符）；请重试
 	the new version is not signed by the same developer as this one	新版本的签名者与此版本不同
 	the disk image holds a different app	磁盘映像中是另一个应用
+# File ▸ Export ▸ Export in All Formats (16.5)
+	Export in All Formats…	导出为所有格式…
+	Export in All Formats	导出为所有格式
+	Make a Copy in Another Format	复制为其他格式
+	Formats	格式
+	16:9 Landscape	16:9 横屏
+	9:16 Vertical	9:16 竖屏
+	1:1 Square	1:1 方形
+	4:5 Portrait	4:5 竖版
+	YouTube, TV	YouTube、电视
+	Shorts, Reels, TikTok	Shorts、Reels、TikTok
+	Feeds	信息流
+	Instagram feed	Instagram 信息流
+	this sequence	当前序列
+	Follow the speaker's face	跟随说话人的脸
+	A copy of the sequence is made for each other format; its clips fill the frame. Captions carry over; check titles and graphics in the copies. Each copy can be undone.	为其他每种格式各复制一份序列，片段填满画面。字幕会保留；请检查副本中的标题和图形。每个副本都可撤销。
+	Exporting {n} formats: see the Export Queue	正在导出 {n} 种格式：见导出队列
+# Export in All Formats: folder and start (16.5)
+	Start exporting now	立即开始导出
+	The current export folder	当前导出文件夹

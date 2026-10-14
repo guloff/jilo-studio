@@ -4028,3 +4028,23 @@ mode	Edit	Монтаж
 	the downloaded file is damaged (its size or checksum is not the release's); try again	скачанный файл повреждён (размер или контрольная сумма не совпадают с релизом); попробуйте ещё раз
 	the new version is not signed by the same developer as this one	новая версия подписана не тем же разработчиком, что эта
 	the disk image holds a different app	в образе диска другое приложение
+# File ▸ Export ▸ Export in All Formats (16.5)
+	Export in All Formats…	Экспорт во все форматы…
+	Export in All Formats	Экспорт во все форматы
+	Make a Copy in Another Format	Копия в другом формате
+	Formats	Форматы
+	16:9 Landscape	16:9 горизонтально
+	9:16 Vertical	9:16 вертикально
+	1:1 Square	1:1 квадрат
+	4:5 Portrait	4:5 портрет
+	YouTube, TV	YouTube, ТВ
+	Shorts, Reels, TikTok	Shorts, Reels, TikTok
+	Feeds	Ленты
+	Instagram feed	Лента Instagram
+	this sequence	эта секвенция
+	Follow the speaker's face	Следовать за лицом говорящего
+	A copy of the sequence is made for each other format; its clips fill the frame. Captions carry over; check titles and graphics in the copies. Each copy can be undone.	Для каждого другого формата делается копия секвенции, клипы заполняют кадр. Субтитры переносятся; титры и графику в копиях стоит проверить. Каждую копию можно отменить.
+	Exporting {n} formats: see the Export Queue	Экспорт форматов: {n}, см. очередь экспорта
+# Export in All Formats: folder and start (16.5)
+	Start exporting now	Начать экспорт сразу
+	The current export folder	Текущая папка экспорта

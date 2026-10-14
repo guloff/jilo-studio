@@ -29,6 +29,7 @@ pub mod control_token;
 pub mod demo;
 pub mod essential_sound;
 pub mod export_tools;
+pub mod formats;
 pub mod graphic_templates;
 pub mod graphics;
 pub mod highlights;

@@ -4033,3 +4033,23 @@
 	the downloaded file is damaged (its size or checksum is not the release's); try again	el archivo descargado está dañado (su tamaño o suma de comprobación no coinciden con la versión); inténtalo de nuevo
 	the new version is not signed by the same developer as this one	la nueva versión no está firmada por el mismo desarrollador que esta
 	the disk image holds a different app	la imagen de disco contiene otra app
+# File ▸ Export ▸ Export in All Formats (16.5)
+	Export in All Formats…	Exportar en todos los formatos…
+	Export in All Formats	Exportar en todos los formatos
+	Make a Copy in Another Format	Hacer una copia en otro formato
+	Formats	Formatos
+	16:9 Landscape	16:9 horizontal
+	9:16 Vertical	9:16 vertical
+	1:1 Square	1:1 cuadrado
+	4:5 Portrait	4:5 retrato
+	YouTube, TV	YouTube, TV
+	Shorts, Reels, TikTok	Shorts, Reels, TikTok
+	Feeds	Feeds
+	Instagram feed	Feed de Instagram
+	this sequence	esta secuencia
+	Follow the speaker's face	Seguir la cara de quien habla
+	A copy of the sequence is made for each other format; its clips fill the frame. Captions carry over; check titles and graphics in the copies. Each copy can be undone.	Se hace una copia de la secuencia para cada otro formato; sus clips llenan el encuadre. Los subtítulos se conservan; revise títulos y gráficos en las copias. Cada copia se puede deshacer.
+	Exporting {n} formats: see the Export Queue	Exportando {n} formatos: vea la cola de exportación
+# Export in All Formats: folder and start (16.5)
+	Start exporting now	Empezar a exportar ahora
+	The current export folder	La carpeta de exportación actual

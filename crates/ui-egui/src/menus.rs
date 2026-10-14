@@ -481,6 +481,10 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         "batch.start" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::batch::open(app);
         }
+        // Export in All Formats… from the menu opens the dialog; with params it exports directly.
+        "export.allFormats" if params.as_object().is_none_or(|m| m.is_empty()) => {
+            return crate::panels::formats::open(app);
+        }
         // YouTube… from the menu opens the window (its texts, or the form that writes them).
         "youtube.generate" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::youtube::open(app);
