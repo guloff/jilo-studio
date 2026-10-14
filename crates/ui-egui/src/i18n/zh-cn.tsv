@@ -4191,3 +4191,30 @@
 # B-roll commands
 	Broll	B-roll
 	Label Footage with Vision	使用 Vision 标注素材
+# AI ▸ Voice and Sound ▸ Auto Mix (16.9)
+	Voice and Sound	人声与声音
+	Auto Mix…	自动混音…
+	Auto Mix	自动混音
+	Spotify	Spotify
+	Apple Podcasts	Apple 播客
+	Broadcast (EBU R128)	广播（EBU R128）
+	Broadcast (ATSC A/85)	广播（ATSC A/85）
+	Tell speech from music (audio types)	区分语音和音乐（音频类型）
+	Speech at one loudness	语音统一响度
+	Music quieter under speech	语音时降低音乐
+	The mix at the platform's loudness	混音达到平台响度
+	speech clips: {d}, music clips: {m}	语音片段：{d}，音乐片段：{m}
+	mix {lufs} LUFS → {target} LUFS ({gain} dB)	混音 {lufs} LUFS → {target} LUFS（{gain} dB）
+	Mixed:	已混音：
+	For	用于
+	Speech is what has a transcript or is on a voice track; music is on a music track, or a long sound-only file. Everything happens on this computer. One Undo takes it back.	有文字稿或位于人声轨道的是语音；位于音乐轨道或较长的纯音频文件是音乐。全部在本机完成。一次撤销即可撤回。
+	Music beats	音乐节拍
+	Every	每
+	beat(s)	拍
+	Mark Beats	标记节拍
+	Cut Selected Clips to the Beat	按节拍剪切所选片段
+	The music is the selected audio clip, else a Music clip, else the longest one without speech. The cuts between the selected clips move to the nearest beat; the edit keeps its length.	音乐为所选音频片段；否则为音乐类型片段；否则为最长的无语音片段。所选片段之间的剪辑点移到最近的节拍；剪辑总时长不变。
+	{n} beat markers ({bpm} BPM)	{n} 个节拍标记（{bpm} BPM）
+	Cuts on the beat: {n} of {all}	踩点剪辑：{n}/{all}
+	Find Beats	查找节拍
+	Cut to the Beat	按节拍剪切

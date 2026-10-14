@@ -11,11 +11,13 @@ pub(crate) const SPEECH: &[&str] = &["AI", "Speech and Captions"];
 pub(crate) const EDITING: &[&str] = &["AI", "Automatic Editing"];
 /// AI ▸ Automatic Editing ▸ Remix.
 pub(crate) const REMIX: &[&str] = &["AI", "Automatic Editing", "Remix"];
+/// AI ▸ Voice and Sound: the mix on autopilot.
+pub(crate) const SOUND: &[&str] = &["AI", "Voice and Sound"];
 /// The AI menu itself.
 pub(crate) const TOP: &[&str] = &["AI"];
 
 /// The AI menu, top to bottom.
-pub const AI_MENU: [&str; 21] = [
+pub const AI_MENU: [&str; 22] = [
     "sequence.transcribe",
     "transcript.generate",
     "transcript.createCaptions",
@@ -34,6 +36,7 @@ pub const AI_MENU: [&str; 21] = [
     "clip.remix.enable",
     "clip.remix.properties",
     "clip.remix.revert",
+    "audio.autoMix",
     "ai.generateImage",
     "youtube.generate",
     "batch.start",

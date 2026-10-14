@@ -1746,6 +1746,7 @@ impl FilmcraftApp {
         panels::templates::show(self, &ctx);
         panels::automulticam::show(self, &ctx);
         panels::broll::show(self, &ctx);
+        panels::automix::show(self, &ctx);
         panels::recipes::show(self, &ctx);
         panels::palette::show(self, &ctx);
         panels::retakes::show(self, &ctx);

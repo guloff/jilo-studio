@@ -4151,3 +4151,30 @@ mode	Edit	Монтаж
 # B-roll commands
 	Broll	B-roll
 	Label Footage with Vision	Разметить материал через Vision
+# AI ▸ Voice and Sound ▸ Auto Mix (16.9)
+	Voice and Sound	Голос и звук
+	Auto Mix…	Автозвук…
+	Auto Mix	Автозвук
+	Spotify	Spotify
+	Apple Podcasts	Apple Podcasts
+	Broadcast (EBU R128)	Эфир (EBU R128)
+	Broadcast (ATSC A/85)	Эфир (ATSC A/85)
+	Tell speech from music (audio types)	Отличить речь от музыки (типы звука)
+	Speech at one loudness	Речь на одной громкости
+	Music quieter under speech	Музыка тише под речью
+	The mix at the platform's loudness	Микс под громкость площадки
+	speech clips: {d}, music clips: {m}	клипов речи: {d}, музыки: {m}
+	mix {lufs} LUFS → {target} LUFS ({gain} dB)	микс {lufs} LUFS → {target} LUFS ({gain} дБ)
+	Mixed:	Готово:
+	For	Для
+	Speech is what has a transcript or is on a voice track; music is on a music track, or a long sound-only file. Everything happens on this computer. One Undo takes it back.	Речь — то, у чего есть расшифровка или что лежит на дорожке голоса; музыка — на дорожке музыки или длинный файл без видео. Всё делается на этом компьютере. Одна отмена всё вернёт.
+	Music beats	Доли музыки
+	Every	Каждые
+	beat(s)	доли
+	Mark Beats	Отметить доли
+	Cut Selected Clips to the Beat	Склейки выбранных клипов — под бит
+	The music is the selected audio clip, else a Music clip, else the longest one without speech. The cuts between the selected clips move to the nearest beat; the edit keeps its length.	Музыка — выбранный аудиоклип, иначе клип типа «Музыка», иначе самый длинный без речи. Склейки между выбранными клипами сдвигаются к ближайшей доле; длина монтажа не меняется.
+	{n} beat markers ({bpm} BPM)	Маркеров долей: {n} ({bpm} BPM)
+	Cuts on the beat: {n} of {all}	Склеек под бит: {n} из {all}
+	Find Beats	Найти доли
+	Cut to the Beat	Склейки под бит

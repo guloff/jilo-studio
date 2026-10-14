@@ -711,6 +711,9 @@ pub struct UiState {
     /// AI ▸ Batch Process…: the dialog, its choices and the batch it started.
     #[serde(skip)]
     pub batch: BatchUi,
+    /// AI ▸ Voice and Sound ▸ Auto Mix….
+    #[serde(skip)]
+    pub auto_mix: crate::panels::automix::AutoMixUi,
     /// AI ▸ Automatic Editing ▸ Auto B-roll….
     #[serde(skip)]
     pub broll: crate::panels::broll::BrollUi,
@@ -1239,6 +1242,7 @@ impl Default for UiState {
             templates: Default::default(),
             auto_multicam: Default::default(),
             broll: Default::default(),
+            auto_mix: Default::default(),
             recipes: Default::default(),
             palette: Default::default(),
             assistant: Default::default(),

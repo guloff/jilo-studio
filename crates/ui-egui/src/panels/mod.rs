@@ -4,6 +4,7 @@
 pub mod ai_tasks;
 pub mod assistant;
 pub mod audio_fx_editor;
+pub mod automix;
 pub mod automulticam;
 pub mod autozoom;
 pub mod batch;

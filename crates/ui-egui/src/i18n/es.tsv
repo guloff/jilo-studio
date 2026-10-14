@@ -4156,3 +4156,30 @@
 # B-roll commands
 	Broll	B-roll
 	Label Footage with Vision	Etiquetar material con Vision
+# AI ▸ Voice and Sound ▸ Auto Mix (16.9)
+	Voice and Sound	Voz y sonido
+	Auto Mix…	Mezcla automática…
+	Auto Mix	Mezcla automática
+	Spotify	Spotify
+	Apple Podcasts	Apple Podcasts
+	Broadcast (EBU R128)	Emisión (EBU R128)
+	Broadcast (ATSC A/85)	Emisión (ATSC A/85)
+	Tell speech from music (audio types)	Distinguir voz y música (tipos de audio)
+	Speech at one loudness	Voz a un mismo volumen
+	Music quieter under speech	Música más baja bajo la voz
+	The mix at the platform's loudness	La mezcla al volumen de la plataforma
+	speech clips: {d}, music clips: {m}	clips de voz: {d}, clips de música: {m}
+	mix {lufs} LUFS → {target} LUFS ({gain} dB)	mezcla {lufs} LUFS → {target} LUFS ({gain} dB)
+	Mixed:	Mezclado:
+	For	Para
+	Speech is what has a transcript or is on a voice track; music is on a music track, or a long sound-only file. Everything happens on this computer. One Undo takes it back.	Voz es lo que tiene transcripción o está en una pista de voz; música, lo que está en una pista de música o un archivo largo solo de audio. Todo ocurre en este ordenador. Un solo Deshacer lo revierte.
+	Music beats	Ritmo de la música
+	Every	Cada
+	beat(s)	tiempo(s)
+	Mark Beats	Marcar tiempos
+	Cut Selected Clips to the Beat	Cortar los clips seleccionados al ritmo
+	The music is the selected audio clip, else a Music clip, else the longest one without speech. The cuts between the selected clips move to the nearest beat; the edit keeps its length.	La música es el clip de audio seleccionado; si no, un clip de música; si no, el más largo sin voz. Los cortes entre los clips seleccionados se mueven al tiempo más cercano; el montaje conserva su duración.
+	{n} beat markers ({bpm} BPM)	{n} marcadores de tiempo ({bpm} BPM)
+	Cuts on the beat: {n} of {all}	Cortes al ritmo: {n} de {all}
+	Find Beats	Buscar tiempos
+	Cut to the Beat	Cortar al ritmo

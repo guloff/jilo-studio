@@ -489,6 +489,10 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         "batch.start" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::batch::open(app);
         }
+        // Auto Mix… from the menu opens the dialog; with params it mixes directly.
+        "audio.autoMix" if params.as_object().is_none_or(|m| m.is_empty()) => {
+            return crate::panels::automix::open(app);
+        }
         // Auto B-roll… from the menu opens the dialog; with params it places directly.
         "broll.auto" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::broll::open(app);
