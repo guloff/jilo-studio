@@ -1,4 +1,5 @@
-//! Still images (PNG, JPEG, GIF (first frame), WebP, TIFF, BMP) as media sources.
+//! Still images (PNG, JPEG, GIF, WebP, TIFF, BMP) as media sources; animated GIF, APNG and WebP
+//! open as [`crate::animated`] instead.
 
 use std::sync::Arc;
 

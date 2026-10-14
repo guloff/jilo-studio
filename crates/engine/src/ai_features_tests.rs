@@ -885,3 +885,39 @@ fn processing_files_exports_beside_them_without_overwriting_them() {
     assert!(s.execute("batch.processFiles", json!({"paths": [dir.join("missing.mov").to_string_lossy()]})).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// An animated GIF imported and placed loops on the timeline, over the picture below it.
+#[test]
+fn an_animated_sticker_plays_on_the_timeline() {
+    let dir = std::env::temp_dir().join(format!("jilo-gif-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("wave.gif");
+    {
+        let f = std::fs::File::create(&path).unwrap();
+        let mut enc = image::codecs::gif::GifEncoder::new(f);
+        enc.set_repeat(image::codecs::gif::Repeat::Infinite).unwrap();
+        for c in [[255u8, 0, 0, 255], [0, 255, 0, 255]] {
+            let img = image::RgbaImage::from_pixel(64, 64, image::Rgba(c));
+            enc.encode_frame(image::Frame::from_parts(img, 0, 0, image::Delay::from_numer_denom_ms(500, 1))).unwrap();
+        }
+    }
+    let mut s = Session::default();
+    s.execute("file.newProject", json!({"name": "gif"})).unwrap();
+    s.execute("file.newSequence", json!({"name": "s", "video": 1, "audio": 0, "width": 64, "height": 64})).unwrap();
+    let r = s.execute("file.import", json!({"paths": [path.to_string_lossy()]})).unwrap();
+    let item = r["items"][0].as_u64().unwrap();
+    s.execute("timeline.place", json!({"item": item, "track": "V1", "seconds": 0.0, "duration": Tick::from_seconds_f64(3.0).0})).unwrap();
+    let px = |s: &mut Session, sec: f64| {
+        s.set_playhead(Tick::from_seconds_f64(sec));
+        let f = s.render_program(1.0).unwrap().over_black_rgba8();
+        let i = (32 * 64 + 32) * 4;
+        [f[i], f[i + 1], f[i + 2]]
+    };
+    let a = px(&mut s, 0.25);
+    let b = px(&mut s, 0.75);
+    let c = px(&mut s, 2.25);
+    assert!(a[0] > 200 && a[1] < 60, "first frame red: {a:?}");
+    assert!(b[1] > 200 && b[0] < 60, "second frame green: {b:?}");
+    assert_eq!(a, c, "it loops for the whole clip");
+    let _ = std::fs::remove_dir_all(&dir);
+}

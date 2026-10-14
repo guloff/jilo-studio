@@ -9,6 +9,7 @@
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
 
+pub mod animated;
 pub mod cache;
 pub mod cancel;
 pub mod digits;
@@ -194,7 +195,8 @@ pub fn open_bytes(name: &str, bytes: Arc<[u8]>, extra: &[Opener]) -> Result<Shar
         return Ok(Arc::new(wav::WavSource::parse(name, bytes)?));
     }
     if still::sniff(&bytes) {
-        return Ok(Arc::new(still::StillSource::decode(name, &bytes)?));
+        // animated GIF / APNG / WebP loop; any other picture is a still
+        return animated::open(name, &bytes);
     }
     Err(MediaError::Unsupported(format!("{name}: unrecognised format")))
 }
