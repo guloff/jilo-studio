@@ -4093,3 +4093,31 @@
 	The edge stops at the next clip. Hold ⌘ to ripple trim, ⌘⇧ to roll the cut.	边缘已到达相邻片段。按住 ⌘ 进行波纹修剪，按住 ⌘⇧ 滚动剪辑点。
 	The edge stops at the end of the clip's media.	边缘已到达片段素材的末尾。
 	A clip is at least one frame long.	片段至少为一帧长。
+# Graphics and Titles ▸ Brand Kit (16.5)
+	Brand Kit…	品牌套件…
+	Brand Kit	品牌套件
+	Kit	套件
+	New Kit	新套件
+	My Brand	我的品牌
+	Colors	颜色
+	Second	次要
+	Accent	强调
+	Keep each style's font	保留各样式的字体
+	Caption style	字幕样式
+	Lower third	下方三分之一字幕
+	Logo	标志
+	width	宽度
+	opacity	不透明度
+	Intro	片头
+	Outro	片尾
+	Images	图像
+	Titles and lower thirds	标题和下方三分之一字幕
+	Apply to the open sequence	应用到打开的序列
+	Apply to Sequence	应用到序列
+	One Undo takes the whole kit back. Applying again replaces the logo and does not add the intro or outro twice.	一次撤销即可撤回整个套件。再次应用会替换标志，不会重复添加片头和片尾。
+	Lower third at the playhead	在播放头处添加下方三分之一字幕
+	Saved “{name}”.	已保存“{name}”。
+	“{name}” is on the sequence. One Undo takes it back.	“{name}”已应用到序列。一次撤销即可撤回。
+	Lower third added at the playhead.	已在播放头处添加下方三分之一字幕。
+# Brand Kit: colours
+	Main color	主色

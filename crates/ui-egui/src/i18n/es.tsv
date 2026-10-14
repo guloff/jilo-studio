@@ -4058,3 +4058,31 @@
 	The edge stops at the next clip. Hold ⌘ to ripple trim, ⌘⇧ to roll the cut.	El borde se detiene en el clip siguiente. Mantenga ⌘ para un recorte de rizo, ⌘⇧ para desplazar el corte.
 	The edge stops at the end of the clip's media.	El borde se detiene al final del medio del clip.
 	A clip is at least one frame long.	Un clip dura al menos un fotograma.
+# Graphics and Titles ▸ Brand Kit (16.5)
+	Brand Kit…	Kit de marca…
+	Brand Kit	Kit de marca
+	Kit	Kit
+	New Kit	Kit nuevo
+	My Brand	Mi marca
+	Colors	Colores
+	Second	Segundo
+	Accent	Acento
+	Keep each style's font	Mantener la fuente de cada estilo
+	Caption style	Estilo de subtítulos
+	Lower third	Rótulo inferior
+	Logo	Logotipo
+	width	ancho
+	opacity	opacidad
+	Intro	Intro
+	Outro	Cierre
+	Images	Imágenes
+	Titles and lower thirds	Títulos y rótulos inferiores
+	Apply to the open sequence	Aplicar a la secuencia abierta
+	Apply to Sequence	Aplicar a la secuencia
+	One Undo takes the whole kit back. Applying again replaces the logo and does not add the intro or outro twice.	Un solo Deshacer revierte todo el kit. Aplicarlo de nuevo reemplaza el logotipo y no añade la intro ni el cierre dos veces.
+	Lower third at the playhead	Rótulo inferior en el cabezal
+	Saved “{name}”.	Se guardó «{name}».
+	“{name}” is on the sequence. One Undo takes it back.	«{name}» está en la secuencia. Un solo Deshacer lo revierte.
+	Lower third added at the playhead.	Rótulo inferior añadido en el cabezal.
+# Brand Kit: colours
+	Main color	Color principal

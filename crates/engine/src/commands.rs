@@ -2923,6 +2923,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::youtube::commands());
     v.extend(crate::batch::commands());
     v.extend(crate::formats::commands());
+    v.extend(crate::brand_kit::commands());
     v.extend(crate::reframe::commands());
     v.extend(crate::updates::commands());
     v.extend(crate::updater::commands());

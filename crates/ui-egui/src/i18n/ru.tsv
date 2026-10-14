@@ -4053,3 +4053,31 @@ mode	Edit	Монтаж
 	The edge stops at the next clip. Hold ⌘ to ripple trim, ⌘⇧ to roll the cut.	Край упирается в соседний клип. Удерживайте ⌘ для обрезки со сдвигом, ⌘⇧ — чтобы сдвинуть склейку.
 	The edge stops at the end of the clip's media.	Край упирается в конец исходника клипа.
 	A clip is at least one frame long.	Клип не может быть короче одного кадра.
+# Graphics and Titles ▸ Brand Kit (16.5)
+	Brand Kit…	Бренд-кит…
+	Brand Kit	Бренд-кит
+	Kit	Набор
+	New Kit	Новый набор
+	My Brand	Мой бренд
+	Colors	Цвета
+	Second	Второй
+	Accent	Акцент
+	Keep each style's font	Шрифт каждого стиля
+	Caption style	Стиль субтитров
+	Lower third	Нижняя треть
+	Logo	Логотип
+	width	ширина
+	opacity	непрозрачность
+	Intro	Интро
+	Outro	Аутро
+	Images	Изображения
+	Titles and lower thirds	Титры и нижние трети
+	Apply to the open sequence	Применить к открытой секвенции
+	Apply to Sequence	Применить к секвенции
+	One Undo takes the whole kit back. Applying again replaces the logo and does not add the intro or outro twice.	Одна отмена убирает весь набор. Повторное применение заменяет логотип и не добавляет интро и аутро второй раз.
+	Lower third at the playhead	Нижняя треть у курсора воспроизведения
+	Saved “{name}”.	«{name}» сохранён.
+	“{name}” is on the sequence. One Undo takes it back.	«{name}» применён к секвенции. Одна отмена всё вернёт.
+	Lower third added at the playhead.	Нижняя треть добавлена у курсора воспроизведения.
+# Brand Kit: colours
+	Main color	Основной

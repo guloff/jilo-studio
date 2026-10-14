@@ -154,6 +154,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("app.settings.timeline", "Timeline…", ["Edit", "Preferences"], None),
     uic!("app.settings.trim", "Trim…", ["Edit", "Preferences"], None),
     uic!("graphics.captionStyles", "Caption Styles…", ["Graphics and Titles"], None),
+    uic!("graphics.brandKit", "Brand Kit…", ["Graphics and Titles"], None),
     uic!("ui.commandPalette", "Command Palette…", ["Window"], Some("Cmd+J")),
     // AI ▸ … after the engine's AI commands (`filmcraft_engine::ai_menu`)
     uic!("ai.assistant", "AI Assistant…", ["AI"], None),
@@ -452,6 +453,9 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
             return Ok(Value::Null);
         }
         // Graphics and Titles ▸ Caption Styles… shows the Caption Style panel.
+        "graphics.brandKit" => {
+            return crate::panels::brand_kit::open(app);
+        }
         "graphics.captionStyles" => {
             app.show_panel(PanelKind::CaptionStyle);
             return Ok(Value::Null);

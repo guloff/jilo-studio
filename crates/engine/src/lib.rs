@@ -18,6 +18,7 @@ pub mod assistant;
 pub mod autosave;
 pub mod autozoom;
 pub mod batch;
+pub mod brand_kit;
 pub mod caption_fonts;
 pub mod caption_presets;
 pub mod captions;
