@@ -1,6 +1,7 @@
 //! Minimal SFNT (TrueType / OpenType / collection) header reader for font discovery: reads only
-//! the table directory, `name` and `OS/2` of each face, so scanning a system font folder does not
-//! load whole files.
+//! the table directory, `name`, `OS/2` and `fvar` of each face, so scanning a system font folder
+//! does not load whole files. A variable font lists one face per named instance (Montserrat Bold,
+//! Montserrat Black…).
 
 use std::io::{Read, Seek, SeekFrom};
 
@@ -13,6 +14,8 @@ pub struct FaceNames {
     pub full_name: String,
     pub weight: u16,
     pub italic: bool,
+    /// The named instance of a variable font (index into `fvar`'s instances); None for a static face.
+    pub instance: Option<u16>,
 }
 
 fn be16(b: &[u8], o: usize) -> Option<u16> {
@@ -42,7 +45,7 @@ pub fn read_faces<R: Read + Seek>(r: &mut R) -> Vec<FaceNames> {
     } else {
         vec![0]
     };
-    offsets.iter().enumerate().filter_map(|(i, &o)| read_face(r, o as u64, i as u32)).collect()
+    offsets.iter().enumerate().flat_map(|(i, &o)| read_face(r, o as u64, i as u32)).collect()
 }
 
 /// Names from in-memory font data.
@@ -50,7 +53,11 @@ pub fn read_faces_bytes(data: &[u8]) -> Vec<FaceNames> {
     read_faces(&mut std::io::Cursor::new(data))
 }
 
-fn read_face<R: Read + Seek>(r: &mut R, off: u64, index: u32) -> Option<FaceNames> {
+fn read_face<R: Read + Seek>(r: &mut R, off: u64, index: u32) -> Vec<FaceNames> {
+    read_face_inner(r, off, index).unwrap_or_default()
+}
+
+fn read_face_inner<R: Read + Seek>(r: &mut R, off: u64, index: u32) -> Option<Vec<FaceNames>> {
     let h = read_at(r, off, 12)?;
     let tag = &h[0..4];
     if tag != [0, 1, 0, 0] && tag != b"OTTO" && tag != b"true" {
@@ -60,12 +67,14 @@ fn read_face<R: Read + Seek>(r: &mut R, off: u64, index: u32) -> Option<FaceName
     let dir = read_at(r, off + 12, n * 16)?;
     let mut name = None;
     let mut os2 = None;
+    let mut fvar = None;
     for i in 0..n {
         let rec = &dir[i * 16..i * 16 + 16];
         let (o, l) = (be32(rec, 8)? as u64, be32(rec, 12)? as usize);
         match &rec[0..4] {
             b"name" => name = Some((o, l)),
             b"OS/2" => os2 = Some((o, l)),
+            b"fvar" => fvar = Some((o, l)),
             _ => {}
         }
     }
@@ -84,7 +93,46 @@ fn read_face<R: Read + Seek>(r: &mut R, off: u64, index: u32) -> Option<FaceName
     }
     let sl = style.to_ascii_lowercase();
     italic |= sl.contains("italic") || sl.contains("oblique");
-    Some(FaceNames { index, family, style, full_name, weight, italic })
+    let base = FaceNames { index, family, style, full_name, weight, italic, instance: None };
+    let instances = fvar.and_then(|(fo, fl)| read_at(r, fo, fl.min(1 << 16))).map(|fb| named_instances(&fb, &base, &get)).unwrap_or_default();
+    Some(if instances.is_empty() { vec![base] } else { instances })
+}
+
+/// One face per named instance of a variable font (`fvar`): its style name, the weight on its `wght`
+/// axis and whether it is italic (`ital` / `slnt` axis or the name).
+fn named_instances(fb: &[u8], base: &FaceNames, name: &dyn Fn(u16) -> Option<String>) -> Vec<FaceNames> {
+    let parse = || -> Option<Vec<FaceNames>> {
+        let axes_off = be16(fb, 4)? as usize;
+        let (axis_count, axis_size) = (be16(fb, 8)? as usize, be16(fb, 10)? as usize);
+        let (inst_count, inst_size) = (be16(fb, 12)? as usize, be16(fb, 14)? as usize);
+        if axis_size < 20 || inst_size < 4 + 4 * axis_count {
+            return None;
+        }
+        let tags: Vec<[u8; 4]> =
+            (0..axis_count).map(|a| fb.get(axes_off + a * axis_size..axes_off + a * axis_size + 4).and_then(|t| t.try_into().ok())).collect::<Option<_>>()?;
+        let inst_off = axes_off + axis_count * axis_size;
+        let mut out = Vec::new();
+        for i in 0..inst_count.min(256) {
+            let o = inst_off + i * inst_size;
+            let Some(style) = name(be16(fb, o)?) else { continue };
+            let coord = |tag: &[u8; 4]| tags.iter().position(|t| t == tag).and_then(|a| be32(fb, o + 4 + a * 4)).map(|v| v as i32 as f32 / 65536.0);
+            let weight = coord(b"wght").map_or(base.weight, |w| w.round().clamp(1.0, 1000.0) as u16);
+            let sl = style.to_ascii_lowercase();
+            let italic =
+                coord(b"ital").is_some_and(|v| v >= 0.5) || coord(b"slnt").is_some_and(|v| v != 0.0) || sl.contains("italic") || sl.contains("oblique");
+            out.push(FaceNames {
+                index: base.index,
+                family: base.family.clone(),
+                full_name: format!("{} {style}", base.family),
+                style,
+                weight,
+                italic: italic || base.italic && !coord(b"ital").is_some_and(|v| v < 0.5),
+                instance: Some(i as u16),
+            });
+        }
+        Some(out)
+    };
+    parse().unwrap_or_default()
 }
 
 /// A name-table string by id, preferring Windows Unicode English, then any Unicode, then Mac Roman.
@@ -136,5 +184,6 @@ mod tests {
         let n = read_faces_bytes(crate::fonts::NOTO_SERIF_REGULAR);
         assert_eq!(n[0].family, "Noto Serif");
         assert!(read_faces_bytes(b"not a font").is_empty());
+        assert_eq!(f[0].instance, None, "a static face has no named instance");
     }
 }

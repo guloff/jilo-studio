@@ -5,7 +5,12 @@
 //! of the sequence when "All caption tracks" is on. Every change is `captions.setStyle` or
 //! `captions.applyStylePreset`, so the panel, MCP and the control channel share one path.
 //!
+//! Presets in the caption font pack ([`filmcraft_engine::caption_fonts`]) carry a ↓ badge until the
+//! pack is downloaded (the button above the gallery says its size, source and licence); until then
+//! they draw in Inter.
+//!
 //! Automation ids: `captionStyle.track`, `captionStyle.all`, `captionStyle.preset.<id>`,
+//! `captionStyle.downloadFonts`,
 //! `captionStyle.<field>` (font, fontStyle, size, uppercase, color, outline, outlineColor,
 //! background, backgroundColor, boxRadius, shadow, shadowColor, shadowBlur, shadowX, shadowY,
 //! align.<left|center|right>, anchor.<top|middle|bottom>, margin, lineSpacing), `captionStyle.reset`,
@@ -90,6 +95,24 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         // ---- presets
         heading(ui, tl!("Presets"), &t);
         let sample = tl!("Sample caption text");
+        let pack = pack_installed(ui.ctx());
+        if !pack {
+            let busy = app.session.jobs.iter().any(|j| j.label == "Downloading caption fonts" && !j.progress.finished.load(std::sync::atomic::Ordering::Relaxed));
+            ui.label(
+                RichText::new(tlf!(
+                    "Presets marked ↓ use the caption fonts: Montserrat, Oswald, Fira Sans Condensed and five more, with Russian and Tajik letters. {size} from Google Fonts, SIL Open Font License.",
+                    size = format!("{:.1} MB", filmcraft_engine::caption_fonts::size() as f64 / 1e6)
+                ))
+                .size(11.5)
+                .color(t.text_dim),
+            );
+            let r = ui.add_enabled(!busy, egui::Button::new(if busy { tl!("Downloading…") } else { tl!("Download Caption Fonts") }));
+            app.auto.add("captionStyle.downloadFonts", r.rect, "Download Caption Fonts");
+            if r.clicked() {
+                actions.push(("fonts.downloadCaptionPack".into(), json!({})));
+            }
+            ui.add_space(6.0);
+        }
         let cols = ((ui.available_width() + 8.0) / (TILE_W + 8.0)).floor().max(1.0) as usize;
         let presets = filmcraft_engine::caption_presets::builtin();
         for row in presets.chunks(cols) {
@@ -98,8 +121,14 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 for p in row {
                     let (r, resp) = ui.allocate_exact_size(vec2(TILE_W, TILE_H + 18.0), Sense::click());
                     let frame = Rect::from_min_size(r.min, vec2(TILE_W, TILE_H));
-                    let tex = preview_texture(ui.ctx(), p.id, &p.style, sample);
+                    let needs_pack = p.style.font != "Inter";
+                    let tex = preview_texture(ui.ctx(), p.id, &p.style, sample, pack);
                     ui.painter().image(tex.id(), frame, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                    if needs_pack && !pack {
+                        let badge = Rect::from_min_size(pos2(frame.max.x - 20.0, frame.min.y + 4.0), vec2(16.0, 16.0));
+                        ui.painter().rect_filled(badge, 8.0, Color32::from_black_alpha(170));
+                        ui.painter().text(badge.center(), egui::Align2::CENTER_CENTER, "↓", Tokens::semibold(11.0), Color32::WHITE);
+                    }
                     let current = p.style == style;
                     let stroke = if current {
                         Stroke::new(2.0, t.accent)
@@ -303,6 +332,20 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     run(app, ui, actions);
 }
 
+/// Whether the caption font pack is installed (checked on disk at most every 2 seconds).
+fn pack_installed(ctx: &egui::Context) -> bool {
+    let id = egui::Id::new("caption-style-pack");
+    let now = ctx.input(|i| i.time);
+    if let Some((at, v)) = ctx.data(|d| d.get_temp::<(f64, bool)>(id))
+        && now - at < 2.0
+    {
+        return v;
+    }
+    let v = filmcraft_engine::caption_fonts::installed();
+    ctx.data_mut(|d| d.insert_temp(id, (now, v)));
+    v
+}
+
 fn heading(ui: &mut egui::Ui, title: &str, t: &Tokens) {
     ui.add_space(4.0);
     ui.label(RichText::new(title).font(Tokens::semibold(12.5)).color(t.text));
@@ -333,8 +376,9 @@ fn color(ui: &mut egui::Ui, c: [u8; 4], alpha: bool) -> Option<[u8; 4]> {
 
 /// A preset tile: a dark 16:9 frame with the sample caption drawn by the caption renderer, cached
 /// per preset and sample text.
-fn preview_texture(ctx: &egui::Context, id: &str, style: &CaptionStyle, sample: &str) -> egui::TextureHandle {
-    let key = egui::Id::new(("caption-style-tile", id, sample));
+fn preview_texture(ctx: &egui::Context, id: &str, style: &CaptionStyle, sample: &str, pack: bool) -> egui::TextureHandle {
+    // drawn again once the caption fonts are installed
+    let key = egui::Id::new(("caption-style-tile", id, sample, pack));
     if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(key)) {
         return t;
     }

@@ -1,7 +1,8 @@
 //! Caption style presets: popular looks for captions and subtitles (short-video captions, cinema
 //! subtitles, boxes, neon…) that a click applies to a caption track or to all of them. Names and
-//! values are our own. They use the bundled faces only (Inter Regular, Medium, SemiBold, Bold,
-//! Italic), so a preset looks the same on every computer.
+//! values are our own. Most use the bundled faces (Inter Regular, Medium, SemiBold, Bold, Italic);
+//! the rest use the caption font pack ([`crate::caption_fonts`], downloaded on request) and draw in
+//! Inter until it is installed.
 //!
 //! | Command | |
 //! |---|---|
@@ -29,6 +30,11 @@ const BLACK: [u8; 4] = [0, 0, 0, 255];
 /// Text without a box in the given face, size and colour.
 fn text(style: &str, size: f32, color: [u8; 4]) -> CaptionStyle {
     CaptionStyle { font_style: style.into(), size, color, background: false, ..Default::default() }
+}
+
+/// Text without a box in a font of the caption font pack.
+fn font(family: &str, style: &str, size: f32, color: [u8; 4]) -> CaptionStyle {
+    CaptionStyle { font: family.into(), ..text(style, size, color) }
 }
 
 /// Text in a box with rounded corners.
@@ -96,6 +102,17 @@ pub fn builtin() -> Vec<Preset> {
         p("italic-quote", "Italic Quote", shadowed(text("Italic", 54.0, WHITE), [0, 0, 0, 180], [0.0, 3.0], 6.0)),
         p("ink", "Ink", outlined(text("Bold", 62.0, BLACK), 6.0, WHITE)),
         p("orange-pop", "Orange Pop", outlined(caps(text("Bold", 66.0, [255, 138, 0, 255])), 6.0, BLACK)),
+        // the caption font pack
+        p("punch", "Punch", shadowed(outlined(caps(font("Montserrat", "Black", 70.0, WHITE)), 7.0, BLACK), [0, 0, 0, 170], [0.0, 5.0], 3.0)),
+        p("punch-yellow", "Punch Yellow", outlined(caps(font("Montserrat", "Black", 70.0, [255, 225, 77, 255])), 7.0, BLACK)),
+        p("condensed", "Condensed", outlined(caps(font("Oswald", "Bold", 80.0, WHITE)), 5.0, BLACK)),
+        p("tall-box", "Tall Box", caps(CaptionStyle { font: "Oswald".into(), ..boxed("SemiBold", 66.0, WHITE, [224, 38, 43, 255], 4.0) })),
+        p("heavy", "Heavy", shadowed(caps(font("Fira Sans Condensed", "Black", 76.0, WHITE)), BLACK, [5.0, 5.0], 0.0)),
+        p("friendly", "Friendly", CaptionStyle { font: "Nunito".into(), ..boxed("ExtraBold", 58.0, WHITE, [0, 0, 0, 200], 26.0) }),
+        p("tech", "Tech", shadowed(outlined(font("Exo 2", "Bold", 64.0, [95, 245, 255, 255]), 3.0, [8, 30, 48, 255]), [0, 200, 255, 160], [0.0, 0.0], 10.0)),
+        p("handwritten", "Handwritten", shadowed(font("Caveat", "Bold", 78.0, WHITE), [0, 0, 0, 170], [0.0, 3.0], 6.0)),
+        p("elegant", "Elegant", shadowed(font("Raleway", "Medium", 54.0, WHITE), [0, 0, 0, 150], [0.0, 2.0], 8.0)),
+        p("clean-box", "Clean Box", CaptionStyle { font: "Roboto".into(), ..boxed("Medium", 50.0, WHITE, [0, 0, 0, 160], 10.0) }),
     ]
 }
 
@@ -155,14 +172,17 @@ mod tests {
     #[test]
     fn presets_have_unique_ids_and_bundled_faces() {
         let all = builtin();
-        assert!(all.len() >= 25, "{}", all.len());
+        assert!(all.len() >= 35, "{}", all.len());
         let mut ids: Vec<&str> = all.iter().map(|p| p.id).collect();
         ids.sort_unstable();
         ids.dedup();
         assert_eq!(ids.len(), all.len());
         for p in &all {
-            assert_eq!(p.style.font, "Inter", "{}", p.id);
-            assert!(["Regular", "Medium", "SemiBold", "Bold", "Italic"].contains(&p.style.font_style.as_str()), "{}", p.id);
+            if p.style.font == "Inter" {
+                assert!(["Regular", "Medium", "SemiBold", "Bold", "Italic"].contains(&p.style.font_style.as_str()), "{}", p.id);
+            } else {
+                assert!(crate::caption_fonts::FAMILIES.contains(&p.style.font.as_str()), "{} uses {}, not in the caption font pack", p.id, p.style.font);
+            }
         }
         assert_eq!(all[0].style, CaptionStyle::default());
     }

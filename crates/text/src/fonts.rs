@@ -73,6 +73,9 @@ pub struct FaceInfo {
     pub weight: u16,
     pub italic: bool,
     pub index: u32,
+    /// The named instance of a variable font (its weight, width… are applied when shaping and
+    /// drawing); None for a static face or a variable font's default instance.
+    pub instance: Option<u16>,
     pub data: FaceData,
     /// "bundled", "system", …
     pub origin: &'static str,
@@ -149,7 +152,7 @@ impl FontSource for DirectorySource {
 }
 
 fn info_from(n: FaceNames, data: FaceData, origin: &'static str) -> FaceInfo {
-    FaceInfo { family: n.family, style: n.style, weight: n.weight, italic: n.italic, index: n.index, data, origin }
+    FaceInfo { family: n.family, style: n.style, weight: n.weight, italic: n.italic, index: n.index, instance: n.instance, data, origin }
 }
 
 /// A loaded (or loadable) face.
@@ -158,6 +161,9 @@ pub struct Face {
     pub info: FaceInfo,
     bytes: OnceLock<Option<FaceBytes>>,
     shaper: OnceLock<harfrust::ShaperData>,
+    /// Normalized variation coordinates of the named instance (empty: default instance).
+    location: OnceLock<skrifa::instance::Location>,
+    shaper_instance: OnceLock<Option<harfrust::ShaperInstance>>,
 }
 
 #[derive(Clone)]
@@ -215,6 +221,23 @@ impl Face {
         let f = self.font()?;
         Some(self.shaper.get_or_init(|| harfrust::ShaperData::new(&f)))
     }
+    /// The variation location of this face (the default location for static faces).
+    pub fn location(&self) -> LocationRef<'_> {
+        let loc = self.location.get_or_init(|| match (self.info.instance, self.font()) {
+            (Some(i), Some(f)) => f.named_instances().get(i as usize).map(|n| n.location()).unwrap_or_default(),
+            _ => Default::default(),
+        });
+        LocationRef::from(loc)
+    }
+    /// The shaper settings of a variable font's named instance (None for a static face).
+    pub(crate) fn shaper_instance(&self) -> Option<&harfrust::ShaperInstance> {
+        self.shaper_instance
+            .get_or_init(|| match (self.info.instance, self.font()) {
+                (Some(i), Some(f)) => Some(harfrust::ShaperInstance::from_named_instance(&f, i as usize)),
+                _ => None,
+            })
+            .as_ref()
+    }
     pub fn units_per_em(&self) -> f32 {
         self.font().map(|f| f.metrics(Size::unscaled(), LocationRef::default()).units_per_em as f32).filter(|u| *u > 0.0).unwrap_or(1000.0)
     }
@@ -246,7 +269,7 @@ impl Face {
         let units = match font.vorg() {
             Ok(table) => f32::from(table.vertical_origin_y(glyph)),
             Err(_) => {
-                let bounds = font.glyph_metrics(Size::unscaled(), LocationRef::default()).bounds(glyph)?;
+                let bounds = font.glyph_metrics(Size::unscaled(), self.location()).bounds(glyph)?;
                 bounds.y_max + f32::from(font.vmtx().ok()?.side_bearing(glyph)?)
             }
         };
@@ -266,7 +289,7 @@ impl Face {
                 ..Default::default()
             };
         };
-        let m = f.metrics(Size::new(px), LocationRef::default());
+        let m = f.metrics(Size::new(px), self.location());
         VMetrics {
             ascent: m.ascent,
             descent: -m.descent,
@@ -314,7 +337,7 @@ fn db() -> &'static RwLock<Db> {
 
 fn push(db: &mut Db, info: FaceInfo) -> FaceId {
     let id = db.faces.len();
-    db.faces.push(Arc::new(Face { id, info, bytes: OnceLock::new(), shaper: OnceLock::new() }));
+    db.faces.push(Arc::new(Face { id, info, bytes: OnceLock::new(), shaper: OnceLock::new(), location: OnceLock::new(), shaper_instance: OnceLock::new() }));
     id
 }
 
@@ -332,6 +355,12 @@ pub fn add_source(src: &dyn FontSource) -> usize {
         }
     }
     n
+}
+
+/// Add the fonts of a folder (e.g. the downloaded caption fonts in the data directory), skipping
+/// family + style pairs already present. Returns how many faces were added; a missing folder adds none.
+pub fn add_dir(dir: impl Into<PathBuf>) -> usize {
+    add_source(&DirectorySource { dirs: vec![dir.into()] })
 }
 
 /// Register a font from memory (e.g. a font file the user picked on the web). Returns its faces.
@@ -502,6 +531,30 @@ pub fn fallback_for(c: char, prefer: FaceId) -> FaceId {
 
 #[cfg(test)]
 mod tests {
+
+    /// A variable font lists its named instances as faces that shape and draw at their own weight.
+    /// Needs a folder with Montserrat[wght].ttf from Google Fonts in `FILMCRAFT_TEST_FONTS_DIR`
+    /// (the fonts are downloaded by the app, not kept in the repository).
+    #[test]
+    fn variable_font_instances_are_faces() {
+        let Some(dir) = std::env::var_os("FILMCRAFT_TEST_FONTS_DIR") else { return };
+        add_dir(PathBuf::from(dir));
+        let fams = families();
+        let styles = &fams.iter().find(|(f, _)| f == "Montserrat").expect("Montserrat registered").1;
+        assert!(styles.iter().any(|s| s == "Black") && styles.iter().any(|s| s == "Thin"), "{styles:?}");
+        let (thin, black) = (resolve("Montserrat", "Thin"), resolve("Montserrat", "Black"));
+        assert!(!thin.missing && !black.missing && thin.face != black.face);
+        assert_eq!((face(thin.face).info.weight, face(black.face).info.weight), (100, 900));
+        let w = |id| {
+            crate::measure(
+                "Привет ҳ қ ӯ",
+                &crate::TextStyle { family: "Montserrat".into(), style: face(id).info.style.clone(), size: 100.0, ..Default::default() },
+            )
+        };
+        assert!(w(black.face) > w(thin.face) * 1.05, "Black is wider than Thin: {} vs {}", w(black.face), w(thin.face));
+        assert!(face(black.face).location().coords().iter().any(|c| c.to_f32() != 0.0));
+    }
+
     use super::*;
 
     #[test]
@@ -534,7 +587,7 @@ mod tests {
         std::fs::write(&path, face(resolve("Inter", "Regular").face).data().unwrap()).unwrap();
         let mut info = face(resolve("Inter", "Regular").face).info.clone();
         info.data = FaceData::File(path.clone());
-        let f = Face { id: usize::MAX, info, bytes: OnceLock::new(), shaper: OnceLock::new() };
+        let f = Face { id: usize::MAX, info, bytes: OnceLock::new(), shaper: OnceLock::new(), location: OnceLock::new(), shaper_instance: OnceLock::new() };
         assert!(f.covers_transient("Abc 123"));
         assert!(!f.covers_transient("Abc 中文"));
         assert!(f.data().is_some_and(|d| d.len() > 1000));

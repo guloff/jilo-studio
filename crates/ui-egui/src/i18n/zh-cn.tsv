@@ -228,6 +228,7 @@
 	Camera Blur	摄像机模糊
 	Cancel	取消
 	Cancelled	已取消
+	Caption fonts installed	字幕字体已安装
 	Caption in	字幕入点
 	Caption out	字幕出点
 	Caption size	字幕大小
@@ -266,6 +267,7 @@
 	Circle	圆形
 	Classic	经典
 	Classic warm monochrome with amber highlights	经典的暖色单色调，带琥珀色高光
+	Clean Box	简洁底框
 	Clean Shadow	简洁阴影
 	Clear	清除
 	Clear (Delete)	清除 (删除)
@@ -317,6 +319,7 @@
 	Comment	注释
 	Comparison View	对比视图
 	Composite Video	复合视频
+	Condensed	窄体
 	Consolidate Duplicates	合并重复项
 	Constant Gain	恒定增益
 	Constant Power	恒定功率
@@ -423,6 +426,9 @@
 	Don't Save	不保存
 	Done	完成
 	Down	下移
+	Download Caption Fonts	下载字幕字体
+	Downloading caption fonts	正在下载字幕字体
+	Downloading…	正在下载…
 	Drag a clip to slide it between its neighbours.	拖动剪辑进行滑移修剪（在相邻剪辑之间调整其位置）。
 	Drag a clip to slip its source in/out without moving it.	拖动剪辑进行滑动修剪（在不改变轨道位置的情况下更改入/出点）。
 	Drag an edge to change the clip's speed so it fills the new duration.	拖动边缘以改变剪辑播放速度，使其填满新的持续时间。
@@ -461,6 +467,7 @@
 	Effect Controls	效果控件
 	Effect presets	效果预设
 	Effects	效果
+	Elegant	优雅
 	Ellipse	椭圆
 	Ellipse Tool	椭圆工具
 	Emboss	浮雕
@@ -563,6 +570,7 @@
 	Freeform View	自由形式视图
 	Freeform View Options	自由形式视图选项
 	Freeform View Options…	自由形式视图选项…
+	Friendly	亲切
 	From Bin	从素材箱
 	From file…	从文件…
 	From Source Monitor	从源监视器
@@ -612,6 +620,7 @@
 	GuitarSuite	吉他套件
 	Half Saturation	半饱和度
 	Hand Tool	抓手工具
+	Handwritten	手写
 	Hard Light	强光
 	Hard Limiter	强限制位
 	Hard Mix	实色混合
@@ -620,6 +629,7 @@
 	Hardware (H.265 has no software encoder)	硬件 (H.265 无软件编码器)
 	Hardware Encoding	硬件编码
 	HD Anamorphic 1080 (1.333)	HD 变形 1080 (1.333)
+	Heavy	粗重
 	Help	帮助
 	Hide All Caption Tracks	隐藏所有字幕轨道
 	High	高
@@ -991,6 +1001,7 @@
 	Preset:	预设：
 	Presets	预设
 	Presets and every style setting in the Caption Style panel	字幕样式面板中的预设和所有样式设置
+	Presets marked ↓ use the caption fonts: Montserrat, Oswald, Fira Sans Condensed and five more, with Russian and Tajik letters. {size} from Google Fonts, SIL Open Font License.	标有 ↓ 的预设使用字幕字体：Montserrat、Oswald、Fira Sans Condensed 等八款，支持俄语和塔吉克语字母。{size}，来自 Google Fonts，SIL 开源字体许可。
 	Previous in Sequence	序列中的上一个
 	Previous in Track	轨道中的上一个
 	ProcAmp	ProcAmp
@@ -1012,6 +1023,8 @@
 	Proxy	代理
 	Pull Motion	拉入动画
 	Pulls back soft clipping in the top 10%	拉回顶部 10% 的柔和裁切高光
+	Punch	冲击
+	Punch Yellow	冲击黄
 	Punched-up black & white with crushed shadows	强化对比黑白，压暗阴影
 	Purple	紫色
 	Push	推进
@@ -1310,6 +1323,7 @@
 	Swap Channels	交换声道
 	Synchronize…	同步…
 	System Compatibility Report…	系统兼容性报告…
+	Tall Box	高底框
 	Tan	棕褐色
 	Tape Name	磁带名称
 	Target Bitrate	目标比特率
@@ -1317,6 +1331,7 @@
 	Target Track	目标轨道
 	Teal	青色
 	Teal Shadows, Warm Skin	青色阴影，暖色皮肤
+	Tech	科技
 	Technical	技术
 	Template Properties	模板属性
 	Text	文本

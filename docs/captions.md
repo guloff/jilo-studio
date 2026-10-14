@@ -75,8 +75,15 @@ also splits captions.
   alignment, position). Automation ids: `text.tab.Captions`, `text.captions.add|split|merge|delete|export|search|track`,
   `text.captions.<id>.in|out|text|goto|row`, `text.captions.style.*`; its Styles… button opens the
   Caption Style panel.
+- **Caption fonts** (`crates/engine/src/caption_fonts.rs`): eight open families popular for captions
+  that cover Russian and Tajik (ҳ қ ӯ ӣ ҷ ғ) — Montserrat, Roboto, Oswald, Exo 2, Nunito, Raleway,
+  Fira Sans Condensed, Caveat — downloaded on request (`fonts.downloadCaptionPack`, about 4 MB) from
+  Google Fonts' repository at a pinned commit, each file checked against its SHA-256 and kept with its
+  SIL OFL licence in `<data dir>/fonts/captions/`; they are not in the repository or the app bundle.
+  Variable fonts list their named instances (Montserrat Black, Oswald SemiBold…) as styles
+  (`filmcraft_text::fonts`). Presets in the pack draw in Inter until it is installed.
 - **Caption Style panel** (Graphics and Titles ▸ Caption Styles…, Window ▸ Caption Style): the track
-  (or All caption tracks), a gallery of 26 presets — each tile a frame drawn by the burn-in renderer,
+  (or All caption tracks), a gallery of 36 presets — each tile a frame drawn by the burn-in renderer,
   so it looks as playback and export will — and every style field (font, style, size, ALL CAPS,
   colour, outline, box and corners, shadow, alignment, position, edge distance, line spacing,
   Reset Style). Automation ids: `captionStyle.track|all|reset|newTrack`,

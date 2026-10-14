@@ -73,6 +73,7 @@
 	Bring Forward	Traer adelante
 	Bring to Front	Traer al frente
 	Brown	Marrón
+	Caption fonts installed	Fuentes de subtítulos instaladas
 	Caption Style	Estilo de subtítulos
 	Caption Styles…	Estilos de subtítulos…
 	Captions	Subtítulos
@@ -84,6 +85,7 @@
 	Cerulean	Cerúleo
 	Cinema	Cine
 	Classic	Clásico
+	Clean Box	Caja limpia
 	Clean Shadow	Sombra limpia
 	Clear	Borrar
 	Clear Guides	Borrar guías
@@ -102,6 +104,7 @@
 	Comic	Cómic
 	Comparison View	Vista de comparación
 	Composite Video	Video compuesto
+	Condensed	Condensada
 	Consolidate Duplicates	Consolidar duplicados
 	Copy	Copiar
 	Copy Paste Includes Sequence Markers	Copiar y pegar incluye marcadores de secuencia
@@ -125,6 +128,9 @@
 	Distribute Space Horizontally	Distribuir espacio horizontalmente
 	Distribute Space Vertically	Distribuir espacio verticalmente
 	Distribute Vertically	Distribuir verticalmente
+	Download Caption Fonts	Descargar fuentes de subtítulos
+	Downloading caption fonts	Descargando fuentes de subtítulos
+	Downloading…	Descargando…
 	Duplicate	Duplicar
 	Dynamic Audio Waveforms	Formas de onda de audio dinámicas
 	Edge Distance	Distancia al borde
@@ -135,6 +141,7 @@
 	Editing	Edición
 	Effect Controls	Controles de efectos
 	Effects	Efectos
+	Elegant	Elegante
 	Ellipse	Elipse
 	Enable	Activar
 	Enable Remix	Activar remezcla
@@ -161,6 +168,7 @@
 	Frame Blending	Fusión de fotogramas
 	Frame Hold Options…	Opciones de fotograma congelado…
 	Frame Sampling	Muestreo de fotogramas
+	Friendly	Amigable
 	From Bin	Desde la bandeja
 	From Source Monitor	Desde el monitor de origen
 	From Source Monitor, Match Frame	Desde el monitor de origen, fotograma coincidente
@@ -182,6 +190,8 @@
 	Green	Verde
 	Group	Agrupar
 	Guide Templates	Plantillas de guías
+	Handwritten	Manuscrita
+	Heavy	Pesada
 	Help	Ayuda
 	Hide All Caption Tracks	Ocultar todas las pistas de subtítulos
 	High Quality Playback	Reproducción de alta calidad
@@ -272,6 +282,7 @@
 	Polygon	Polígono
 	Preferences	Preferencias
 	Presets and every style setting in the Caption Style panel	Ajustes preestablecidos y todos los ajustes de estilo en el panel Estilo de subtítulos
+	Presets marked ↓ use the caption fonts: Montserrat, Oswald, Fira Sans Condensed and five more, with Russian and Tajik letters. {size} from Google Fonts, SIL Open Font License.	Los ajustes marcados con ↓ usan las fuentes de subtítulos: Montserrat, Oswald, Fira Sans Condensed y cinco más, con letras rusas y tayikas. {size} de Google Fonts, licencia SIL Open Font License.
 	Previous in Sequence	Anterior en la secuencia
 	Previous in Track	Anterior en la pista
 	Program	Programa
@@ -281,6 +292,8 @@
 	Project Settings	Ajustes del proyecto
 	Project…	Proyecto…
 	Properties	Propiedades
+	Punch	Impacto
+	Punch Yellow	Impacto amarillo
 	Purple	Púrpura
 	Reconnect Full Resolution Media…	Reconectar medios de resolución completa…
 	Recover Unsaved Changes…	Recuperar cambios no guardados…
@@ -363,8 +376,10 @@
 	Subtle Box	Caja sutil
 	Synchronize…	Sincronizar…
 	System Compatibility Report…	Informe de compatibilidad del sistema…
+	Tall Box	Caja alta
 	Tan	Canela
 	Teal	Verde azulado
+	Tech	Tecno
 	Text	Texto
 	Text to Speech…	Texto a voz…
 	The sequence has no captions to translate. Create captions from the transcript first.	La secuencia no tiene subtítulos para traducir. Crea primero subtítulos a partir de la transcripción.

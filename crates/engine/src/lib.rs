@@ -17,6 +17,7 @@ pub mod ai_tasks;
 pub mod autosave;
 pub mod autozoom;
 pub mod batch;
+pub mod caption_fonts;
 pub mod caption_presets;
 pub mod captions;
 pub mod clip_ops;
@@ -523,6 +524,8 @@ impl Default for Session {
 
 impl Session {
     pub fn new(services: Arc<dyn Services>) -> Self {
+        // the downloaded caption fonts, so projects that use them draw the same everywhere
+        caption_fonts::register();
         Self {
             project: Arc::new(Project::new("Untitled")),
             history: History { limit: 200, ..Default::default() },

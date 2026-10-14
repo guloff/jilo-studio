@@ -327,7 +327,7 @@ fn uses_vertical_form(c: char) -> bool {
 fn shape_item(text: &str, chars: &[(usize, char, char)], rtl: bool, face: FaceId, size: f32, style: &TextStyle, vertical: bool) -> Vec<ShapedGlyph> {
     let f = fonts::face(face);
     let (Some(font), Some(data)) = (f.font(), f.shaper_data()) else { return Vec::new() };
-    let shaper = data.shaper(&font).build();
+    let shaper = data.shaper(&font).instance(f.shaper_instance()).build();
     let mut buf = UnicodeBuffer::new();
     for &(b, _, sc) in chars {
         buf.add(if sc == '\t' { ' ' } else { sc }, b as u32);

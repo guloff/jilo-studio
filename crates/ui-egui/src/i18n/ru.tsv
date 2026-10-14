@@ -66,6 +66,7 @@
 	Bring Forward	Переместить вперёд
 	Bring to Front	На передний план
 	Brown	Коричневый
+	Caption fonts installed	Шрифты для субтитров установлены
 	Caption Style	Стиль субтитров
 	Caption Styles…	Стили субтитров…
 	Captions	Субтитры
@@ -77,6 +78,7 @@
 	Cerulean	Лазурный
 	Cinema	Кино
 	Classic	Классика
+	Clean Box	Чистая плашка
 	Clean Shadow	Чистая тень
 	Clear	Очистить
 	Clear Guides	Очистить направляющие
@@ -95,6 +97,7 @@
 	Comic	Комикс
 	Comparison View	Режим сравнения
 	Composite Video	Композитное видео
+	Condensed	Узкий
 	Consolidate Duplicates	Объединить дубликаты
 	Copy	Копировать
 	Copy Paste Includes Sequence Markers	Копирование и вставка включают маркеры секвенции
@@ -118,6 +121,9 @@
 	Distribute Space Horizontally	Распределить промежутки по горизонтали
 	Distribute Space Vertically	Распределить промежутки по вертикали
 	Distribute Vertically	Распределить по вертикали
+	Download Caption Fonts	Скачать шрифты для субтитров
+	Downloading caption fonts	Загрузка шрифтов для субтитров
+	Downloading…	Загрузка…
 	Duplicate	Дублировать
 	Dynamic Audio Waveforms	Динамические формы аудиосигнала
 	Edge Distance	Отступ от края
@@ -128,6 +134,7 @@
 	Editing	Монтаж
 	Effect Controls	Параметры эффектов
 	Effects	Эффекты
+	Elegant	Элегантный
 	Ellipse	Эллипс
 	Enable	Включить
 	Enable Remix	Включить ремикс
@@ -154,6 +161,7 @@
 	Frame Blending	Смешивание кадров
 	Frame Hold Options…	Параметры стоп-кадра…
 	Frame Sampling	Выборка кадров
+	Friendly	Дружелюбный
 	From Bin	Из папки
 	From Source Monitor	Из монитора источника
 	From Source Monitor, Match Frame	Из монитора источника, сопоставить кадр
@@ -175,6 +183,8 @@
 	Green	Зелёный
 	Group	Сгруппировать
 	Guide Templates	Шаблоны направляющих
+	Handwritten	Рукописный
+	Heavy	Тяжёлый
 	Help	Справка
 	Hide All Caption Tracks	Скрыть все дорожки субтитров
 	High Quality Playback	Воспроизведение в высоком качестве
@@ -265,6 +275,7 @@
 	Polygon	Многоугольник
 	Preferences	Настройки
 	Presets and every style setting in the Caption Style panel	Пресеты и все настройки стиля — в панели «Стиль субтитров»
+	Presets marked ↓ use the caption fonts: Montserrat, Oswald, Fira Sans Condensed and five more, with Russian and Tajik letters. {size} from Google Fonts, SIL Open Font License.	Пресеты со значком ↓ используют шрифты для субтитров: Montserrat, Oswald, Fira Sans Condensed и ещё пять, с русскими и таджикскими буквами. {size} из Google Fonts, лицензия SIL Open Font License.
 	Previous in Sequence	Предыдущий в секвенции
 	Previous in Track	Предыдущий на дорожке
 	Program	Программа
@@ -274,6 +285,8 @@
 	Project Settings	Настройки проекта
 	Project…	Проект…
 	Properties	Свойства
+	Punch	Удар
+	Punch Yellow	Удар жёлтый
 	Purple	Пурпурный
 	Reconnect Full Resolution Media…	Переподключить медиа в полном разрешении…
 	Recover Unsaved Changes…	Восстановить несохранённые изменения…
@@ -356,8 +369,10 @@
 	Subtle Box	Мягкая подложка
 	Synchronize…	Синхронизировать…
 	System Compatibility Report…	Отчёт о совместимости системы…
+	Tall Box	Высокая плашка
 	Tan	Бежевый
 	Teal	Сине-зелёный
+	Tech	Техно
 	Text	Текст
 	Text to Speech…	Синтез речи…
 	The sequence has no captions to translate. Create captions from the transcript first.	В секвенции нет субтитров для перевода. Сначала создайте субтитры из расшифровки.
