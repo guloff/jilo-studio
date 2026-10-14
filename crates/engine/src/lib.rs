@@ -956,6 +956,19 @@ impl Session {
         n
     }
 
+    /// How far a trim of `clip`'s `edge` by `delta` in the active sequence can go: what
+    /// `timeline.trim` would apply (it clamps the same way), for the Timeline's preview while
+    /// dragging. None when the clip is not in the active sequence.
+    pub fn clamp_trim(&self, clip: ClipId, edge: filmcraft_edit::Edge, mode: filmcraft_edit::TrimMode, delta: Tick) -> Option<Tick> {
+        let seq = self.active_sequence()?;
+        let (p, media) = (&*self.project, &self.media);
+        let durations = |id: ItemId| media_duration(p, media, id);
+        let starts = |id: ItemId| media_start(p, id);
+        let mut next = p.next_id;
+        let ctx = EditCtx { next_id: &mut next, media_duration: &durations, media_start: &starts, min_duration: seq.settings.frame_rate.frame_duration() };
+        filmcraft_edit::clamp_trim(seq, clip, edge, mode, delta, &ctx).ok()
+    }
+
     /// Edit the active sequence with the edit-algebra context.
     pub fn edit_sequence<R>(&mut self, label: &str, f: impl FnOnce(&mut Sequence, &mut EditCtx, &mut EditorState) -> Result<R>) -> Result<R> {
         self.edit_sequence_as(label, None, f)

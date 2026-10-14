@@ -4048,3 +4048,8 @@ mode	Edit	Монтаж
 # Export in All Formats: folder and start (16.5)
 	Start exporting now	Начать экспорт сразу
 	The current export folder	Текущая папка экспорта
+# Timeline: a drag held at a limit
+	The clips stop at the start of the sequence.	Клипы упираются в начало секвенции.
+	The edge stops at the next clip. Hold ⌘ to ripple trim, ⌘⇧ to roll the cut.	Край упирается в соседний клип. Удерживайте ⌘ для обрезки со сдвигом, ⌘⇧ — чтобы сдвинуть склейку.
+	The edge stops at the end of the clip's media.	Край упирается в конец исходника клипа.
+	A clip is at least one frame long.	Клип не может быть короче одного кадра.

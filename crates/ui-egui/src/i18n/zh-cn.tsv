@@ -4088,3 +4088,8 @@
 # Export in All Formats: folder and start (16.5)
 	Start exporting now	立即开始导出
 	The current export folder	当前导出文件夹
+# Timeline: a drag held at a limit
+	The clips stop at the start of the sequence.	片段已到达序列开头。
+	The edge stops at the next clip. Hold ⌘ to ripple trim, ⌘⇧ to roll the cut.	边缘已到达相邻片段。按住 ⌘ 进行波纹修剪，按住 ⌘⇧ 滚动剪辑点。
+	The edge stops at the end of the clip's media.	边缘已到达片段素材的末尾。
+	A clip is at least one frame long.	片段至少为一帧长。

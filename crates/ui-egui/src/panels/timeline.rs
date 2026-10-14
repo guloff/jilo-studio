@@ -42,6 +42,9 @@ pub struct TlState {
     pub layout: Option<Layout>,
     /// Snap indicator x (screen) this frame.
     snap_x: Option<f32>,
+    /// Where a drag stopped against a limit (the sequence start, a neighbouring clip, the end of
+    /// the media), shown as a stop bar so a drag that cannot go further is not silent.
+    stop_x: Option<f32>,
     pub peaks: Arc<Mutex<HashMap<ItemId, Arc<Vec<(f32, f32)>>>>>,
     peaks_pending: Arc<Mutex<Vec<ItemId>>>,
     /// Peaks of a media item's other audio streams (stream ≥ 1; `peaks` holds stream 0): a clip of
@@ -506,6 +509,10 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         ];
         painter.add(egui::Shape::convex_polygon(head.to_vec(), t.playhead, Stroke::NONE));
         painter.line_segment([pos2(px, ruler.max.y - 4.0), pos2(px, content.max.y)], Stroke::new(1.0, t.playhead));
+    }
+    // stop bar: the drag is held at a limit
+    if let Some(sx) = app.tl.stop_x.take() {
+        painter.line_segment([pos2(sx, ruler.max.y), pos2(sx, content.max.y)], Stroke::new(2.0, t.hot_text));
     }
     // snap indicator
     if let Some(sx) = app.tl.snap_x.take() {
@@ -1474,16 +1481,23 @@ fn vertical_scrollbar(ui: &mut egui::Ui, bar: Rect, value: &mut f32, max: f32, i
 
 /// Snap `t` to nearby candidates (edits, playhead, markers, in/out). Returns snapped tick.
 fn snap(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId]) -> Tick {
-    snap_to(app, seq, layout, t, exclude, true)
+    snap_to(app, seq, layout, t, exclude, true, &[])
+}
+
+/// [`snap`] for something dragged away from `home` (where its edges were when the drag began):
+/// not back onto those times. A neighbour's edge there would otherwise pull any move shorter than
+/// `SNAP_PX` back to where it started, and the clip would seem stuck.
+fn snap_away(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId], home: &[Tick]) -> Tick {
+    snap_to(app, seq, layout, t, exclude, true, home)
 }
 
 /// Where a dragged playhead lands: [`snap`], but not onto itself, or it would stick where it is
 /// and only move in jumps of `SNAP_PX` (#164).
 fn snap_playhead(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick) -> Tick {
-    snap_to(app, seq, layout, t, &[], false)
+    snap_to(app, seq, layout, t, &[], false, &[])
 }
 
-fn snap_to(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId], to_playhead: bool) -> Tick {
+fn snap_to(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId], to_playhead: bool, home: &[Tick]) -> Tick {
     if !app.session.state.snapping {
         return t;
     }
@@ -1506,6 +1520,9 @@ fn snap_to(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exc
     let x = layout.x_of(t);
     let mut best: Option<(f32, Tick)> = None;
     for c in cands {
+        if home.contains(&c) {
+            continue;
+        }
         let d = (layout.x_of(c) - x).abs();
         if d < SNAP_PX && best.is_none_or(|b| d < b.0) {
             best = Some((d, c));
@@ -2096,9 +2113,17 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                 // snap the moved block's start or end
                 let first = clips.iter().filter_map(|c| seq.find_item(*c).map(|(_, i)| i.start)).min().unwrap_or_default();
                 let last = clips.iter().filter_map(|c| seq.find_item(*c).map(|(_, i)| i.end())).max().unwrap_or_default();
-                let s1 = snap(app, seq, layout, first + raw, &clips) - first;
-                let offset = if s1 != raw { s1 } else { snap(app, seq, layout, last + raw, &clips) - last };
-                let offset = offset.max(-first);
+                let home = [first, last];
+                let s1 = snap_away(app, seq, layout, first + raw, &clips, &home) - first;
+                let offset = if s1 != raw { s1 } else { snap_away(app, seq, layout, last + raw, &clips, &home) - last };
+                // nothing moves before the sequence start: say so, and show where the block stops
+                let offset = if offset < -first {
+                    app.tl.stop_x = Some(layout.x_of(Tick::ZERO));
+                    app.ui.status = tl!("The clips stop at the start of the sequence.").to_string();
+                    -first
+                } else {
+                    offset
+                };
                 let cur_row = layout.row_at(p.y);
                 let start_row = layout.rows.iter().find(|r| r.track == start_track);
                 let track_delta = match (cur_row, start_row) {
@@ -2109,8 +2134,28 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             }
             Drag::Trim { clip, edge, mode, from, .. } => seq.find_item(clip).map(|(_, it)| {
                 let base = if edge == filmcraft_edit::Edge::In { it.start } else { it.end() };
-                let target = snap(app, seq, layout, rate.snap_nearest(base + (t_here - from)), &[clip]);
-                Drag::Trim { clip, edge, mode, delta: target - base, from }
+                let target = snap_away(app, seq, layout, rate.snap_nearest(base + (t_here - from)), &[clip], &[base]);
+                // the edge goes only as far as the trim will: a regular trim stops at the next
+                // clip and every trim at the end of the media; the preview holds there and says why
+                let wanted = target - base;
+                let delta = app.session.clamp_trim(clip, edge, mode, wanted).unwrap_or(wanted);
+                if delta != wanted {
+                    app.tl.stop_x = Some(layout.x_of(base + delta));
+                    let outward = (edge == filmcraft_edit::Edge::In) == (wanted < Tick::ZERO);
+                    let blocked_by_clip = outward
+                        && mode == filmcraft_edit::TrimMode::Regular
+                        && seq.find_item(clip).and_then(|(tid, _)| seq.track(tid)).is_some_and(|tr| {
+                            tr.items.iter().any(|x| if edge == filmcraft_edit::Edge::In { x.end() == base + delta } else { x.start == base + delta })
+                        });
+                    app.ui.status = if blocked_by_clip {
+                        tl!("The edge stops at the next clip. Hold ⌘ to ripple trim, ⌘⇧ to roll the cut.").to_string()
+                    } else if outward {
+                        tl!("The edge stops at the end of the clip's media.").to_string()
+                    } else {
+                        tl!("A clip is at least one frame long.").to_string()
+                    };
+                }
+                Drag::Trim { clip, edge, mode, delta, from }
             }),
             Drag::Remix { clip, from, .. } => seq.find_item(clip).map(|(_, it)| {
                 let target = rate.snap_nearest(it.end() + (t_here - from)).max(it.start + rate.frame_duration());
@@ -2118,11 +2163,11 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             }),
             Drag::Stretch { clip, edge, from, .. } => seq.find_item(clip).map(|(_, it)| {
                 let base = if edge == filmcraft_edit::Edge::In { it.start } else { it.end() };
-                let target = snap(app, seq, layout, rate.snap_nearest(base + (t_here - from)), &[clip]);
+                let target = snap_away(app, seq, layout, rate.snap_nearest(base + (t_here - from)), &[clip], &[base]);
                 Drag::Stretch { clip, edge, delta: target - base, from }
             }),
             Drag::Roll { left, right, from, .. } => seq.find_item(left).map(|(_, l)| {
-                let target = snap(app, seq, layout, rate.snap_nearest(l.end() + (t_here - from)), &[left, right]);
+                let target = snap_away(app, seq, layout, rate.snap_nearest(l.end() + (t_here - from)), &[left, right], &[l.end()]);
                 Drag::Roll { left, right, delta: target - l.end(), from }
             }),
             Drag::Slip { clip, .. } => {

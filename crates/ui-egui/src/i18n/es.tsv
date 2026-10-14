@@ -4053,3 +4053,8 @@
 # Export in All Formats: folder and start (16.5)
 	Start exporting now	Empezar a exportar ahora
 	The current export folder	La carpeta de exportación actual
+# Timeline: a drag held at a limit
+	The clips stop at the start of the sequence.	Los clips se detienen en el inicio de la secuencia.
+	The edge stops at the next clip. Hold ⌘ to ripple trim, ⌘⇧ to roll the cut.	El borde se detiene en el clip siguiente. Mantenga ⌘ para un recorte de rizo, ⌘⇧ para desplazar el corte.
+	The edge stops at the end of the clip's media.	El borde se detiene al final del medio del clip.
+	A clip is at least one frame long.	Un clip dura al menos un fotograma.

@@ -19,6 +19,10 @@ pub const ROLL_PX: f32 = 2.5;
 /// Widest an edge zone gets (px), on each side of a clip edge.
 pub const EDGE_PX: f32 = 7.0;
 
+/// The narrowest middle (px) a clip keeps for moving it: a narrow clip's edge zones shrink so a
+/// press in its middle grabs the clip, not an edge, unless trimming comes first ([`grab_at`]).
+pub const MOVE_PX: f32 = 6.0;
+
 /// The trim the Selection tool starts at an edit point: Cmd+Shift = roll, Cmd = ripple. With the
 /// Trim setting on (`no_modifier`), no modifier is needed: right on the cut (when a clip is on the
 /// other side) rolls, elsewhere on the edge ripples. Otherwise a plain drag is a regular trim.
@@ -69,6 +73,12 @@ pub enum Hit {
 }
 
 pub fn hit(seq: &Sequence, layout: &Layout, pos: Pos2) -> Hit {
+    hit_as(seq, layout, pos, false)
+}
+
+/// [`hit`], with edge zones that may take a narrow clip's whole width when `trim_first` (a trim
+/// tool, or a trim modifier): otherwise each clip keeps [`MOVE_PX`] in its middle for moving it.
+pub fn hit_as(seq: &Sequence, layout: &Layout, pos: Pos2, trim_first: bool) -> Hit {
     if layout.ruler.contains(pos) {
         return Hit::Ruler;
     }
@@ -93,7 +103,7 @@ pub fn hit(seq: &Sequence, layout: &Layout, pos: Pos2) -> Hit {
             return Hit::Transition { track: row.track, id: trn.id, edge };
         }
     }
-    if let Some((clip, edge)) = edge_at(tr, layout, pos.x) {
+    if let Some((clip, edge)) = edge_at(tr, layout, pos.x, trim_first) {
         return Hit::Clip { track: row.track, clip, edge: Some(edge) };
     }
     match tr.item_at(layout.tick_at(pos.x)) {
@@ -130,21 +140,30 @@ impl Reach {
 }
 
 /// The edge zone (px, on each side of an edge) of a clip `w` px wide on screen: a third of the
-/// clip, at most [`EDGE_PX`], so the middle third of a narrow clip still moves it. `None` when the
-/// clip has no usable width (zoomed far out, or a broken zoom): it has no edges then.
-fn zone(w: f32) -> Option<f32> {
-    if w.is_finite() && w > 0.0 { Some(EDGE_PX.min(w / 3.0)) } else { None }
+/// clip, at most [`EDGE_PX`], so the middle third of a narrow clip still moves it; unless
+/// `trim_first`, also small enough to leave [`MOVE_PX`] in the middle. `None` when the clip has
+/// no usable width (zoomed far out, or a broken zoom) or no room for edges: it has no edges then.
+fn zone(w: f32, trim_first: bool) -> Option<f32> {
+    if !(w.is_finite() && w > 0.0) {
+        return None;
+    }
+    let e = EDGE_PX.min(w / 3.0);
+    let e = if trim_first { e } else { e.min((w - MOVE_PX) / 2.0) };
+    (e > 0.0).then_some(e)
 }
 
-/// The clip edge on `tr` a pointer at `x` grabs (#259), whatever the order of `tr.items`.
-fn edge_at(tr: &Track, layout: &Layout, x: f32) -> Option<(ClipId, Edge)> {
+/// The clip edge on `tr` a pointer at `x` grabs (#259), whatever the order of `tr.items`. Over a
+/// clip only its own edges count: a neighbour's zone reaches out into a gap, never into another
+/// clip, so the middle of a narrow clip between long ones still moves it.
+fn edge_at(tr: &Track, layout: &Layout, x: f32, trim_first: bool) -> Option<(ClipId, Edge)> {
+    let over_clip = tr.items.iter().any(|it| x > layout.x_of(it.start) && x < layout.x_of(it.end()));
     let mut best: Option<Reach> = None;
     for it in &tr.items {
         let (x0, x1) = (layout.x_of(it.start), layout.x_of(it.end()));
-        let Some(e) = zone(x1 - x0) else { continue };
+        let Some(e) = zone(x1 - x0, trim_first) else { continue };
         // the pointer's distance into the clip from each of its edges
         for (edge, d) in [(Edge::In, x - x0), (Edge::Out, x1 - x)] {
-            if !(-e..=e).contains(&d) {
+            if !(-e..=e).contains(&d) || (d < 0.0 && over_clip) {
                 continue;
             }
             let r = Reach { clip: it.id, edge, inside: d >= 0.0, dist: d.abs() };
@@ -221,7 +240,9 @@ impl Grab {
 /// tools trim at a clip edge and which trim they start. `roll_ripple` is Settings ▸ Trim ▸ "Allow
 /// Selection tool to choose Roll and Ripple trims without modifier key".
 pub fn grab_at(seq: &Sequence, layout: &Layout, pos: Pos2, tool: Tool, mods: Modifiers, roll_ripple: bool) -> Grab {
-    let h = hit(seq, layout, pos);
+    // trim tools, and the roll modifier, reach a narrow clip's edges across its whole width
+    let trim_first = matches!(tool, Tool::Ripple | Tool::Rolling | Tool::RateStretch | Tool::Remix) || (tool == Tool::Selection && mods.command && mods.shift);
+    let h = hit_as(seq, layout, pos, trim_first);
     if let Hit::Clip { track, clip, edge: None } = h
         && matches!(tool, Tool::Selection | Tool::Pen)
         && super::timeline_volume::on_line(seq, layout, clip, pos)
@@ -306,7 +327,7 @@ mod tests {
     }
 
     /// A: 100–300, B: 300–500 (sharing a cut with A), C: 504–700 (after a 4 px gap), D: 800–809
-    /// (9 px wide, so its zones are 3 px).
+    /// (9 px wide, so its zones are 1.5 px, or 3 px when trimming comes first).
     fn clips() -> Vec<TrackItem> {
         vec![clip(1, 100.0, 300.0), clip(2, 300.0, 500.0), clip(3, 504.0, 700.0), clip(4, 800.0, 809.0)]
     }
@@ -372,19 +393,43 @@ mod tests {
         let (a, la, _) = fixture(clips());
         let (b, lb, _) = fixture(reversed);
         // edge points only: finding the clip under a body point relies on the items being sorted
-        for x in [297.0, 300.0, 303.0, 501.0, 502.0, 503.0, 95.0, 705.0, 802.0, 807.0] {
+        for x in [297.0, 300.0, 303.0, 501.0, 502.0, 503.0, 95.0, 705.0, 801.0, 808.0] {
             assert_eq!(hit(&a, &la, at(x)), hit(&b, &lb, at(x)), "x = {x}");
         }
     }
 
     #[test]
-    fn a_narrow_clip_keeps_its_middle_third() {
+    fn a_narrow_clip_keeps_its_middle_for_moving() {
         let (seq, l, tr) = fixture(clips());
-        assert_eq!(hit(&seq, &l, at(802.0)), edge_hit(tr, 4, Edge::In));
-        assert_eq!(hit(&seq, &l, at(807.0)), edge_hit(tr, 4, Edge::Out));
-        assert_eq!(hit(&seq, &l, at(804.5)), Hit::Clip { track: tr, clip: ClipId(4), edge: None });
-        // 4 px outside it is beyond its 3 px zone
+        // 9 px wide: 1.5 px edge zones leave 6 px in the middle
+        assert_eq!(hit(&seq, &l, at(801.0)), edge_hit(tr, 4, Edge::In));
+        assert_eq!(hit(&seq, &l, at(808.0)), edge_hit(tr, 4, Edge::Out));
+        for x in [802.0, 804.5, 807.0] {
+            assert_eq!(hit(&seq, &l, at(x)), Hit::Clip { track: tr, clip: ClipId(4), edge: None }, "x = {x}");
+        }
+        // trimming first: a third of it on each side
+        assert_eq!(hit_as(&seq, &l, at(802.0), true), edge_hit(tr, 4, Edge::In));
+        assert_eq!(hit_as(&seq, &l, at(807.0), true), edge_hit(tr, 4, Edge::Out));
+        assert_eq!(hit_as(&seq, &l, at(804.5), true), Hit::Clip { track: tr, clip: ClipId(4), edge: None });
+        // 4 px outside it is beyond its zone
         assert_eq!(hit(&seq, &l, at(796.0)), Hit::Empty { track: tr });
+        // a 5 px clip has no edges for the Selection tool
+        let (seq, l, tr) = fixture(vec![clip(6, 900.0, 905.0)]);
+        assert_eq!(hit(&seq, &l, at(900.5)), Hit::Clip { track: tr, clip: ClipId(6), edge: None });
+    }
+
+    #[test]
+    fn a_narrow_clip_between_long_ones_is_not_taken_by_their_edges() {
+        // 12 px between two 96 px clips, cut to cut (a 1 s shot between 8 s ones at fit zoom)
+        let (seq, l, tr) = fixture(vec![clip(1, 0.0, 96.0), clip(2, 96.0, 108.0), clip(3, 108.0, 204.0)]);
+        for x in [99.5, 102.0, 104.5] {
+            assert_eq!(hit(&seq, &l, at(x)), Hit::Clip { track: tr, clip: ClipId(2), edge: None }, "x = {x}");
+        }
+        // its own edges are at its ends; the long clips' edges on their own side
+        assert_eq!(hit(&seq, &l, at(97.0)), edge_hit(tr, 2, Edge::In));
+        assert_eq!(hit(&seq, &l, at(107.0)), edge_hit(tr, 2, Edge::Out));
+        assert_eq!(hit(&seq, &l, at(92.0)), edge_hit(tr, 1, Edge::Out));
+        assert_eq!(hit(&seq, &l, at(112.0)), edge_hit(tr, 3, Edge::In));
     }
 
     #[test]
