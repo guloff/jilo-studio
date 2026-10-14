@@ -404,6 +404,22 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     run(app, ui, actions);
 }
 
+/// AI ▸ Translate Captions… from the menu: the Text panel's Captions tab with the translation dialog
+/// for the caption track holding the first selected caption, else the first track with captions.
+pub fn open_translate(app: &mut FilmcraftApp) -> Result<Value, String> {
+    let seq = app.session.active_sequence().ok_or_else(|| tl!("No sequence is open.").to_string())?;
+    let sel = app.session.state.caption_selection.first().copied();
+    let track = sel
+        .and_then(|c| seq.caption_tracks.iter().find(|tr| tr.caption(c).is_some()))
+        .or_else(|| seq.caption_tracks.iter().find(|tr| !tr.captions.is_empty()))
+        .map(|tr| tr.id.0)
+        .ok_or_else(|| tl!("The sequence has no captions to translate. Create captions from the transcript first.").to_string())?;
+    app.ui.text_tab = "Captions".into();
+    app.show_panel(crate::dock::PanelKind::Text);
+    app.ui.translate_track = Some(track);
+    Ok(json!({"dialog": "translateCaptions", "track": track}))
+}
+
 /// Target languages offered for caption translation.
 const TRANSLATE_LANGUAGES: [(&str, &str); 6] = [("ru", "Russian"), ("tg", "Tajik"), ("en", "English"), ("uz", "Uzbek"), ("fa", "Persian"), ("es", "Spanish")];
 
@@ -572,7 +588,7 @@ fn transcribe_empty(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         tl!("This build has no speech-to-text; import a transcript with transcript.set.")
     };
     ui.painter().text(c - vec2(0.0, 30.0), Align2::CENTER_CENTER, note, Tokens::ui(12.0), t.text_dim);
-    // engine and language (stored in Settings ▸ AI and ▸ Media Analysis & Transcription)
+    // engine and language (stored in Settings ▸ AI)
     let engine = app.session.prefs.ai.speech_engine.clone();
     let ma = &app.session.prefs.media_analysis;
     let language = if ma.language_auto_detect { "auto".to_string() } else { ma.default_language.clone() };

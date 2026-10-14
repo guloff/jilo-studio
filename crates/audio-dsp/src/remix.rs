@@ -1,5 +1,5 @@
 //! Music remix: retime a piece of music to a target duration by cutting it at musically similar
-//! beat boundaries (Clip ▸ Remix).
+//! beat boundaries (AI ▸ Automatic Editing ▸ Remix).
 //!
 //! ```text
 //! mono mix ─► STFT (≈46 ms Hann, ¼ hop) ─► log-magnitude spectral flux = onset envelope

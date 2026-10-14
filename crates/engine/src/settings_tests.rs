@@ -71,6 +71,8 @@ fn categories_follow_premiere_order() {
         ids,
         [
             "general",
+            // our own: AI engines, keys and speech recognition (not in Premiere)
+            "ai",
             "appearance",
             "audio",
             "audioHardware",
@@ -79,9 +81,6 @@ fn categories_follow_premiere_order() {
             "graphics",
             "labels",
             "media",
-            "mediaAnalysis",
-            // our own: cloud AI engines and keys (not in Premiere)
-            "ai",
             "mediaCache",
             "memory",
             "playback",
@@ -101,7 +100,9 @@ fn every_schema_key_exists_with_a_valid_default() {
     let mut seen = std::collections::HashSet::new();
     for (cat, f) in fields {
         assert!(seen.insert(f.key), "duplicate {}", f.key);
-        assert!(f.key.starts_with(&format!("{cat}.")), "{} is not under {cat}", f.key);
+        // the AI page also shows the speech recognition keys of Media Analysis & Transcription
+        let under = f.key.starts_with(&format!("{cat}.")) || cat == "ai" && f.key.starts_with("mediaAnalysis.");
+        assert!(under, "{} is not under {cat}", f.key);
         let v = p.get(f.key).unwrap_or_else(|| panic!("no preference {}", f.key));
         assert!(keys.iter().any(|k| k == f.key), "{} not a leaf key", f.key);
         settings::validate(f.key, &v).unwrap_or_else(|e| panic!("default of {}: {e}", f.key));

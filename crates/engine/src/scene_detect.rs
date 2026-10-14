@@ -1,4 +1,4 @@
-//! Clip ▸ Scene Edit Detection… (M3.11).
+//! AI ▸ Automatic Editing ▸ Scene Edit Detection… (M3.11).
 //!
 //! `clip.sceneEditDetection {clips?, sensitivity=50, minShotFrames=6, applyCuts=true,
 //! createSubclips=false, generateMarkers=false, wait=false}` analyses the selected timeline video
@@ -29,7 +29,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
     vec![CommandSpec {
         id: "clip.sceneEditDetection",
         label: "Scene Edit Detection…",
-        menu: &["Clip"],
+        menu: crate::ai_menu::EDITING,
         shortcut: None,
         params: r#"{"clips":[id]?,"sensitivity":0..100=50,"minShotFrames":n=6,"applyCuts":bool=true,"createSubclips":bool=false,"generateMarkers":bool=false,"wait":bool=false}"#,
         enabled: has_video_selection,

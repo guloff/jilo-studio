@@ -63,7 +63,10 @@
 	After	之后
 	After First Track	在第一个轨道之后
 	After Last Track	在最后一个轨道之后
+	AI	AI
+	AI Settings…	AI 设置…
 	AIFF 48 kHz 16-bit	AIFF 48 kHz 16 位
+	AI…	AI…
 	Align	对齐
 	Align and Transform	对齐和变换
 	Align Bottom	底对齐
@@ -152,6 +155,7 @@
 	Automate to Sequence…	自动匹配到序列…
 	Automatic	自动
 	Automatic Click Remover	自动喀哒声移除
+	Automatic Editing	自动剪辑
 	Avid DNxHR HQ	Avid DNxHR HQ
 	Avid DNxHR LB	Avid DNxHR LB
 	Avid DNxHR SQ	Avid DNxHR SQ
@@ -764,7 +768,6 @@
 	Match Source – Adaptive Medium Bitrate	匹配源 - 自适应中比特率
 	Maximize Frame	最大化画框
 	Maximum Bitrate	最大比特率
-	Media Analysis & Transcription…	媒体分析与转录…
 	Media Browser	媒体浏览器
 	Media Cache…	媒体缓存…
 	Media colour space (from file metadata)	媒体色彩空间 (来自文件元数据)
@@ -856,6 +859,7 @@
 	no Japanese font is installed on this system; the interface stays in English	当前系统未安装日文字体；界面保持英文
 	No matching captions.	没有匹配的字幕。
 	No saved guide templates.	没有已保存的参考线模板。
+	No sequence is open.	没有打开的序列。
 	No templates match.	没有匹配的模板。
 	Noise	杂色
 	Noise & Grain	杂色与颗粒
@@ -1225,6 +1229,7 @@
 	Source Timecode	源时间码
 	Speaker	发言者
 	Special	特殊
+	Speech and Captions	语音和字幕
 	Speech-to-text turns the dialogue into editable text.	语音转文本可将对话转换为可编辑的文本。
 	Speed	速度
 	Speed/Duration…	速度/持续时间…
@@ -1286,8 +1291,10 @@
 	Text Layer Type	文本图层类型
 	Text Properties	文本属性
 	Text Styling	文本样式
+	Text to Speech…	文本转语音…
 	The project had not been saved yet.	项目尚未保存。
 	The sequence has no caption track.	序列没有字幕轨道。
+	The sequence has no captions to translate. Create captions from the transcript first.	序列中没有可翻译的字幕。请先从转录创建字幕。
 	This build has no speech-to-text; import a transcript with transcript.set.	当前版本未包含语音转文本功能；可通过 transcript.set 导入转录文本。
 	Thumbnail size	缩略图大小
 	Thumbnail View	缩略图视图
@@ -1331,6 +1338,7 @@
 	Transform	变换
 	Transformers	变形
 	Transition	过渡
+	Translate Captions…	翻译字幕…
 	Transmit Multi-Camera View	传输多机位视图
 	Transparent Video…	透明视频…
 	Travel Motion	移动动画
@@ -1423,6 +1431,7 @@
 	WebVTT (.vtt)	WebVTT (.vtt)
 	Whip	甩动
 	Whip (Legacy)	甩动(旧版)
+	Whisper model (on this computer)	Whisper 模型（本机）
 	Wide gamut color (composite in BT.2020)	宽色域色彩 (在 BT.2020 中合成)
 	Window	窗口
 	Wipe	划像

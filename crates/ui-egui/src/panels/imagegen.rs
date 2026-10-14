@@ -1,4 +1,4 @@
-//! File ▸ New ▸ Generate Image…: a description, the image engine (OpenAI or Google Gemini), the
+//! AI ▸ Generate Image…: a description, the image engine (OpenAI or Google Gemini), the
 //! shape (the sequence's by default) and whether the picture goes on the timeline at the playhead.
 //! It runs as a cloud task (consent, progress and Cancel in the status bar and the Progress panel,
 //! see `panels::ai_tasks`); the picture is saved with the project's media and imported as a still

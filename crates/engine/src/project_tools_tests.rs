@@ -66,7 +66,6 @@ fn file_edit_clip_menu_order_and_shortcuts_match_premiere() {
             "clip.editOffline",
             "clip.sourceSettings",
             "clip.speedDuration",
-            "clip.sceneEditDetection",
             "clip.replaceFromBin",
             "clip.restoreCaptionsFromSource",
             "clip.updateMetadata",

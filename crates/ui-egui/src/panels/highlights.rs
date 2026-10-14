@@ -1,4 +1,4 @@
-//! Markers ▸ Find Highlights… (also the Text panel's Transcript toolbar): the search dialog — what
+//! AI ▸ Automatic Editing ▸ Find Highlights… (also the Text panel's Transcript toolbar): the search dialog — what
 //! to look for, how many, how long — runs `highlights.find` as a cloud task (consent, progress and
 //! Cancel in the status bar and the Progress panel, see `panels::ai_tasks`). The highlights land on
 //! the sequence as range markers; the results window lists them (click one to go there) and

@@ -392,7 +392,7 @@ impl LabelPrefs {
     }
 }
 
-/// Settings ▸ Media Analysis & Transcription.
+/// Speech recognition settings, shown on Settings ▸ AI (the keys keep their `mediaAnalysis.` section). `cache_results` and `analyze_imported_media` are kept for old preference files but not shown.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MediaAnalysisPrefs {
@@ -820,7 +820,6 @@ const TIMEBASE: &[(&str, &str)] = &[
 const TIMECODE: &[(&str, &str)] = &[("useMediaSource", "Use Media Source"), ("generate", "Generate Timecode")];
 const FRAME_COUNT: &[(&str, &str)] = &[("startAt0", "Start at 0"), ("startAt1", "Start at 1"), ("timecodeConversion", "Timecode Conversion")];
 const SCALING: &[(&str, &str)] = &[("none", "None"), ("scaleToFrameSize", "Scale to frame size"), ("setToFrameSize", "Set to frame size")];
-const ANALYSIS_CACHE: &[(&str, &str)] = &[("mediaCache", "In the Media Cache"), ("project", "In the project")];
 const TRANSCRIBE_SCOPE: &[(&str, &str)] =
     &[("sequenceClips", "Auto-transcribe only clips in sequences"), ("allImported", "Auto-transcribe all imported clips")];
 const SPEAKERS: &[(&str, &str)] = &[("on", "Label speakers"), ("off", "Don't label speakers")];
@@ -864,13 +863,15 @@ const HW_DECODE: &[(&str, &str)] = &[("auto", "Auto"), ("off", "Off")];
 const TRACKS: &[(&str, &str)] = &[("useFile", "Use File"), ("mono", "Mono"), ("stereo", "Stereo"), ("5.1", "5.1"), ("adaptive", "Adaptive")];
 pub const DURATION_UNITS: &[(&str, &str)] = &[("frames", "Frames"), ("seconds", "Seconds")];
 
-/// The Settings categories in Premiere's order (Adobe-cloud-only ones are left out; Plugins is a
-/// stub).
+/// The Settings categories in Premiere's order with our AI page second (Adobe-cloud-only ones are
+/// left out; Plugins is a stub).
 pub fn categories() -> &'static [Category] {
     CATEGORIES
 }
 
 pub fn category(id: &str) -> Option<&'static Category> {
+    // Media Analysis & Transcription moved to the AI page (its keys stay under `mediaAnalysis.`)
+    let id = if id == "mediaAnalysis" { "ai" } else { id };
     CATEGORIES.iter().find(|c| c.id == id)
 }
 
@@ -921,6 +922,50 @@ static CATEGORIES: &[Category] = &[
             b("general.showMaskTrackerPreview", "Show Mask Tracker Preview", false),
             b("general.checkForUpdates", "Check for updates once a day", true),
             Row::Note("The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once."),
+        ],
+    },
+    Category {
+        id: "ai",
+        title: "AI",
+        rows: &[
+            Row::Note(
+                "Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.",
+            ),
+            // API keys first: what a cloud engine needs before anything else on this page works
+            Row::Custom("aiKeys"),
+            Row::Group(
+                "Speech Recognition",
+                &[
+                    f("ai.speechEngine", "Engine", Kind::Choice(SPEECH_ENGINES), true),
+                    f("mediaAnalysis.whisperModel", "Whisper model (on this computer)", Kind::Choice(MODELS), true),
+                    f("ai.geminiSpeechModel", "Gemini model", Kind::Text, true),
+                    f("ai.openaiSpeechModel", "OpenAI model", Kind::Text, true),
+                    f("ai.elevenlabsSpeechModel", "ElevenLabs model", Kind::Text, true),
+                    b("mediaAnalysis.languageAutoDetect", "Enable language auto-detection", true),
+                    f("mediaAnalysis.defaultLanguage", "Default language", Kind::Choice(LANGUAGES), true),
+                    f("mediaAnalysis.speakerLabeling", "Speaker Labeling", Kind::Choice(SPEAKERS), true),
+                    b("mediaAnalysis.autoTranscribe", "Automatically transcribe clips", true),
+                    sub("mediaAnalysis.autoTranscribeScope", "Transcription preferences", Kind::Choice(TRANSCRIBE_SCOPE), "mediaAnalysis.autoTranscribe", true),
+                ],
+            ),
+            Row::Group(
+                "Translation, Highlights and YouTube Texts",
+                &[
+                    f("ai.textEngine", "Engine", Kind::Choice(TEXT_ENGINES), false),
+                    f("ai.geminiTextModel", "Gemini model", Kind::Text, false),
+                    f("ai.openaiTextModel", "OpenAI model", Kind::Text, false),
+                    f("ai.anthropicTextModel", "Claude model", Kind::Text, false),
+                ],
+            ),
+            Row::Group(
+                "Image Generation",
+                &[
+                    f("ai.imageEngine", "Engine", Kind::Choice(IMAGE_ENGINES), true),
+                    f("ai.openaiImageModel", "OpenAI model", Kind::Text, true),
+                    f("ai.geminiImageModel", "Gemini model", Kind::Text, true),
+                ],
+            ),
+            Row::Group("Voices", &[f("ai.elevenlabsVoiceModel", "ElevenLabs voice model", Kind::Text, true)]),
         ],
     },
     Category {
@@ -1113,65 +1158,6 @@ static CATEGORIES: &[Category] = &[
             ),
             b("media.hardwareDecoding", "Enable hardware accelerated decoding (requires restart)", false),
             b("media.proresHardwareEncoding", "Enable ProRes hardware accelerated encoding, if available", false),
-        ],
-    },
-    Category {
-        id: "mediaAnalysis",
-        title: "Media Analysis & Transcription",
-        rows: &[
-            f("mediaAnalysis.cacheResults", "Cache analysis results for re-use", Kind::Choice(ANALYSIS_CACHE), false),
-            Row::Note(
-                "Media analysis and transcriptions will be cached in the Media Cache folder. Reanalysis won't be required if the media is imported into another project on this computer.",
-            ),
-            Row::Group("Media Analysis", &[b("mediaAnalysis.analyzeImportedMedia", "Analyze all imported media to search for visuals or audio", false)]),
-            Row::Group(
-                "Transcription",
-                &[
-                    b("mediaAnalysis.autoTranscribe", "Automatically transcribe clips", true),
-                    sub("mediaAnalysis.autoTranscribeScope", "Transcription preferences", Kind::Choice(TRANSCRIBE_SCOPE), "mediaAnalysis.autoTranscribe", true),
-                    f("mediaAnalysis.speakerLabeling", "Speaker Labeling", Kind::Choice(SPEAKERS), true),
-                    b("mediaAnalysis.languageAutoDetect", "Enable language auto-detection", true),
-                    f("mediaAnalysis.defaultLanguage", "Default language", Kind::Choice(LANGUAGES), true),
-                    f("mediaAnalysis.whisperModel", "Speech model", Kind::Choice(MODELS), true),
-                ],
-            ),
-        ],
-    },
-    Category {
-        id: "ai",
-        title: "AI",
-        rows: &[
-            Row::Note(
-                "Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.",
-            ),
-            Row::Group(
-                "Speech Recognition",
-                &[
-                    f("ai.speechEngine", "Engine", Kind::Choice(SPEECH_ENGINES), true),
-                    f("ai.geminiSpeechModel", "Gemini model", Kind::Text, true),
-                    f("ai.openaiSpeechModel", "OpenAI model", Kind::Text, true),
-                    f("ai.elevenlabsSpeechModel", "ElevenLabs model", Kind::Text, true),
-                ],
-            ),
-            Row::Group(
-                "Translation, Highlights and YouTube Texts",
-                &[
-                    f("ai.textEngine", "Engine", Kind::Choice(TEXT_ENGINES), false),
-                    f("ai.geminiTextModel", "Gemini model", Kind::Text, false),
-                    f("ai.openaiTextModel", "OpenAI model", Kind::Text, false),
-                    f("ai.anthropicTextModel", "Claude model", Kind::Text, false),
-                ],
-            ),
-            Row::Group(
-                "Image Generation",
-                &[
-                    f("ai.imageEngine", "Engine", Kind::Choice(IMAGE_ENGINES), true),
-                    f("ai.openaiImageModel", "OpenAI model", Kind::Text, true),
-                    f("ai.geminiImageModel", "Gemini model", Kind::Text, true),
-                ],
-            ),
-            Row::Group("Voices", &[f("ai.elevenlabsVoiceModel", "ElevenLabs voice model", Kind::Text, true)]),
-            Row::Custom("aiKeys"),
         ],
     },
     Category {
@@ -1416,15 +1402,25 @@ impl crate::autosave::Preferences {
     pub fn category_value(&self, id: &str) -> Option<Value> {
         self.to_value().get(id).cloned()
     }
-    /// Reset one category to its defaults (`recentProjects` survives a General reset).
+    /// Reset one category to its defaults (`recentProjects` survives a General reset). A page that
+    /// shows keys of other sections (AI shows `mediaAnalysis.*`) resets those sections too.
     pub fn reset_category(&mut self, id: &str) -> std::result::Result<(), String> {
-        if category(id).is_none() {
+        let Some(cat) = category(id) else {
             return Err(format!("unknown settings category `{id}`"));
-        }
+        };
         let mut v = self.to_value();
         let d = Self::default().to_value();
         let keep = self.general.recent_projects.clone();
-        v[id] = d[id].clone();
+        let mut sections = vec![cat.id];
+        for (page, f) in fields() {
+            let section = f.key.split('.').next().unwrap_or(page);
+            if page == cat.id && !sections.contains(&section) {
+                sections.push(section);
+            }
+        }
+        for section in sections {
+            v[section] = d[section].clone();
+        }
         *self = serde_json::from_value(v).map_err(|e| e.to_string())?;
         self.general.recent_projects = keep;
         Ok(())

@@ -97,6 +97,7 @@ impl Driver {
 }
 
 const CATEGORIES: [&str; 16] = [
+    "ai",
     "general",
     "appearance",
     "audio",
@@ -106,7 +107,6 @@ const CATEGORIES: [&str; 16] = [
     "graphics",
     "labels",
     "media",
-    "mediaAnalysis",
     "mediaCache",
     "memory",
     "playback",

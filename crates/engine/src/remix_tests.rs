@@ -1,4 +1,4 @@
-//! Tests of [`crate::remix`]: Clip ▸ Remix on generated rhythmic music (120 BPM, 16 bars, 32 s).
+//! Tests of [`crate::remix`]: AI ▸ Automatic Editing ▸ Remix on generated rhythmic music (120 BPM, 16 bars, 32 s).
 
 use std::sync::Arc;
 
@@ -62,7 +62,7 @@ fn menu_commands_and_disabled_reasons() {
     let pos = |id: &str| crate::commands::command_specs().iter().position(|c| c.id == id).unwrap();
     assert!(pos("clip.remix.enable") < pos("clip.remix.properties") && pos("clip.remix.properties") < pos("clip.remix.revert"));
     let spec = crate::commands::find("clip.remix.enable").unwrap();
-    assert_eq!(spec.menu, &["Clip", "Remix"]);
+    assert_eq!(spec.menu, &["AI", "Automatic Editing", "Remix"]);
     // not remixed yet: properties / revert are disabled
     assert!(s.execute("clip.remix.revert", json!({})).is_err());
     assert!(s.execute("clip.remix.properties", json!({})).is_err());

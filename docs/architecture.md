@@ -471,7 +471,7 @@ clip media (source In … +duration) ─► audio_dsp::remix::analyze: spectral-
   ─► hidden clip effect `remix` (target, sliders, original duration, plan in ticks) ─► render::remix::read (20 ms equal-power crossfades)
 ```
 
-Clip ▸ Remix ▸ Enable Remix / Remix Properties… / Revert Remix (`clip.remix.*`; agents can use `clip.remix {duration|seconds…}`) and the Remix tool in the Rate Stretch group (drag a music clip's Out edge) retime a music clip to a target duration. The analysis finds the beat and compares every pair of beats by harmony (chroma) and timbre (cepstra). Each joint leaves the music at one beat boundary and continues at the beat boundary whose four beats on either side sound most alike. The intro and outro are kept, and the result lands within one beat of the target. Segments (0–100) sets the number of joints (1–3, more for long extensions). Variations (0–100) sets how far a joint may move from its evenly spaced position (±1–8 beats). The state is a hidden effect instance with no definition, so panels, the effect chain and Paste Attributes ignore it. The plan is stored in ticks, so playback and export read it without re-analysing. A remix never moves other clips: one that would overlap the next clip is refused, and Revert restores the original duration. Results are deterministic and the analysis is cached per media range.
+AI ▸ Automatic Editing ▸ Remix ▸ Enable Remix / Remix Properties… / Revert Remix (`clip.remix.*`; agents can use `clip.remix {duration|seconds…}`) and the Remix tool in the Rate Stretch group (drag a music clip's Out edge) retime a music clip to a target duration. The analysis finds the beat and compares every pair of beats by harmony (chroma) and timbre (cepstra). Each joint leaves the music at one beat boundary and continues at the beat boundary whose four beats on either side sound most alike. The intro and outro are kept, and the result lands within one beat of the target. Segments (0–100) sets the number of joints (1–3, more for long extensions). Variations (0–100) sets how far a joint may move from its evenly spaced position (±1–8 beats). The state is a hidden effect instance with no definition, so panels, the effect chain and Paste Attributes ignore it. The plan is stored in ticks, so playback and export read it without re-analysing. A remix never moves other clips: one that would overlap the next clip is refused, and Revert restores the original duration. Results are deterministic and the analysis is cached per media range.
 
 ### 5.2 Essential Sound
 
@@ -503,7 +503,7 @@ essentialSound.generateDucking   trigger clips' summed level (10 ms hops) → ac
   fade-down before it and a fade-up after it (`audio_dsp::ducking::duck_keyframes`), written as Volume
   level keyframes that replace earlier ones.
 - **Presets** (our own names and values) per type; user presets are saved in preferences
-  (`essentialSound.userPresets`). Music remixing to a duration is Clip ▸ Remix (§5.1.3).
+  (`essentialSound.userPresets`). Music remixing to a duration is AI ▸ Automatic Editing ▸ Remix (§5.1.3).
 - **Enhance Speech** is a DSP chain (high-pass, de-mud, presence and air EQ, expander, compressor), not a
   model: no speech-enhancement model with an open licence that we could ship and verify is bundled.
   DeepFilterNet (MIT/Apache-2.0, Rust inference via tract) is the candidate for a future optional

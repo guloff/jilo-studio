@@ -1,4 +1,4 @@
-//! Clip ▸ Reframe to Face…: whom the frame follows on the selected clips — the speaker, everyone in
+//! AI ▸ Automatic Editing ▸ Reframe to Face…: whom the frame follows on the selected clips — the speaker, everyone in
 //! frame, or a face picked on the frame at the playhead (`clip.facesAt`) — where the face sits, the
 //! zoom and how smoothly the camera moves. The faces are found on this computer (Apple Vision) as a
 //! job in the status bar and the Progress panel; when it ends, the framing is applied

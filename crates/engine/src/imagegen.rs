@@ -130,7 +130,7 @@ pub fn commands() -> Vec<CommandSpec> {
     vec![CommandSpec {
         id: CMD,
         label: "Generate Image…",
-        menu: &["File", "New"],
+        menu: crate::ai_menu::TOP,
         shortcut: None,
         params: r#"{"prompt":str,"engine":"openai|gemini"?,"model":str?,"shape":"landscape|portrait|square"?,"place":bool?,"dir":str?,"confirm":bool?,"background":bool?}"#,
         enabled: crate::commands::always,

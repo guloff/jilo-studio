@@ -450,7 +450,7 @@ pub fn commands() -> Vec<CommandSpec> {
         CommandSpec {
             id: "youtube.generate",
             label: "YouTube Title, Description and Chapters…",
-            menu: &["Sequence"],
+            menu: crate::ai_menu::TOP,
             shortcut: None,
             params: r#"{"language":"ru|tg|en|…"?,"replaceChapters":bool=true,"engine":"gemini|openai|anthropic"?,"model":str?,"confirm":bool?,"background":bool?}"#,
             enabled: crate::transcript::has_transcript,

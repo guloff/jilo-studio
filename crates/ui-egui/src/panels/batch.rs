@@ -1,4 +1,4 @@
-//! File ▸ Batch Process… for the sequences and clips selected in the Project panel: which steps to
+//! AI ▸ Batch Process… for the sequences and clips selected in the Project panel: which steps to
 //! run on each (transcribe, remove fillers, remove pauses, auto zoom, highlights, YouTube texts,
 //! export), the speech engine, the language and the export preset. The batch is one job in the
 //! status bar and the Progress panel (with Cancel); when it ends, a summary lists every item and

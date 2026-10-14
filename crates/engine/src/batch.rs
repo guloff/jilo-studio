@@ -352,7 +352,7 @@ pub fn commands() -> Vec<CommandSpec> {
         CommandSpec {
             id: "batch.start",
             label: "Batch Process…",
-            menu: &["File"],
+            menu: crate::ai_menu::TOP,
             shortcut: None,
             params: r#"{"items":[id],"transcribe":bool?,"fillers":bool?,"pauses":bool?,"autoZoom":bool?,"highlights":bool?,"youtube":bool?,"export":bool?,"speechEngine":"whisper|gemini|openai|elevenlabs"?,"textEngine":"gemini|openai|anthropic"?,"language":"ru|tg|en|auto"?,"preset":str?,"path":dir?,"confirm":bool?,"wait":bool?}"#,
             enabled: crate::commands::always,

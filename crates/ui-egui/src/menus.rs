@@ -136,6 +136,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("app.about", "About FilmCraft", ["Help"], None),
     uic!("app.keyboardShortcuts", "Keyboard Shortcuts…", ["Edit"], Some("Cmd+Alt+K")),
     uic!("app.settings.general", "General…", ["Edit", "Preferences"], Some("Cmd+,")),
+    uic!("app.settings.ai", "AI…", ["Edit", "Preferences"], None),
     uic!("app.settings.appearance", "Appearance…", ["Edit", "Preferences"], None),
     uic!("app.settings.audio", "Audio…", ["Edit", "Preferences"], None),
     uic!("app.settings.audioHardware", "Audio Hardware…", ["Edit", "Preferences"], None),
@@ -144,13 +145,15 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("app.settings.graphics", "Graphics…", ["Edit", "Preferences"], None),
     uic!("app.settings.labels", "Labels…", ["Edit", "Preferences"], None),
     uic!("app.settings.media", "Media…", ["Edit", "Preferences"], None),
-    uic!("app.settings.mediaAnalysis", "Media Analysis & Transcription…", ["Edit", "Preferences"], None),
     uic!("app.settings.mediaCache", "Media Cache…", ["Edit", "Preferences"], None),
     uic!("app.settings.memory", "Memory…", ["Edit", "Preferences"], None),
     uic!("app.settings.playback", "Playback…", ["Edit", "Preferences"], None),
     uic!("app.settings.plugins", "Plugins…", ["Edit", "Preferences"], None),
     uic!("app.settings.timeline", "Timeline…", ["Edit", "Preferences"], None),
     uic!("app.settings.trim", "Trim…", ["Edit", "Preferences"], None),
+    // AI ▸ … after the engine's AI commands (`filmcraft_engine::ai_menu`)
+    uic!("ai.textToSpeech", "Text to Speech…", ["AI"], None),
+    uic!("ai.settings", "AI Settings…", ["AI"], None),
 ];
 
 pub fn panel_command_id(p: PanelKind) -> String {
@@ -425,6 +428,19 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
             app.ui.mode = Mode::Export;
             return Ok(json!({"mode": "export"}));
         }
+        // AI ▸ Text to Speech… shows the Text to Speech panel; AI ▸ AI Settings… opens Settings ▸ AI.
+        "ai.textToSpeech" => {
+            app.show_panel(PanelKind::TextToSpeech);
+            return Ok(Value::Null);
+        }
+        "ai.settings" => {
+            return crate::panels::settings::open(app, "ai");
+        }
+        // AI ▸ Translate Captions… opens the Text panel's translation dialog for the caption track
+        // with selected captions, else the first one with captions; with params it translates directly.
+        "captions.translate" if params.as_object().is_none_or(|m| m.is_empty()) => {
+            return crate::panels::text::open_translate(app);
+        }
         // Batch Process… from the menu opens the dialog for the Project panel's selection.
         "batch.start" if params.as_object().is_none_or(|m| m.is_empty()) => {
             return crate::panels::batch::open(app);
@@ -624,7 +640,7 @@ pub struct MenuItem {
     pub checked: Option<bool>,
 }
 
-pub const MENUS: [&str; 9] = ["File", "Edit", "Clip", "Sequence", "Markers", "Graphics and Titles", "View", "Window", "Help"];
+pub const MENUS: [&str; 10] = ["File", "Edit", "Clip", "Sequence", "Markers", "Graphics and Titles", "AI", "View", "Window", "Help"];
 
 pub fn menu_items(app: &FilmcraftApp) -> Vec<MenuItem> {
     let mut v = menu_items_for(&app.session);

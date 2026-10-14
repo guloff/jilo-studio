@@ -1,4 +1,4 @@
-//! Sequence ▸ YouTube Title, Description and Chapters… (also the Text panel's Transcript toolbar):
+//! AI ▸ YouTube Title, Description and Chapters… (also the Text panel's Transcript toolbar):
 //! a window with the texts kept with the sequence — title options, the description (editable), the
 //! chapters as YouTube will list them (from the sequence's chapter markers), tags and hashtags —
 //! with Copy for each field and for everything. Without texts yet (or Write Again) it shows the form

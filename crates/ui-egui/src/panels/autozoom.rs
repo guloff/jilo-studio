@@ -1,4 +1,4 @@
-//! Clip ▸ Auto Zoom… (also the Text panel's Transcript toolbar): how the stressed phrases are found
+//! AI ▸ Automatic Editing ▸ Auto Zoom… (also the Text panel's Transcript toolbar): how the stressed phrases are found
 //! — by loudness on this computer, or by meaning with the text engine — how far and how the picture
 //! zooms, and how far apart. Loudness applies at once (`clip.autoZoom`); meaning runs as a cloud
 //! task (consent, progress and Cancel in the status bar and the Progress panel, see

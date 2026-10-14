@@ -39,7 +39,6 @@ fn sequence_and_markers_menu_order_matches_premiere() {
         "sequence.showThroughEdits",
         "sequence.normalizeMixTrack",
         "sequence.makeSubsequence",
-        "sequence.transcribe",
         "sequence.simplify",
         "sequence.addTracks",
     ];

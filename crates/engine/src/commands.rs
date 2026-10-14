@@ -1053,7 +1053,7 @@ fn build() -> Vec<CommandSpec> {
             // Project Settings ▸ Ingest: copy / transcode / create proxies
             // (image sequences are many files: ingest copies and transcodes single files only)
             let item_ids: Vec<ItemId> = ids.iter().filter(|i| !image_sequences.iter().any(|q| q["item"].as_u64() == Some(**i))).map(|i| ItemId(*i)).collect();
-            // Settings ▸ Media Analysis & Transcription ▸ Automatically transcribe clips
+            // Settings ▸ AI ▸ Speech Recognition ▸ Automatically transcribe clips
             let ma = &s.prefs.media_analysis;
             if ma.auto_transcribe && ma.auto_transcribe_scope == "allImported" && !ids.is_empty() {
                 let audio: Vec<u64> = ids.iter().copied().filter(|i| s.project.item(ItemId(*i)).is_some_and(|it| it.has_audio())).collect();
@@ -2931,6 +2931,8 @@ fn build() -> Vec<CommandSpec> {
     crate::clip_ops::apply_layout(&mut v);
     // Search Bin, Find, Project Settings, Scene Edit Detection, Normalize Mix Track… (M3.11)
     crate::project_tools::apply_layout(&mut v);
+    // AI ▸ … (our menu: the AI features from File, Clip, Sequence and Markers)
+    crate::ai_menu::apply_layout(&mut v);
     v.shrink_to_fit();
     v
 }

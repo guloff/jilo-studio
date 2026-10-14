@@ -1,4 +1,4 @@
-//! Playback of remixed clips (Clip ▸ Remix): maps the clip's timeline samples through its remix
+//! Playback of remixed clips (AI ▸ Automatic Editing ▸ Remix): maps the clip's timeline samples through its remix
 //! plan to media samples, crossfading at the joints.
 //!
 //! A remixed clip carries a hidden effect instance [`EFFECT`] (no effect definition, so the

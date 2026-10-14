@@ -1,12 +1,12 @@
-//! Clip ▸ Remix: retime a music clip to a target duration by cutting it at musically similar beat
+//! AI ▸ Automatic Editing ▸ Remix: retime a music clip to a target duration by cutting it at musically similar beat
 //! boundaries (Premiere's Remix; analysis and planning in [`filmcraft_audio_dsp::remix`], playback
 //! in [`filmcraft_render::remix`]).
 //!
 //! | command | menu | what it does |
 //! |---|---|---|
-//! | `clip.remix.enable` | Clip ▸ Remix ▸ Enable Remix | analyses the selected audio clip and makes it a remix clip at its current duration |
-//! | `clip.remix.properties` | Clip ▸ Remix ▸ Remix Properties… | without parameters returns the settings; with `duration`/`seconds`/`frame`/`timecode`, `segments`, `variations` re-plans |
-//! | `clip.remix.revert` | Clip ▸ Remix ▸ Revert Remix | restores the clip as it was before the remix |
+//! | `clip.remix.enable` | AI ▸ Automatic Editing ▸ Remix ▸ Enable Remix | analyses the selected audio clip and makes it a remix clip at its current duration |
+//! | `clip.remix.properties` | AI ▸ Automatic Editing ▸ Remix ▸ Remix Properties… | without parameters returns the settings; with `duration`/`seconds`/`frame`/`timecode`, `segments`, `variations` re-plans |
+//! | `clip.remix.revert` | AI ▸ Automatic Editing ▸ Remix ▸ Revert Remix | restores the clip as it was before the remix |
 //! | `clip.remix` | — | agents: enable (if needed) and remix `clip` (default: the selected audio clip) to a target |
 //!
 //! The remix keeps the clip's start and source In, plays the intro from the beginning and ends on
@@ -260,7 +260,7 @@ pub fn commands() -> Vec<CommandSpec> {
         CommandSpec {
             id: "clip.remix.enable",
             label: "Enable Remix",
-            menu: &["Clip", "Remix"],
+            menu: crate::ai_menu::REMIX,
             shortcut: None,
             params: r#"{"clip":id?}"#,
             enabled: can_enable,
@@ -270,7 +270,7 @@ pub fn commands() -> Vec<CommandSpec> {
         CommandSpec {
             id: "clip.remix.properties",
             label: "Remix Properties…",
-            menu: &["Clip", "Remix"],
+            menu: crate::ai_menu::REMIX,
             shortcut: None,
             params: PARAMS,
             enabled: is_remixed,
@@ -280,7 +280,7 @@ pub fn commands() -> Vec<CommandSpec> {
         CommandSpec {
             id: "clip.remix.revert",
             label: "Revert Remix",
-            menu: &["Clip", "Remix"],
+            menu: crate::ai_menu::REMIX,
             shortcut: None,
             params: r#"{"clip":id?}"#,
             enabled: is_remixed,

@@ -1,4 +1,4 @@
-//! Headless UI tests of Clip ▸ Remix: the menu entries, the Remix Properties dialog and the Remix
+//! Headless UI tests of AI ▸ Automatic Editing ▸ Remix: the menu entries, the Remix Properties dialog and the Remix
 //! tool (drag a music clip's Out edge), driven by automation id through the control channel.
 
 use std::sync::Arc;

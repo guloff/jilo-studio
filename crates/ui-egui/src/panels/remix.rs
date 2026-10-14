@@ -1,4 +1,4 @@
-//! Clip ▸ Remix ▸ Remix Properties…: Target Duration, Segments and Variations of the selected
+//! AI ▸ Automatic Editing ▸ Remix ▸ Remix Properties…: Target Duration, Segments and Variations of the selected
 //! remixed clip. OK runs `clip.remix.properties` (one undo step); the Remix tool in the timeline
 //! sets the target by dragging instead.
 //!

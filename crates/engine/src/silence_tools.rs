@@ -1,5 +1,5 @@
 //! Pauses by sound: the silent stretches of the active sequence's mix, for footage without a
-//! transcript (Sequence ▸ Remove Silent Pauses). The transcript-based pauses are `transcript.removePauses`.
+//! transcript (AI ▸ Speech and Captions ▸ Remove Silent Pauses). The transcript-based pauses are `transcript.removePauses`.
 //!
 //! | command | does |
 //! |---|---|
@@ -112,7 +112,7 @@ pub fn commands() -> Vec<CommandSpec> {
         CommandSpec {
             id: "audio.removeSilences",
             label: "Remove Silent Pauses",
-            menu: &["Sequence"],
+            menu: crate::ai_menu::SPEECH,
             shortcut: None,
             params: PARAMS,
             enabled: has_seq,

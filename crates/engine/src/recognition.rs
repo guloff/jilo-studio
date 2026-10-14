@@ -79,7 +79,7 @@ pub struct Plan {
 }
 
 pub(crate) fn opts_from(s: &Session, p: &Value) -> Options {
-    // Settings ▸ Media Analysis & Transcription: language (or auto-detect) and speaker labelling
+    // Settings ▸ AI ▸ Speech Recognition: language (or auto-detect) and speaker labelling
     let ma = &s.prefs.media_analysis;
     let default_language = if ma.language_auto_detect { None } else { Some(ma.default_language.clone()) };
     Options {

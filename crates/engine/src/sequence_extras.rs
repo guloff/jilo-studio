@@ -4,7 +4,7 @@
 //! |---|---|---|
 //! | `sequence.applyDefaultTransitionsToSelection` | Sequence ▸ Apply Default Transitions to Selection (⇧D) | selected clips' edges; selected edit points |
 //! | `sequence.normalizeMixTrack` | Sequence ▸ Normalize Mix Track… | Mix fader so the mix peaks at the target |
-//! | `sequence.transcribe` | Sequence ▸ Transcribe Sequence… | `transcript.generate` on the sequence's audio clips |
+//! | `sequence.transcribe` | AI ▸ Speech and Captions ▸ Transcribe Sequence… | `transcript.generate` on the sequence's audio clips |
 //! | `sequence.simplify` | Sequence ▸ Simplify Sequence… | a simplified copy of the sequence |
 //! | `captions.showActiveOnly` | Sequence ▸ Captions ▸ Show Active Caption Tracks Only | |
 //! | `markers.addFlashCue` | Markers ▸ Add Flash Cue Marker… | `MarkerKind::FlashCue` |
@@ -54,7 +54,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
         spec(
             "sequence.transcribe",
             "Transcribe Sequence…",
-            &["Sequence"],
+            crate::ai_menu::SPEECH,
             None,
             r#"{"track":"mix"|"A1"|id?,"language":"en|auto"?,"diarize":bool?,"maxSpeakers":n?,"model":str?}"#,
             can_transcribe_sequence,
@@ -225,7 +225,7 @@ fn normalize_mix(s: &mut Session, p: &Value) -> Result<Value> {
 // Transcribe Sequence
 // ---------------------------------------------------------------------------------------------
 
-/// Sequence ▸ Transcribe Sequence…: transcribe the media of the sequence's audio clips (all audio
+/// AI ▸ Speech and Captions ▸ Transcribe Sequence…: transcribe the media of the sequence's audio clips (all audio
 /// tracks — "Mix" — or one track) with `transcript.generate`.
 fn transcribe(s: &mut Session, p: &Value) -> Result<Value> {
     let q = s.active_sequence().ok_or(EngineError::NoSequence)?;

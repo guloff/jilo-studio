@@ -298,7 +298,7 @@ fn captions_are_translated_from_the_captions_tab() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Markers ▸ Find Highlights: the search dialog, the consent for the transcript, the background
+/// AI ▸ Automatic Editing ▸ Find Highlights: the search dialog, the consent for the transcript, the background
 /// search, the range markers and the results window that goes to a highlight and assembles them.
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
@@ -384,7 +384,7 @@ fn highlights_are_found_listed_and_assembled() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Clip ▸ Auto Zoom: the dialog, by meaning with the consent for the transcript, and Scale
+/// AI ▸ Automatic Editing ▸ Auto Zoom: the dialog, by meaning with the consent for the transcript, and Scale
 /// keyframes on the V1 clips where the quoted words are said.
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
@@ -450,7 +450,7 @@ fn auto_zoom_by_meaning_keys_the_scale_on_the_quoted_words() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Sequence ▸ YouTube: the form, the consent, the texts window with copy buttons, an edit kept with
+/// AI ▸ YouTube: the form, the consent, the texts window with copy buttons, an edit kept with
 /// the sequence, and the chapters as chapter markers.
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
@@ -518,7 +518,7 @@ fn youtube_texts_are_written_shown_and_edited() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// File ▸ Batch Process: the dialog for the Project panel's selection, the cloud note, the batch
+/// AI ▸ Batch Process: the dialog for the Project panel's selection, the cloud note, the batch
 /// as a job, and the summary with the item that failed a step.
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
@@ -587,7 +587,7 @@ fn a_batch_runs_from_the_dialog_and_ends_with_a_summary() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Clip ▸ Reframe to Face… on a clip in a vertical sequence: the dialog, the frame at the playhead
+/// AI ▸ Automatic Editing ▸ Reframe to Face… on a clip in a vertical sequence: the dialog, the frame at the playhead
 /// with its faces boxed, a click picking the other face, the analysis in the background and the
 /// framing it leaves in Motion.
 #[test]
@@ -742,7 +742,7 @@ fn the_daily_check_offers_a_newer_release_once() {
     assert!(d.ids("updates.").is_empty(), "but the release it offered is not offered twice");
 }
 
-/// File ▸ New ▸ Generate Image…: the dialog, the consent, the picture imported and placed.
+/// AI ▸ Generate Image…: the dialog, the consent, the picture imported and placed.
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn an_image_is_generated_from_a_description() {

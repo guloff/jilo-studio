@@ -496,7 +496,7 @@ pub fn commands() -> Vec<CommandSpec> {
         CommandSpec {
             id: "clip.reframeToFace",
             label: "Reframe to Face…",
-            menu: &["Clip"],
+            menu: crate::ai_menu::EDITING,
             shortcut: None,
             params: r#"{"clips":[id]?,"target":"speaker|group|face"?,"x":0-1?,"y":0-1?,"seconds":f64?,"smoothing":0-6?,"anchorX":0-1?,"anchorY":0-1?,"zoom":100-400?,"background":bool?}"#,
             enabled: crate::commands::has_seq,

@@ -134,7 +134,7 @@ pub(crate) fn local_transcriber(s: &Session, p: &Value) -> Result<Arc<dyn Transc
     if let Some(t) = &s.transcriber {
         return Ok(t.clone());
     }
-    // Settings ▸ Media Analysis & Transcription ▸ Speech model
+    // Settings ▸ AI ▸ Speech Recognition ▸ Whisper model
     let model = str_p(p, "model").unwrap_or(&s.prefs.media_analysis.whisper_model);
     if filmcraft_speech::models::find(model).is_none() {
         return Err(speech_err(SpeechError::UnknownModel(model.into())));
@@ -493,7 +493,7 @@ pub fn commands() -> Vec<CommandSpec> {
         spec(
             "transcript.generate",
             "Transcribe…",
-            &["Sequence", "Transcript"],
+            crate::ai_menu::SPEECH,
             r#"{"items":[id]?,"engine":"whisper|gemini|openai"?,"model":str?,"language":"ru|tg|en|auto"?,"diarize":bool?,"maxSpeakers":n?,"confirm":bool?}"#,
             can_transcribe,
             generate,
@@ -517,7 +517,7 @@ pub fn commands() -> Vec<CommandSpec> {
             set,
             true,
         ),
-        spec("transcript.delete", "Delete Transcript", &["Sequence", "Transcript"], r#"{"items":[id]?}"#, has_transcripts, delete, true),
+        spec("transcript.delete", "Delete Transcript", crate::ai_menu::SPEECH, r#"{"items":[id]?}"#, has_transcripts, delete, true),
         spec("transcript.inspect", "Inspect Transcript", &[], r#"{"paragraphGapSeconds":f?}"#, always, inspect, false),
         spec("transcript.search", "Search Transcript", &[], r#"{"query":str}"#, always, search, false),
         spec("transcript.models", "List Speech Models", &[], "{}", always, models, false),
@@ -534,20 +534,12 @@ pub fn commands() -> Vec<CommandSpec> {
             rename_speaker,
             true,
         ),
-        spec(
-            "transcript.removePauses",
-            "Remove Pauses",
-            &["Sequence", "Transcript"],
-            r#"{"minSeconds":f?,"keepSeconds":f?}"#,
-            has_transcript,
-            remove_pauses,
-            true,
-        ),
+        spec("transcript.removePauses", "Remove Pauses", crate::ai_menu::SPEECH, r#"{"minSeconds":f?,"keepSeconds":f?}"#, has_transcript, remove_pauses, true),
         spec("transcript.fillers", "List Filler Words", &[], r#"{"language":"ru|tg|en"?}"#, has_transcript, list_fillers, false),
         spec(
             "transcript.removeFillers",
             "Remove Filler Words",
-            &["Sequence", "Transcript"],
+            crate::ai_menu::SPEECH,
             r#"{"fillers":[str]?,"language":"ru|tg|en"?}"#,
             has_transcript,
             remove_fillers,
@@ -556,7 +548,7 @@ pub fn commands() -> Vec<CommandSpec> {
         spec(
             "transcript.createCaptions",
             "Create Captions from Transcript…",
-            &["Sequence", "Transcript"],
+            crate::ai_menu::SPEECH,
             r#"{"maxChars":n?,"lines":1|2?,"minSeconds":f?,"maxSeconds":f?,"gapFrames":n?,"format":str?,"name":str?}"#,
             has_transcript,
             create_captions,

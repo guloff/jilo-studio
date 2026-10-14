@@ -109,7 +109,7 @@ changed in Settings ▸ AI. Each provider is asked about once before anything is
 
 ### Generated images
 
-File ▸ New ▸ Generate Image… (`ai.generateImage`) draws a picture from a description with the image
+AI ▸ Generate Image… (`ai.generateImage`) draws a picture from a description with the image
 engine of Settings ▸ AI (OpenAI or Gemini), in the sequence's shape (or `shape`), saves it with the
 project's media (Scratch Disks ▸ Captured, else next to the project), imports it as a still and,
 with `place`, puts it on the timeline at the playhead on the first free video track (a new one when
@@ -147,7 +147,7 @@ removes what stays chosen in one undo step. Without `fillers`, the command remov
 
 ## Pauses by sound
 
-For footage without a transcript, Sequence ▸ Remove Silent Pauses (`audio.removeSilences`;
+For footage without a transcript, AI ▸ Speech and Captions ▸ Remove Silent Pauses (`audio.removeSilences`;
 `audio.findSilences` only lists them) finds the pauses in the sequence mix by level: 10 ms RMS
 frames below `thresholdDb` (−35 dBFS by default, −70…−10) for at least `minSeconds` (0.6 s, 0.2…5),
 measured in 10-second blocks with FilmCraft's own detector (`filmcraft_audio_dsp::silence`), no
@@ -156,7 +156,7 @@ all in one undo step; a sequence that is silent everywhere is left alone.
 
 ## Highlights
 
-Markers ▸ Find Highlights… (also the Transcript toolbar; `highlights.find`) looks through the
+AI ▸ Automatic Editing ▸ Find Highlights… (also the Transcript toolbar; `highlights.find`) looks through the
 sequence transcript for the best fragments with the text engine of Settings ▸ AI, as Jilo Studio
 does: `viral` (a hook that works on its own as a short), `meaningful` (complete thoughts) or `facts`
 (numbers, names, definitions), `count` 1–20 (5), `minSeconds` 5–180 (15), `maxSeconds` up to 600
@@ -175,7 +175,7 @@ named after it, next to the project unless `path` is given). Each is one undo st
 
 ## Auto zooms
 
-Clip ▸ Auto Zoom… (also the Transcript toolbar; `clip.autoZoom`) punches the picture in on stressed
+AI ▸ Automatic Editing ▸ Auto Zoom… (also the Transcript toolbar; `clip.autoZoom`) punches the picture in on stressed
 phrases, as Jilo Studio does, with Scale keyframes on the clips' Motion effect (the selected video
 clips, else V1's). The phrases come from the sequence transcript: `loudness` (the default, offline)
 takes cues of at least 0.4 s louder than the median cue ×1.02 in the sequence mix, loudest first;
@@ -189,7 +189,7 @@ after the one-time consent, in the background like the other cloud tasks.
 
 ## YouTube texts and chapters
 
-Sequence ▸ YouTube Title, Description and Chapters… (also the Transcript toolbar;
+AI ▸ YouTube Title, Description and Chapters… (also the Transcript toolbar;
 `youtube.generate`) writes, as Jilo Studio does, three title options (≤ 100 characters), a description
 (≤ 5000), tags (the field ≤ 500, commas and quotes counted), three hashtags and chapters from the
 sequence transcript, sent in blocks of at least 8 s (`[second] text`) to the text engine of
@@ -206,7 +206,7 @@ or everything at once.
 
 ## Batch processing
 
-File ▸ Batch Process… (`batch.start`) runs the same steps over the sequences and clips selected in
+AI ▸ Batch Process… (`batch.start`) runs the same steps over the sequences and clips selected in
 the Project panel (up to 50; a clip becomes a sequence, as New Sequence From Clip), one after
 another, as Jilo Studio's batches do: `transcribe` (only media without a transcript, with the batch's
 engine — local Whisper by default — and language), `fillers`, `pauses`, `autoZoom` (by loudness),
@@ -220,7 +220,7 @@ step, and the editor keeps its sequence while the batch works.
 
 ## Reframe to faces
 
-Clip ▸ Reframe to Face… (`clip.reframeToFace`) frames the selected video clips on a face, as Jilo
+AI ▸ Automatic Editing ▸ Reframe to Face… (`clip.reframeToFace`) frames the selected video clips on a face, as Jilo
 Studio frames a talk for a vertical screen. The faces are found on this computer with Apple Vision
 (nothing is sent; other systems say face detection is not available) on frames two a second (one a
 second past ten minutes, 3000 at most), each frame searched in nine overlapping tiles so a small

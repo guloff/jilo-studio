@@ -396,7 +396,7 @@ pub struct AiTaskUi {
     pub job: Option<u64>,
 }
 
-/// Markers ▸ Find Highlights… (`panels::highlights`): what the search looks for, and the
+/// AI ▸ Automatic Editing ▸ Find Highlights… (`panels::highlights`): what the search looks for, and the
 /// highlights found with the ones chosen to assemble.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -419,7 +419,7 @@ impl Default for HighlightsUi {
     }
 }
 
-/// Clip ▸ Auto Zoom… (`panels::autozoom`): how the stressed phrases are found and how the
+/// AI ▸ Automatic Editing ▸ Auto Zoom… (`panels::autozoom`): how the stressed phrases are found and how the
 /// picture zooms on them.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -441,7 +441,7 @@ impl Default for AutoZoomUi {
     }
 }
 
-/// Clip ▸ Reframe to Face… (`panels::reframe`): whom to follow and how the face sits in the frame.
+/// AI ▸ Automatic Editing ▸ Reframe to Face… (`panels::reframe`): whom to follow and how the face sits in the frame.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ReframeUi {
@@ -505,7 +505,7 @@ pub struct UpdatesUi {
     pub launch_seen: bool,
 }
 
-/// File ▸ New ▸ Generate Image… (`panels::imagegen`).
+/// AI ▸ Generate Image… (`panels::imagegen`).
 #[derive(Clone, Debug, Default)]
 pub struct ImageGenUi {
     pub dialog: bool,
@@ -518,7 +518,7 @@ pub struct ImageGenUi {
     pub place: bool,
 }
 
-/// Sequence ▸ YouTube Title, Description and Chapters… (`panels::youtube`).
+/// AI ▸ YouTube Title, Description and Chapters… (`panels::youtube`).
 #[derive(Clone, Debug, Default)]
 pub struct YouTubeUi {
     pub open: bool,
@@ -536,7 +536,7 @@ pub struct YouTubeUi {
     pub title: usize,
 }
 
-/// File ▸ Batch Process… (`panels::batch`).
+/// AI ▸ Batch Process… (`panels::batch`).
 #[derive(Clone, Debug)]
 pub struct BatchUi {
     pub dialog: bool,
@@ -662,13 +662,13 @@ pub struct UiState {
     /// Text panel ▸ Remove filler words: the found fillers being chosen (`transcript.fillers`).
     #[serde(default)]
     pub fillers: Option<Vec<serde_json::Value>>,
-    /// Markers ▸ Find Highlights…: the search dialog and the highlights found.
+    /// AI ▸ Automatic Editing ▸ Find Highlights…: the search dialog and the highlights found.
     #[serde(default)]
     pub highlights: HighlightsUi,
-    /// Clip ▸ Auto Zoom…: the dialog and its choices.
+    /// AI ▸ Automatic Editing ▸ Auto Zoom…: the dialog and its choices.
     #[serde(default)]
     pub auto_zoom: AutoZoomUi,
-    /// Clip ▸ Reframe to Face…: the dialog and its choices.
+    /// AI ▸ Automatic Editing ▸ Reframe to Face…: the dialog and its choices.
     #[serde(default)]
     pub reframe: ReframeUi,
     /// The report on the previous run's unexpected end, while its window is open (`crash`).
@@ -677,16 +677,16 @@ pub struct UiState {
     /// Whether the report was looked for (once per run).
     #[serde(skip)]
     pub crash_report_taken: bool,
-    /// File ▸ New ▸ Generate Image…: the dialog and its choices.
+    /// AI ▸ Generate Image…: the dialog and its choices.
     #[serde(skip)]
     pub imagegen: ImageGenUi,
     /// Help ▸ Check for Updates…: the check and its window.
     #[serde(skip)]
     pub updates: UpdatesUi,
-    /// Sequence ▸ YouTube Title, Description and Chapters…: the window and the texts being edited.
+    /// AI ▸ YouTube Title, Description and Chapters…: the window and the texts being edited.
     #[serde(skip)]
     pub youtube: YouTubeUi,
-    /// File ▸ Batch Process…: the dialog, its choices and the batch it started.
+    /// AI ▸ Batch Process…: the dialog, its choices and the batch it started.
     #[serde(skip)]
     pub batch: BatchUi,
     /// Preferences ▸ Playback: play the rendered range when a preview render finishes.

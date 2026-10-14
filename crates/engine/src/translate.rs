@@ -119,7 +119,7 @@ pub fn commands() -> Vec<CommandSpec> {
     vec![CommandSpec {
         id: "captions.translate",
         label: "Translate Captions…",
-        menu: &[],
+        menu: crate::ai_menu::SPEECH,
         shortcut: None,
         params: r#"{"track":id|"C1"?,"to":"ru|tg|en|…","engine":"gemini|openai|anthropic"?,"model":str?,"confirm":bool?,"background":bool?}"#,
         enabled: crate::commands::has_seq,
