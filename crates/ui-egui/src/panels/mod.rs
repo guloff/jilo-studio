@@ -31,6 +31,7 @@ pub mod imagegen;
 pub mod import_mode;
 pub mod interchange_export;
 pub mod keyboard;
+pub mod library;
 pub mod lumetri;
 pub mod masks;
 pub mod media_browser;
@@ -125,7 +126,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, p: PanelKind, rect: Rect)
         PanelKind::CaptionStyle => caption_style::show(app, ui, rect),
         PanelKind::Assistant => assistant::show(app, ui, rect),
         PanelKind::AiTools => ai_tools::show(app, ui, rect),
-        other => crate::dock::placeholder(ui, rect, &app.tokens, &tlf!("{panel} — coming in a later milestone", panel = crate::i18n::t(other.title()))),
+        PanelKind::Libraries => library::show(app, ui, rect),
     }
 }
 

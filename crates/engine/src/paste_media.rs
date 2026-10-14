@@ -123,15 +123,48 @@ fn free_track(s: &mut Session, kind: TrackKind, start: Tick, end: Tick) -> Resul
     added[key][0].as_u64().map(TrackId).ok_or_else(|| EngineError::Other("no track was added".into()))
 }
 
+/// `timeline.addAtPlayhead`: a project item on the timeline at the playhead (or `time`), on free
+/// tracks (new ones when every track is busy there), selected. The Library's double-click.
+fn add_at_playhead(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "timeline.addAtPlayhead";
+    let item = p.get("item").and_then(Value::as_u64).map(ItemId).ok_or_else(|| crate::commands::bad(cmd, "`item`"))?;
+    let pi = s.project.item(item).ok_or_else(|| crate::commands::bad(cmd, format!("no item {}", item.0)))?;
+    let (dur, video, audio) = (crate::commands::full_duration(s, pi), pi.has_video(), pi.has_audio());
+    let at = p.get("time").and_then(Value::as_i64).map(Tick).unwrap_or(s.playhead());
+    let mut params = json!({"item": item.0, "time": at.0, "insert": false});
+    if video {
+        params["track"] = json!(free_track(s, TrackKind::Video, at, at + dur)?.0);
+    }
+    if audio {
+        params["audioTrack"] = json!(free_track(s, TrackKind::Audio, at, at + dur)?.0);
+    }
+    let placed = s.execute("timeline.place", params)?;
+    let clips: Vec<ClipId> = placed["clips"].as_array().map(|a| a.iter().filter_map(Value::as_u64).map(ClipId).collect()).unwrap_or_default();
+    s.state.selection = clips.clone();
+    Ok(json!({"clips": clips.iter().map(|c| c.0).collect::<Vec<_>>()}))
+}
+
 pub(crate) fn commands() -> Vec<CommandSpec> {
-    vec![CommandSpec {
-        id: "edit.pasteMedia",
-        label: "Paste Media",
-        menu: &[],
-        shortcut: None,
-        params: r#"{"paths":[str],"insert":bool?,"place":bool=true,"bin":binId?}"#,
-        enabled: always,
-        run: paste_media,
-        journal: true,
-    }]
+    vec![
+        CommandSpec {
+            id: "timeline.addAtPlayhead",
+            label: "Add to Timeline at Playhead",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"item":id,"time":ticks?}"#,
+            enabled: crate::commands::has_seq,
+            run: add_at_playhead,
+            journal: true,
+        },
+        CommandSpec {
+            id: "edit.pasteMedia",
+            label: "Paste Media",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"paths":[str],"insert":bool?,"place":bool=true,"bin":binId?}"#,
+            enabled: always,
+            run: paste_media,
+            journal: true,
+        },
+    ]
 }
