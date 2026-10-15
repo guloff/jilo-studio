@@ -256,6 +256,11 @@ fn main() -> eframe::Result {
             if recover == Some(false) {
                 app.dialog = None;
             }
+            // Help ▸ Tips… at start, until turned off (not over a recovery question)
+            if app.session.prefs.general.show_tips && app.dialog.is_none() {
+                app.ui.tips.open = true;
+                app.ui.tips.index = (app.session.prefs.general.last_update_check.unsigned_abs() as usize) % filmcraft_ui_egui::panels::tips::TIPS.len();
+            }
             app.integrated_titlebar = cfg!(target_os = "macos");
             if let Some(rs) = cc.wgpu_render_state.clone()
                 && std::env::var_os("FILMCRAFT_CPU_COMPOSITE").is_none()

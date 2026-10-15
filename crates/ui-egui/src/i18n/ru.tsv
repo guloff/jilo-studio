@@ -4447,3 +4447,31 @@ mode	Edit	Монтаж
 	Transcribe first: AI ▸ Transcribe, then delete words in the transcript to cut them.	Сначала расшифруйте: AI ▸ Распознать речь, затем удаляйте слова в транскрипте, чтобы вырезать их.
 	Delete words in the transcript and the picture and sound are cut with them.	Удаляйте слова в транскрипте — картинка и звук вырезаются вместе с ними.
 	The speech in another language: translated captions spoken by a voice.	Речь на другом языке: переведённые субтитры озвучивает голос.
+# Thumbnail and tips
+	YouTube Thumbnail…	Обложка YouTube…
+	Tips…	Подсказки…
+	YouTube Thumbnail	Обложка YouTube
+	The frame at the playhead: move it to pick another, then Preview.	Кадр у указателя: сдвиньте его, чтобы выбрать другой, и нажмите «Просмотр».
+	Save…	Сохранить…
+	Thumbnail saved: {path}	Обложка сохранена: {path}
+	Red Box	Красная плашка
+	Yellow Banner	Жёлтая плашка
+	The frame at the playhead with a big title, 1280×720.	Кадр у указателя с крупным заголовком, 1280×720.
+	Tips	Подсказки
+	Tip {n} of {total}	Подсказка {n} из {total}
+	Show tips when FilmCraft starts	Показывать подсказки при запуске Jilo Studio
+	Next Tip	Следующая
+	Previous	Предыдущая
+	Drop a video on the home screen: a vertical short with captions, or a clean talking head, in one click.	Перетащите видео на стартовый экран — вертикальный шортс с субтитрами или чистая «говорящая голова» в один клик.
+	⌘J opens the command palette: type what you want to do, in your own words.	⌘J открывает палитру команд: напишите своими словами, что нужно сделать.
+	AI ▸ Edit by Text: delete words in the transcript and the picture and sound are cut with them.	AI ▸ Монтаж текстом: удаляйте слова в транскрипте — картинка и звук вырезаются вместе с ними.
+	Select a clip and quick actions appear under the picture: split, speed, reframe, delete.	Выделите клип — под картинкой появятся быстрые действия: разрезать, скорость, кадрировать, удалить.
+	Right-click a transition in the Library to put it on every cut; an effect or a look on every clip.	Правый щелчок по переходу в Библиотеке — на все склейки; эффект или «лук» — на все клипы.
+	AI ▸ Cut into Shorts finds the best moments and makes vertical shorts with captions.	AI ▸ Нарезать на шортсы находит лучшие моменты и делает вертикальные шортсы с субтитрами.
+	The Stickers tab: emoji, arrows, stickers cut out of your clips; Attach to Face follows a face.	Вкладка «Стикеры»: эмодзи, стрелки, стикеры из ваших клипов; «Прикрепить к лицу» следует за лицом.
+	The Library's Audio tab has sound effects and music beds made on this computer, free to use.	Во вкладке «Аудио» Библиотеки — звуковые эффекты и музыкальные подложки, созданные на этом компьютере; бесплатно для любого использования.
+	Export ▸ Social Platforms: TikTok, Reels and Shorts at the right size and loudness.	Экспорт ▸ Соцсети: TikTok, Reels и Shorts в нужном размере и с нужной громкостью.
+	AI ▸ Dub puts your speech into another language with a voice.	AI ▸ Дубляж переводит вашу речь на другой язык голосом.
+	View ▸ Simple Mode hides what you don't need yet; everything stays in the menus and ⌘J.	Вид ▸ Простой режим прячет то, что пока не нужно; всё остаётся в меню и в ⌘J.
+	Recipes record what you do and repeat it on another clip with one click.	Рецепты записывают ваши действия и повторяют их на другом клипе одним щелчком.
+	Every AI step is one undo: ⌘Z puts it all back.	Каждый шаг AI отменяется одним действием: ⌘Z возвращает всё как было.

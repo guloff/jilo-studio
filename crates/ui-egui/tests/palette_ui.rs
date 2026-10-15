@@ -200,3 +200,40 @@ fn the_assistant_plans_from_the_palette_and_runs_the_plan_as_one_undo_step() {
     assert_eq!(app.session.history.undo.len(), undo + 1);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Help ▸ Tips…: a tip at a time, Next and Previous, and "Show tips at start" saved.
+#[test]
+fn tips_are_shown_one_at_a_time() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "help.tips"}));
+    d.frames(2);
+    assert!(d.has("tips.window") && d.has("tips.next"));
+    assert_eq!(d.app().ui.tips.index, 0);
+    d.click("tips.next");
+    assert_eq!(d.app().ui.tips.index, 1);
+    d.click("tips.previous");
+    d.click("tips.previous");
+    assert_eq!(d.app().ui.tips.index, filmcraft_ui_egui::panels::tips::TIPS.len() - 1, "wraps around");
+    assert!(d.app().session.prefs.general.show_tips);
+    d.click("tips.atStart");
+    assert!(!d.app().session.prefs.general.show_tips, "turned off");
+}
+
+/// AI ▸ YouTube Thumbnail…: the frame at the playhead with the sequence's name as the title, a
+/// look chosen, drawn again.
+#[test]
+fn a_thumbnail_is_previewed_in_three_looks() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "ai.thumbnail"}));
+    d.frames(3);
+    assert!(d.has("thumb.window") && d.has("thumb.look.box"));
+    assert!(d.app().ui.thumbnail.preview.is_some(), "{}", d.app().ui.status);
+    assert!(!d.app().ui.thumbnail.title.is_empty(), "the sequence's name");
+    d.click("thumb.look.box");
+    assert_eq!(d.app().ui.thumbnail.look, "box");
+    assert!(d.app().ui.thumbnail.preview.is_some());
+}

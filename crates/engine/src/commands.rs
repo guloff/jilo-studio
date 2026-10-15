@@ -2947,6 +2947,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::sound_library::commands());
     v.extend(crate::speed_presets::commands());
     v.extend(crate::dubbing::commands());
+    v.extend(crate::thumbnail::commands());
     v.extend(crate::reframe::commands());
     v.extend(crate::updates::commands());
     v.extend(crate::updater::commands());

@@ -4487,3 +4487,31 @@
 	Transcribe first: AI ▸ Transcribe, then delete words in the transcript to cut them.	请先转录：AI ▸ 转录，然后在转录文本中删除词语即可剪掉它们。
 	Delete words in the transcript and the picture and sound are cut with them.	在转录文本中删除词语，画面和声音会随之剪掉。
 	The speech in another language: translated captions spoken by a voice.	另一种语言的语音：由语音朗读翻译后的字幕。
+# Thumbnail and tips
+	YouTube Thumbnail…	YouTube 缩略图…
+	Tips…	提示…
+	YouTube Thumbnail	YouTube 缩略图
+	The frame at the playhead: move it to pick another, then Preview.	播放头处的帧：移动播放头选择其他帧，然后点击预览。
+	Save…	保存…
+	Thumbnail saved: {path}	缩略图已保存：{path}
+	Red Box	红色底框
+	Yellow Banner	黄色横幅
+	The frame at the playhead with a big title, 1280×720.	播放头处的帧加大标题，1280×720。
+	Tips	提示
+	Tip {n} of {total}	提示 {n}/{total}
+	Show tips when FilmCraft starts	启动 Jilo Studio 时显示提示
+	Next Tip	下一条
+	Previous	上一条
+	Drop a video on the home screen: a vertical short with captions, or a clean talking head, in one click.	把视频拖到主屏幕：一键生成带字幕的竖屏短视频或干净的口播。
+	⌘J opens the command palette: type what you want to do, in your own words.	⌘J 打开命令面板：用自己的话输入想做的事。
+	AI ▸ Edit by Text: delete words in the transcript and the picture and sound are cut with them.	AI ▸ 按文本剪辑：在转录文本中删除词语，画面和声音随之剪掉。
+	Select a clip and quick actions appear under the picture: split, speed, reframe, delete.	选中剪辑后画面下方会出现快捷操作：分割、速度、重新构图、删除。
+	Right-click a transition in the Library to put it on every cut; an effect or a look on every clip.	在媒体库中右键转场即可应用到所有剪辑点；效果或调色风格应用到所有剪辑。
+	AI ▸ Cut into Shorts finds the best moments and makes vertical shorts with captions.	AI ▸ 剪成短视频会找出精彩时刻并生成带字幕的竖屏短视频。
+	The Stickers tab: emoji, arrows, stickers cut out of your clips; Attach to Face follows a face.	贴纸标签：表情、箭头、从剪辑中抠出的贴纸；“附着到人脸”会跟随人脸。
+	The Library's Audio tab has sound effects and music beds made on this computer, free to use.	媒体库的音频标签中有在这台电脑上生成的音效和背景音乐，可免费使用。
+	Export ▸ Social Platforms: TikTok, Reels and Shorts at the right size and loudness.	导出 ▸ 社交平台：TikTok、Reels 和 Shorts 的合适尺寸与响度。
+	AI ▸ Dub puts your speech into another language with a voice.	AI ▸ 配音用语音把你的话转换成另一种语言。
+	View ▸ Simple Mode hides what you don't need yet; everything stays in the menus and ⌘J.	视图 ▸ 简单模式会隐藏暂时用不到的内容；所有功能仍在菜单和 ⌘J 中。
+	Recipes record what you do and repeat it on another clip with one click.	配方会记录你的操作，并一键在另一个剪辑上重复。
+	Every AI step is one undo: ⌘Z puts it all back.	每个 AI 步骤都可一次撤销：⌘Z 即可全部恢复。

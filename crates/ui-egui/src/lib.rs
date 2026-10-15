@@ -1785,6 +1785,8 @@ impl FilmcraftApp {
         panels::ai_tasks::show(self, &ctx);
         panels::shorts::show(self, &ctx);
         panels::dubbing::show(self, &ctx);
+        panels::thumbnail::show(self, &ctx);
+        panels::tips::show(self, &ctx);
         panels::bg_removal::show(self);
         panels::highlights::show(self, &ctx);
         panels::autozoom::show(self, &ctx);

@@ -130,6 +130,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("mode.import", "Import", [], None),
     uic!("mode.edit", "Edit", [], None),
     uic!("mode.export", "Export", ["File", "Export"], Some("Cmd+M")),
+    uic!("help.tips", "Tips…", ["Help"], None),
     uic!("help.website", "FilmCraft Website", ["Help"], None),
     uic!("help.github", "FilmCraft on GitHub", ["Help"], None),
     uic!("help.reportIssue", "Report an Issue…", ["Help"], None),
@@ -163,6 +164,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("ai.cutIntoShorts", "Cut into Shorts…", ["AI"], None),
     uic!("ai.editByText", "Edit by Text", ["AI"], Some("Cmd+Alt+T")),
     uic!("ai.dub", "Dub…", ["AI"], None),
+    uic!("ai.thumbnail", "YouTube Thumbnail…", ["AI"], None),
     uic!("ai.assistant", "AI Assistant…", ["AI"], None),
     uic!("ai.recipes", "Recipes…", ["AI"], None),
     uic!("ai.textToSpeech", "Text to Speech…", ["AI"], None),
@@ -477,6 +479,13 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
                 app.ui.status = tl!("Transcribe first: AI ▸ Transcribe, then delete words in the transcript to cut them.").to_string();
             }
             return Ok(Value::Null);
+        }
+        "help.tips" => {
+            crate::panels::tips::open(app);
+            return Ok(Value::Null);
+        }
+        "ai.thumbnail" => {
+            return crate::panels::thumbnail::open(app);
         }
         "ai.dub" => {
             return crate::panels::dubbing::open(app);

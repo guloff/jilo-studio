@@ -83,6 +83,7 @@ pub mod source_monitor;
 pub mod speed_presets;
 pub mod stickers;
 pub mod sync;
+pub mod thumbnail;
 pub mod transcript;
 pub mod translate;
 pub mod trim;

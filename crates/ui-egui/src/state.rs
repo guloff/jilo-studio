@@ -713,6 +713,12 @@ pub struct UiState {
     /// AI ▸ Dub… (`panels::dubbing`).
     #[serde(skip)]
     pub dub: crate::panels::dubbing::DubUi,
+    /// AI ▸ YouTube Thumbnail… (`panels::thumbnail`).
+    #[serde(skip)]
+    pub thumbnail: crate::panels::thumbnail::ThumbUi,
+    /// Help ▸ Tips… (`panels::tips`).
+    #[serde(skip)]
+    pub tips: crate::panels::tips::TipsUi,
     /// AI ▸ Automatic Editing ▸ Auto Zoom…: the dialog and its choices.
     #[serde(default)]
     pub auto_zoom: AutoZoomUi,
@@ -1273,6 +1279,8 @@ impl Default for UiState {
             shorts: Default::default(),
             bg_removal: None,
             dub: Default::default(),
+            thumbnail: Default::default(),
+            tips: Default::default(),
             auto_zoom: AutoZoomUi::default(),
             reframe: ReframeUi::default(),
             updates: UpdatesUi::default(),

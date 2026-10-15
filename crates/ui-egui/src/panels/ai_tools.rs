@@ -112,6 +112,7 @@ const GROUPS: [(&str, &[Card]); 5] = [
         &[
             card("graphics.brandKit", "Brand Kit", "Logo, colours, fonts and captions in one click.", &[Sequence], None),
             card("youtube.generate", "YouTube Title and Chapters", "Title, description and chapters from what is said.", &[Transcript, TextKey], None),
+            card("ai.thumbnail", "YouTube Thumbnail", "The frame at the playhead with a big title, 1280×720.", &[Sequence], None),
             card("ai.generateImage", "Generate Image", "A picture from a description.", &[ImageKey], None),
         ],
     ),
