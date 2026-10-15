@@ -538,6 +538,7 @@ pub fn blocks_to_captions(blocks: &[CaptionBlock], words: &[SeqWord], ctx: &mut 
             speaker: b.speaker.clone(),
             cue_id: None,
             settings: String::new(),
+            style: None,
         })
         .collect()
 }

@@ -99,7 +99,7 @@ fn hex(c: [u8; 4]) -> String {
 
 /// Parameters of `captions.setStyle`: every field of [`CaptionStyle`]; `track: "all"` styles every
 /// caption track of the sequence in one undo step.
-const STYLE_PARAMS: &str = r##"{"track":id|"C1"|"all","font":str?,"fontStyle":str?,"size":f32?,"uppercase":bool?,"color":"#rrggbb[aa]"?,"background":bool?,"backgroundColor":"#rrggbbaa"?,"boxRadius":f32?,"align":"left|center|right"?,"anchor":"top|middle|bottom"?,"margin":0..0.45 (fraction of frame height)?,"lineSpacing":f32?,"outline":f32?,"outlineColor":str?,"shadow":bool?,"shadowColor":str?,"shadowOffset":[x,y]?,"shadowBlur":f32?,"highlight":"none|color|box"?,"highlightColor":str?,"highlightScale":1..2?,"chunkWords":0..8?,"animation":"none|fade|pop|slide|typewriter"?,"reset":bool?}"##;
+const STYLE_PARAMS: &str = r##"{"track":id|"C1"|"all","font":str?,"fontStyle":str?,"size":f32?,"uppercase":bool?,"color":"#rrggbb[aa]"?,"background":bool?,"backgroundColor":"#rrggbbaa"?,"boxRadius":f32?,"align":"left|center|right"?,"anchor":"top|middle|bottom"?,"margin":0..0.45 (fraction of frame height)?,"lineSpacing":f32?,"outline":f32?,"outlineColor":str?,"shadow":bool?,"shadowColor":str?,"shadowOffset":[x,y]?,"shadowBlur":f32?,"highlight":"none|color|box"?,"highlightColor":str?,"highlightScale":1..2?,"chunkWords":0..8?,"animation":"none|fade|pop|slide|typewriter"?,"tracking":-200..1000 (1/1000 em)?,"position":[x,y] (0..1, block centre)|null (back to anchor)?,"captions":[id]? (these phrases get a style of their own, from the track's),"own":false? (with captions: back to the track's style),"reset":bool?,"merge":bool? (a drag: one undo step),"begin":bool?}"##;
 
 /// A caption style as JSON (the `style` of `captions.inspect`, `captions.setStyle`'s parameters).
 pub fn style_json(y: &CaptionStyle) -> Value {
@@ -111,6 +111,7 @@ pub fn style_json(y: &CaptionStyle) -> Value {
         "shadow": y.shadow, "shadowColor": hex(y.shadow_color), "shadowOffset": y.shadow_offset, "shadowBlur": y.shadow_blur,
         "highlight": format!("{:?}", y.highlight).to_lowercase(), "highlightColor": hex(y.highlight_color), "highlightScale": y.highlight_scale,
         "chunkWords": y.chunk_words, "animation": format!("{:?}", y.animation).to_lowercase(),
+        "tracking": y.tracking, "position": y.position,
     })
 }
 
@@ -204,7 +205,25 @@ pub(crate) fn apply_style(y: &mut CaptionStyle, p: &Value, cmd: &str) -> Result<
         Some(o) => return Err(bad(cmd, format!("unknown align `{o}`"))),
         None => {}
     }
+    if let Some(v) = f64_p(p, "tracking") {
+        y.tracking = (v as f32).clamp(-200.0, 1000.0);
+    }
+    match p.get("position") {
+        Some(Value::Null) => y.position = None,
+        Some(Value::Array(a)) => {
+            let v: Vec<f32> = a.iter().filter_map(Value::as_f64).map(|v| (v as f32).clamp(0.0, 1.0)).collect();
+            let [x, y2] = v[..] else { return Err(bad(cmd, "`position` is [x, y] in 0..1, or null")) };
+            y.position = Some([x, y2]);
+        }
+        Some(_) => return Err(bad(cmd, "`position` is [x, y] in 0..1, or null")),
+        None => {}
+    }
     match str_p(p, "anchor") {
+        // a chosen anchor takes the block back from where it was dragged
+        Some(_) if p.get("position").is_none() && y.position.is_some() => {
+            y.position = None;
+            return apply_style(y, &json!({"anchor": p["anchor"]}), cmd);
+        }
         Some("top") => y.anchor = CaptionAnchor::Top,
         Some("middle") => y.anchor = CaptionAnchor::Middle,
         Some("bottom") => y.anchor = CaptionAnchor::Bottom,
@@ -229,7 +248,44 @@ fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
     // check the parameters once before the edit
     apply_style(&mut CaptionStyle::default(), p, cmd)?;
     let p = p.clone();
-    s.edit("Caption Style", |pr, st| {
+    // `merge`: a drag in the monitor is one undo step; `begin` starts a new one
+    let merge =
+        bool_p(&p, "merge").unwrap_or(false).then(|| format!("captionStyle:{}", p.get("captions").map_or_else(|| p["track"].to_string(), Value::to_string)));
+    if bool_p(&p, "begin").unwrap_or(false) {
+        s.history.merge_key = None;
+    }
+    // phrases of their own: the listed captions get (or keep) a style that starts as the track's
+    let own: Option<Vec<ClipId>> = p.get("captions").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).map(ClipId).collect());
+    if let Some(ids) = own {
+        let back = bool_p(&p, "own") == Some(false);
+        let label = if back { "Use Track Caption Style" } else { "Caption Style (Phrase)" };
+        let body = |pr: &mut filmcraft_project::Project, st: &mut crate::EditorState| {
+            let seq = st.active_sequence.ok_or(EngineError::NoSequence)?;
+            let q = pr.sequence_mut(seq).ok_or(EngineError::NoSequence)?;
+            let mut n = 0;
+            for t in &mut q.caption_tracks {
+                let base = t.style.clone();
+                for c in t.captions.iter_mut().filter(|c| ids.contains(&c.id)) {
+                    if back {
+                        c.style = None;
+                    } else {
+                        apply_style(c.style.get_or_insert_with(|| Box::new(base.clone())), &p, cmd)?;
+                    }
+                    n += 1;
+                }
+            }
+            if n == 0 {
+                return Err(bad(cmd, "none of `captions` is on this sequence"));
+            }
+            Ok(n)
+        };
+        let n = match &merge {
+            Some(k) => s.edit_merged(label, k, body)?,
+            None => s.edit(label, body)?,
+        };
+        return Ok(json!({"captions": n}));
+    }
+    let body = |pr: &mut filmcraft_project::Project, st: &mut crate::EditorState| {
         let seq = st.active_sequence.ok_or(EngineError::NoSequence)?;
         let q = pr.sequence_mut(seq).ok_or(EngineError::NoSequence)?;
         for tid in &tracks {
@@ -237,7 +293,11 @@ fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
             apply_style(&mut t.style, &p, cmd)?;
         }
         Ok(())
-    })?;
+    };
+    match &merge {
+        Some(k) => s.edit_merged("Caption Style", k, body)?,
+        None => s.edit("Caption Style", body)?,
+    }
     Ok(json!({"tracks": tracks.iter().map(|t| t.0).collect::<Vec<_>>()}))
 }
 
@@ -320,6 +380,7 @@ fn caption_json(s: &Session, c: &filmcraft_project::Caption) -> Value {
         "text": c.text,
         "speaker": c.speaker,
         "settings": c.settings,
+        "style": c.style.as_deref().map(style_json),
     })
 }
 

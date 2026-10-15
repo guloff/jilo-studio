@@ -219,6 +219,7 @@ fn captions_inside_a_nest_are_part_of_its_picture() {
         speaker: None,
         cue_id: None,
         settings: String::new(),
+        style: None,
         words: Vec::new(),
     });
     r.p.sequence_mut(inner).unwrap().caption_tracks.push(track);
@@ -255,6 +256,7 @@ fn captions_inside_a_nest_are_part_of_its_picture() {
         speaker: None,
         cue_id: None,
         settings: String::new(),
+        style: None,
         words: Vec::new(),
     });
     r.p.sequence_mut(outer).unwrap().caption_tracks.push(outer_track);

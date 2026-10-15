@@ -47,7 +47,17 @@ pub fn add_caption(seq: &mut Sequence, track: TrackId, start: Tick, duration: Ti
         return Err(EditError::TooShort);
     }
     let id = ClipId(ctx.alloc());
-    t.captions.push(Caption { id, start, duration: dur, text: text.to_string(), speaker: None, cue_id: None, settings: String::new(), words: Vec::new() });
+    t.captions.push(Caption {
+        id,
+        start,
+        duration: dur,
+        text: text.to_string(),
+        speaker: None,
+        cue_id: None,
+        settings: String::new(),
+        style: None,
+        words: Vec::new(),
+    });
     t.sort();
     Ok(id)
 }
@@ -312,6 +322,7 @@ mod tests {
                 speaker: None,
                 cue_id: None,
                 settings: String::new(),
+                style: None,
                 words: Vec::new(),
             });
         }

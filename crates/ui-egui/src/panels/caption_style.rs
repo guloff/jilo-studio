@@ -43,6 +43,8 @@ struct PanelMemory {
     track: usize,
     /// Changes go to every caption track.
     all: bool,
+    /// Changes go only to the selected captions (a style of their own).
+    phrase: bool,
 }
 
 fn memory_id() -> egui::Id {
@@ -77,8 +79,17 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         return;
     }
     mem.track = mem.track.min(tracks.len() - 1);
-    let (track_id, _, style) = tracks[mem.track].clone();
+    let (track_id, _, track_style) = tracks[mem.track].clone();
     let target = if mem.all { json!("all") } else { json!(track_id) };
+    // the selected captions on this track: they may get a style of their own
+    let phrases: Vec<(ClipId, Option<CaptionStyle>)> = app
+        .session
+        .active_sequence()
+        .and_then(|q| q.caption_tracks.get(mem.track))
+        .map(|tr| tr.captions.iter().filter(|c| app.session.state.caption_selection.contains(&c.id)).map(|c| (c.id, c.style.as_deref().cloned())).collect())
+        .unwrap_or_default();
+    let phrase_mode = mem.phrase && !phrases.is_empty();
+    let style = if phrase_mode { phrases[0].1.clone().unwrap_or_else(|| track_style.clone()) } else { track_style.clone() };
 
     // ---- target: track and "all"
     ui.horizontal(|ui| {
@@ -92,6 +103,19 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         let r = ui.checkbox(&mut mem.all, tl!("All caption tracks"));
         app.auto.add("captionStyle.all", r.rect, "All caption tracks");
     });
+    if !phrases.is_empty() {
+        ui.horizontal(|ui| {
+            let r = ui.checkbox(&mut mem.phrase, tlf!("Only the selected phrases ({n})", n = phrases.len()));
+            app.auto.add("captionStyle.phrase", r.rect, "Only the selected phrases");
+            if phrase_mode && phrases.iter().any(|p| p.1.is_some()) {
+                let r = ui.small_button(tl!("Use Track Style"));
+                app.auto.add("captionStyle.phraseReset", r.rect, "Use Track Style");
+                if r.clicked() {
+                    actions.push(("captions.setStyle".into(), json!({"captions": phrases.iter().map(|p| p.0.0).collect::<Vec<_>>(), "own": false})));
+                }
+            }
+        });
+    }
     ui.add_space(6.0);
 
     egui::ScrollArea::vertical().auto_shrink([false, false]).id_salt("caption-style-scroll").show(ui, |ui| {
@@ -163,7 +187,11 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         }
         my_styles(app, ui, &style, &target, sample, pack, &mut actions);
         ui.add_space(6.0);
-        let mut set = |field: &str, v: Value| actions.push(("captions.setStyle".into(), json!({"track": target, field: v})));
+        let phrase_ids: Vec<u64> = phrases.iter().map(|p| p.0.0).collect();
+        let mut set = |field: &str, v: Value| {
+            let q = if phrase_mode { json!({"captions": phrase_ids, field: v}) } else { json!({"track": target, field: v}) };
+            actions.push(("captions.setStyle".into(), q));
+        };
 
         // ---- text
         heading(ui, tl!("Text"), &t);
@@ -209,6 +237,14 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             app.auto.add("captionStyle.uppercase", r.rect, "ALL CAPS");
             if r.changed() {
                 set("uppercase", json!(up));
+            }
+        });
+        row(ui, tl!("Tracking"), |ui| {
+            let mut v = style.tracking;
+            let r = ui.add(egui::DragValue::new(&mut v).range(-200.0..=1000.0).speed(2.0));
+            app.auto.add("captionStyle.tracking", r.rect, "Tracking");
+            if commit(ui, &r) {
+                set("tracking", json!(v));
             }
         });
         row(ui, tl!("Color"), |ui| {
@@ -371,6 +407,16 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 }
             }
         });
+        if style.position.is_some() {
+            row(ui, tl!("Placed by Hand"), |ui| {
+                let r = ui.small_button(tl!("Put Back"));
+                app.auto.add("captionStyle.putBack", r.rect, "Put Back");
+                if r.clicked() {
+                    set("position", Value::Null);
+                }
+            });
+        }
+        ui.label(RichText::new(tl!("Select a caption and drag it in the Program monitor to place it anywhere.")).size(11.0).color(t.text_dim));
         row(ui, tl!("Edge Distance"), |ui| {
             let mut v = style.margin * 100.0;
             let r = ui.add(egui::DragValue::new(&mut v).range(0.0..=45.0).speed(0.2).suffix(" %"));
@@ -583,6 +629,7 @@ pub fn preview_rgba(style: &CaptionStyle, sample: &str) -> Vec<u8> {
         speaker: None,
         cue_id: None,
         settings: String::new(),
+        style: None,
         words: (0..n).map(|i| Tick(i * sec)).collect(),
     };
     if let Some(o) = filmcraft_captions::burn::render_caption_at(&cap, &zoomed(style, PREVIEW_ZOOM), w, h, Some(Tick(sec + sec / 2))) {

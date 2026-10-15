@@ -4334,3 +4334,9 @@ mode	Edit	Монтаж
 	Cut out: the sticker is in My Stickers and on the picture at the playhead.	Вырезано: стикер в «Моих стикерах» и на кадре у указателя.
 # My stickers
 	Sticker from Clip	Стикер из клипа
+# Caption position and phrases
+	Only the selected phrases ({n})	Только выделенные фразы ({n})
+	Use Track Style	Стиль дорожки
+	Placed by Hand	Размещено вручную
+	Put Back	Вернуть на место
+	Select a caption and drag it in the Program monitor to place it anywhere.	Выделите субтитр и перетащите его в мониторе программы, чтобы поставить в любое место.

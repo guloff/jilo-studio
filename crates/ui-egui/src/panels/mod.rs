@@ -11,6 +11,7 @@ pub mod autozoom;
 pub mod batch;
 pub mod brand_kit;
 pub mod broll;
+pub mod caption_drag;
 pub mod caption_style;
 pub mod clip_dialogs;
 pub mod clip_transform;

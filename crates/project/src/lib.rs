@@ -1992,6 +1992,7 @@ mod tests {
             speaker: Some("Ann".into()),
             cue_id: Some("1".into()),
             settings: "line:90%".into(),
+            style: None,
             words: Vec::new(),
         });
         p.sequence_mut(seq).unwrap().caption_tracks.push(ct);

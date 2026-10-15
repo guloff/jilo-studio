@@ -59,6 +59,7 @@ fn caption_style(style: &CaptionStyle, px: f32) -> TextStyle {
         style: or(&style.font_style, "SemiBold"),
         size: px,
         caps: if style.uppercase { Caps::All } else { Caps::Normal },
+        tracking: style.tracking.clamp(-200.0, 1000.0),
         ..Default::default()
     }
 }
@@ -190,6 +191,11 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
     let align = align_override.unwrap_or(style.align);
     let margin = style.margin.clamp(0.0, 0.45) * h as f32;
     let top = match (line_override, style.anchor) {
+        // dragged in the monitor: the block's centre, kept in the frame
+        _ if style.position.is_some() => {
+            let fy = style.position.map_or(0.5, |p| p[1]).clamp(0.0, 1.0);
+            (fy * h as f32 - block_h / 2.0).clamp(0.0, (h as f32 - block_h).max(0.0))
+        }
         (Some(f), _) => (f * h as f32).min(h as f32 - block_h),
         (None, CaptionAnchor::Top) => margin,
         (None, CaptionAnchor::Middle) => (h as f32 - block_h) / 2.0,
@@ -219,12 +225,21 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
             widths[li] = x;
         }
     }
+    // a dragged block: lines aligned within it, around its centre
+    let block = style.position.map(|p| {
+        let bw = widths.iter().copied().fold(0.0f32, f32::max);
+        let left = (p[0].clamp(0.0, 1.0) * w as f32 - bw / 2.0).clamp(pad_x, (w as f32 - bw - pad_x).max(pad_x));
+        (left, bw)
+    });
     let xs: Vec<f32> = widths
         .iter()
-        .map(|&lw| match align {
-            CaptionAlign::Left => side + pad_x,
-            CaptionAlign::Right => w as f32 - side - pad_x - lw,
-            CaptionAlign::Center => (w as f32 - lw) / 2.0,
+        .map(|&lw| match (block, align) {
+            (Some((left, _)), CaptionAlign::Left) => left,
+            (Some((left, bw)), CaptionAlign::Right) => left + bw - lw,
+            (Some((left, bw)), CaptionAlign::Center) => left + (bw - lw) / 2.0,
+            (None, CaptionAlign::Left) => side + pad_x,
+            (None, CaptionAlign::Right) => w as f32 - side - pad_x - lw,
+            (None, CaptionAlign::Center) => (w as f32 - lw) / 2.0,
         })
         .collect();
     let outline = (style.outline * scale).max(0.0);
@@ -460,7 +475,7 @@ pub fn track_overlay(track: &CaptionTrack, t: Tick, w: usize, h: usize) -> Optio
         return None;
     }
     let c = track.caption_at(t)?;
-    render_caption_at(c, &track.style, w, h, Some(t - c.start))
+    render_caption_at(c, c.style_or(&track.style), w, h, Some(t - c.start))
 }
 
 /// Overlays of every visible caption track of a sequence at `t`, bottom track first.
@@ -482,6 +497,7 @@ mod tests {
             speaker: None,
             cue_id: None,
             settings: String::new(),
+            style: None,
             words: Vec::new(),
         }
     }
@@ -628,5 +644,29 @@ mod tests {
         assert!(track_overlay(&t, Tick(5), 100, 100).is_some());
         t.enabled = false;
         assert!(track_overlay(&t, Tick(5), 100, 100).is_none());
+    }
+
+    #[test]
+    fn tracking_position_and_a_phrase_of_its_own() {
+        let c = cap("Spread out");
+        let base = CaptionStyle { background: false, ..Default::default() };
+        let tight = render_caption(&c, &base, 1920, 1080).unwrap();
+        let wide = render_caption(&c, &CaptionStyle { tracking: 300.0, ..base.clone() }, 1920, 1080).unwrap();
+        assert!(wide.w > tight.w + 50, "tracking spreads the letters: {} → {}", tight.w, wide.w);
+        // dragged to the top left quarter: centred there
+        let moved = render_caption(&c, &CaptionStyle { position: Some([0.25, 0.25]), ..base.clone() }, 1920, 1080).unwrap();
+        let (cx, cy) = (moved.x + moved.w as i32 / 2, moved.y + moved.h as i32 / 2);
+        assert!((cx - 480).abs() < 12 && (cy - 270).abs() < 12, "centre at ({cx}, {cy})");
+        // kept inside the frame when dragged past an edge
+        let edge = render_caption(&c, &CaptionStyle { position: Some([1.0, 1.0]), ..base.clone() }, 1920, 1080).unwrap();
+        assert!(edge.x + edge.w as i32 <= 1920 + 8 && edge.y + edge.h as i32 <= 1080 + 8, "{:?}", (edge.x, edge.y, edge.w, edge.h));
+        // a caption with a style of its own draws in it, the others in the track's
+        let mut t = CaptionTrack::new(TrackId(1), "T".into(), CaptionFormat::Subtitle);
+        t.style = base.clone();
+        let mut own = cap("Spread out");
+        own.style = Some(Box::new(CaptionStyle { position: Some([0.25, 0.25]), ..base.clone() }));
+        t.captions = vec![own];
+        let o = track_overlay(&t, Tick(1), 1920, 1080).unwrap();
+        assert_eq!((o.x, o.y), (moved.x, moved.y));
     }
 }

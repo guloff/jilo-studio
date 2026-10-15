@@ -221,3 +221,38 @@ fn an_edit_is_refused_only_for_an_overlap_of_its_own() {
     let r = s.execute("captions.setTimes", json!({"caption": caps[1].id.0, "endTime": (caps[2].start + sec(1.0)).0}));
     assert!(r.is_err(), "a new overlap is refused: {r:?}");
 }
+
+/// Letter spacing and a dragged position on the track; one phrase set apart with a style of its
+/// own (starting as the track's), and back to the track's; all undoable.
+#[test]
+fn tracking_position_and_a_phrase_style() {
+    let mut s = demo();
+    s.execute("captions.newTrack", json!({})).unwrap();
+    let sec = |x: f64| Tick::from_seconds_f64(x);
+    for t in [2.0, 12.0] {
+        s.set_playhead(sec(t));
+        s.execute("captions.add", json!({"text": "Hello there"})).unwrap();
+    }
+    s.execute("captions.setStyle", json!({"tracking": 120, "position": [0.3, 0.2]})).unwrap();
+    let st = s.active_sequence().unwrap().caption_tracks[0].style.clone();
+    assert_eq!((st.tracking, st.position), (120.0, Some([0.3, 0.2])));
+    // choosing an anchor puts the block back in its place
+    s.execute("captions.setStyle", json!({"anchor": "top"})).unwrap();
+    assert_eq!(s.active_sequence().unwrap().caption_tracks[0].style.position, None);
+    assert!(s.execute("captions.setStyle", json!({"position": [1]})).is_err());
+    // one phrase in yellow, the other as the track
+    let id = s.active_sequence().unwrap().caption_tracks[0].captions[1].id;
+    s.execute("captions.setStyle", json!({"captions": [id.0], "color": "#ffdd00"})).unwrap();
+    let q = s.active_sequence().unwrap();
+    let t = &q.caption_tracks[0];
+    assert_eq!(t.captions[1].style.as_ref().unwrap().color, [255, 221, 0, 255]);
+    assert_eq!(t.captions[1].style.as_ref().unwrap().tracking, 120.0, "starts as the track's");
+    assert!(t.captions[0].style.is_none());
+    // the track's style no longer reaches it
+    s.execute("captions.setStyle", json!({"size": 80})).unwrap();
+    assert_ne!(s.active_sequence().unwrap().caption_tracks[0].captions[1].style.as_ref().unwrap().size, 80.0);
+    s.execute("captions.setStyle", json!({"captions": [id.0], "own": false})).unwrap();
+    assert!(s.active_sequence().unwrap().caption_tracks[0].captions[1].style.is_none());
+    s.execute("edit.undo", json!({})).unwrap();
+    assert!(s.active_sequence().unwrap().caption_tracks[0].captions[1].style.is_some());
+}

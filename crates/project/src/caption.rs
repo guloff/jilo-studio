@@ -141,6 +141,11 @@ pub struct CaptionStyle {
     /// Show this many words at a time around the spoken one (0 = the whole caption).
     pub chunk_words: u8,
     pub animation: CaptionAnimation,
+    /// Letter spacing in 1/1000 em (0 = the font's own).
+    pub tracking: f32,
+    /// Where the caption block is centred, as fractions of the frame `[x, y]` (dragged in the
+    /// Program monitor); None: placed by `anchor` and `margin`.
+    pub position: Option<[f32; 2]>,
 }
 
 impl Default for CaptionStyle {
@@ -169,6 +174,8 @@ impl Default for CaptionStyle {
             highlight_scale: 1.0,
             chunk_words: 0,
             animation: CaptionAnimation::None,
+            tracking: 0.0,
+            position: None,
         }
     }
 }
@@ -195,9 +202,16 @@ pub struct Caption {
     /// they match the words of the text; otherwise word times are estimated from word lengths.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub words: Vec<Tick>,
+    /// This caption's own style (a phrase set apart); None: the track's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<Box<CaptionStyle>>,
 }
 
 impl Caption {
+    /// The style this caption is drawn in: its own, else its track's `track`.
+    pub fn style_or<'a>(&'a self, track: &'a CaptionStyle) -> &'a CaptionStyle {
+        self.style.as_deref().unwrap_or(track)
+    }
     pub fn end(&self) -> Tick {
         self.start + self.duration
     }
@@ -431,6 +445,7 @@ mod tests {
                 speaker: None,
                 cue_id: None,
                 settings: String::new(),
+                style: None,
                 words: Vec::new(),
             });
         }
@@ -453,6 +468,7 @@ mod tests {
                 speaker: None,
                 cue_id: None,
                 settings: String::new(),
+                style: None,
                 words: Vec::new(),
             });
         }

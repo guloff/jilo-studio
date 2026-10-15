@@ -214,6 +214,7 @@ fn caption_burn_in_h264_ffmpeg_oracle() {
         speaker: None,
         cue_id: None,
         settings: String::new(),
+        style: None,
         words: Vec::new(),
     });
     let q = p.sequence_mut(seq).unwrap();
