@@ -137,6 +137,9 @@ printf 'APPL????' >"$APP/Contents/PkgInfo"
 # and the embedded craft-fonts fonts (builds with CRAFT_FONTS_DIR)
 mkdir -p "$APP/Contents/Resources/Licenses"
 for f in LICENSE-MIT LICENSE-APACHE NOTICE ATTRIBUTION.md; do cp "$ROOT/$f" "$APP/Contents/Resources/Licenses/"; done
+# the third-party crates the binaries are built from, with their licence texts, and what the app
+# downloads on request
+(cd "$ROOT" && cargo xtask licenses --out "$APP/Contents/Resources/Licenses/THIRD-PARTY-LICENSES.md")
 cp "$ROOT/assets/brand/jilo/LICENSE-brand.txt" "$APP/Contents/Resources/Licenses/LICENSE-Jilo-brand.txt"
 copy_font_licences "$APP/Contents/Resources"
 

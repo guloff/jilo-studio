@@ -4515,3 +4515,6 @@
 	View ▸ Simple Mode hides what you don't need yet; everything stays in the menus and ⌘J.	视图 ▸ 简单模式会隐藏暂时用不到的内容；所有功能仍在菜单和 ⌘J 中。
 	Recipes record what you do and repeat it on another clip with one click.	配方会记录你的操作，并一键在另一个剪辑上重复。
 	Every AI step is one undo: ⌘Z puts it all back.	每个 AI 步骤都可一次撤销：⌘Z 即可全部恢复。
+# Licenses
+	Third-Party Licenses	第三方许可
+	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	许可列表位于打包后的应用中（Resources/Licenses），由 `cargo xtask licenses` 生成。

@@ -135,6 +135,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("help.github", "FilmCraft on GitHub", ["Help"], None),
     uic!("help.reportIssue", "Report an Issue…", ["Help"], None),
     uic!("help.upstream", "Based on FilmCraft by the ArtCraft Team", ["Help"], None),
+    uic!("help.licenses", "Third-Party Licenses", ["Help"], None),
     uic!("help.revealLogFiles", "Reveal Log Files…", ["Help"], None),
     uic!("help.systemCompatibilityReport", "System Compatibility Report…", ["Help"], None),
     uic!("app.about", "About FilmCraft", ["Help"], None),
@@ -478,6 +479,17 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
             if filmcraft_engine::transcript::sequence_words(&app.session).is_empty() {
                 app.ui.status = tl!("Transcribe first: AI ▸ Transcribe, then delete words in the transcript to cut them.").to_string();
             }
+            return Ok(Value::Null);
+        }
+        // the list in the app bundle (Resources/Licenses), made when the app is packaged
+        "help.licenses" => {
+            let file = std::env::current_exe()
+                .ok()
+                .and_then(|e| e.parent().and_then(|m| m.parent()).map(|c| c.join("Resources/Licenses/THIRD-PARTY-LICENSES.md")))
+                .filter(|f| f.is_file())
+                .ok_or_else(|| tl!("The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.").to_string())?;
+            let open = app.hooks.open_path.as_mut().ok_or("no way to open files here")?;
+            open(&file.to_string_lossy(), false)?;
             return Ok(Value::Null);
         }
         "help.tips" => {

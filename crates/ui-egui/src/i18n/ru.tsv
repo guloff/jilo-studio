@@ -4475,3 +4475,6 @@ mode	Edit	Монтаж
 	View ▸ Simple Mode hides what you don't need yet; everything stays in the menus and ⌘J.	Вид ▸ Простой режим прячет то, что пока не нужно; всё остаётся в меню и в ⌘J.
 	Recipes record what you do and repeat it on another clip with one click.	Рецепты записывают ваши действия и повторяют их на другом клипе одним щелчком.
 	Every AI step is one undo: ⌘Z puts it all back.	Каждый шаг AI отменяется одним действием: ⌘Z возвращает всё как было.
+# Licenses
+	Third-Party Licenses	Лицензии сторонних компонентов
+	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	Список лицензий лежит в собранном приложении (Resources/Licenses); его создаёт `cargo xtask licenses`.

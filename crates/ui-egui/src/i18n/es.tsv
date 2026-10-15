@@ -4480,3 +4480,6 @@
 	View ▸ Simple Mode hides what you don't need yet; everything stays in the menus and ⌘J.	Ver ▸ Modo simple oculta lo que aún no necesitas; todo sigue en los menús y en ⌘J.
 	Recipes record what you do and repeat it on another clip with one click.	Las recetas graban lo que haces y lo repiten en otro clip con un clic.
 	Every AI step is one undo: ⌘Z puts it all back.	Cada paso de IA se deshace de una vez: ⌘Z lo devuelve todo.
+# Licenses
+	Third-Party Licenses	Licencias de terceros
+	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	La lista de licencias está en la app empaquetada (Resources/Licenses); la crea `cargo xtask licenses`.
