@@ -105,6 +105,8 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
         .open(&mut open)
         .default_size(vec2(520.0, 560.0))
         .collapsible(true)
+        .pivot(egui::Align2::CENTER_CENTER)
+        .default_pos(ctx.content_rect().center())
         .show(ctx, |ui| {
             app.auto.add("brandKit.window", ui.max_rect(), "Brand Kit");
             let b = &mut app.ui.brand_kit;

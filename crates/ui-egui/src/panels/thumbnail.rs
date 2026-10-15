@@ -71,9 +71,14 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let t = app.tokens;
     let mut open = true;
     let (mut again, mut save) = (false, false);
-    crate::dialog_style::Window::new(tl!("YouTube Thumbnail")).id(egui::Id::new("yt-thumbnail")).open(&mut open).collapsible(false).resizable(false).show(
-        ctx,
-        |ui| {
+    crate::dialog_style::Window::new(tl!("YouTube Thumbnail"))
+        .id(egui::Id::new("yt-thumbnail"))
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .pivot(egui::Align2::CENTER_CENTER)
+        .default_pos(ctx.content_rect().center())
+        .show(ctx, |ui| {
             ui.set_width(520.0);
             app.auto.add("thumb.window", ui.min_rect(), "YouTube Thumbnail");
             if let Some((_, tex)) = &app.ui.thumbnail.preview {
@@ -105,8 +110,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                 app.auto.add("thumb.preview", p.rect, "Preview");
                 again |= p.clicked();
             });
-        },
-    );
+        });
     if again && let Err(e) = draw(app, ctx, &tmp) {
         app.ui.status = e;
     }

@@ -221,6 +221,41 @@ fn tips_are_shown_one_at_a_time() {
     assert!(!d.app().session.prefs.general.show_tips, "turned off");
 }
 
+/// Tips, the YouTube thumbnail, the brand kit, recipes and the colour dialogs open in the middle
+/// of the window: at its top-left corner they covered the header's Import / Edit / Export tabs.
+#[test]
+fn windows_open_in_the_middle() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    for (open, element) in [
+        ("help.tips", "tips.next"),
+        ("ai.thumbnail", "thumb.window"),
+        ("graphics.brandKit", "brandKit.window"),
+        ("ai.recipes", "recipes.window"),
+        ("sequence.colorSettings", "colorDialog.ok"),
+    ] {
+        d.app().ui.tips.open = false;
+        d.ok("ui.menu.invoke", json!({"id": open}));
+        d.frames(4);
+        let els = d.ok("ui.elements", json!({"prefix": element}));
+        let r = els
+            .as_array()
+            .and_then(|a| a.iter().find(|e| e["id"] == element))
+            .map(|e| e["rect"].clone())
+            .unwrap_or_else(|| panic!("{open}: no {element} in {els}"));
+        let (x, y, w) = (r[0].as_f64().unwrap_or(0.0), r[1].as_f64().unwrap_or(0.0), r[2].as_f64().unwrap_or(0.0));
+        let mid = x + w / 2.0;
+        assert!((500.0..=1100.0).contains(&mid) && y > 60.0, "{open}: {element} at {r} is not in the middle of a 1600×980 window");
+        d.ok("ui.key", json!({"key": "Escape"}));
+        d.app().ui.brand_kit.open = false;
+        d.app().ui.recipes.open = false;
+        d.app().ui.thumbnail.open = false;
+        d.app().ui.color_dialog = None;
+        d.frames(2);
+    }
+}
+
 /// AI ▸ YouTube Thumbnail…: the frame at the playhead with the sequence's name as the title, a
 /// look chosen, drawn again.
 #[test]

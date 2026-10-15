@@ -46,30 +46,37 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let mut open = true;
     let mut at_start = app.session.prefs.general.show_tips;
     let i = app.ui.tips.index % TIPS.len();
-    crate::dialog_style::Window::new(tl!("Tips")).id(egui::Id::new("tips-window")).open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
-        ui.set_width(420.0);
-        app.auto.add("tips.window", ui.min_rect(), "Tips");
-        ui.label(RichText::new(tlf!("Tip {n} of {total}", n = i + 1, total = TIPS.len())).small().color(t.text_dim));
-        ui.add_space(4.0);
-        ui.add(egui::Label::new(RichText::new(crate::i18n::t(TIPS[i])).size(15.0)).wrap());
-        ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            let r = ui.checkbox(&mut at_start, tl!("Show tips when FilmCraft starts"));
-            app.auto.add("tips.atStart", r.rect, "Show tips at start");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let n = ui.button(tl!("Next Tip"));
-                app.auto.add("tips.next", n.rect, "Next Tip");
-                if n.clicked() {
-                    app.ui.tips.index = (i + 1) % TIPS.len();
-                }
-                let p = ui.button(tl!("Previous"));
-                app.auto.add("tips.previous", p.rect, "Previous");
-                if p.clicked() {
-                    app.ui.tips.index = (i + TIPS.len() - 1) % TIPS.len();
-                }
+    crate::dialog_style::Window::new(tl!("Tips"))
+        .id(egui::Id::new("tips-window"))
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .pivot(egui::Align2::CENTER_CENTER)
+        .default_pos(ctx.content_rect().center())
+        .show(ctx, |ui| {
+            ui.set_width(420.0);
+            app.auto.add("tips.window", ui.min_rect(), "Tips");
+            ui.label(RichText::new(tlf!("Tip {n} of {total}", n = i + 1, total = TIPS.len())).small().color(t.text_dim));
+            ui.add_space(4.0);
+            ui.add(egui::Label::new(RichText::new(crate::i18n::t(TIPS[i])).size(15.0)).wrap());
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                let r = ui.checkbox(&mut at_start, tl!("Show tips when FilmCraft starts"));
+                app.auto.add("tips.atStart", r.rect, "Show tips at start");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let n = ui.button(tl!("Next Tip"));
+                    app.auto.add("tips.next", n.rect, "Next Tip");
+                    if n.clicked() {
+                        app.ui.tips.index = (i + 1) % TIPS.len();
+                    }
+                    let p = ui.button(tl!("Previous"));
+                    app.auto.add("tips.previous", p.rect, "Previous");
+                    if p.clicked() {
+                        app.ui.tips.index = (i + TIPS.len() - 1) % TIPS.len();
+                    }
+                });
             });
         });
-    });
     if at_start != app.session.prefs.general.show_tips {
         let _ = app.session.execute("prefs.set", json!({"key": "general.showTips", "value": at_start}));
     }
