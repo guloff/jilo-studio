@@ -74,6 +74,8 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, area: Rect) {
     ui.painter().rect_filled(bar, 18.0, Color32::from_black_alpha(170));
     let mut x = bar.min.x + 4.0;
     let mut run: Option<&str> = None;
+    let menu_id = egui::Id::new("quick-speed-menu");
+    let mut speed_button: Option<Rect> = None;
     for ((id, label), w) in list.iter().zip(&widths) {
         let r = Rect::from_min_size(pos2(x, bar.min.y + 4.0), vec2(*w, h));
         let enabled =
@@ -86,10 +88,59 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, area: Rect) {
         }
         let col = if enabled { Color32::WHITE } else { Color32::from_white_alpha(90) };
         ui.painter().text(r.center(), Align2::CENTER_CENTER, shown, font.clone(), col);
+        if *id == "clip.speedDuration" {
+            speed_button = Some(r);
+        }
         if resp.clicked() {
             run = Some(id);
         }
         x += w + 4.0;
+    }
+    // Speed: the presets in a menu above the button (and the full dialog at its end)
+    if run == Some("clip.speedDuration") {
+        let open = ui.ctx().data(|d| d.get_temp::<bool>(menu_id).unwrap_or(false));
+        ui.ctx().data_mut(|d| d.insert_temp(menu_id, !open));
+        run = None;
+    }
+    if ui.ctx().data(|d| d.get_temp::<bool>(menu_id).unwrap_or(false))
+        && let Some(b) = speed_button
+    {
+        let mut pick: Option<&str> = None;
+        let mut dialog = false;
+        let area = egui::Area::new(menu_id.with("area"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(pos2(b.min.x, b.min.y - 8.0))
+            .pivot(Align2::LEFT_BOTTOM)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    for (id, name) in filmcraft_engine::speed_presets::PRESETS {
+                        let r = ui.button(crate::i18n::t(name));
+                        app.auto.add(&format!("quick.speed.{id}"), r.rect, name);
+                        if r.clicked() {
+                            pick = Some(id);
+                        }
+                    }
+                    ui.separator();
+                    let r = ui.button(tl!("Speed/Duration…"));
+                    app.auto.add("quick.speed.dialog", r.rect, "Speed/Duration…");
+                    dialog = r.clicked();
+                });
+            });
+        let away = ui.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !b.contains(ui.input(|i| i.pointer.interact_pos().unwrap_or_default()));
+        if pick.is_some() || dialog || away || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            ui.ctx().data_mut(|d| d.insert_temp(menu_id, false));
+        }
+        if let Some(p) = pick {
+            app.ui.status = match app.session.execute("clip.speedPreset", json!({"preset": p})) {
+                Ok(_) => tl!("Speed changed.").to_string(),
+                Err(e) => e.to_string(),
+            };
+        }
+        if dialog {
+            run = Some("clip.speedDuration");
+        }
     }
     if let Some(id) = run {
         let ctx = ui.ctx().clone();

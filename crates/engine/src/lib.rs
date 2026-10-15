@@ -79,6 +79,7 @@ pub mod shorts;
 pub mod silence_tools;
 pub mod sound_library;
 pub mod source_monitor;
+pub mod speed_presets;
 pub mod stickers;
 pub mod sync;
 pub mod transcript;

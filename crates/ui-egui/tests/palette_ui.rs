@@ -121,6 +121,14 @@ fn quick_actions_follow_the_selection() {
     d.exec("timeline.select", json!({"clips": [clip.0]}));
     d.frames(3);
     assert!(d.has("quick.sequence.addEdit") && d.has("quick.clip.speedDuration") && d.has("quick.clip.reframeToFace"));
+    // Speed: the presets in a menu
+    d.click("quick.clip.speedDuration");
+    assert!(d.has("quick.speed.2") && d.has("quick.speed.freeze") && d.has("quick.speed.dialog"), "the speed menu");
+    d.click("quick.speed.2");
+    assert!((d.app().session.active_sequence().unwrap().find_item(clip).unwrap().1.speed - 2.0).abs() < 1e-9, "{}", d.app().ui.status);
+    assert!(!d.has("quick.speed.2"), "the menu closes");
+    d.exec("edit.undo", json!({}));
+    d.frames(2);
     let n = d.app().session.active_sequence().unwrap().video_tracks[0].items.len();
     d.click("quick.sequence.addEdit");
     assert!(d.app().session.active_sequence().unwrap().video_tracks[0].items.len() > n, "Split cut the clip at the playhead");

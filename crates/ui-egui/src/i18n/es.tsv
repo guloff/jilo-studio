@@ -4404,3 +4404,31 @@
 	Removing the background: every frame is analysed on this computer…	Quitando el fondo: cada fotograma se analiza en este ordenador…
 	The background is removed.	Fondo quitado.
 	The person or subject cut out of the video, on this computer.	La persona u objeto recortado del vídeo, en este ordenador.
+# Speed presets and platforms
+	×0.25 Slow Motion	×0,25 cámara lenta
+	×0.5	×0,5
+	×1 Normal	×1 normal
+	×1.5	×1,5
+	×2	×2
+	×4 Fast	×4 rápido
+	Slow-Motion Moment	Momento en cámara lenta
+	Freeze Frame	Congelar fotograma
+	Speed changed.	Velocidad cambiada.
+	Speed Preset	Velocidad predefinida
+	Social Platforms	Redes sociales
+	TikTok 1080×1920	TikTok 1080×1920
+	Instagram Reels 1080×1920	Instagram Reels 1080×1920
+	YouTube Shorts 1080×1920	YouTube Shorts 1080×1920
+	Instagram Feed 1080×1350	Instagram feed 1080×1350
+	Instagram Square 1080×1080	Instagram cuadrado 1080×1080
+	YouTube 1080p (loudness −14)	YouTube 1080p (sonoridad −14)
+	Telegram 1080p	Telegram 1080p
+	X (Twitter) 1080p	X (Twitter) 1080p
+	9:16, H.264 12 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16, H.264 12 Mbps, AAC 320 kbps, sonoridad −14 LUFS
+	9:16, H.264 10 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16, H.264 10 Mbps, AAC 320 kbps, sonoridad −14 LUFS
+	9:16, H.264 15 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16, H.264 15 Mbps, AAC 320 kbps, sonoridad −14 LUFS
+	4:5 portrait for the feed, H.264 10 Mbps, loudness −14 LUFS	4:5 vertical para el feed, H.264 10 Mbps, sonoridad −14 LUFS
+	1:1, H.264 8 Mbps, loudness −14 LUFS	1:1, H.264 8 Mbps, sonoridad −14 LUFS
+	16:9, H.264 16 Mbps, AAC 320 kbps, loudness −14 LUFS	16:9, H.264 16 Mbps, AAC 320 kbps, sonoridad −14 LUFS
+	16:9, H.264 6 Mbps for a light file, loudness −16 LUFS	16:9, H.264 6 Mbps para un archivo ligero, sonoridad −16 LUFS
+	16:9, H.264 10 Mbps, loudness −14 LUFS	16:9, H.264 10 Mbps, sonoridad −14 LUFS

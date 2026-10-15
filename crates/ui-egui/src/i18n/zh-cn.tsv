@@ -4439,3 +4439,31 @@
 	Removing the background: every frame is analysed on this computer…	正在移除背景：每一帧都在这台电脑上分析…
 	The background is removed.	背景已移除。
 	The person or subject cut out of the video, on this computer.	在这台电脑上把人物或主体从视频中抠出。
+# Speed presets and platforms
+	×0.25 Slow Motion	×0.25 慢动作
+	×0.5	×0.5
+	×1 Normal	×1 正常
+	×1.5	×1.5
+	×2	×2
+	×4 Fast	×4 快速
+	Slow-Motion Moment	慢动作片段
+	Freeze Frame	定格帧
+	Speed changed.	速度已更改。
+	Speed Preset	速度预设
+	Social Platforms	社交平台
+	TikTok 1080×1920	TikTok 1080×1920
+	Instagram Reels 1080×1920	Instagram Reels 1080×1920
+	YouTube Shorts 1080×1920	YouTube Shorts 1080×1920
+	Instagram Feed 1080×1350	Instagram 动态 1080×1350
+	Instagram Square 1080×1080	Instagram 方形 1080×1080
+	YouTube 1080p (loudness −14)	YouTube 1080p（响度 −14）
+	Telegram 1080p	Telegram 1080p
+	X (Twitter) 1080p	X (Twitter) 1080p
+	9:16, H.264 12 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16，H.264 12 Mbps，AAC 320 kbps，响度 −14 LUFS
+	9:16, H.264 10 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16，H.264 10 Mbps，AAC 320 kbps，响度 −14 LUFS
+	9:16, H.264 15 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16，H.264 15 Mbps，AAC 320 kbps，响度 −14 LUFS
+	4:5 portrait for the feed, H.264 10 Mbps, loudness −14 LUFS	4:5 竖版动态，H.264 10 Mbps，响度 −14 LUFS
+	1:1, H.264 8 Mbps, loudness −14 LUFS	1:1，H.264 8 Mbps，响度 −14 LUFS
+	16:9, H.264 16 Mbps, AAC 320 kbps, loudness −14 LUFS	16:9，H.264 16 Mbps，AAC 320 kbps，响度 −14 LUFS
+	16:9, H.264 6 Mbps for a light file, loudness −16 LUFS	16:9，H.264 6 Mbps 轻量文件，响度 −16 LUFS
+	16:9, H.264 10 Mbps, loudness −14 LUFS	16:9，H.264 10 Mbps，响度 −14 LUFS

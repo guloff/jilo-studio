@@ -4399,3 +4399,31 @@ mode	Edit	Монтаж
 	Removing the background: every frame is analysed on this computer…	Удаляю фон: каждый кадр анализируется на этом компьютере…
 	The background is removed.	Фон удалён.
 	The person or subject cut out of the video, on this computer.	Человек или объект вырезается из видео прямо на этом компьютере.
+# Speed presets and platforms
+	×0.25 Slow Motion	×0,25 замедление
+	×0.5	×0,5
+	×1 Normal	×1 обычная
+	×1.5	×1,5
+	×2	×2
+	×4 Fast	×4 ускорение
+	Slow-Motion Moment	Замедленный момент
+	Freeze Frame	Стоп-кадр
+	Speed changed.	Скорость изменена.
+	Speed Preset	Пресет скорости
+	Social Platforms	Соцсети
+	TikTok 1080×1920	TikTok 1080×1920
+	Instagram Reels 1080×1920	Instagram Reels 1080×1920
+	YouTube Shorts 1080×1920	YouTube Shorts 1080×1920
+	Instagram Feed 1080×1350	Instagram лента 1080×1350
+	Instagram Square 1080×1080	Instagram квадрат 1080×1080
+	YouTube 1080p (loudness −14)	YouTube 1080p (громкость −14)
+	Telegram 1080p	Telegram 1080p
+	X (Twitter) 1080p	X (Twitter) 1080p
+	9:16, H.264 12 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16, H.264 12 Мбит/с, AAC 320 кбит/с, громкость −14 LUFS
+	9:16, H.264 10 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16, H.264 10 Мбит/с, AAC 320 кбит/с, громкость −14 LUFS
+	9:16, H.264 15 Mbps, AAC 320 kbps, loudness −14 LUFS	9:16, H.264 15 Мбит/с, AAC 320 кбит/с, громкость −14 LUFS
+	4:5 portrait for the feed, H.264 10 Mbps, loudness −14 LUFS	4:5 для ленты, H.264 10 Мбит/с, громкость −14 LUFS
+	1:1, H.264 8 Mbps, loudness −14 LUFS	1:1, H.264 8 Мбит/с, громкость −14 LUFS
+	16:9, H.264 16 Mbps, AAC 320 kbps, loudness −14 LUFS	16:9, H.264 16 Мбит/с, AAC 320 кбит/с, громкость −14 LUFS
+	16:9, H.264 6 Mbps for a light file, loudness −16 LUFS	16:9, H.264 6 Мбит/с — лёгкий файл, громкость −16 LUFS
+	16:9, H.264 10 Mbps, loudness −14 LUFS	16:9, H.264 10 Мбит/с, громкость −14 LUFS

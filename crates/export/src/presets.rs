@@ -87,6 +87,13 @@ fn audio_only(format: Format, bits: u16) -> ExportSettings {
     }
 }
 
+/// H.264 for a social platform: `size`, filled, at `kbps`, the mix normalised to `lufs` with a −1 dBTP ceiling.
+fn social(size: (u32, u32), kbps: u32, lufs: f64) -> ExportSettings {
+    let mut s = ExportSettings { scaling: Scaling::ScaleToFill, ..h264(Some(size), kbps, kbps + kbps / 4) };
+    s.effects.loudness = crate::settings::LoudnessNormalization { enabled: true, target_lufs: lufs, true_peak_dbtp: -1.0 };
+    s
+}
+
 fn p(name: &str, category: &str, description: &str, settings: ExportSettings) -> ExportPreset {
     ExportPreset { name: name.into(), category: category.into(), description: description.into(), settings, builtin: true }
 }
@@ -95,6 +102,7 @@ fn p(name: &str, category: &str, description: &str, settings: ExportSettings) ->
 pub fn builtin_presets() -> Vec<ExportPreset> {
     let ms = "Match Source";
     let web = "Web & Social";
+    let sp = "Social Platforms";
     let bc = "Broadcast";
     let vertical = ExportSettings { scaling: Scaling::ScaleToFill, ..h264(Some((1080, 1920)), 12_000, 16_000) };
     vec![
@@ -118,6 +126,14 @@ pub fn builtin_presets() -> Vec<ExportPreset> {
             ExportSettings { bitrate_mode: BitrateMode::Vbr2Pass, ..h264(Some((3840, 2160)), 50_000, 65_000) },
         ),
         p("Social Vertical 1080×1920", web, "H.264 9:16 portrait for short-form social video, scaled to fill, 12 Mbps", vertical),
+        p("TikTok 1080×1920", sp, "9:16, H.264 12 Mbps, AAC 320 kbps, loudness −14 LUFS", social((1080, 1920), 12_000, -14.0)),
+        p("Instagram Reels 1080×1920", sp, "9:16, H.264 10 Mbps, AAC 320 kbps, loudness −14 LUFS", social((1080, 1920), 10_000, -14.0)),
+        p("YouTube Shorts 1080×1920", sp, "9:16, H.264 15 Mbps, AAC 320 kbps, loudness −14 LUFS", social((1080, 1920), 15_000, -14.0)),
+        p("Instagram Feed 1080×1350", sp, "4:5 portrait for the feed, H.264 10 Mbps, loudness −14 LUFS", social((1080, 1350), 10_000, -14.0)),
+        p("Instagram Square 1080×1080", sp, "1:1, H.264 8 Mbps, loudness −14 LUFS", social((1080, 1080), 8_000, -14.0)),
+        p("YouTube 1080p (loudness −14)", sp, "16:9, H.264 16 Mbps, AAC 320 kbps, loudness −14 LUFS", social((1920, 1080), 16_000, -14.0)),
+        p("Telegram 1080p", sp, "16:9, H.264 6 Mbps for a light file, loudness −16 LUFS", social((1920, 1080), 6_000, -16.0)),
+        p("X (Twitter) 1080p", sp, "16:9, H.264 10 Mbps, loudness −14 LUFS", social((1920, 1080), 10_000, -14.0)),
         p("Apple ProRes 4444 XQ", bc, "QuickTime, ProRes 4444 XQ (12-bit 4:4:4), 24-bit 48 kHz PCM", mov(Format::ProRes, "4444xq")),
         p(
             "Apple ProRes 4444 with Alpha",
