@@ -1531,6 +1531,26 @@ pub fn properties(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             let (_, mut vui) = cx.row(ui, tl!("OpenType"));
             cx.check(&mut vui, "kerning", tl!("Kerning"));
             cx.check(&mut vui, "ligatures", tl!("Ligatures"));
+            // the caption looks (the presets and the user's own) on this text
+            {
+                let (_, mut vui) = cx.row(ui, tl!("Caption Look"));
+                let r = egui::ComboBox::from_id_salt(("gfx-caption-look", clip.0, l)).selected_text(tl!("Choose…")).width(180.0).height(360.0).show_ui(
+                    &mut vui,
+                    |ui| {
+                        let mut looks: Vec<(String, String)> =
+                            filmcraft_engine::caption_presets::builtin().into_iter().map(|p| (p.id.to_string(), crate::i18n::t(p.name).to_string())).collect();
+                        if let Some(d) = filmcraft_engine::caption_presets::user_dir() {
+                            looks.extend(filmcraft_engine::caption_presets::user_styles_in(&d).into_iter().map(|u| (format!("user:{}", u.name), u.name)));
+                        }
+                        for (id, name) in looks {
+                            if ui.selectable_label(false, name).clicked() {
+                                cx.actions.push(("graphics.applyCaptionStyle".into(), json!({"clip": clip.0, "layers": [l], "preset": id})));
+                            }
+                        }
+                    },
+                );
+                cx.auto("captionLook", r.response.rect, "Caption Look");
+            }
         }
         if e.effect == graphic::SHAPE_LAYER && section(ui, app, "Shape", &t) {
             let (_, mut vui) = cx.row(ui, tl!("Shape"));

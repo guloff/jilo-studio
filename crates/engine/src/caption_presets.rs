@@ -311,6 +311,21 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     let id = str_p(p, "preset").ok_or_else(|| bad(cmd, "`preset` (an id from captions.stylePresets) is required"))?;
     let d = dir_p(p, cmd).ok();
     let (_, style) = style_of(id, d.as_deref()).ok_or_else(|| bad(cmd, format!("unknown preset `{id}`")))?;
+    // phrases set apart: the look becomes their own
+    if let Some(ids) = p.get("captions").and_then(Value::as_array) {
+        let ids: Vec<filmcraft_project::ClipId> = ids.iter().filter_map(Value::as_u64).map(filmcraft_project::ClipId).collect();
+        let n = s.edit("Caption Style (Phrase)", |pr, st| {
+            let seq = st.active_sequence.ok_or(EngineError::NoSequence)?;
+            let q = pr.sequence_mut(seq).ok_or(EngineError::NoSequence)?;
+            let mut n = 0;
+            for c in q.caption_tracks.iter_mut().flat_map(|t| t.captions.iter_mut()).filter(|c| ids.contains(&c.id)) {
+                c.style = Some(Box::new(style.clone()));
+                n += 1;
+            }
+            Ok(n)
+        })?;
+        return Ok(json!({"preset": id, "captions": n}));
+    }
     let tracks = style_targets(s, p, cmd)?;
     s.edit("Caption Style", |pr, st| {
         let seq = st.active_sequence.ok_or(EngineError::NoSequence)?;
@@ -323,8 +338,86 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"preset": id, "tracks": tracks.iter().map(|t| t.0).collect::<Vec<_>>()}))
 }
 
+/// The parameters of a graphic's text layer that give it a caption look: font, size, capitals,
+/// tracking, colour, outline, box (padding, corners) and shadow.
+pub fn text_layer_params(y: &CaptionStyle) -> Vec<(&'static str, filmcraft_project::ParamValue)> {
+    use filmcraft_project::ParamValue as V;
+    let col = |c: [u8; 4]| V::Color([c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0, 1.0]);
+    let alpha = |c: [u8; 4]| V::Float(f64::from(c[3]) / 255.0 * 100.0);
+    let (dx, dy) = (f64::from(y.shadow_offset[0]), f64::from(y.shadow_offset[1]));
+    vec![
+        ("font", V::Text(y.font.clone())),
+        ("font_style", V::Text(y.font_style.clone())),
+        ("size", V::Float(f64::from(y.size))),
+        ("caps", V::Choice(u32::from(y.uppercase))),
+        ("tracking", V::Float(f64::from(y.tracking))),
+        ("fill", V::Bool(true)),
+        ("fill_kind", V::Choice(0)),
+        ("fill_color", col(y.color)),
+        ("stroke", V::Bool(y.outline > 0.0)),
+        ("stroke_color", col(y.outline_color)),
+        ("stroke_width", V::Float(f64::from(y.outline))),
+        ("stroke_type", V::Choice(0)),
+        ("background", V::Bool(y.background && y.background_color[3] > 0)),
+        ("background_color", col(y.background_color)),
+        ("background_opacity", alpha(y.background_color)),
+        ("background_size", V::Float(f64::from(y.size * 0.3).round())),
+        ("background_radius", V::Float(f64::from(y.box_radius))),
+        ("shadow", V::Bool(y.shadow && y.shadow_color[3] > 0)),
+        ("shadow_color", col(y.shadow_color)),
+        ("shadow_opacity", alpha(y.shadow_color)),
+        ("shadow_distance", V::Float((dx * dx + dy * dy).sqrt())),
+        ("shadow_angle", V::Float((dy.atan2(dx).to_degrees() + 90.0).rem_euclid(360.0))),
+        ("shadow_blur", V::Float(f64::from(y.shadow_blur))),
+    ]
+}
+
+/// `graphics.applyCaptionStyle`: a caption look (a preset or the user's own) on a graphic's text
+/// layers — the chosen ones, else the selected, else all. One undo step.
+fn apply_to_text(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "graphics.applyCaptionStyle";
+    let id = str_p(p, "preset").ok_or_else(|| bad(cmd, "`preset` (an id from captions.stylePresets) is required"))?;
+    let d = dir_p(p, cmd).ok();
+    let (_, style) = style_of(id, d.as_deref()).ok_or_else(|| bad(cmd, format!("unknown preset `{id}`")))?;
+    let clip = crate::graphics::target_clip(s, p).ok_or_else(|| bad(cmd, "select a graphic (a title) first"))?;
+    let chosen: Vec<usize> = match p.get("layers").and_then(Value::as_array) {
+        Some(a) => a.iter().filter_map(Value::as_u64).map(|v| v as usize).collect(),
+        None => s.state.graphic_layers.clone(),
+    };
+    let params = text_layer_params(&style);
+    let n = s.edit_sequence("Caption Look on Text", |q, _, _| {
+        let (_, it) = q.find_item_mut(clip).ok_or(filmcraft_edit::EditError::NoItem(clip))?;
+        // layer indices count the clip's layers (graphic effects) in order
+        let mut n = 0;
+        for (this, e) in it.effects.iter_mut().filter(|e| filmcraft_project::graphic::is_layer(e)).enumerate() {
+            if e.effect != filmcraft_project::graphic::TEXT_LAYER || !(chosen.is_empty() || chosen.contains(&this)) {
+                continue;
+            }
+            for (k, v) in &params {
+                e.params.insert((*k).to_string(), filmcraft_project::Param::new(v.clone()));
+            }
+            n += 1;
+        }
+        if n == 0 {
+            return Err(bad(cmd, "the graphic has no text layer to style"));
+        }
+        Ok(n)
+    })?;
+    Ok(json!({"preset": id, "clip": clip.0, "layers": n}))
+}
+
 pub fn commands() -> Vec<CommandSpec> {
     vec![
+        CommandSpec {
+            id: "graphics.applyCaptionStyle",
+            label: "Apply Caption Look to Text",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"preset":str,"clip":id?,"layers":[n]? (default: the selected layers, else every text layer),"dir":path?}"#,
+            enabled: always,
+            run: apply_to_text,
+            journal: true,
+        },
         CommandSpec {
             id: "captions.stylePresets",
             label: "List Caption Style Presets",
@@ -340,7 +433,7 @@ pub fn commands() -> Vec<CommandSpec> {
             label: "Apply Caption Style Preset",
             menu: &[],
             shortcut: None,
-            params: r#"{"preset":str,"track":id|"C1"|"all"?}"#,
+            params: r#"{"preset":str,"track":id|"C1"|"all"?,"captions":[id]? (these phrases take the look as their own)}"#,
             enabled: has_caption_track,
             run: apply,
             journal: true,
@@ -464,5 +557,25 @@ mod tests {
         std::fs::write(d.join("bad.json"), b"{}").unwrap();
         assert!(s.execute("captions.importStylePreset", json!({"path": d.join("bad.json").to_string_lossy(), "dir": other})).is_err());
         let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_caption_look_goes_on_a_titles_text() {
+        let mut s = Session::default();
+        s.execute("file.openDemoProject", json!({})).unwrap();
+        let r = s.execute("graphics.newText", json!({"text": "Title"})).unwrap();
+        let clip = filmcraft_project::ClipId(r["clip"].as_u64().unwrap());
+        let undo = s.history.undo.len();
+        s.execute("graphics.applyCaptionStyle", json!({"preset": "yellow-pop", "clip": clip.0})).unwrap();
+        assert_eq!(s.history.undo.len(), undo + 1);
+        let want = find("yellow-pop").unwrap().style;
+        let (_, it) = s.active_sequence().unwrap().find_item(clip).unwrap();
+        let e = it.effects.iter().find(|e| e.effect == filmcraft_project::graphic::TEXT_LAYER).unwrap();
+        let at = filmcraft_time::Tick::ZERO;
+        assert_eq!(e.params["font"].value_at(at), filmcraft_project::ParamValue::Text(want.font.clone()));
+        let filmcraft_project::ParamValue::Color(c) = e.params["fill_color"].value_at(at) else { panic!("colour") };
+        assert_eq!((c[0] * 255.0).round() as u8, want.color[0]);
+        assert_eq!(e.params["caps"].value_at(at), filmcraft_project::ParamValue::Choice(u32::from(want.uppercase)));
+        assert!(s.execute("graphics.applyCaptionStyle", json!({"preset": "nope", "clip": clip.0})).is_err());
     }
 }

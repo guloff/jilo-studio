@@ -62,6 +62,109 @@ pub fn add_caption(seq: &mut Sequence, track: TrackId, start: Tick, duration: Ti
     Ok(id)
 }
 
+/// Lay `text` out in captions of at most `lines` lines of `max_chars` characters (a longer single
+/// word stands alone): each caption's lines joined with `\n`. A caption ends early at the end of a
+/// sentence or clause once it is at least half full, so phrases read whole.
+pub fn layout_text(text: &str, max_chars: usize, lines: usize) -> Vec<String> {
+    let (max_chars, lines) = (max_chars.max(1), lines.max(1));
+    let mut out: Vec<Vec<String>> = Vec::new();
+    let mut cur: Vec<String> = Vec::new();
+    let full = |cur: &[String]| cur.iter().map(|l| l.chars().count()).sum::<usize>();
+    for w in text.split_whitespace() {
+        let n = w.chars().count();
+        let room = cur.last().map(|l| l.chars().count() + 1 + n <= max_chars);
+        match room {
+            Some(true) => {
+                if let Some(l) = cur.last_mut() {
+                    l.push(' ');
+                    l.push_str(w);
+                }
+            }
+            Some(false) if cur.len() < lines => cur.push(w.to_string()),
+            Some(false) => {
+                out.push(std::mem::take(&mut cur));
+                cur.push(w.to_string());
+            }
+            None => cur.push(w.to_string()),
+        }
+        if w.ends_with(['.', '!', '?', ';', ':', '…']) && full(&cur) * 2 >= max_chars * lines {
+            out.push(std::mem::take(&mut cur));
+        }
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out.into_iter().map(|c| c.join("\n")).collect()
+}
+
+/// Whether caption text needs more than `lines` lines of `max_chars` characters.
+pub fn too_long(text: &str, max_chars: usize, lines: usize) -> bool {
+    let laid = layout_text(text, max_chars, lines);
+    laid.len() > 1 || text.lines().count() > lines.max(1) || text.lines().any(|l| l.chars().count() > max_chars.max(1))
+}
+
+/// Split caption `id` into captions of at most `lines` lines of `max_chars` characters, its time
+/// shared by length (on frames of `frame`, at least one each); the first keeps the id, style,
+/// speaker and settings go to every part. A caption that fits is only re-wrapped. Returns the new
+/// captions (empty when nothing was split).
+pub fn split_long(seq: &mut Sequence, id: ClipId, max_chars: usize, lines: usize, frame: Tick, ctx: &mut EditCtx) -> Result<Vec<ClipId>> {
+    let tid = owner(seq, id)?;
+    let c = track_mut(seq, tid)?.caption(id).ok_or(EditError::NoItem(id))?.clone();
+    let parts = layout_text(&c.text, max_chars, lines);
+    if parts.len() <= 1 {
+        if let Some(text) = parts.into_iter().next().filter(|t| *t != c.text) {
+            track_mut(seq, tid)?.caption_mut(id).ok_or(EditError::NoItem(id))?.text = text;
+        }
+        return Ok(Vec::new());
+    }
+    let frame = frame.max(Tick(1));
+    let frames = (c.duration.0 / frame.0).max(1);
+    if frames < parts.len() as i64 {
+        return Err(EditError::TooShort);
+    }
+    // frames by length, every part at least one
+    let lens: Vec<i64> = parts.iter().map(|p| p.chars().count().max(1) as i64).collect();
+    let total: i64 = lens.iter().sum();
+    let mut cuts = Vec::with_capacity(parts.len() + 1);
+    let mut acc = 0;
+    cuts.push(0i64);
+    for (k, l) in lens.iter().enumerate() {
+        acc += l;
+        let left = (parts.len() - 1 - k) as i64;
+        let at = if k + 1 == parts.len() { frames } else { (frames * acc / total).clamp(cuts[k] + 1, frames - left) };
+        cuts.push(at);
+    }
+    // word timings follow their words when the caption has them
+    let words: Vec<Tick> = if c.words.len() == c.text.split_whitespace().count() { c.words.clone() } else { Vec::new() };
+    let mut made = Vec::new();
+    let mut word0 = 0usize;
+    let mut out = Vec::new();
+    for (k, text) in parts.iter().enumerate() {
+        let start = c.start + Tick(cuts[k] * frame.0);
+        let end = if k + 1 == parts.len() { c.end() } else { c.start + Tick(cuts[k + 1] * frame.0) };
+        let n = text.split_whitespace().count();
+        let mut part = c.clone();
+        if k > 0 {
+            part.id = ClipId(ctx.alloc());
+            part.cue_id = None;
+            made.push(part.id);
+        }
+        (part.start, part.duration, part.text) = (start, end - start, text.clone());
+        part.words = if words.is_empty() {
+            Vec::new()
+        } else {
+            words[word0..(word0 + n).min(words.len())].iter().map(|w| Tick((c.start + *w - start).0.max(0))).collect()
+        };
+        word0 += n;
+        out.push(part);
+    }
+    let tr = track_mut(seq, tid)?;
+    tr.captions.retain(|x| x.id != id);
+    tr.captions.extend(out);
+    tr.sort();
+    Ok(made)
+}
+
 /// Split caption `id` at `t` (strictly inside it); both halves keep the text. Returns the new
 /// (right) caption.
 pub fn split_caption(seq: &mut Sequence, id: ClipId, t: Tick, ctx: &mut EditCtx) -> Result<ClipId> {
@@ -403,5 +506,31 @@ mod tests {
         seq.caption_track_mut(tid).unwrap().locked = true;
         assert_eq!(set_caption(&mut seq, ClipId(1000), Some("x"), None), Err(EditError::Locked));
         assert_eq!(delete_captions(&mut seq, &[ClipId(1000)], false), Err(EditError::Locked));
+    }
+
+    #[test]
+    fn a_long_caption_is_split_into_readable_ones() {
+        let long = "This is a very long caption that somebody typed by hand. It goes on and on, and nobody could read it in time on a phone.";
+        let laid = layout_text(long, 42, 2);
+        assert!(laid.len() >= 2, "{laid:?}");
+        assert!(laid.iter().all(|c| c.lines().count() <= 2 && c.lines().all(|l| l.chars().count() <= 42)), "{laid:?}");
+        assert!(laid[0].ends_with("hand."), "breaks at the end of the sentence: {laid:?}");
+        assert!(too_long(long, 42, 2) && !too_long("Short one", 42, 2));
+        let (mut seq, tid) = seq_with(&[(0, 24 * 1000, long)]);
+        let mut n = 50_000;
+        let id = seq.caption_track(tid).unwrap().captions[0].id;
+        let made = split_long(&mut seq, id, 42, 2, Tick(1000), &mut ctx(&mut n)).unwrap();
+        let t = seq.caption_track(tid).unwrap();
+        assert_eq!(t.captions.len(), made.len() + 1);
+        assert_eq!(t.captions[0].id, id, "the first keeps the id");
+        assert_eq!(t.captions.last().unwrap().end(), Tick(24 * 1000), "the time is shared out");
+        assert!(t.captions.windows(2).all(|w| w[0].end() == w[1].start), "back to back");
+        assert_eq!(t.captions.iter().map(|c| c.text.replace('\n', " ")).collect::<Vec<_>>().join(" "), long, "no word lost");
+        t.check().unwrap();
+        // too short to share: refused, untouched
+        let (mut seq, tid) = seq_with(&[(0, 1000, long)]);
+        let id = seq.caption_track(tid).unwrap().captions[0].id;
+        assert!(split_long(&mut seq, id, 42, 2, Tick(1000), &mut ctx(&mut n)).is_err());
+        assert_eq!(seq.caption_track(tid).unwrap().captions[0].text, long);
     }
 }

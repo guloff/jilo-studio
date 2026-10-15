@@ -242,6 +242,41 @@ pub(crate) fn style_targets(s: &Session, p: &Value, cmd: &str) -> Result<Vec<Tra
     Ok(vec![track_param(s, p).ok_or_else(|| bad(cmd, "no such caption track"))?])
 }
 
+/// Characters per line and lines for caption `id`'s track: 42 × 2, a CEA-608 track's 32 columns.
+fn fit_of(q: &filmcraft_project::Sequence, id: ClipId) -> (usize, usize) {
+    let cols = q.find_caption(id).and_then(|(t, _)| q.caption_track(t)).and_then(|t| t.format.max_columns());
+    (cols.unwrap_or(42).min(42), 2)
+}
+
+/// `captions.splitLong`: captions longer than `lines` lines of `maxChars` become captions that fit.
+fn split_long(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "captions.splitLong";
+    let ids: Vec<ClipId> = match p.get("captions").and_then(Value::as_array) {
+        Some(a) => a.iter().filter_map(Value::as_u64).map(ClipId).collect(),
+        None if !s.state.caption_selection.is_empty() => s.state.caption_selection.clone(),
+        None => {
+            let tid = track_param(s, p).ok_or_else(|| bad(cmd, "no caption track"))?;
+            s.active_sequence().and_then(|q| q.caption_track(tid)).map(|t| t.captions.iter().map(|c| c.id).collect()).unwrap_or_default()
+        }
+    };
+    let max = p.get("maxChars").and_then(Value::as_u64).map(|v| v.clamp(8, 200) as usize);
+    let lines = p.get("lines").and_then(Value::as_u64).map_or(2, |v| v.clamp(1, 4) as usize);
+    let frame = s.sequence_rate().frame_duration();
+    let (made, short) = s.edit_sequence("Split Long Captions", |q, ctx, _| {
+        let (mut made, mut short) = (Vec::new(), 0);
+        for id in &ids {
+            let (cols, _) = fit_of(q, *id);
+            match edit::captions::split_long(q, *id, max.unwrap_or(cols), lines, frame, ctx) {
+                Ok(m) => made.extend(m),
+                Err(edit::EditError::TooShort) => short += 1,
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Ok((made, short))
+    })?;
+    Ok(json!({"made": made.iter().map(|c| c.0).collect::<Vec<_>>(), "tooShort": short}))
+}
+
 fn set_style(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "captions.setStyle";
     let tracks = style_targets(s, p, cmd)?;
@@ -547,20 +582,49 @@ pub fn commands() -> Vec<CommandSpec> {
             })?;
             Ok(json!({"caption": id.0}))
         }),
-        spec("captions.setText", "Edit Caption Text", &[], None, r#"{"caption":id?,"text":str?,"speaker":str|null?}"#, has_captions, |s, p| {
-            let id = one_caption(s, p, "captions.setText")?;
-            let text = str_p(p, "text").map(str::to_string);
-            let speaker: Option<Option<String>> = match p.get("speaker") {
-                None => None,
-                Some(Value::Null) => Some(None),
-                Some(v) => Some(v.as_str().map(str::to_string)),
-            };
-            if text.is_none() && speaker.is_none() {
-                return Err(bad("captions.setText", "need `text` or `speaker`"));
-            }
-            s.edit_sequence("Edit Caption", |q, _, _| Ok(edit::captions::set_caption(q, id, text.as_deref(), speaker.as_ref().map(|o| o.as_deref()))?))?;
-            Ok(Value::Null)
-        }),
+        spec(
+            "captions.splitLong",
+            "Split Long Captions",
+            &[],
+            None,
+            r#"{"captions":[id]? (default: the selection, else every caption of the track),"track":id|"C1"?,"maxChars":n=42 (a CEA-608 track: 32),"lines":n=2}"#,
+            has_captions,
+            split_long,
+        ),
+        spec(
+            "captions.setText",
+            "Edit Caption Text",
+            &[],
+            None,
+            r#"{"caption":id?,"text":str?,"speaker":str|null?,"split":bool=true (text longer than two lines is split into captions that fit)}"#,
+            has_captions,
+            |s, p| {
+                let id = one_caption(s, p, "captions.setText")?;
+                let text = str_p(p, "text").map(str::to_string);
+                let speaker: Option<Option<String>> = match p.get("speaker") {
+                    None => None,
+                    Some(Value::Null) => Some(None),
+                    Some(v) => Some(v.as_str().map(str::to_string)),
+                };
+                if text.is_none() && speaker.is_none() {
+                    return Err(bad("captions.setText", "need `text` or `speaker`"));
+                }
+                let split = bool_p(p, "split").unwrap_or(true);
+                let frame = s.sequence_rate().frame_duration();
+                let made = s.edit_sequence("Edit Caption", |q, ctx, _| {
+                    edit::captions::set_caption(q, id, text.as_deref(), speaker.as_ref().map(|o| o.as_deref()))?;
+                    let (max_chars, lines) = fit_of(q, id);
+                    let long = q.find_caption(id).is_some_and(|(_, c)| edit::captions::too_long(&c.text, max_chars, lines));
+                    // typed text that would not fit on screen: phrases that do (when there is time for them)
+                    Ok(if split && text.is_some() && long {
+                        edit::captions::split_long(q, id, max_chars, lines, frame, ctx).unwrap_or_default()
+                    } else {
+                        Vec::new()
+                    })
+                })?;
+                Ok(if made.is_empty() { Value::Null } else { json!({"split": made.iter().map(|c| c.0).collect::<Vec<_>>()}) })
+            },
+        ),
         spec(
             "captions.setTimes",
             "Set Caption In/Out",

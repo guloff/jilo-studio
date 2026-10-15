@@ -256,3 +256,28 @@ fn tracking_position_and_a_phrase_style() {
     s.execute("edit.undo", json!({})).unwrap();
     assert!(s.active_sequence().unwrap().caption_tracks[0].captions[1].style.is_some());
 }
+
+/// Text typed into a caption that would not fit in two lines becomes captions that do, the time
+/// shared by length, in one undo step; `split: false` keeps it whole.
+#[test]
+fn a_long_typed_caption_is_split() {
+    let mut s = demo();
+    s.execute("captions.newTrack", json!({})).unwrap();
+    s.set_playhead(Tick::from_seconds_f64(2.0));
+    s.execute("captions.add", json!({"text": "x", "durationSeconds": 8.0})).unwrap();
+    let id = s.active_sequence().unwrap().caption_tracks[0].captions[0].id;
+    let long = "Children who learn more earn more, and they build a society that protects the next generation. That is why we start today, together.";
+    let undo = s.history.undo.len();
+    let r = s.execute("captions.setText", json!({"caption": id.0, "text": long})).unwrap();
+    assert!(r["split"].as_array().is_some_and(|a| !a.is_empty()), "{r}");
+    let t = &s.active_sequence().unwrap().caption_tracks[0];
+    assert!(t.captions.len() >= 2);
+    assert!(t.captions.iter().all(|c| c.text.lines().count() <= 2 && c.text.lines().all(|l| l.chars().count() <= 42)));
+    assert_eq!(s.history.undo.len(), undo + 1, "one undo step");
+    s.execute("edit.undo", json!({})).unwrap();
+    s.execute("captions.setText", json!({"caption": id.0, "text": long, "split": false})).unwrap();
+    assert_eq!(s.active_sequence().unwrap().caption_tracks[0].captions.len(), 1);
+    // and on demand
+    let r = s.execute("captions.splitLong", json!({"captions": [id.0]})).unwrap();
+    assert!(!r["made"].as_array().unwrap().is_empty(), "{r}");
+}

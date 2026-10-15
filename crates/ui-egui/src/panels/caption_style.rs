@@ -179,13 +179,19 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         app.ui.caption_hover = Some((p.id.to_string(), p.style.clone(), ui.ctx().cumulative_pass_nr()));
                     }
                     if resp.clicked() {
-                        actions.push(("captions.applyStylePreset".into(), json!({"preset": p.id, "track": target})));
+                        let q = if phrase_mode {
+                            json!({"preset": p.id, "captions": phrases.iter().map(|x| x.0.0).collect::<Vec<_>>()})
+                        } else {
+                            json!({"preset": p.id, "track": target})
+                        };
+                        actions.push(("captions.applyStylePreset".into(), q));
                     }
                 }
             });
             ui.add_space(6.0);
         }
-        my_styles(app, ui, &style, &target, sample, pack, &mut actions);
+        let phrase_target = phrase_mode.then(|| json!(phrases.iter().map(|x| x.0.0).collect::<Vec<_>>()));
+        my_styles(app, ui, &style, &target, phrase_target.as_ref(), sample, pack, &mut actions);
         ui.add_space(6.0);
         let phrase_ids: Vec<u64> = phrases.iter().map(|p| p.0.0).collect();
         let mut set = |field: &str, v: Value| {
@@ -448,7 +454,17 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 /// Whether the caption font pack is installed (checked on disk at most every 2 seconds).
 /// The user's own styles: tiles like the presets (right-click: Export…, Delete), and Save /
 /// Import. Hovering a tile previews it in the Program monitor, as for the presets.
-fn my_styles(app: &mut FilmcraftApp, ui: &mut egui::Ui, style: &CaptionStyle, target: &Value, sample: &str, pack: bool, actions: &mut Vec<(String, Value)>) {
+#[allow(clippy::too_many_arguments)]
+fn my_styles(
+    app: &mut FilmcraftApp,
+    ui: &mut egui::Ui,
+    style: &CaptionStyle,
+    target: &Value,
+    phrases: Option<&Value>,
+    sample: &str,
+    pack: bool,
+    actions: &mut Vec<(String, Value)>,
+) {
     let t = app.tokens;
     heading(ui, tl!("My Styles"), &t);
     let mine: Vec<filmcraft_engine::caption_presets::UserStyle> =
@@ -487,7 +503,11 @@ fn my_styles(app: &mut FilmcraftApp, ui: &mut egui::Ui, style: &CaptionStyle, ta
                     app.ui.caption_hover = Some((id.clone(), u.style.clone(), ui.ctx().cumulative_pass_nr()));
                 }
                 if resp.clicked() {
-                    actions.push(("captions.applyStylePreset".into(), json!({"preset": id, "track": target})));
+                    let q = match phrases {
+                        Some(ids) => json!({"preset": id, "captions": ids}),
+                        None => json!({"preset": id, "track": target}),
+                    };
+                    actions.push(("captions.applyStylePreset".into(), q));
                 }
                 resp.context_menu(|ui| {
                     if ui.button(tl!("Export…")).clicked() {

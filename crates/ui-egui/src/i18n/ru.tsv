@@ -4340,3 +4340,9 @@ mode	Edit	Монтаж
 	Placed by Hand	Размещено вручную
 	Put Back	Вернуть на место
 	Select a caption and drag it in the Program monitor to place it anywhere.	Выделите субтитр и перетащите его в мониторе программы, чтобы поставить в любое место.
+# Split captions
+	Split Long Captions	Разделить длинные субтитры
+# Caption look on text
+	Caption Look	Вид как у субтитров
+	Choose…	Выбрать…
+	Apply Caption Look to Text	Применить вид субтитров к тексту
