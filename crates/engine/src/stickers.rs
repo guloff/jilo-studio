@@ -192,7 +192,9 @@ fn emoji_png(s: &Session, e: &str) -> Result<std::path::PathBuf> {
     }
     let png = filmcraft_export::encode_png(rgba, w, h).map_err(|e| EngineError::Other(e.to_string()))?;
     std::fs::create_dir_all(&dir).map_err(|e| EngineError::Other(e.to_string()))?;
-    std::fs::write(&path, png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
+    // through a temp file: a sticker added while the same emoji is being drawn for another (the
+    // file is shared) never reads a half-written picture
+    filmcraft_format::atomic_write(&path, &png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
     Ok(path)
 }
 
@@ -421,7 +423,7 @@ fn from_clip(s: &mut Session, p: &Value) -> Result<Value> {
     std::fs::create_dir_all(&dir).map_err(|e| EngineError::Other(e.to_string()))?;
     let path = dir.join(format!("{}.png", safe.trim()));
     let png = filmcraft_export::encode_png(rgba, w, h).map_err(|e| EngineError::Other(e.to_string()))?;
-    std::fs::write(&path, png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
+    filmcraft_format::atomic_write(&path, &png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
     let id = format!("file:{}", path.to_string_lossy());
     if bool_p(p, "place").unwrap_or(true) && s.active_sequence().is_some() {
         let r = s.execute("stickers.add", json!({"id": id, "animation": str_p(p, "animation").unwrap_or("pop"), "size": f64_p(p, "size").unwrap_or(0.4)}))?;
@@ -741,6 +743,33 @@ mod tests {
         assert!(s.execute("stickers.add", json!({"id": "emoji:🔥", "animation": "spin"})).is_err());
     }
 
+    /// The emoji pictures are shared: one drawn by several sessions at once is never read half
+    /// written (two tests here failed now and then on "failed to fill whole buffer").
+    #[test]
+    fn an_emoji_drawn_at_once_by_many_is_read_whole() {
+        let e = "🦉";
+        fn render(_: &str, size: u32) -> std::result::Result<(u32, u32, Vec<u8>), String> {
+            Ok((size, size, [10u8, 200, 30, 255].repeat((size * size) as usize)))
+        }
+        let (w, h, rgba) = render(e, 512).unwrap();
+        let want = filmcraft_export::encode_png(rgba, w, h).unwrap();
+        for _ in 0..4 {
+            let _ = std::fs::remove_file(stickers_dir(&Session::default()).join("emoji").join(emoji_file_name(e)));
+            let got: Vec<Vec<u8>> = std::thread::scope(|sc| {
+                let hs: Vec<_> = (0..8)
+                    .map(|_| {
+                        sc.spawn(move || {
+                            let s = Session { emoji_renderer: Some(Arc::new(render)), ..Default::default() };
+                            std::fs::read(emoji_png(&s, e).unwrap()).unwrap()
+                        })
+                    })
+                    .collect();
+                hs.into_iter().map(|h| h.join().unwrap()).collect()
+            });
+            assert!(got.iter().all(|g| *g == want), "a session read a partial picture");
+        }
+    }
+
     #[test]
     fn emoji_go_on_the_phrases_that_mention_them() {
         let mut s = Session::default();
@@ -782,7 +811,8 @@ mod tests {
         assert_eq!(mine["cutout"], true);
         s.state.selection.clear();
         assert!(s.execute("stickers.fromClip", json!({})).is_err(), "nothing selected");
-        let _ = std::fs::remove_dir_all(stickers_dir(&s));
+        // only its own file: the folder is shared by the tests running alongside
+        let _ = std::fs::remove_file(r["path"].as_str().unwrap_or_default());
     }
 
     #[test]
