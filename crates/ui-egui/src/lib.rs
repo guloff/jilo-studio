@@ -1783,6 +1783,7 @@ impl FilmcraftApp {
         notifications::watch(self, &ctx);
         self.apply_simple_mode();
         panels::ai_tasks::show(self, &ctx);
+        panels::shorts::show(self, &ctx);
         panels::highlights::show(self, &ctx);
         panels::autozoom::show(self, &ctx);
         panels::reframe::show(self, &ctx);

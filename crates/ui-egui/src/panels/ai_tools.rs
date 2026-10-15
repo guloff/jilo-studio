@@ -44,6 +44,10 @@ fn captions_two_lines() -> Value {
     json!({"lines": 2})
 }
 
+fn no_params() -> Value {
+    json!({})
+}
+
 fn mix_youtube() -> Value {
     json!({"platform": "youtube"})
 }
@@ -71,7 +75,15 @@ const GROUPS: [(&str, &[Card]); 5] = [
     (
         "Automatic Editing",
         &[
+            card(
+                "ai.cutIntoShorts",
+                "Cut into Shorts",
+                "The best moments as vertical shorts with captions, the speaker in frame.",
+                &[Transcript, TextKey],
+                None,
+            ),
             card("highlights.find", "Find Highlights", "The moments worth a short, marked on the timeline.", &[Transcript, TextKey], None),
+            card("sequence.makeVertical", "Make Vertical", "A 9:16 copy of the sequence that follows the speaker's face.", &[Sequence], Some(no_params)),
             card("clip.autoZoom", "Auto Zoom", "Punch in on the louder or more important phrases.", &[Sequence], None),
             card("clip.reframeToFace", "Reframe to Face", "Keep the speaker in frame in a vertical or square sequence.", &[Selection], None),
             card("multicam.autoSwitch", "Auto Multi-Camera", "Switch to whoever is speaking.", &[Multicam], None),

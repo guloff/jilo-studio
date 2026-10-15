@@ -17,7 +17,7 @@ pub(crate) const SOUND: &[&str] = &["AI", "Voice and Sound"];
 pub(crate) const TOP: &[&str] = &["AI"];
 
 /// The AI menu, top to bottom.
-pub const AI_MENU: [&str; 23] = [
+pub const AI_MENU: [&str; 24] = [
     "sequence.transcribe",
     "transcript.generate",
     "transcript.createCaptions",
@@ -30,6 +30,7 @@ pub const AI_MENU: [&str; 23] = [
     "highlights.find",
     "clip.autoZoom",
     "clip.reframeToFace",
+    "sequence.makeVertical",
     "multicam.autoSwitch",
     "broll.auto",
     "stickers.byWords",

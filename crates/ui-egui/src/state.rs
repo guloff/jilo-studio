@@ -704,6 +704,9 @@ pub struct UiState {
     /// AI ▸ Automatic Editing ▸ Find Highlights…: the search dialog and the highlights found.
     #[serde(default)]
     pub highlights: HighlightsUi,
+    /// AI ▸ Cut into Shorts… (`panels::shorts`).
+    #[serde(skip)]
+    pub shorts: crate::panels::shorts::ShortsUi,
     /// AI ▸ Automatic Editing ▸ Auto Zoom…: the dialog and its choices.
     #[serde(default)]
     pub auto_zoom: AutoZoomUi,
@@ -1261,6 +1264,7 @@ impl Default for UiState {
             transcribe: TranscribeUi::default(),
             fillers: None,
             highlights: HighlightsUi::default(),
+            shorts: Default::default(),
             auto_zoom: AutoZoomUi::default(),
             reframe: ReframeUi::default(),
             updates: UpdatesUi::default(),

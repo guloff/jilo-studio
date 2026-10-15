@@ -62,6 +62,7 @@ pub mod scopes;
 pub mod sequence_settings;
 pub mod settings;
 pub mod shortcuts_dialog;
+pub mod shorts;
 pub mod start;
 pub mod templates;
 pub mod text;

@@ -4354,3 +4354,17 @@ mode	Edit	Монтаж
 	The sticker follows the face: {n} keyframes.	Стикер следует за лицом: ключевых кадров — {n}.
 	Draw a Sticker	Нарисовать стикер
 	Attach Sticker to Face	Прикрепить стикер к лицу
+# Shorts and vertical
+	Cut into Shorts…	Нарезать на шортсы…
+	Make Vertical	Сделать вертикальным
+	Shorts from Highlights	Шортсы из лучших моментов
+	No highlights were found: nothing to cut.	Лучших моментов не нашлось — резать нечего.
+	Shorts made: {n}. The first one is open.	Шортсов сделано: {n}. Первый открыт.
+	Cut into Shorts	Нарезать на шортсы
+	The best moments of the recording become vertical shorts: each its own sequence, with captions, the speaker kept in frame.	Лучшие моменты записи становятся вертикальными шортсами: у каждого своя секвенция, субтитры, говорящий в кадре.
+	No captions	Без субтитров
+	Keep the speaker in frame (Apple Vision)	Держать говорящего в кадре (Apple Vision)
+	Add the shorts to the export queue	Добавить шортсы в очередь экспорта
+	The transcript goes to {provider} to find the moments; everything else is done on this computer and is one undo step.	Расшифровка уходит в {provider}, чтобы найти моменты; всё остальное делается на этом компьютере и отменяется одним шагом.
+	The best moments as vertical shorts with captions, the speaker in frame.	Лучшие моменты — вертикальными шортсами с субтитрами, говорящий в кадре.
+	A 9:16 copy of the sequence that follows the speaker's face.	Копия секвенции 9:16, которая следует за лицом говорящего.

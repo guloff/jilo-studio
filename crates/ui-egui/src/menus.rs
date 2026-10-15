@@ -160,6 +160,7 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("ui.commandPalette", "Command Palette…", ["Window"], Some("Cmd+J")),
     // AI ▸ … after the engine's AI commands (`filmcraft_engine::ai_menu`)
     uic!("ai.tools", "AI Tools", ["AI"], None),
+    uic!("ai.cutIntoShorts", "Cut into Shorts…", ["AI"], None),
     uic!("ai.assistant", "AI Assistant…", ["AI"], None),
     uic!("ai.recipes", "Recipes…", ["AI"], None),
     uic!("ai.textToSpeech", "Text to Speech…", ["AI"], None),
@@ -461,6 +462,9 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         }
         "graphics.brandKit" => {
             return crate::panels::brand_kit::open(app);
+        }
+        "ai.cutIntoShorts" => {
+            return crate::panels::shorts::open(app);
         }
         "ai.tools" => {
             app.show_panel(PanelKind::AiTools);

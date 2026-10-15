@@ -4359,3 +4359,17 @@
 	The sticker follows the face: {n} keyframes.	El sticker sigue la cara: {n} fotogramas clave.
 	Draw a Sticker	Dibujar un sticker
 	Attach Sticker to Face	Fijar sticker a la cara
+# Shorts and vertical
+	Cut into Shorts…	Cortar en shorts…
+	Make Vertical	Hacer vertical
+	Shorts from Highlights	Shorts desde los momentos destacados
+	No highlights were found: nothing to cut.	No se encontraron momentos destacados: nada que cortar.
+	Shorts made: {n}. The first one is open.	Shorts creados: {n}. El primero está abierto.
+	Cut into Shorts	Cortar en shorts
+	The best moments of the recording become vertical shorts: each its own sequence, with captions, the speaker kept in frame.	Los mejores momentos de la grabación se convierten en shorts verticales: cada uno en su secuencia, con subtítulos y con quien habla en el encuadre.
+	No captions	Sin subtítulos
+	Keep the speaker in frame (Apple Vision)	Mantener a quien habla en el encuadre (Apple Vision)
+	Add the shorts to the export queue	Añadir los shorts a la cola de exportación
+	The transcript goes to {provider} to find the moments; everything else is done on this computer and is one undo step.	La transcripción se envía a {provider} para encontrar los momentos; todo lo demás se hace en este ordenador y se deshace en un solo paso.
+	The best moments as vertical shorts with captions, the speaker in frame.	Los mejores momentos como shorts verticales con subtítulos y quien habla en el encuadre.
+	A 9:16 copy of the sequence that follows the speaker's face.	Una copia 9:16 de la secuencia que sigue la cara de quien habla.

@@ -4394,3 +4394,17 @@
 	The sticker follows the face: {n} keyframes.	贴纸跟随人脸：{n} 个关键帧。
 	Draw a Sticker	绘制贴纸
 	Attach Sticker to Face	将贴纸附着到人脸
+# Shorts and vertical
+	Cut into Shorts…	剪成短视频…
+	Make Vertical	转为竖屏
+	Shorts from Highlights	从精彩片段生成短视频
+	No highlights were found: nothing to cut.	未找到精彩片段：没有可剪的内容。
+	Shorts made: {n}. The first one is open.	已生成短视频：{n} 个。第一个已打开。
+	Cut into Shorts	剪成短视频
+	The best moments of the recording become vertical shorts: each its own sequence, with captions, the speaker kept in frame.	录像中的精彩时刻会变成竖屏短视频：每个都有自己的序列和字幕，说话人保持在画面中。
+	No captions	无字幕
+	Keep the speaker in frame (Apple Vision)	让说话人保持在画面中（Apple Vision）
+	Add the shorts to the export queue	将短视频加入导出队列
+	The transcript goes to {provider} to find the moments; everything else is done on this computer and is one undo step.	转录文本会发送到 {provider} 以查找精彩时刻；其余操作都在这台电脑上完成，可一步撤销。
+	The best moments as vertical shorts with captions, the speaker in frame.	精彩时刻生成带字幕的竖屏短视频，说话人在画面中。
+	A 9:16 copy of the sequence that follows the speaker's face.	序列的 9:16 副本，跟随说话人的脸。

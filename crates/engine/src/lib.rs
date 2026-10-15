@@ -73,6 +73,7 @@ pub mod sequence_tools;
 pub mod settings;
 pub mod shortcut_presets;
 pub mod shortcuts;
+pub mod shorts;
 pub mod silence_tools;
 pub mod source_monitor;
 pub mod stickers;

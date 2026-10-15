@@ -384,6 +384,72 @@ fn highlights_are_found_listed_and_assembled() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// AI ▸ Cut into Shorts…: the dialog, the highlights found in the cloud (after consent), and a
+/// vertical short with captions per highlight, the first one open, in one undo step.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn a_recording_is_cut_into_vertical_shorts() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-shorts-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |r| {
+            let b = r.json().unwrap_or_default();
+            let user = b["contents"][0]["parts"][1]["text"].as_str().unwrap_or_default().to_string();
+            let cues: Vec<(f64, f64)> = user
+                .lines()
+                .filter_map(|l| {
+                    let (a, b) = l.strip_prefix('[')?.split(']').next()?.split_once('-')?;
+                    Some((a.parse().ok()?, b.parse().ok()?))
+                })
+                .collect();
+            let mid = cues.len() / 2;
+            let answer = json!({"fragments": [
+                {"start": cues[0].0, "end": cues[mid - 1].1, "title": "Первый шортс", "score": 90, "reason": "Крючок."},
+                {"start": cues[mid].0, "end": cues[cues.len() - 1].1, "title": "Второй шортс", "score": 80, "reason": "Вывод."}
+            ]});
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": answer.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "gemini", "key": "k"})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
+    d.frames(2);
+    d.click("text.tab.Transcript");
+    russian_transcript(&mut d);
+    d.frames(3);
+    d.ok("ui.menu.invoke", json!({"id": "ai.cutIntoShorts"}));
+    d.frames(2);
+    assert!(d.ids("shorts.").contains(&"shorts.go".to_string()), "the dialog is open");
+    d.snapshot("shorts-dialog");
+    d.click("shorts.go");
+    d.click("aiTask.consent.send");
+    let mut made = Value::Null;
+    for _ in 0..400 {
+        d.frames(2);
+        let p = d.ok("engine.execute", json!({"command": "project.inspect", "params": {}}));
+        if p.to_string().contains("Второй шортс") && p.to_string().contains("9:16") {
+            made = p;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(!made.is_null(), "the shorts are made");
+    let q = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
+    assert_eq!((q["settings"]["width"].as_u64(), q["settings"]["height"].as_u64()), (Some(1080), Some(1920)), "a vertical short is open: {}", q["settings"]);
+    let caps = d.ok("engine.execute", json!({"command": "captions.list", "params": {}}));
+    assert!(caps.to_string().contains("Сегодня") || caps.to_string().contains("Потом"), "with captions: {caps}");
+    d.snapshot("shorts-made");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// AI ▸ Automatic Editing ▸ Auto Zoom: the dialog, by meaning with the consent for the transcript, and Scale
 /// keyframes on the V1 clips where the quoted words are said.
 #[test]
