@@ -463,6 +463,10 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         "graphics.brandKit" => {
             return crate::panels::brand_kit::open(app);
         }
+        // in a job: the frames are many
+        "clip.removeBackground" if params.get("background").is_none() => {
+            return crate::panels::bg_removal::start(app, params);
+        }
         "ai.cutIntoShorts" => {
             return crate::panels::shorts::open(app);
         }

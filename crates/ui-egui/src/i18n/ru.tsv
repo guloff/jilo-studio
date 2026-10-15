@@ -4394,3 +4394,8 @@ mode	Edit	Монтаж
 	Upbeat Groove	Бодрый ритм
 	Lo-fi	Лоу-фай
 	Tension	Напряжение
+# Background removal
+	Remove Background	Удалить фон
+	Removing the background: every frame is analysed on this computer…	Удаляю фон: каждый кадр анализируется на этом компьютере…
+	The background is removed.	Фон удалён.
+	The person or subject cut out of the video, on this computer.	Человек или объект вырезается из видео прямо на этом компьютере.

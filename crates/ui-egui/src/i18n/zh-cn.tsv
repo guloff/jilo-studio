@@ -4434,3 +4434,8 @@
 	Upbeat Groove	轻快律动
 	Lo-fi	Lo-fi
 	Tension	紧张氛围
+# Background removal
+	Remove Background	移除背景
+	Removing the background: every frame is analysed on this computer…	正在移除背景：每一帧都在这台电脑上分析…
+	The background is removed.	背景已移除。
+	The person or subject cut out of the video, on this computer.	在这台电脑上把人物或主体从视频中抠出。

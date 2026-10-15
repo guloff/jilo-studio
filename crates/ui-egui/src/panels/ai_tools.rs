@@ -86,6 +86,7 @@ const GROUPS: [(&str, &[Card]); 5] = [
             card("sequence.makeVertical", "Make Vertical", "A 9:16 copy of the sequence that follows the speaker's face.", &[Sequence], Some(no_params)),
             card("clip.autoZoom", "Auto Zoom", "Punch in on the louder or more important phrases.", &[Sequence], None),
             card("clip.reframeToFace", "Reframe to Face", "Keep the speaker in frame in a vertical or square sequence.", &[Selection], None),
+            card("clip.removeBackground", "Remove Background", "The person or subject cut out of the video, on this computer.", &[Selection], Some(no_params)),
             card("multicam.autoSwitch", "Auto Multi-Camera", "Switch to whoever is speaking.", &[Multicam], None),
             card("broll.auto", "Auto B-roll", "Footage that fits what is said, above the phrase.", &[Transcript], None),
             card("export.allFormats", "Export in All Formats", "16:9, 9:16, 1:1 and 4:5 copies, exported together.", &[Sequence], None),

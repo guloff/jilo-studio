@@ -199,6 +199,7 @@ fn main() -> eframe::Result {
             session.image_classifier = image_classifier();
             session.emoji_renderer = emoji_renderer();
             session.cutout = cutout();
+            session.matte = matte();
             if let Some(dir) = data_dir.clone().or_else(default_data_dir) {
                 // updates download beside the app's other data (`--data-dir` included)
                 session.updates_dir = Some(dir.join("Updates"));
@@ -471,6 +472,13 @@ fn image_classifier() -> Option<filmcraft_engine::broll::ImageClassifier> {
 }
 
 /// Stickers draw emoji from the system's colour emoji font where the system has it.
+fn matte() -> Option<filmcraft_engine::bg_removal::Matte> {
+    filmcraft_platform::vision::cut_out_available().then(|| {
+        let m: filmcraft_engine::bg_removal::Matte = std::sync::Arc::new(filmcraft_platform::vision::matte);
+        m
+    })
+}
+
 fn cutout() -> Option<filmcraft_engine::stickers::Cutout> {
     filmcraft_platform::vision::cut_out_available().then(|| {
         let c: filmcraft_engine::stickers::Cutout = std::sync::Arc::new(filmcraft_platform::vision::cut_out);

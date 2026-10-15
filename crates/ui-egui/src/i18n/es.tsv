@@ -4399,3 +4399,8 @@
 	Upbeat Groove	Ritmo animado
 	Lo-fi	Lo-fi
 	Tension	Tensión
+# Background removal
+	Remove Background	Quitar fondo
+	Removing the background: every frame is analysed on this computer…	Quitando el fondo: cada fotograma se analiza en este ordenador…
+	The background is removed.	Fondo quitado.
+	The person or subject cut out of the video, on this computer.	La persona u objeto recortado del vídeo, en este ordenador.

@@ -416,8 +416,18 @@ pub fn import_streamed(s: &mut Session, path: &str, bin: Option<filmcraft_projec
 /// Sequence): one movie item at Settings ▸ Media ▸ Indeterminate Media Timebase. Returns the item,
 /// the frame count and the missing frame numbers (relative to the first).
 pub fn import_image_sequence(s: &mut Session, path: &str, bin: Option<filmcraft_project::BinId>) -> Result<(ItemId, usize, Vec<usize>)> {
+    import_image_sequence_at(s, path, bin, None)
+}
+
+/// [`import_image_sequence`] at `rate` (None: Indeterminate Media Timebase).
+pub(crate) fn import_image_sequence_at(
+    s: &mut Session,
+    path: &str,
+    bin: Option<filmcraft_project::BinId>,
+    rate: Option<filmcraft_time::FrameRate>,
+) -> Result<(ItemId, usize, Vec<usize>)> {
     let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string());
-    let rate = crate::settings::timebase_rate(&s.prefs.media.indeterminate_timebase);
+    let rate = rate.unwrap_or_else(|| crate::settings::timebase_rate(&s.prefs.media.indeterminate_timebase));
     let frames = crate::media_pool::image_sequence_frames(path, &*s.services)?;
     let missing: Vec<usize> = frames.iter().enumerate().filter(|(_, f)| f.is_none()).map(|(i, _)| i).collect();
     let src = crate::media_pool::open_image_sequence(path, &*s.services, rate, &name)?;
@@ -2933,6 +2943,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::stickers::commands());
     v.extend(crate::shorts::commands());
     v.extend(crate::galleries::commands());
+    v.extend(crate::bg_removal::commands());
     v.extend(crate::sound_library::commands());
     v.extend(crate::reframe::commands());
     v.extend(crate::updates::commands());

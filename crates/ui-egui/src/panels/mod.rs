@@ -9,6 +9,7 @@ pub mod automix;
 pub mod automulticam;
 pub mod autozoom;
 pub mod batch;
+pub mod bg_removal;
 pub mod brand_kit;
 pub mod broll;
 pub mod caption_drag;

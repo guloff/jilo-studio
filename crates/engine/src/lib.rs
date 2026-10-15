@@ -20,6 +20,7 @@ pub mod automulticam;
 pub mod autosave;
 pub mod autozoom;
 pub mod batch;
+pub mod bg_removal;
 pub mod brand_kit;
 pub mod broll;
 pub mod caption_fonts;
@@ -492,6 +493,8 @@ pub struct Session {
     pub emoji_renderer: Option<stickers::EmojiRenderer>,
     /// Cuts a picture's subject out of its background (Apple Vision), for stickers.
     pub cutout: Option<stickers::Cutout>,
+    /// Makes a frame's background transparent (Apple Vision), for background removal in video.
+    pub matte: Option<bg_removal::Matte>,
     /// Pictures being drawn for B-roll, placed by [`broll::pump`] when ready.
     pub broll_pending: broll::Pending,
     /// Faces found per clip's media range, for this session.
@@ -609,6 +612,7 @@ impl Session {
             image_classifier: None,
             emoji_renderer: None,
             cutout: None,
+            matte: None,
             broll_pending: Vec::new(),
             face_detector: None,
             face_cache: Default::default(),

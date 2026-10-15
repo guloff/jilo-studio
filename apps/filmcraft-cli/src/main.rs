@@ -151,6 +151,13 @@ fn image_classifier() -> Option<filmcraft_engine::broll::ImageClassifier> {
 }
 
 /// Stickers draw emoji from the system's colour emoji font where the system has it.
+fn matte() -> Option<filmcraft_engine::bg_removal::Matte> {
+    filmcraft_platform::vision::cut_out_available().then(|| {
+        let m: filmcraft_engine::bg_removal::Matte = std::sync::Arc::new(filmcraft_platform::vision::matte);
+        m
+    })
+}
+
 fn cutout() -> Option<filmcraft_engine::stickers::Cutout> {
     filmcraft_platform::vision::cut_out_available().then(|| {
         let c: filmcraft_engine::stickers::Cutout = std::sync::Arc::new(filmcraft_platform::vision::cut_out);
@@ -194,6 +201,7 @@ impl Backend {
         s.image_classifier = image_classifier();
         s.emoji_renderer = emoji_renderer();
         s.cutout = cutout();
+        s.matte = matte();
         // user export presets (and other per-user libraries) from the data directory
         if let Some(dir) = a.opt("--data-dir").map(std::path::PathBuf::from).or_else(filmcraft_engine::autosave::default_data_dir) {
             s.export_presets.set_dir(&dir);

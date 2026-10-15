@@ -113,6 +113,31 @@ pub fn cut_out(rgba: &[u8], w: usize, h: usize) -> Result<(u32, u32, Vec<u8>), S
     apply_mask(&rgba[..need], w, h, &mask).ok_or_else(|| "nothing stands out from the background".to_string())
 }
 
+/// The picture with its background made transparent, at its own size (straight RGBA): the
+/// foreground's alpha from Vision's mask; a frame where nothing stands out comes back fully
+/// transparent.
+pub fn matte(rgba: &[u8], w: usize, h: usize) -> Result<Vec<u8>, String> {
+    let need = w.checked_mul(h).and_then(|n| n.checked_mul(4)).ok_or("the picture is too large")?;
+    if w < 8 || h < 8 || rgba.len() < need {
+        return Err(format!("a {w}×{h} picture needs {need} bytes of RGBA"));
+    }
+    if !cut_out_available() {
+        return Err("removing the background needs macOS 14 or later".into());
+    }
+    let mask = match imp::foreground_mask(&rgba[..need], w, h) {
+        Ok(m) => m,
+        Err(e) if e.contains("nothing stands out") => vec![0.0; w * h],
+        Err(e) => return Err(e),
+    };
+    Ok(rgba[..need]
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .zip(mask.iter().chain(std::iter::repeat(&0.0)))
+        .flat_map(|(p, m)| [p[0], p[1], p[2], (m.clamp(0.0, 1.0) * f32::from(p[3])).round() as u8])
+        .collect())
+}
+
 /// `rgba` with `mask` (0–1 per pixel) as its alpha, cropped to where the mask is.
 pub fn apply_mask(rgba: &[u8], w: usize, h: usize, mask: &[f32]) -> Option<(u32, u32, Vec<u8>)> {
     let (mut x0, mut y0, mut x1, mut y1) = (usize::MAX, usize::MAX, 0usize, 0usize);
@@ -399,6 +424,30 @@ mod tests {
             // a plain synthetic picture may hold no subject for Vision
             Err(e) => assert!(e.contains("nothing stands out"), "{e}"),
         }
+    }
+
+    /// The matte keeps the picture's size: the disc opaque, the corners clear; a blank picture
+    /// comes back fully transparent.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn vision_mattes_a_frame_at_its_size() {
+        let (w, h) = (256usize, 256usize);
+        let mut rgba = Vec::with_capacity(w * h * 4);
+        for y in 0..h {
+            for x in 0..w {
+                let d = ((x as f32 - 128.0).powi(2) + (y as f32 - 128.0).powi(2)).sqrt();
+                rgba.extend_from_slice(if d < 60.0 { &[230, 60, 40, 255] } else { &[20, 30, 40, 255] });
+            }
+        }
+        if !cut_out_available() {
+            return;
+        }
+        let out = matte(&rgba, w, h).unwrap();
+        assert_eq!(out.len(), w * h * 4);
+        assert!(out[3] < 30, "a corner is clear");
+        let blank = matte(&vec![128u8; 64 * 64 * 4], 64, 64).unwrap();
+        assert!(blank.as_chunks::<4>().0.iter().all(|p| p[3] == 0));
+        let _ = out[(128 * w + 128) * 4 + 3]; // the disc: opaque when Vision sees a subject
     }
 
     /// A blank picture has no faces (Vision runs, finds nothing).

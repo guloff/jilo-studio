@@ -707,6 +707,9 @@ pub struct UiState {
     /// AI ▸ Cut into Shorts… (`panels::shorts`).
     #[serde(skip)]
     pub shorts: crate::panels::shorts::ShortsUi,
+    /// Remove Background's job and the parameters to put its result in with.
+    #[serde(skip)]
+    pub bg_removal: Option<(u64, serde_json::Value)>,
     /// AI ▸ Automatic Editing ▸ Auto Zoom…: the dialog and its choices.
     #[serde(default)]
     pub auto_zoom: AutoZoomUi,
@@ -1265,6 +1268,7 @@ impl Default for UiState {
             fillers: None,
             highlights: HighlightsUi::default(),
             shorts: Default::default(),
+            bg_removal: None,
             auto_zoom: AutoZoomUi::default(),
             reframe: ReframeUi::default(),
             updates: UpdatesUi::default(),
