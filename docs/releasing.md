@@ -18,6 +18,12 @@ User-facing names say **Jilo Studio**. Release files are lowercase:
    cargo xtask version set 0.6.0        # pre-releases: 0.6.0-rc.1
    ```
 
+   Version numbers are Jilo Studio's own and grow from the latest tag of guloff/jilo-studio
+   (`gh release list --repo guloff/jilo-studio`): a patch for fixes, a minor version for new
+   features. They do not follow FilmCraft's. A clone that has fetched FilmCraft also holds its
+   tags (v0.1.0 to v0.5.0, v0.7.2, later v0.8.0…), so check `git tag -l v<version>` first and skip a
+   number that is already taken.
+
 2. Run the quality gates: `cargo fmt --all -- --check`, `cargo xtask ci`, and the tests of the whole
    workspace.
 
