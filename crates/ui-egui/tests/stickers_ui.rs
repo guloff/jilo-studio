@@ -199,3 +199,33 @@ fn the_selected_sticker_is_attached_to_a_face() {
     let keys = it.effect("motion").unwrap().param("position").unwrap().keyframes.len();
     assert!(keys >= 3, "Position keys follow the face: {keys} ({})", d.app().ui.status);
 }
+
+/// The Library's Audio tab lists the sound library; "+" puts a whoosh on a free audio track. The
+/// Filters tab shows each look on a picture, and a right-click puts a transition on every cut.
+#[test]
+fn sounds_looks_and_the_whole_edit_from_the_library() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "window.panel.Libraries"}));
+    d.frames(2);
+    d.click("library.tab.audio");
+    assert!(d.has("library.add.audio.sfx:whoosh"), "the sound library is listed");
+    let undo = d.app().session.history.undo.len();
+    d.ok("ui.move", json!({"id": "library.item.audio.sfx:whoosh"}));
+    d.frames(1);
+    d.click("library.add.audio.sfx:whoosh");
+    assert_eq!(d.app().session.history.undo.len(), undo + 1, "{}", d.app().ui.status);
+    let path = d.app().session.execute("sounds.render", json!({"id": "whoosh"})).unwrap()["path"].as_str().unwrap().to_string();
+    // a transition on every cut, from the tile's menu
+    d.click("library.tab.transitions");
+    let had = d.app().session.active_sequence().unwrap().video_tracks[0].transitions.len();
+    d.ok("ui.click", json!({"id": "library.item.transitions.block_motion", "button": "right"}));
+    d.frames(2);
+    d.click("library.all.transitions.block_motion");
+    assert!(d.app().session.active_sequence().unwrap().video_tracks[0].transitions.len() > had, "{}", d.app().ui.status);
+    d.click("library.tab.filters");
+    d.frames(2);
+    snapshot(&mut d, "library-filters");
+    let _ = std::fs::remove_dir_all(std::path::Path::new(&path).parent().unwrap());
+}

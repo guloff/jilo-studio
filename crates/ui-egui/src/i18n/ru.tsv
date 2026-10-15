@@ -4368,3 +4368,29 @@ mode	Edit	Монтаж
 	The transcript goes to {provider} to find the moments; everything else is done on this computer and is one undo step.	Расшифровка уходит в {provider}, чтобы найти моменты; всё остальное делается на этом компьютере и отменяется одним шагом.
 	The best moments as vertical shorts with captions, the speaker in frame.	Лучшие моменты — вертикальными шортсами с субтитрами, говорящий в кадре.
 	A 9:16 copy of the sequence that follows the speaker's face.	Копия секвенции 9:16, которая следует за лицом говорящего.
+# Sound library and the whole edit
+	Sound effect	Звуковой эффект
+	Apply to All Cuts	Ко всем склейкам
+	Apply to All Clips	Ко всем клипам
+	Double-click to add; right-click for the whole edit	Двойной щелчок — добавить; правый щелчок — на весь монтаж
+	Apply Transition to All Cuts	Переход ко всем склейкам
+	List Sounds	Список звуков
+	Add Sound	Добавить звук
+	Render Sound	Создать звук
+	Whoosh	Взмах
+	Swoosh Up	Взмах вверх
+	Swoosh Down	Взмах вниз
+	Click	Щелчок
+	Ding	Дзынь
+	Bell	Колокольчик
+	Riser	Нарастание
+	Impact	Удар
+	Camera Shutter	Затвор камеры
+	Typing	Печать на клавиатуре
+	Notification	Уведомление
+	Success	Успех
+	Heartbeat	Сердцебиение
+	Calm Pad	Спокойный фон
+	Upbeat Groove	Бодрый ритм
+	Lo-fi	Лоу-фай
+	Tension	Напряжение

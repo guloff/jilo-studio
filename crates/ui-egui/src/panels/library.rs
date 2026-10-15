@@ -244,6 +244,24 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
     }
 }
 
+/// A Lumetri look's thumbnail (the preview picture graded by it), made once.
+fn look_texture(ctx: &egui::Context, name: &str) -> Option<egui::TextureHandle> {
+    let key = egui::Id::new(("look-tile", name));
+    if let Some(t) = ctx.data(|d| d.get_temp::<Option<egui::TextureHandle>>(key)) {
+        return t;
+    }
+    let tex = filmcraft_render::lumetri_presets::presets().iter().find(|p| p.name == name).map(|p| {
+        let img = filmcraft_render::lumetri_presets::thumbnail(p, 160, 90);
+        ctx.load_texture(
+            format!("look-{name}"),
+            egui::ColorImage::from_rgba_unmultiplied([img.w, img.h], &img.over_black_rgba8()),
+            egui::TextureOptions::LINEAR,
+        )
+    });
+    ctx.data_mut(|d| d.insert_temp(key, tex.clone()));
+    tex
+}
+
 /// One entry of a tab.
 struct Entry {
     /// Unique within the tab (item id, template id, effect id…).
@@ -280,7 +298,16 @@ fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
         v
     };
     match kind {
-        "audio" => media(false),
+        // the project's sound, then the sound library (made on this computer, free to use)
+        "audio" => media(false)
+            .into_iter()
+            .chain(filmcraft_engine::sound_library::SOUNDS.iter().map(|(id, name, cat, sec)| Entry {
+                key: format!("sfx:{id}"),
+                name: crate::i18n::t(name).to_string(),
+                detail: format!("{} · {:.1} s", if *cat == "music" { tl!("Music") } else { tl!("Sound effect") }, sec),
+                item: None,
+            }))
+            .collect(),
         "text" => templates
             .iter()
             .filter_map(|t| {
@@ -329,6 +356,7 @@ fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
 fn action(app: &FilmcraftApp, kind: &str, key: &str) -> Option<(&'static str, Value)> {
     let at = app.session.playhead().0;
     match kind {
+        "audio" if key.starts_with("sfx:") => Some(("sounds.add", json!({"id": &key[4..]}))),
         "media" | "audio" => key.parse::<u64>().ok().map(|i| ("timeline.addAtPlayhead", json!({"item": i}))),
         "text" => Some(("graphics.template.apply", json!({"template": key, "time": at}))),
         "effects" => Some(("effects.apply", json!({"effect": key}))),
@@ -381,7 +409,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             ui.add(egui::Label::new(RichText::new(text).color(t.text_dim)).wrap());
             return;
         }
-        let media = matches!(kind.as_str(), "media" | "audio");
+        let media = matches!(kind.as_str(), "media" | "audio" | "filters");
         let cell = if media { vec2(150.0, 112.0) } else { vec2(150.0, 46.0) };
         let per_row = ((ui.available_width()) / (cell.x + 6.0)).floor().max(1.0) as usize;
         for row in list.chunks(per_row) {
@@ -395,7 +423,18 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     if media {
                         let th = Rect::from_min_size(r.min + vec2(4.0, 4.0), vec2(cell.x - 8.0, 72.0));
                         p.rect_filled(th, 3.0, t.panel_bg);
-                        if let Some(item) = e.item
+                        if kind == "filters"
+                            && let Some(tex) = look_texture(ui.ctx(), &e.key)
+                        {
+                            let size = tex.size_vec2();
+                            let s = (th.width() / size.x).min(th.height() / size.y);
+                            ui.painter().image(
+                                tex.id(),
+                                Rect::from_center_size(th.center(), size * s),
+                                Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                                egui::Color32::WHITE,
+                            );
+                        } else if let Some(item) = e.item
                             && kind == "media"
                             && let Some((tex, size)) = app.thumbnail(ui.ctx(), item, filmcraft_time::Tick::ZERO, 160)
                         {
@@ -439,7 +478,25 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                             _ => {}
                         }
                     }
-                    resp.on_hover_text(tl!("Double-click to add"));
+                    // the whole edit at once
+                    let all = match kind.as_str() {
+                        "transitions" => Some((tl!("Apply to All Cuts"), "sequence.transitionAllCuts", json!({"effect": e.key}))),
+                        "effects" => Some((tl!("Apply to All Clips"), "effects.applyToAll", json!({"effect": e.key}))),
+                        "filters" => Some((tl!("Apply to All Clips"), "effects.applyToAll", json!({"preset": e.key}))),
+                        _ => None,
+                    };
+                    let has_all = all.is_some();
+                    if let Some((label, cmd, params)) = all {
+                        resp.context_menu(|ui| {
+                            let r = ui.button(label);
+                            app.auto.add(&format!("library.all.{kind}.{}", e.key), r.rect, label);
+                            if r.clicked() {
+                                run = Some((cmd, params.clone()));
+                                ui.close();
+                            }
+                        });
+                    }
+                    resp.on_hover_text(if has_all { tl!("Double-click to add; right-click for the whole edit") } else { tl!("Double-click to add") });
                 }
             });
             ui.add_space(6.0);

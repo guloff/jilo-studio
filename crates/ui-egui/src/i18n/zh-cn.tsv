@@ -4408,3 +4408,29 @@
 	The transcript goes to {provider} to find the moments; everything else is done on this computer and is one undo step.	转录文本会发送到 {provider} 以查找精彩时刻；其余操作都在这台电脑上完成，可一步撤销。
 	The best moments as vertical shorts with captions, the speaker in frame.	精彩时刻生成带字幕的竖屏短视频，说话人在画面中。
 	A 9:16 copy of the sequence that follows the speaker's face.	序列的 9:16 副本，跟随说话人的脸。
+# Sound library and the whole edit
+	Sound effect	音效
+	Apply to All Cuts	应用到所有剪辑点
+	Apply to All Clips	应用到所有剪辑
+	Double-click to add; right-click for the whole edit	双击添加；右键应用到整个剪辑
+	Apply Transition to All Cuts	将转场应用到所有剪辑点
+	List Sounds	列出声音
+	Add Sound	添加声音
+	Render Sound	生成声音
+	Whoosh	嗖声
+	Swoosh Up	上扬嗖声
+	Swoosh Down	下降嗖声
+	Click	咔嗒声
+	Ding	叮
+	Bell	铃声
+	Riser	渐强音效
+	Impact	撞击声
+	Camera Shutter	快门声
+	Typing	打字声
+	Notification	通知音
+	Success	成功提示音
+	Heartbeat	心跳
+	Calm Pad	舒缓铺底
+	Upbeat Groove	轻快律动
+	Lo-fi	Lo-fi
+	Tension	紧张氛围
