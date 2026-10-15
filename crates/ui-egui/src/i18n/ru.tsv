@@ -4346,3 +4346,11 @@ mode	Edit	Монтаж
 	Caption Look	Вид как у субтитров
 	Choose…	Выбрать…
 	Apply Caption Look to Text	Применить вид субтитров к тексту
+# Stickers: draw and follow a face
+	A sticker of… (a happy cat)	Стикер: … (весёлый кот)
+	Draw	Нарисовать
+	The image engine of AI Settings draws it; the subject is cut out and kept in My Stickers.	Рисует движок изображений из настроек AI; объект вырезается и сохраняется в «Моих стикерах».
+	Attach Selected Sticker to Face	Прикрепить выделенный стикер к лицу
+	The sticker follows the face: {n} keyframes.	Стикер следует за лицом: ключевых кадров — {n}.
+	Draw a Sticker	Нарисовать стикер
+	Attach Sticker to Face	Прикрепить стикер к лицу

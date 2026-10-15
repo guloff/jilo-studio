@@ -172,3 +172,30 @@ fn the_selected_clip_is_cut_out_into_my_stickers() {
     snapshot(&mut d, "my-stickers");
     let _ = std::fs::remove_dir_all(std::path::Path::new(&path).parent().unwrap().parent().unwrap());
 }
+
+#[test]
+fn the_selected_sticker_is_attached_to_a_face() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.emoji_renderer = Some(Arc::new(|_: &str, size: u32| Ok((size, size, [255u8, 140, 0, 255].repeat((size * size) as usize)))));
+    s.cutout = Some(Arc::new(|rgba: &[u8], w: usize, h: usize| Ok((w as u32, h as u32, rgba.to_vec()))));
+    // a face that drifts right frame by frame
+    let n = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    s.face_detector = Some(Arc::new(move |_: &[u8], _, _| {
+        let k = n.fetch_add(1, std::sync::atomic::Ordering::Relaxed) as f64;
+        Ok(vec![filmcraft_engine::reframe::FaceBox { x: (0.3 + k * 0.02).min(0.8), y: 0.3, w: 0.1, h: 0.15, confidence: 0.9 }])
+    }));
+    let r = s.execute("stickers.add", json!({"id": "emoji:🔥", "animation": "none"})).unwrap();
+    let clip = r["clip"].as_u64().unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "window.panel.Libraries"}));
+    d.frames(2);
+    d.click("library.tab.stickers");
+    d.click("library.stickers.cat.mine");
+    assert!(d.has("library.stickers.prompt") && d.has("library.stickers.draw"), "describe and draw");
+    d.click("library.stickers.followFace");
+    let q = d.app().session.active_sequence().unwrap().clone();
+    let (_, it) = q.find_item(ClipId(clip)).unwrap();
+    let keys = it.effect("motion").unwrap().param("position").unwrap().keyframes.len();
+    assert!(keys >= 3, "Position keys follow the face: {keys} ({})", d.app().ui.status);
+}

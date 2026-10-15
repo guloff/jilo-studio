@@ -33,6 +33,8 @@ pub struct LibraryUi {
     /// entrance animation new stickers get ("" = pop).
     pub sticker_category: String,
     pub sticker_animation: String,
+    /// What a sticker drawn by the image engine shows.
+    pub sticker_prompt: String,
 }
 
 /// The sticker categories offered first, before the catalogue's own.
@@ -107,15 +109,39 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
         app.auto.add("library.stickers.animation", r.response.rect, "Animation");
     });
     let mut cut = false;
+    let mut draw = false;
     if cat == "mine" && query.is_empty() {
+        let can = list["cutout"] == true;
         child.horizontal(|ui| {
-            let can = list["cutout"] == true;
             let b = ui.add_enabled(can, egui::Button::new(tl!("Cut Out of the Selected Clip")).small());
             app.auto.add("library.stickers.cutOut", b.rect, "Cut Out of the Selected Clip");
             cut = b.clicked();
             if !can {
                 b.on_disabled_hover_text(tl!("Needs Apple Vision (macOS 14 or later)."));
             }
+        });
+        child.horizontal(|ui| {
+            let r = ui.add(egui::TextEdit::singleline(&mut app.ui.library.sticker_prompt).hint_text(tl!("A sticker of… (a happy cat)")).desired_width(170.0));
+            app.auto.add("library.stickers.prompt", r.rect, "Sticker description");
+            let ok = can && !app.ui.library.sticker_prompt.trim().is_empty() && app.ui.ai_task.is_none();
+            let b = ui.add_enabled(ok, egui::Button::new(tl!("Draw")).small());
+            app.auto.add("library.stickers.draw", b.rect, "Draw");
+            draw = b.clicked() || (ok && r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
+            b.on_hover_text(tl!("The image engine of AI Settings draws it; the subject is cut out and kept in My Stickers."));
+        });
+    }
+    // the selected sticker over a face: follow it
+    let mut attach = false;
+    let can_attach = app.session.face_detector.is_some()
+        && app
+            .session
+            .active_sequence()
+            .is_some_and(|q| q.video_tracks.iter().skip(1).any(|t| app.session.state.selection.iter().any(|c| t.item(*c).is_some())));
+    if can_attach {
+        child.horizontal(|ui| {
+            let b = ui.add(egui::Button::new(tl!("Attach Selected Sticker to Face")).small());
+            app.auto.add("library.stickers.followFace", b.rect, "Attach Selected Sticker to Face");
+            attach = b.clicked();
         });
     }
     let items: Vec<Value> = list["stickers"].as_array().cloned().unwrap_or_default();
@@ -187,6 +213,24 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
             Ok(_) => tl!("Sticker added at the playhead; drag it in the Program monitor.").to_string(),
             Err(e) => e.to_string(),
         };
+    }
+    if attach {
+        app.ui.status = match app.session.execute("stickers.followFace", json!({})) {
+            Ok(r) => tlf!("The sticker follows the face: {n} keyframes.", n = r["keys"].as_u64().unwrap_or(0)),
+            Err(e) => e.to_string(),
+        };
+    }
+    if draw {
+        let prompt = app.ui.library.sticker_prompt.trim().to_string();
+        let a = if app.ui.library.sticker_animation.is_empty() { "pop".to_string() } else { app.ui.library.sticker_animation.clone() };
+        let engine = app.session.prefs.ai.image_provider().id();
+        crate::panels::ai_tasks::start(
+            app,
+            "stickers.generate",
+            json!({"prompt": prompt, "animation": a, "engine": engine}),
+            "Draw a Sticker",
+            "the sticker's description",
+        );
     }
     if cut {
         let a = if app.ui.library.sticker_animation.is_empty() { "pop".to_string() } else { app.ui.library.sticker_animation.clone() };

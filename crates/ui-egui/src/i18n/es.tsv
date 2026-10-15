@@ -4351,3 +4351,11 @@
 	Caption Look	Aspecto de subtítulo
 	Choose…	Elegir…
 	Apply Caption Look to Text	Aplicar aspecto de subtítulo al texto
+# Stickers: draw and follow a face
+	A sticker of… (a happy cat)	Un sticker de… (un gato feliz)
+	Draw	Dibujar
+	The image engine of AI Settings draws it; the subject is cut out and kept in My Stickers.	Lo dibuja el motor de imágenes de los ajustes de IA; el sujeto se recorta y se guarda en Mis stickers.
+	Attach Selected Sticker to Face	Fijar el sticker seleccionado a la cara
+	The sticker follows the face: {n} keyframes.	El sticker sigue la cara: {n} fotogramas clave.
+	Draw a Sticker	Dibujar un sticker
+	Attach Sticker to Face	Fijar sticker a la cara

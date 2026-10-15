@@ -4386,3 +4386,11 @@
 	Caption Look	字幕外观
 	Choose…	选择…
 	Apply Caption Look to Text	将字幕外观应用到文本
+# Stickers: draw and follow a face
+	A sticker of… (a happy cat)	贴纸内容…（一只开心的猫）
+	Draw	绘制
+	The image engine of AI Settings draws it; the subject is cut out and kept in My Stickers.	由 AI 设置中的图像引擎绘制；主体会被抠出并保存在“我的贴纸”中。
+	Attach Selected Sticker to Face	将所选贴纸附着到人脸
+	The sticker follows the face: {n} keyframes.	贴纸跟随人脸：{n} 个关键帧。
+	Draw a Sticker	绘制贴纸
+	Attach Sticker to Face	将贴纸附着到人脸

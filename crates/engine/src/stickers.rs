@@ -430,6 +430,125 @@ fn from_clip(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"id": id, "path": path.to_string_lossy()}))
 }
 
+/// `stickers.followFace`: the selected sticker (any picture clip over the video) follows the face
+/// nearest it through its time: the picture under it (the tracks below, rendered) is searched
+/// for faces four times a second, the nearest face is followed (`reframe::track_from`), smoothed,
+/// and the sticker gets Position keys that keep it as far from the face as it is now. One undo step.
+fn follow_face(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "stickers.followFace";
+    let detector =
+        s.face_detector.clone().ok_or_else(|| EngineError::Other("face detection is not available on this system (it needs Apple Vision on macOS)".into()))?;
+    let seq_id = s.state.active_sequence.ok_or(EngineError::NoSequence)?;
+    let q = s.active_sequence().ok_or(EngineError::NoSequence)?.clone();
+    let clip = match u64_p(p, "clip") {
+        Some(c) => ClipId(c),
+        None => {
+            *s.state.selection.iter().find(|c| q.video_tracks.iter().any(|t| t.item(**c).is_some())).ok_or_else(|| bad(cmd, "select the sticker to attach"))?
+        }
+    };
+    let ti = q.video_tracks.iter().position(|t| t.item(clip).is_some()).ok_or_else(|| bad(cmd, "the sticker is not on a video track"))?;
+    let it = q.video_tracks[ti].item(clip).cloned().ok_or_else(|| bad(cmd, "no such clip"))?;
+    if ti == 0 {
+        return Err(bad(cmd, "the sticker is on the lowest track: there is no picture under it"));
+    }
+    let (fw, fh) = (f64::from(q.settings.width), f64::from(q.settings.height));
+    // the picture under the sticker: the sequence with this track and those above emptied
+    let mut below = (*s.project).clone();
+    if let Some(bq) = below.sequence_mut(seq_id) {
+        for t in bq.video_tracks.iter_mut().skip(ti) {
+            t.items.clear();
+            t.transitions.clear();
+        }
+    }
+    let below = std::sync::Arc::new(below);
+    let provider = s.media.provider(below.clone(), s.services.clone());
+    let scale = (640.0 / fw).min(1.0) as f32;
+    let every = f64_p(p, "every").filter(|x| x.is_finite()).unwrap_or(0.25).clamp(0.05, 2.0);
+    let (t0, t1) = (it.start.seconds(), it.end().seconds());
+    let n = (((t1 - t0) / every).floor() as usize + 1).min(2400);
+    let rate = q.settings.frame_rate;
+    let mut samples = Vec::with_capacity(n);
+    for k in 0..n {
+        let t = rate.snap(Tick::from_seconds_f64((t0 + k as f64 * every).min(t1 - 1e-3).max(t0)));
+        let img = filmcraft_render::render_sequence(&below, seq_id, t, filmcraft_render::RenderOptions { scale, ..Default::default() }, &provider);
+        let faces = detector(&img.over_black_rgba8(), img.w, img.h).map_err(EngineError::Other)?;
+        samples.push(crate::reframe::FaceSample { time: t.seconds(), faces });
+    }
+    if samples.iter().all(|x| x.faces.is_empty()) {
+        return Err(bad(cmd, "no face was found under the sticker"));
+    }
+    // where the sticker is now, and the face nearest it then
+    let m = it.effect("motion").ok_or_else(|| bad(cmd, "the sticker has no Motion"))?;
+    let et0 = it.effect_time_at(it.start);
+    let pos0 = m.vec2_at("position", et0);
+    let first = samples.iter().find(|x| !x.faces.is_empty()).map_or(t0, |x| x.time);
+    let track = crate::reframe::track_from(&samples, first, (pos0.x / fw, pos0.y / fh), fw / fh.max(1.0));
+    let track = crate::reframe::smooth_track(&track, f64_p(p, "smoothing").unwrap_or(0.4).clamp(0.0, 3.0), 0.004);
+    let start_face = track.iter().find(|x| x.found).ok_or_else(|| bad(cmd, "no face was found under the sticker"))?;
+    let offset = (pos0.x - start_face.x * fw, pos0.y - start_face.y * fh);
+    let keys: Vec<filmcraft_project::Keyframe> = track
+        .iter()
+        .map(|x| {
+            let et = it.effect_time_at(Tick::from_seconds_f64(x.time).clamp(it.start, it.end() - Tick(1)));
+            let v = filmcraft_geom::Vec2::new(((x.x * fw + offset.0) * 10.0).round() / 10.0, ((x.y * fh + offset.1) * 10.0).round() / 10.0);
+            let mut k = filmcraft_project::Keyframe::new(et, filmcraft_project::ParamValue::Vec2(v));
+            k.interp = filmcraft_project::Interpolation::Linear;
+            k
+        })
+        .collect();
+    let nkeys = keys.len();
+    s.edit_sequence("Attach Sticker to Face", |q, _, _| {
+        let (_, it) = q.find_item_mut(clip).ok_or(filmcraft_edit::EditError::NoItem(clip))?;
+        let m = it.effect_mut("motion").ok_or_else(|| bad(cmd, "the sticker has no Motion"))?;
+        let pp = m.params.get_mut("position").ok_or_else(|| bad(cmd, "the sticker has no Position"))?;
+        if let Some(k) = keys.first() {
+            pp.value = k.value.clone();
+        }
+        pp.keyframes = keys;
+        Ok(())
+    })?;
+    Ok(json!({"clip": clip.0, "keys": nkeys, "frames": n, "found": samples.iter().filter(|x| !x.faces.is_empty()).count()}))
+}
+
+/// The image engine's brief for a sticker of `what`: one subject, flat, on a plain background
+/// that cuts out cleanly.
+pub fn sticker_prompt(what: &str) -> String {
+    format!(
+        "A single sticker of {}: one subject, bold clean shapes and a thick white outline, flat colours, centred, on a plain light grey background, no text, no shadow.",
+        what.trim()
+    )
+}
+
+/// `stickers.generate`: a sticker drawn from a description by the image engine of Settings ▸ AI,
+/// cut out of its background and kept among the user's own (cloud, with the usual consent).
+fn generate(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "stickers.generate";
+    let what = str_p(p, "prompt").map(str::trim).filter(|x| !x.is_empty()).ok_or_else(|| bad(cmd, "`prompt`: what the sticker shows"))?.to_string();
+    if s.cutout.is_none() {
+        return Err(EngineError::Other("cutting out needs Apple Vision (macOS 14 or later)".into()));
+    }
+    let mut q = json!({"prompt": sticker_prompt(&what), "shape": "square", "place": false});
+    for k in ["engine", "model", "confirm", "dir", "background"] {
+        if let Some(v) = p.get(k) {
+            q[k] = v.clone();
+        }
+    }
+    // the drawn picture is imported (one undo step of its own), then cut out
+    let r = s.execute("ai.generateImage", q)?;
+    // drawn in a job (progress, Stop): the same call without `background` then cuts it out
+    if r.get("job").is_some() {
+        return Ok(r);
+    }
+    let item = r["item"].as_u64().ok_or_else(|| EngineError::Other("the picture was not imported".into()))?;
+    let mut f = json!({"item": item, "time": 0, "name": what, "place": bool_p(p, "place").unwrap_or(true)});
+    if let Some(a) = p.get("animation") {
+        f["animation"] = a.clone();
+    }
+    let mut out = s.execute("stickers.fromClip", f)?;
+    out["picture"] = r["path"].clone();
+    Ok(out)
+}
+
 fn favorite(s: &mut Session, p: &Value) -> Result<Value> {
     let id = str_p(p, "id").ok_or_else(|| bad("stickers.favorite", "`id`"))?.to_string();
     let mut prefs = s.prefs.clone();
@@ -521,6 +640,26 @@ pub fn commands() -> Vec<CommandSpec> {
             params: r#"{"item":id?,"time":ticks? (default: the selected clip at the playhead),"name":str?,"place":bool=true,"animation":str?,"size":f?}"#,
             enabled: always,
             run: from_clip,
+            journal: true,
+        },
+        CommandSpec {
+            id: "stickers.generate",
+            label: "Draw a Sticker",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"prompt":str,"place":bool=true,"animation":str?,"engine":"openai|gemini"?,"model":str?,"confirm":bool? (consent to send the description),"dir":path?,"background":bool? (drawn in a job; call again without it to cut it out)}"#,
+            enabled: always,
+            run: generate,
+            journal: true,
+        },
+        CommandSpec {
+            id: "stickers.followFace",
+            label: "Attach Sticker to Face",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"clip":id? (default: the selected sticker),"every":seconds=0.25,"smoothing":seconds=0.4}"#,
+            enabled: has_seq,
+            run: follow_face,
             journal: true,
         },
         CommandSpec {
@@ -644,5 +783,37 @@ mod tests {
         s.state.selection.clear();
         assert!(s.execute("stickers.fromClip", json!({})).is_err(), "nothing selected");
         let _ = std::fs::remove_dir_all(stickers_dir(&s));
+    }
+
+    #[test]
+    fn a_sticker_follows_the_face_under_it() {
+        let mut s = Session::default();
+        s.execute("file.openDemoProject", json!({})).unwrap();
+        s.emoji_renderer = Some(Arc::new(|_: &str, size: u32| Ok((size, size, [255u8, 140, 0, 255].repeat((size * size) as usize)))));
+        // a "face" that walks from left to right: its x follows the time the frame was asked for,
+        // read back from a counter (frames are analysed in order)
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let c2 = calls.clone();
+        s.face_detector = Some(Arc::new(move |_: &[u8], _, _| {
+            let k = c2.fetch_add(1, std::sync::atomic::Ordering::Relaxed) as f64;
+            Ok(vec![crate::reframe::FaceBox { x: (0.2 + k * 0.02).min(0.8), y: 0.3, w: 0.1, h: 0.15, confidence: 0.9 }])
+        }));
+        let r = s.execute("stickers.add", json!({"id": "emoji:🔥", "animation": "none", "x": 0.3, "y": 0.2, "seconds": 2.0})).unwrap();
+        let clip = r["clip"].as_u64().unwrap();
+        let undo = s.history.undo.len();
+        let r = s.execute("stickers.followFace", json!({"clip": clip, "smoothing": 0})).unwrap();
+        assert!(r["keys"].as_u64().unwrap() >= 5, "{r}");
+        assert_eq!(s.history.undo.len(), undo + 1);
+        let q = s.active_sequence().unwrap();
+        let (_, it) = q.find_item(ClipId(clip)).unwrap();
+        let m = it.effect("motion").unwrap();
+        let (a, b) = (m.vec2_at("position", it.effect_time_at(it.start)), m.vec2_at("position", it.effect_time_at(it.end() - Tick(1))));
+        assert!(b.x > a.x + 100.0, "moved right with the face: {a:?} → {b:?}");
+        assert!((b.y - a.y).abs() < 2.0, "the face did not go up or down");
+        // the offset from the face is kept: it started 0.1 of the width right of the face's centre
+        let w = f64::from(q.settings.width);
+        assert!((a.x - (0.25 * w + 0.05 * w)).abs() < 0.06 * w, "{a:?}");
+        s.face_detector = Some(Arc::new(|_: &[u8], _, _| Ok(Vec::new())));
+        assert!(s.execute("stickers.followFace", json!({"clip": clip})).is_err(), "no face");
     }
 }

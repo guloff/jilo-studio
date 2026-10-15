@@ -921,3 +921,27 @@ fn an_animated_sticker_plays_on_the_timeline() {
     assert_eq!(a, c, "it loops for the whole clip");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A sticker drawn from a description: the image engine draws it (after consent), the subject is
+/// cut out and kept among the user's own, and it goes on the picture.
+#[test]
+fn a_sticker_is_drawn_cut_out_and_placed() {
+    let (mut s, fake, dir) = session("sticker-draw");
+    s.execute("ai.setKey", json!({"provider": "openai", "key": "k2"})).unwrap();
+    let b64 = filmcraft_ai::base64::encode(&png_bytes(64, 64));
+    fake.route(|r| r.url.ends_with("/images/generations"), move |_| Ok(Response::json(200, &json!({"data": [{"b64_json": b64}]}))));
+    s.cutout = Some(Arc::new(|rgba: &[u8], w: usize, h: usize| Ok((w as u32, h as u32, rgba.to_vec()))));
+    let p = json!({"prompt": "a happy cat", "dir": dir.to_string_lossy()});
+    let e = s.execute("stickers.generate", p.clone()).unwrap_err().to_string();
+    assert!(e.contains("CONFIRM_CLOUD"), "{e}");
+    let mut p = p;
+    p["confirm"] = json!(true);
+    let r = s.execute("stickers.generate", p).unwrap();
+    assert!(r["clip"].as_u64().is_some(), "{r}");
+    let body = fake.sent()[0].json().unwrap();
+    assert!(body["prompt"].as_str().unwrap().contains("a happy cat") && body["prompt"].as_str().unwrap().contains("sticker"), "{body}");
+    assert_eq!(body["size"], "1024x1024", "square");
+    let mine = s.execute("stickers.list", json!({"category": "mine"})).unwrap();
+    assert_eq!(mine["stickers"][0]["name"], "a happy cat");
+    let _ = std::fs::remove_dir_all(std::path::Path::new(mine["stickers"][0]["path"].as_str().unwrap()).parent().unwrap().parent().unwrap());
+}
