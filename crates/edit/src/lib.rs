@@ -487,12 +487,41 @@ pub fn move_items(seq: &mut Sequence, moves: &[(ClipId, TrackId, Tick)], insert_
         it.start = (*start).max(Tick::ZERO);
         placed.push((*dest, it));
     }
-    // carry transitions with moved clips? Premiere drops transitions whose partner is not moved.
+    // Transitions go with the moved clips: a fade on a clip's own edge (in from nothing, out to
+    // nothing), and a transition at a cut whose two clips move together onto one track. One whose
+    // other clip stays behind is dropped, as in Premiere.
+    let offsets: HashMap<ClipId, (TrackId, Tick)> =
+        placed.iter().filter_map(|(dest, it)| work.find_item(it.id).map(|(_, old)| (it.id, (*dest, it.start - old.start)))).collect();
+    let mut carried: Vec<(TrackId, Tick, Transition)> = Vec::new();
+    for t in work.all_tracks().flat_map(|tr| tr.transitions.iter()) {
+        let sides: Vec<Option<&(TrackId, Tick)>> = [t.from, t.to].into_iter().flatten().map(|c| offsets.get(&c)).collect();
+        let Some(Some(&(dest, delta))) = sides.first().copied() else { continue };
+        if sides.iter().all(|s| *s == Some(&(dest, delta))) {
+            let mut moved = t.clone();
+            moved.start += delta;
+            carried.push((dest, delta, moved));
+        }
+    }
+    let anchors: Vec<Option<Tick>> = carried
+        .iter()
+        .map(|(_, delta, t)| {
+            work.all_tracks().find(|tr| tr.transitions.iter().any(|x| x.id == t.id)).and_then(|tr| transition_anchor(tr, t)).map(|a| a + *delta)
+        })
+        .collect();
     delete_items(&mut work, &moves.iter().map(|m| m.0).collect::<Vec<_>>());
     if insert_mode {
         insert(&mut work, placed, ctx)?;
     } else {
         overwrite(&mut work, placed, ctx)?;
+    }
+    for ((dest, _, t), anchor) in carried.into_iter().zip(anchors) {
+        let Some(tr) = work.track_mut(dest) else { continue };
+        // only where its clip edges still are (a later placement may have covered them)
+        let free = !tr.transitions.iter().any(|x| x.range().overlaps(&t.range()));
+        if anchor.is_some() && transition_anchor(tr, &t) == anchor && free {
+            tr.transitions.push(t);
+            tr.sort();
+        }
     }
     *seq = work;
     Ok(())

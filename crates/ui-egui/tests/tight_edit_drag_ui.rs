@@ -236,3 +236,41 @@ fn an_old_caption_overlap_does_not_undo_every_edit() {
     let r = s.execute("captions.setTimes", json!({"caption": caps[1].id.0, "endTime": (third.start + sec(1.0)).0}));
     assert!(r.is_err() || s.active_sequence().unwrap().caption_tracks[0].captions[1].end() <= third.start, "no new overlap: {r:?}");
 }
+
+/// (f) A title alone on V2 with a fade in and out: dragged along its track, both fades go with it
+/// (they used to vanish on release).
+#[test]
+fn a_clips_fades_go_with_it_when_dragged() {
+    let (mut d, [a, _, _]) = tight();
+    let s = &mut d.harness.state_mut().session;
+    let g = s
+        .edit_sequence("title", |seq, ctx, _| {
+            let mut it = seq.video_tracks[0].items.iter().find(|i| i.id == a).expect("A").clone();
+            *ctx.next_id += 1;
+            it.id = ClipId(*ctx.next_id);
+            (it.start, it.duration) = (sec(40.0), sec(10.0));
+            seq.video_tracks[1].items.push(it.clone());
+            Ok(it.id)
+        })
+        .expect("title");
+    s.execute("trim.applyDefaultTransition", json!({"clips": [g.0]})).expect("fades");
+    let fades = |d: &mut Driver| {
+        let q = d.harness.state().session.active_sequence().unwrap().clone();
+        let mut v: Vec<(Option<ClipId>, Option<ClipId>, Tick)> = q.video_tracks[1].transitions.iter().map(|t| (t.from, t.to, t.start)).collect();
+        v.sort_by_key(|x| x.2);
+        v
+    };
+    let before = fades(&mut d);
+    assert_eq!(before.len(), 2, "a fade in and a fade out: {before:?}");
+    d.frames(3);
+    let shift = sec(2.0);
+    let px = shift.seconds() as f32 * d.pps();
+    let r = d.rect(&format!("timeline.clip.{}", g.0));
+    let from = centre(r);
+    d.drag(from, from + egui::vec2(px, 0.0));
+    let (start, _) = d.clip(g).expect("the title");
+    let moved = start - sec(40.0);
+    assert!((moved - shift).0.abs() <= d.rate().frame_duration().0, "moved about 2 s: {:?} ({})", moved.seconds(), d.status());
+    let after = fades(&mut d);
+    assert_eq!(after, before.iter().map(|(f, t, s)| (*f, *t, *s + moved)).collect::<Vec<_>>(), "the fades went with it");
+}

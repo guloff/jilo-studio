@@ -526,6 +526,49 @@ fn move_with_insert_and_overwrite() {
     assert_eq!(fx.spans(v2), vec![(0, 5), (5, 10), (15, 15)]);
 }
 
+/// A fade-in on a clip's head (and a fade-out on its tail) goes with the clip when it is moved,
+/// on its track or to another; a transition at a cut goes along only when both clips move.
+#[test]
+fn transitions_on_a_clips_own_edges_move_with_it() {
+    let mut fx = Fx::new();
+    let (v1, v2) = (fx.v(0), fx.v(1));
+    let a = fx.put(v1, 0, 10, 10);
+    let b = fx.put(v1, 10, 10, 10);
+    let g = fx.put(v2, 40, 20, 10);
+    let fade = |id, start, from, to| Transition {
+        id: TransitionId(id),
+        effect: filmcraft_project::find_effect("cross_dissolve").unwrap().instance(),
+        start: f(start),
+        duration: f(4),
+        from,
+        to,
+        align: Default::default(),
+        reverse: false,
+    };
+    fx.seq.track_mut(v2).unwrap().transitions = vec![fade(1, 40, None, Some(g)), fade(2, 56, Some(g), None)];
+    fx.seq.track_mut(v1).unwrap().transitions = vec![fade(3, 8, Some(a), Some(b))];
+    let mut n = fx.next;
+    // along its track, 6 frames left: both fades go with it
+    move_items(&mut fx.seq, &[(g, v2, f(34))], false, &mut Fx::ctx(&mut n)).unwrap();
+    let t = fx.seq.track(v2).unwrap();
+    assert_eq!(t.transitions.iter().map(|x| (x.id.0, x.start)).collect::<Vec<_>>(), vec![(1, f(34)), (2, f(50))]);
+    // onto another track
+    move_items(&mut fx.seq, &[(g, v1, f(60))], false, &mut Fx::ctx(&mut n)).unwrap();
+    assert!(fx.seq.track(v2).unwrap().transitions.is_empty());
+    let t = fx.seq.track(v1).unwrap();
+    assert!(t.transitions.iter().any(|x| x.id.0 == 1 && x.start == f(60) && x.to == Some(g)), "{:?}", t.transitions);
+    // the cut between A and B: dropped when only B moves, kept when both move together
+    let mut both = fx.seq.clone();
+    move_items(&mut both, &[(a, v1, f(100)), (b, v1, f(110))], false, &mut Fx::ctx(&mut n)).unwrap();
+    assert!(both.track(v1).unwrap().transitions.iter().any(|x| x.id.0 == 3 && x.start == f(108)), "both clips moved");
+    move_items(&mut fx.seq, &[(b, v1, f(30))], false, &mut Fx::ctx(&mut n)).unwrap();
+    assert!(!fx.seq.track(v1).unwrap().transitions.iter().any(|x| x.id.0 == 3), "its other clip stayed behind");
+    // in insert mode too
+    move_items(&mut fx.seq, &[(g, v1, f(0))], true, &mut Fx::ctx(&mut n)).unwrap();
+    assert!(fx.seq.track(v1).unwrap().transitions.iter().any(|x| x.id.0 == 1 && x.start == f(0)));
+    fx.seq.check().unwrap();
+}
+
 #[derive(Debug, Clone)]
 enum Op {
     Over(usize, i64, i64),
