@@ -424,7 +424,13 @@ fn body(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, v: &View, actions
     let filter = app.ui.project_search.to_ascii_lowercase();
     let total = count_items(app, v.bin);
     let sel = app.session.state.project_selection.len();
-    let count = if sel > 0 { tlf!("{sel} of {total} items selected", sel, total) } else { tlf!("{total} items", total) };
+    let count = if sel > 0 {
+        tlf!("{sel} of {total} items selected", sel, total)
+    } else if total == 1 {
+        tlf!("{total} item", total)
+    } else {
+        tlf!("{total} items", total)
+    };
     ui.painter().text(pos2(row.max.x, row.center().y - 1.0), Align2::RIGHT_CENTER, &count, Tokens::ui(fs - 1.0), t.text_dim);
     app.auto.add(&format!("{pre}.count"), Rect::from_min_max(pos2(row.max.x - 160.0, row.min.y), row.max), &count);
 

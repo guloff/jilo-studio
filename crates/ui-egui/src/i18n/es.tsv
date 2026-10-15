@@ -4483,3 +4483,5 @@
 # Licenses
 	Third-Party Licenses	Licencias de terceros
 	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	La lista de licencias está en la app empaquetada (Resources/Licenses); la crea `cargo xtask licenses`.
+	{n} item	{n} elemento
+	{total} item	{total} elemento

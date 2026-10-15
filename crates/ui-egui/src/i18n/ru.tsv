@@ -4478,3 +4478,5 @@ mode	Edit	Монтаж
 # Licenses
 	Third-Party Licenses	Лицензии сторонних компонентов
 	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	Список лицензий лежит в собранном приложении (Resources/Licenses); его создаёт `cargo xtask licenses`.
+	{n} item	{n} эл.
+	{total} item	{total} элемент

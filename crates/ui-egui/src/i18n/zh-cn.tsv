@@ -4518,3 +4518,5 @@
 # Licenses
 	Third-Party Licenses	第三方许可
 	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	许可列表位于打包后的应用中（Resources/Licenses），由 `cargo xtask licenses` 生成。
+	{n} item	{n} 项
+	{total} item	{total} 项

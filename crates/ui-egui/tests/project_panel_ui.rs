@@ -447,6 +447,28 @@ fn bins_open_in_place_in_a_tab_or_in_a_window() {
     assert_eq!(name, "Camera A");
 }
 
+/// A bin holding one item says "1 item", not "1 items" (Project panel header and the bin's card).
+#[test]
+fn one_item_is_counted_in_the_singular() {
+    let mut d = project_driver();
+    assert_eq!(d.label("project.count"), "12 items");
+    let audio = d
+        .app()
+        .session
+        .project
+        .root
+        .children
+        .iter()
+        .find_map(|e| match e {
+            BinEntry::Bin(b) if b.name == "Audio" => Some(b.id.0),
+            _ => None,
+        })
+        .expect("Audio bin");
+    d.ok("ui.menu.invoke", json!({"id": "projectPanel.openBin", "params": {"bin": audio, "how": "inPlace"}}));
+    d.frames(3);
+    assert_eq!(d.label("project.count"), "1 item");
+}
+
 /// A bin made in the Project panel is deleted with the trash button, the keyboard, the panel menu
 /// and its context menu (bins are not items, so they never were in the item selection).
 #[test]
