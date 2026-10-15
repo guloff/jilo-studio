@@ -25,6 +25,7 @@
 //! where voice-over recordings go (Scratch Disks ▸ Captured, else next to the project, else
 //! `Narrations` in the data or temporary directory); an edit writes next to the previous file.
 
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::{Value, json};
@@ -498,7 +499,6 @@ pub(crate) fn spawn(s: &mut Session, job: crate::Job, wait: bool, name: &str, ru
 pub(crate) type JobResult = std::sync::Mutex<Option<std::result::Result<filmcraft_export::Report, String>>>;
 
 pub(crate) fn finish(prog: &filmcraft_export::Progress, res: &JobResult, r: std::result::Result<String, String>, t0: web_time::Instant) {
-    use std::sync::atomic::Ordering;
     let secs = t0.elapsed().as_secs_f64();
     let r = match r {
         Ok(status) => {
@@ -513,6 +513,45 @@ pub(crate) fn finish(prog: &filmcraft_export::Progress, res: &JobResult, r: std:
     };
     prog.finished.store(true, Ordering::Relaxed);
     *res.lock().unwrap_or_else(PoisonError::into_inner) = Some(r);
+}
+
+/// Synthesize many narrations (`tts.create` parameters each) in one background job into the cache,
+/// so creating them afterwards is instant (dubbing: a phrase each). The cache keeps all of them
+/// until the next ordinary synthesis. Returns the job, or None when every one is cached already.
+pub(crate) fn render_many(s: &mut Session, cmd: &str, list: &[Value], label: &str, wait: bool) -> Result<Option<u64>> {
+    let mut todo: Vec<(String, Narration)> = Vec::new();
+    for p in list {
+        let n = settings(cmd, p, None)?;
+        let key = cache_key(&n);
+        if !s.tts_cache.lock().unwrap_or_else(PoisonError::into_inner).iter().any(|(k, _)| *k == key) && !todo.iter().any(|(k, _)| *k == key) {
+            todo.push((key, n));
+        }
+    }
+    let Some((_, first)) = todo.first() else { return Ok(None) };
+    let sp = speaker(s, cmd, &list[0], first)?;
+    let job = new_job(s, label.to_string());
+    job.progress.total.store(todo.len() as u64, Ordering::Relaxed);
+    let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.tts_cache.clone());
+    let id = spawn(s, job, wait, "filmcraft-tts", move || {
+        let t0 = web_time::Instant::now();
+        let total = todo.len();
+        let r = (|| -> std::result::Result<String, String> {
+            for (k, (key, n)) in todo.into_iter().enumerate() {
+                if prog.cancel.load(Ordering::Relaxed) {
+                    return Err("stopped".into());
+                }
+                *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("Phrase {} of {total}", k + 1);
+                let a = render(&n, &sp)?;
+                let mut c = cache.lock().unwrap_or_else(PoisonError::into_inner);
+                c.retain(|(x, _)| *x != key);
+                c.push((key, Arc::new(a)));
+                prog.done.store(k as u64 + 1, Ordering::Relaxed);
+            }
+            Ok(format!("{total} phrases spoken"))
+        })();
+        finish(&prog, &res, r, t0);
+    })?;
+    Ok(Some(id))
 }
 
 /// Synthesize in the background into the cache, so `tts.create` / `tts.edit` / `tts.preview` with
@@ -570,7 +609,6 @@ fn download_voices(s: &mut Session, p: &Value) -> Result<Value> {
 
 #[cfg(feature = "neural-voices")]
 fn download_package(dir: &std::path::Path, prog: &filmcraft_export::Progress) -> std::result::Result<(), String> {
-    use std::sync::atomic::Ordering;
     let files: Vec<filmcraft_speech::models::ModelFile> =
         tts::catalog::FILES.iter().map(|f| filmcraft_speech::models::ModelFile { name: f.name, url: f.url, sha256: f.sha256, size: f.size }).collect();
     let mut progress = |done: u64, total: u64, file: &str| {

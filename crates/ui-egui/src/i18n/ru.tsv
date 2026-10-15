@@ -4427,3 +4427,23 @@ mode	Edit	Монтаж
 	16:9, H.264 16 Mbps, AAC 320 kbps, loudness −14 LUFS	16:9, H.264 16 Мбит/с, AAC 320 кбит/с, громкость −14 LUFS
 	16:9, H.264 6 Mbps for a light file, loudness −16 LUFS	16:9, H.264 6 Мбит/с — лёгкий файл, громкость −16 LUFS
 	16:9, H.264 10 Mbps, loudness −14 LUFS	16:9, H.264 10 Мбит/с, громкость −14 LUFS
+# Edit by text and dubbing
+	Edit by Text	Монтаж текстом
+	Dub…	Дубляж…
+	Dub	Дубляж
+	Make captions first: AI ▸ Captions from the Transcript.	Сначала сделайте субтитры: AI ▸ Субтитры из транскрипта.
+	Dubbing: speaking the phrases…	Дубляж: озвучиваю фразы…
+	Dubbed: {n} phrases on a new track.	Дубляж готов: фраз на новой дорожке — {n}.
+	The translation did not make a caption track.	Перевод не создал дорожку субтитров.
+	this computer	этот компьютер
+	The captions translated and spoken by a voice, each phrase at its time, on a new audio track.	Субтитры переводятся и озвучиваются голосом — каждая фраза в своё время, на новой звуковой дорожке.
+	Into	На язык
+	Default voice	Голос по умолчанию
+	Original voice	Исходный голос
+	Quieter	Тише
+	Muted	Выключить
+	As is	Как есть
+	The caption text goes to {provider} to be translated; an ElevenLabs voice speaks in the cloud, the natural voices (English) on this computer.	Текст субтитров уходит в {provider} для перевода; голос ElevenLabs озвучивает в облаке, натуральные голоса (английский) — на этом компьютере.
+	Transcribe first: AI ▸ Transcribe, then delete words in the transcript to cut them.	Сначала расшифруйте: AI ▸ Распознать речь, затем удаляйте слова в транскрипте, чтобы вырезать их.
+	Delete words in the transcript and the picture and sound are cut with them.	Удаляйте слова в транскрипте — картинка и звук вырезаются вместе с ними.
+	The speech in another language: translated captions spoken by a voice.	Речь на другом языке: переведённые субтитры озвучивает голос.

@@ -59,6 +59,13 @@ const GROUPS: [(&str, &[Card]); 5] = [
     (
         "Speech and Captions",
         &[
+            card(
+                "ai.editByText",
+                "Edit by Text",
+                "Delete words in the transcript and the picture and sound are cut with them.",
+                &[Transcript],
+                Some(no_params),
+            ),
             card("transcript.generate", "Transcribe", "Turn speech into text with word timing, on this computer or in the cloud.", &[Sequence, Speech], None),
             card(
                 "transcript.createCaptions",
@@ -68,6 +75,7 @@ const GROUPS: [(&str, &[Card]); 5] = [
                 Some(captions_two_lines),
             ),
             card("captions.translate", "Translate Captions", "A caption track in another language.", &[Captions, TextKey], None),
+            card("ai.dub", "Dub", "The speech in another language: translated captions spoken by a voice.", &[Captions, TextKey], None),
             card("transcript.removeFillers", "Remove Filler Words", "Find the ums and ahs and cut the ones you pick.", &[Transcript], None),
             card("transcript.removeRetakes", "Remove Retakes and Stumbles", "Keep the last take of repeated phrases.", &[Transcript], None),
         ],

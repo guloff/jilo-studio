@@ -4467,3 +4467,23 @@
 	16:9, H.264 16 Mbps, AAC 320 kbps, loudness −14 LUFS	16:9，H.264 16 Mbps，AAC 320 kbps，响度 −14 LUFS
 	16:9, H.264 6 Mbps for a light file, loudness −16 LUFS	16:9，H.264 6 Mbps 轻量文件，响度 −16 LUFS
 	16:9, H.264 10 Mbps, loudness −14 LUFS	16:9，H.264 10 Mbps，响度 −14 LUFS
+# Edit by text and dubbing
+	Edit by Text	按文本剪辑
+	Dub…	配音…
+	Dub	配音
+	Make captions first: AI ▸ Captions from the Transcript.	请先生成字幕：AI ▸ 从转录生成字幕。
+	Dubbing: speaking the phrases…	配音中：正在朗读短语…
+	Dubbed: {n} phrases on a new track.	配音完成：新轨道上有 {n} 个短语。
+	The translation did not make a caption track.	翻译未生成字幕轨道。
+	this computer	这台电脑
+	The captions translated and spoken by a voice, each phrase at its time, on a new audio track.	字幕会被翻译并由语音朗读，每个短语在其对应时间，放在新的音频轨道上。
+	Into	译为
+	Default voice	默认语音
+	Original voice	原声
+	Quieter	降低音量
+	Muted	静音
+	As is	保持原样
+	The caption text goes to {provider} to be translated; an ElevenLabs voice speaks in the cloud, the natural voices (English) on this computer.	字幕文本会发送到 {provider} 翻译；ElevenLabs 语音在云端朗读，自然语音（英语）在这台电脑上朗读。
+	Transcribe first: AI ▸ Transcribe, then delete words in the transcript to cut them.	请先转录：AI ▸ 转录，然后在转录文本中删除词语即可剪掉它们。
+	Delete words in the transcript and the picture and sound are cut with them.	在转录文本中删除词语，画面和声音会随之剪掉。
+	The speech in another language: translated captions spoken by a voice.	另一种语言的语音：由语音朗读翻译后的字幕。

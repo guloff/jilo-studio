@@ -32,6 +32,7 @@ pub mod commands;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod control_token;
 pub mod demo;
+pub mod dubbing;
 pub mod essential_sound;
 pub mod export_tools;
 pub mod formats;

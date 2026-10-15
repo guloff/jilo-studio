@@ -161,6 +161,8 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     // AI ▸ … after the engine's AI commands (`filmcraft_engine::ai_menu`)
     uic!("ai.tools", "AI Tools", ["AI"], None),
     uic!("ai.cutIntoShorts", "Cut into Shorts…", ["AI"], None),
+    uic!("ai.editByText", "Edit by Text", ["AI"], Some("Cmd+Alt+T")),
+    uic!("ai.dub", "Dub…", ["AI"], None),
     uic!("ai.assistant", "AI Assistant…", ["AI"], None),
     uic!("ai.recipes", "Recipes…", ["AI"], None),
     uic!("ai.textToSpeech", "Text to Speech…", ["AI"], None),
@@ -466,6 +468,18 @@ pub fn invoke(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut params:
         // in a job: the frames are many
         "clip.removeBackground" if params.get("background").is_none() => {
             return crate::panels::bg_removal::start(app, params);
+        }
+        // the transcript to edit by: deleting words cuts the picture and the sound
+        "ai.editByText" => {
+            app.show_panel(PanelKind::Text);
+            app.ui.text_tab = "Transcript".into();
+            if filmcraft_engine::transcript::sequence_words(&app.session).is_empty() {
+                app.ui.status = tl!("Transcribe first: AI ▸ Transcribe, then delete words in the transcript to cut them.").to_string();
+            }
+            return Ok(Value::Null);
+        }
+        "ai.dub" => {
+            return crate::panels::dubbing::open(app);
         }
         "ai.cutIntoShorts" => {
             return crate::panels::shorts::open(app);

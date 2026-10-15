@@ -19,6 +19,7 @@ pub mod clip_transform;
 pub mod color_dialogs;
 pub mod crash_report;
 pub mod dialogs;
+pub mod dubbing;
 pub mod effect_controls;
 pub mod effects;
 pub mod essential_sound;

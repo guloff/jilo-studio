@@ -421,7 +421,8 @@ pub fn open_translate(app: &mut FilmcraftApp) -> Result<Value, String> {
 }
 
 /// Target languages offered for caption translation.
-const TRANSLATE_LANGUAGES: [(&str, &str); 6] = [("ru", "Russian"), ("tg", "Tajik"), ("en", "English"), ("uz", "Uzbek"), ("fa", "Persian"), ("es", "Spanish")];
+pub(crate) const TRANSLATE_LANGUAGES: [(&str, &str); 6] =
+    [("ru", "Russian"), ("tg", "Tajik"), ("en", "English"), ("uz", "Uzbek"), ("fa", "Persian"), ("es", "Spanish")];
 
 /// Text panel ▸ Captions ▸ Translate captions: the target language, then a background translation
 /// into a new track (the status bar shows its progress).

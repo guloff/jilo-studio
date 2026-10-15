@@ -308,7 +308,7 @@ pub fn workspace(name: &str) -> DockNode {
             Ratio(0.6),
             hsplit(
                 FixedB(380.0),
-                hsplit(FixedA(300.0), tabs(&[Project, Libraries], 0), tabs(&[Program], 0)),
+                hsplit(FixedA(300.0), tabs(&[Project, Text, Libraries], 0), tabs(&[Program], 0)),
                 tabs(&[AiTools, Properties, CaptionStyle, Assistant], 0),
             ),
             hsplit(FixedA(64.0), tabs(&[Tools], 0), tabs(&[Timeline], 0)),

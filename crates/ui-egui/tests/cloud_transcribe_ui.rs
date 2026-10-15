@@ -298,6 +298,64 @@ fn captions_are_translated_from_the_captions_tab() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// AI ▸ Dub…: the captions translated in the cloud (after consent), then spoken by an ElevenLabs
+/// voice in a job, a phrase at each caption on a new "Dub ru" track.
+#[test]
+#[allow(clippy::field_reassign_with_default)] // Session has private fields
+fn captions_are_translated_and_dubbed() {
+    let dir = std::env::temp_dir().join(format!("filmcraft-dub-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake = Arc::new(FakeTransport::new());
+    fake.route(
+        |r| r.url.contains(":generateContent"),
+        |r| {
+            let b = r.json().unwrap_or_default();
+            let user: Value = serde_json::from_str(b["contents"][0]["parts"][1]["text"].as_str().unwrap_or("{}")).unwrap_or_default();
+            let items: Vec<Value> = user["items"].as_array().cloned().unwrap_or_default().iter().map(|i| json!({"id": i["id"], "text": "Привет"})).collect();
+            let answer = json!({"items": items});
+            Ok(Response::json(200, &json!({"candidates": [{"content": {"parts": [{"text": answer.to_string()}]}, "finishReason": "STOP"}]})))
+        },
+    );
+    fake.route(
+        |r| r.url.contains("/text-to-speech/"),
+        |_| Ok(Response::new(200, (0..22_050).flat_map(|i| (((i as f32 * 0.05).sin() * 8000.0) as i16).to_le_bytes()).collect::<Vec<u8>>())),
+    );
+    let mut s = Session::default();
+    s.ai_keys_file = Some(dir.join("ai.json"));
+    s.ai_transport = Some(fake.clone());
+    s.ai_sleep = Some(Arc::new(|_, _| {}));
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.execute("file.projectSettings.scratchDisks", json!({"captured": dir.to_string_lossy()})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "gemini", "key": "k"})).unwrap();
+    s.execute("ai.setKey", json!({"provider": "elevenlabs", "key": "xi"})).unwrap();
+    s.execute("captions.newTrack", json!({"language": "en", "name": "English"})).unwrap();
+    s.execute("captions.add", json!({"text": "Hello", "seconds": 1.0})).unwrap();
+    s.execute("captions.add", json!({"text": "And goodbye", "seconds": 4.0})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "ai.dub"}));
+    d.frames(2);
+    assert!(d.ids("dub.").contains(&"dub.go".to_string()), "the dialog is open");
+    d.snapshot("dub-dialog");
+    d.harness.state_mut().ui.dub.voice = "elevenlabs:v1".into();
+    d.click("dub.go");
+    d.click("aiTask.consent.send");
+    let mut done = false;
+    for _ in 0..600 {
+        d.frames(2);
+        let q = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
+        if q["audio"].as_array().is_some_and(|a| a.iter().any(|t| t["name"] == "Dub ru" && t["items"].as_array().is_some_and(|i| i.len() == 2))) {
+            done = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(done, "two phrases on the Dub ru track: {}", d.harness.state().ui.status);
+    // both phrases came back as the same words: spoken once
+    assert_eq!(fake.sent().iter().filter(|r| r.url.contains("text-to-speech")).count(), 1);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// AI ▸ Automatic Editing ▸ Find Highlights: the search dialog, the consent for the transcript, the background
 /// search, the range markers and the results window that goes to a highlight and assembles them.
 #[test]

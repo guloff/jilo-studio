@@ -4432,3 +4432,23 @@
 	16:9, H.264 16 Mbps, AAC 320 kbps, loudness −14 LUFS	16:9, H.264 16 Mbps, AAC 320 kbps, sonoridad −14 LUFS
 	16:9, H.264 6 Mbps for a light file, loudness −16 LUFS	16:9, H.264 6 Mbps para un archivo ligero, sonoridad −16 LUFS
 	16:9, H.264 10 Mbps, loudness −14 LUFS	16:9, H.264 10 Mbps, sonoridad −14 LUFS
+# Edit by text and dubbing
+	Edit by Text	Editar por texto
+	Dub…	Doblar…
+	Dub	Doblar
+	Make captions first: AI ▸ Captions from the Transcript.	Primero crea subtítulos: IA ▸ Subtítulos desde la transcripción.
+	Dubbing: speaking the phrases…	Doblando: locutando las frases…
+	Dubbed: {n} phrases on a new track.	Doblado: {n} frases en una pista nueva.
+	The translation did not make a caption track.	La traducción no creó una pista de subtítulos.
+	this computer	este ordenador
+	The captions translated and spoken by a voice, each phrase at its time, on a new audio track.	Los subtítulos traducidos y locutados por una voz, cada frase en su momento, en una pista de audio nueva.
+	Into	A
+	Default voice	Voz predeterminada
+	Original voice	Voz original
+	Quieter	Más bajo
+	Muted	Silenciado
+	As is	Tal cual
+	The caption text goes to {provider} to be translated; an ElevenLabs voice speaks in the cloud, the natural voices (English) on this computer.	El texto de los subtítulos se envía a {provider} para traducirlo; una voz de ElevenLabs habla en la nube, las voces naturales (inglés) en este ordenador.
+	Transcribe first: AI ▸ Transcribe, then delete words in the transcript to cut them.	Primero transcribe: IA ▸ Transcribir; luego borra palabras en la transcripción para cortarlas.
+	Delete words in the transcript and the picture and sound are cut with them.	Borra palabras en la transcripción y la imagen y el sonido se cortan con ellas.
+	The speech in another language: translated captions spoken by a voice.	La voz en otro idioma: subtítulos traducidos locutados por una voz.

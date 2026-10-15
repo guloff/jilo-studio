@@ -945,3 +945,46 @@ fn a_sticker_is_drawn_cut_out_and_placed() {
     assert_eq!(mine["stickers"][0]["name"], "a happy cat");
     let _ = std::fs::remove_dir_all(std::path::Path::new(mine["stickers"][0]["path"].as_str().unwrap()).parent().unwrap().parent().unwrap());
 }
+
+/// Dubbing: the captions spoken by a cloud voice in a job (after consent), then put in as one
+/// undo step on a new "Dub" track, a phrase at each caption, nothing sent again.
+#[test]
+fn captions_are_dubbed_by_a_cloud_voice() {
+    let (mut s, fake, dir) = session("dub");
+    s.execute("ai.setKey", json!({"provider": "elevenlabs", "key": "xi-test"})).unwrap();
+    s.execute("file.projectSettings.scratchDisks", json!({"captured": dir.to_string_lossy()})).unwrap();
+    fake.route(
+        |r| r.url.contains("/text-to-speech/"),
+        |_| Ok(Response::new(200, (0..22_050).flat_map(|i| (((i as f32 * 0.05).sin() * 8000.0) as i16).to_le_bytes()).collect::<Vec<u8>>())),
+    );
+    add_captions(&mut s, 3);
+    let p = json!({"captions": "C1", "voice": "elevenlabs:v1", "language": "ru"});
+    let e = s.execute("audio.dub", p.clone()).unwrap_err().to_string();
+    assert!(e.contains("CONFIRM_CLOUD"), "asks before the text goes out: {e}");
+    let mut p = p;
+    p["confirm"] = json!(true);
+    let mut bg = p.clone();
+    bg["background"] = json!(true);
+    let r = s.execute("audio.dub", bg).unwrap();
+    let job = r["job"].as_u64().unwrap();
+    for _ in 0..500 {
+        if s.jobs.iter().find(|j| j.id == job).is_some_and(|j| j.to_json()["finished"] == true) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    let sent = fake.sent().iter().filter(|r| r.url.contains("text-to-speech")).count();
+    assert_eq!(sent, 3, "a request per phrase");
+    let tracks = s.active_sequence().unwrap().audio_tracks.len();
+    let undo = s.history.undo.len();
+    let r = s.execute("audio.dub", p).unwrap();
+    assert_eq!(fake.sent().iter().filter(|r| r.url.contains("text-to-speech")).count(), 3, "nothing is sent again");
+    assert_eq!(r["clips"].as_array().unwrap().len(), 3, "{r}");
+    assert_eq!(s.history.undo.len(), undo + 1, "one undo step");
+    let q = s.active_sequence().unwrap();
+    assert_eq!(q.audio_tracks.len(), tracks + 1);
+    let dub = q.audio_tracks.last().unwrap();
+    assert_eq!(dub.name, "Dub ru");
+    let caps = &q.caption_tracks[0].captions;
+    assert!(dub.items.iter().zip(caps.iter()).all(|(it, c)| it.start == c.start), "each phrase at its caption");
+}
