@@ -64,14 +64,32 @@ pub fn add_caption(seq: &mut Sequence, track: TrackId, start: Tick, duration: Ti
 
 /// Lay `text` out in captions of at most `lines` lines of `max_chars` characters (a longer single
 /// word stands alone): each caption's lines joined with `\n`. A caption ends early at the end of a
-/// sentence or clause once it is at least half full, so phrases read whole.
+/// sentence or clause once it is at least half full, so phrases read whole. The text is shared
+/// evenly between as few captions as hold it, so the last is not a stray word or two on screen
+/// for a moment.
 pub fn layout_text(text: &str, max_chars: usize, lines: usize) -> Vec<String> {
     let (max_chars, lines) = (max_chars.max(1), lines.max(1));
+    let greedy = layout_with(text, max_chars, lines, usize::MAX);
+    if greedy.len() <= 1 {
+        return greedy;
+    }
+    // the smallest share of characters per caption that needs no more captions
+    let k = greedy.len();
+    let total = text.split_whitespace().map(|w| w.chars().count() + 1).sum::<usize>();
+    (total / k..max_chars * lines).map(|budget| layout_with(text, max_chars, lines, budget)).find(|l| l.len() <= k).unwrap_or(greedy)
+}
+
+/// [`layout_text`] filling each caption up to `budget` characters (spaces and line breaks count
+/// as one).
+fn layout_with(text: &str, max_chars: usize, lines: usize, budget: usize) -> Vec<String> {
     let mut out: Vec<Vec<String>> = Vec::new();
     let mut cur: Vec<String> = Vec::new();
     let full = |cur: &[String]| cur.iter().map(|l| l.chars().count()).sum::<usize>();
     for w in text.split_whitespace() {
         let n = w.chars().count();
+        if !cur.is_empty() && full(&cur) + cur.len() + n > budget {
+            out.push(std::mem::take(&mut cur));
+        }
         let room = cur.last().map(|l| l.chars().count() + 1 + n <= max_chars);
         match room {
             Some(true) => {
@@ -506,6 +524,21 @@ mod tests {
         seq.caption_track_mut(tid).unwrap().locked = true;
         assert_eq!(set_caption(&mut seq, ClipId(1000), Some("x"), None), Err(EditError::Locked));
         assert_eq!(delete_captions(&mut seq, &[ClipId(1000)], false), Err(EditError::Locked));
+    }
+
+    /// A caption a little too long for one is shared evenly between two, not a full one and a
+    /// stray tail.
+    #[test]
+    fn a_split_caption_is_shared_evenly() {
+        let text = "Сначала импортируйте файлы, потом добавьте субтитры и экспортируйте ролик в нужном формате для соцсетей.";
+        let laid = layout_text(text, 42, 2);
+        assert_eq!(laid.len(), 2, "{laid:?}");
+        assert!(laid.iter().all(|c| c.lines().count() <= 2 && c.lines().all(|l| l.chars().count() <= 42)), "{laid:?}");
+        let (a, b) = (laid[0].chars().count() as i64, laid[1].chars().count() as i64);
+        assert!((a - b).abs() <= 12, "{a} vs {b} characters: {laid:?}");
+        assert_eq!(laid.iter().map(|c| c.replace('\n', " ")).collect::<Vec<_>>().join(" "), text, "no word lost");
+        // what fits stays one caption
+        assert_eq!(layout_text("Это очень просто.", 42, 2), ["Это очень просто."]);
     }
 
     #[test]
