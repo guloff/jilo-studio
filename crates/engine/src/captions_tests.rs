@@ -281,3 +281,26 @@ fn a_long_typed_caption_is_split() {
     let r = s.execute("captions.splitLong", json!({"captions": [id.0]})).unwrap();
     assert!(!r["made"].as_array().unwrap().is_empty(), "{r}");
 }
+
+/// A caption added with long text (as the AI assistant adds whole sentences) is split the same
+/// way, in the same undo step; `split: false` keeps it whole.
+#[test]
+fn a_long_added_caption_is_split() {
+    let mut s = demo();
+    s.execute("captions.newTrack", json!({})).unwrap();
+    let long = "Children who learn more earn more, and they build a society that protects the next generation. That is why we start today, together.";
+    let undo = s.history.undo.len();
+    let r = s.execute("captions.add", json!({"text": long, "seconds": 2.0, "durationSeconds": 8.0})).unwrap();
+    assert!(r["split"].as_array().is_some_and(|a| !a.is_empty()), "{r}");
+    let t = &s.active_sequence().unwrap().caption_tracks[0];
+    assert!(t.captions.len() >= 2);
+    assert!(t.captions.iter().all(|c| c.text.lines().count() <= 2 && c.text.lines().all(|l| l.chars().count() <= 42)));
+    assert_eq!(s.state.caption_selection.len(), t.captions.len(), "the new phrases are selected");
+    assert_eq!(s.history.undo.len(), undo + 1, "one undo step");
+    s.execute("edit.undo", json!({})).unwrap();
+    s.execute("captions.add", json!({"text": long, "seconds": 2.0, "durationSeconds": 8.0, "split": false})).unwrap();
+    assert_eq!(s.active_sequence().unwrap().caption_tracks[0].captions.len(), 1);
+    // short text is one caption
+    let r = s.execute("captions.add", json!({"text": "Short", "seconds": 12.0})).unwrap();
+    assert!(r.get("split").is_none(), "{r}");
+}

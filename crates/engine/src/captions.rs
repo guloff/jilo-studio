@@ -534,7 +534,7 @@ pub fn commands() -> Vec<CommandSpec> {
             "Add Caption at Playhead",
             &["Sequence", "Captions"],
             Some("Cmd+Alt+C"),
-            r#"{"track":id|"C1"?,"text":str?,"time":ticks?,"seconds":f64?,"durationSeconds":f64=3}"#,
+            r#"{"track":id|"C1"?,"text":str?,"time":ticks?,"seconds":f64?,"durationSeconds":f64=3,"split":bool=true (text longer than two lines becomes captions that fit)}"#,
             has_seq,
             |s, p| {
                 // a caption track is created when the sequence has none
@@ -547,14 +547,24 @@ pub fn commands() -> Vec<CommandSpec> {
                 let dur = Tick::from_seconds_f64(f64_p(p, "durationSeconds").unwrap_or(edit::captions::DEFAULT_SECONDS as f64));
                 let dur = rate.snap_nearest(dur).max(rate.frame_duration());
                 let text = str_p(p, "text").unwrap_or("New caption").to_string();
+                let split = bool_p(p, "split").unwrap_or(true);
                 let t = rate.snap(t);
-                let id = s.edit_sequence("Add Caption", |q, ctx, st| {
+                let (id, made) = s.edit_sequence("Add Caption", |q, ctx, st| {
                     let id = edit::captions::add_caption(q, tid, t, dur, &text, ctx)?;
-                    st.caption_selection = vec![id];
+                    // as typed into a caption: text that would not fit on screen becomes phrases
+                    // that do (the AI assistant adds whole sentences)
+                    let (max_chars, lines) = fit_of(q, id);
+                    let long = q.find_caption(id).is_some_and(|(_, c)| edit::captions::too_long(&c.text, max_chars, lines));
+                    let made = if split && long {
+                        edit::captions::split_long(q, id, max_chars, lines, rate.frame_duration(), ctx).unwrap_or_default()
+                    } else {
+                        Vec::new()
+                    };
+                    st.caption_selection = std::iter::once(id).chain(made.iter().copied()).collect();
                     st.selection.clear();
-                    Ok(id)
+                    Ok((id, made))
                 })?;
-                Ok(json!({"caption": id.0}))
+                Ok(if made.is_empty() { json!({"caption": id.0}) } else { json!({"caption": id.0, "split": made.iter().map(|c| c.0).collect::<Vec<_>>()}) })
             },
         ),
         spec("captions.split", "Split Caption", &[], None, r#"{"caption":id?,"time":ticks?}"#, has_captions, |s, p| {
