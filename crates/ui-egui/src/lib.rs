@@ -339,6 +339,11 @@ pub struct FilmcraftApp {
     pub quit_confirmed: bool,
     /// The user chose "Don't Save": drop the recovery journal on exit too.
     pub discard_on_exit: bool,
+    /// End the process as soon as [`eframe::App::on_exit`] has put everything away, before the
+    /// window is taken down. On macOS 27 AppKit can throw while it tears the window down (a Touch
+    /// Bar observer of the winit view, `NSRangeException`) and the system then reports a crash for
+    /// a quit that had already saved everything. The desktop app sets it; tests never do.
+    pub exit_after_on_exit: bool,
     /// A V key press (or a Ctrl+V paste) reached the app and its release hasn't yet.
     v_down: bool,
     /// GPU compositor (when running on wgpu): device state + compositor + the egui texture it feeds.
@@ -607,6 +612,7 @@ impl FilmcraftApp {
             command_inbox: None,
             quit_confirmed: false,
             discard_on_exit: false,
+            exit_after_on_exit: false,
             v_down: false,
             gpu: None,
             edr: None,
@@ -2154,6 +2160,10 @@ impl eframe::App for FilmcraftApp {
             // unsaved removes its journal, one with unsaved changes (an agent's quit, the Dock's
             // Quit, logout) keeps it for the next launch.
             self.session.shutdown();
+        }
+        if self.exit_after_on_exit {
+            log::info!("quit");
+            std::process::exit(0);
         }
     }
 

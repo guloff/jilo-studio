@@ -262,6 +262,9 @@ fn main() -> eframe::Result {
                 app.ui.tips.index = (app.session.prefs.general.last_update_check.unsigned_abs() as usize) % filmcraft_ui_egui::panels::tips::TIPS.len();
             }
             app.integrated_titlebar = cfg!(target_os = "macos");
+            // the quit is complete once `on_exit` has run: AppKit tearing the window down after it
+            // could only turn it into a crash report
+            app.exit_after_on_exit = cfg!(target_os = "macos");
             if let Some(rs) = cc.wgpu_render_state.clone()
                 && std::env::var_os("FILMCRAFT_CPU_COMPOSITE").is_none()
             {
