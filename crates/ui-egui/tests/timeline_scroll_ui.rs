@@ -1,7 +1,8 @@
 //! Headless UI tests of scrolling the Timeline: what the wheel does with each modifier, how far
 //! the view can go, and the zoom scroll bar. Premiere Pro 26.5.2 on macOS, checked in the app: the
 //! wheel moves the tracks up and down, Cmd + wheel moves the Timeline sideways, Option + wheel
-//! zooms, and the view stops ten minutes past the end of the sequence.
+//! zooms. The view stops a little past the end of the sequence (Premiere's ten minutes left the
+//! scroll bar's thumb a sliver on a short video).
 
 use std::sync::mpsc::{Sender, channel};
 
@@ -182,13 +183,20 @@ fn the_mouse_scrolling_setting_swaps_wheel_and_cmd_wheel() {
 /// The view cannot leave the Timeline: scrolled 39 minutes past a 26 second sequence, nothing was
 /// in view and the scroll bar's thumb sat at the right end whatever was done to it.
 #[test]
-fn the_view_stops_ten_minutes_past_the_end_of_the_sequence() {
+fn the_view_stops_a_little_past_the_end_of_the_sequence() {
+    // room after the sequence for the next clip: a quarter of it, from ten seconds to ten minutes
+    assert_eq!(timeline_extent(6.0), 16.0);
+    assert_eq!(timeline_extent(0.0), 10.0);
+    assert_eq!(timeline_extent(600.0), 750.0);
+    assert_eq!(timeline_extent(3.0 * 3600.0), 3.0 * 3600.0 + 600.0);
     let mut d = Driver::tall();
+    d.ok("ui.set", json!({"timeline": {"pps": 200.0, "scroll": 4.0}}));
+    d.frames(4);
     let seconds = d.seconds();
     let width = d.rect("timeline.tracks")[2];
-    assert_eq!(timeline_extent(seconds), seconds + 600.0);
-    let limit = max_scroll(seconds, width, 50.0);
-    assert!((limit - (seconds + 600.0 - width as f64 / 50.0)).abs() < 1e-9);
+    assert_eq!(timeline_extent(seconds), seconds + 10.0);
+    let limit = max_scroll(seconds, width, 200.0);
+    assert!(limit > 0.0 && (limit - (seconds + 10.0 - width as f64 / 200.0)).abs() < 1e-9, "{limit}");
     // by the wheel
     d.wheel(0.2, 0.0, -1e7, json!({"command": true}));
     assert!((d.view().0 - limit).abs() < 1e-6, "{} vs {limit}", d.view().0);
@@ -198,7 +206,7 @@ fn the_view_stops_ten_minutes_past_the_end_of_the_sequence() {
     d.ok("ui.set", json!({"timeline": {"pps": 2.9863201066269047, "scroll": 2325.538505030118}}));
     d.frames(4);
     let (scroll, pps, ..) = d.view();
-    assert!((scroll - max_scroll(seconds, width, pps)).abs() < 1e-6 && scroll < 400.0, "{scroll}");
+    assert!((scroll - max_scroll(seconds, width, pps)).abs() < 1e-6 && scroll < seconds, "{scroll}");
     // zoomed out until the whole Timeline is in view, there is nowhere to scroll to
     d.ok("ui.set", json!({"timeline": {"pps": 0.5, "scroll": 50.0}}));
     d.frames(4);
@@ -213,9 +221,12 @@ fn the_view_stops_ten_minutes_past_the_end_of_the_sequence() {
 #[test]
 fn the_scroll_bar_thumb_follows_the_pointer_and_reaches_both_ends() {
     let mut d = Driver::tall();
+    // zoomed in, so the Timeline is several views long
+    d.ok("ui.set", json!({"timeline": {"pps": 200.0, "scroll": 4.0}}));
+    d.frames(4);
     let seconds = d.seconds();
     let track = d.rect("timeline.zoomBar.track");
-    let limit = max_scroll(seconds, d.rect("timeline.tracks")[2], 50.0);
+    let limit = max_scroll(seconds, d.rect("timeline.tracks")[2], 200.0);
     // at the start the thumb is at the left end of the bar, and wide enough to grab
     d.ok("ui.set", json!({"timeline": {"scroll": 0.0}}));
     d.frames(3);
@@ -230,7 +241,7 @@ fn the_scroll_bar_thumb_follows_the_pointer_and_reaches_both_ends() {
     assert!((moved[0] - thumb[0] - 300.0).abs() < 2.0, "the thumb went {} points for a 300 point drag", moved[0] - thumb[0]);
     let travel = (track[2] - thumb[2]) as f64;
     assert!((d.view().0 - 300.0 / travel * limit).abs() < limit * 0.01, "{}", d.view().0);
-    assert_eq!(d.view().1, 50.0, "a drag by the middle does not zoom");
+    assert_eq!(d.view().1, 200.0, "a drag by the middle does not zoom");
     // dragged past the right end it stops there: the view is at its limit
     let grab = moved[0] + moved[2] / 2.0;
     d.ok("ui.drag", json!({"from": {"x": grab, "y": y}, "to": {"x": track[0] + track[2] + 400.0, "y": y}, "steps": 10}));
@@ -261,5 +272,5 @@ fn the_scroll_bar_thumb_follows_the_pointer_and_reaches_both_ends() {
     d.ok("ui.drag", json!({"from": {"x": jumped[0] + jumped[2] - 3.0, "y": y}, "to": {"x": jumped[0] + jumped[2] + 60.0, "y": y}, "steps": 8}));
     d.frames(3);
     let (scroll, pps, ..) = d.view();
-    assert!(pps < 50.0 && (scroll - at).abs() < 1e-6, "{pps} {scroll}");
+    assert!(pps < 200.0 && (scroll - at).abs() < 1e-6, "{pps} {scroll}");
 }

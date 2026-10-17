@@ -198,11 +198,13 @@ impl Layout {
     }
 }
 
-/// How far the Timeline reaches, in seconds: ten minutes past the end of the sequence. Premiere
-/// Pro's Timeline does the same (on a 6 s sequence its view stops with 00:10:06 at the right
-/// edge). The view cannot be scrolled past it and the scroll bar spans it.
+/// How far the Timeline reaches, in seconds: the sequence and room after it for the next clip, a
+/// quarter of the sequence (at least ten seconds, at most ten minutes). The view cannot be scrolled
+/// past it and the scroll bar spans it. Premiere Pro always adds ten minutes, which on a short
+/// video left the scroll bar's thumb a sliver and a click beside it scrolled into nothing.
 pub fn timeline_extent(sequence_seconds: f64) -> f64 {
-    sequence_seconds.max(0.0) + 600.0
+    let seconds = sequence_seconds.max(0.0);
+    seconds + (seconds * 0.25).clamp(10.0, 600.0)
 }
 
 /// The latest time the left edge of a view `width` points wide can show at `pps` points a second.

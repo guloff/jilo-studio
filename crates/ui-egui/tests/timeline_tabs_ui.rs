@@ -141,16 +141,16 @@ fn each_sequence_tab_keeps_its_own_zoom_scroll_and_track_heights() {
     let other = d.new_sequence("Other");
     let fitted = d.view();
     assert!(fitted.0 != 333.0 && fitted.1 == 0.0 && fitted.2 == 60.0, "{fitted:?}");
-    d.ok("ui.set", json!({"timeline": {"pps": 20.0, "scroll": 1.0, "videoTrackHeight": 30.0}}));
+    d.ok("ui.set", json!({"timeline": {"pps": 400.0, "scroll": 1.0, "videoTrackHeight": 30.0}}));
     d.frames(3);
     // back and forth by clicking the tabs: each comes back as it was left
     d.click(&format!("timeline.tab.{main}"));
     assert_eq!(d.view(), (333.0, 4.5, 96.0));
     d.click(&format!("timeline.tab.{other}"));
-    assert_eq!(d.view(), (20.0, 1.0, 30.0));
+    assert_eq!(d.view(), (400.0, 1.0, 30.0));
     // the session holds both (it is what a saved project keeps)
     let views = d.app().session.state.timeline_views.clone();
-    assert_eq!((views[&ItemId(main)].pps, views[&ItemId(other)].pps), (333.0, 20.0));
+    assert_eq!((views[&ItemId(main)].pps, views[&ItemId(other)].pps), (333.0, 400.0));
     // closing the shown tab shows the other one with its view
     d.click(&format!("timeline.tab.{other}.close"));
     assert_eq!((d.active(), d.view()), (main, (333.0, 4.5, 96.0)));
@@ -266,7 +266,7 @@ fn a_reopened_project_shows_its_tabs_as_they_were_left() {
     d.ok("ui.set", json!({"timeline": {"pps": 250.0, "scroll": 2.0, "videoTrackHeight": 80.0}}));
     d.frames(3);
     let other = d.new_sequence("Other");
-    d.ok("ui.set", json!({"timeline": {"pps": 15.0, "scroll": 0.5}}));
+    d.ok("ui.set", json!({"timeline": {"pps": 300.0, "scroll": 0.5}}));
     d.frames(3);
     d.exec("sequence.moveTab", json!({"item": other, "index": 0}));
     d.exec("file.saveAs", json!({"path": path}));
@@ -278,7 +278,7 @@ fn a_reopened_project_shows_its_tabs_as_they_were_left() {
     e.exec("file.open", json!({"path": path}));
     e.frames(3);
     assert_eq!((e.open(), e.active()), (vec![other, main], other));
-    assert_eq!(e.view(), (15.0, 0.5, 60.0));
+    assert_eq!(e.view(), (300.0, 0.5, 60.0));
     e.click(&format!("timeline.tab.{main}"));
     assert_eq!(e.view(), (250.0, 2.0, 80.0));
     let _ = std::fs::remove_dir_all(&dir);
