@@ -71,6 +71,7 @@ pub mod recognition;
 pub mod reframe;
 pub mod relink;
 pub mod remix;
+pub mod review;
 pub mod scene_detect;
 pub mod scopes;
 pub mod sequence_extras;

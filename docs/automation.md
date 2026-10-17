@@ -58,8 +58,10 @@ project open in Jilo Studio.
 | `media_import` | both | import files by absolute path (`paths`, optional `bin`, `image_sequence`) |
 | `jobs_list` | both | background jobs: exports, renders, transcription, AI tasks, face analysis, batches, downloads (progress, status, result) |
 | `job_cancel` | both | stop a job by id |
-| `render_frame` | both | PNG of the program frame at `seconds` (headless renders; bridge screenshots the Program monitor). Read-only: the playhead and selection are left as they were |
+| `render_frame` | both | PNG of the program frame at `seconds` (rendered by the engine in both modes, so it works while the app's window is hidden; an older app gets a screenshot of the Program monitor). Read-only: the playhead and selection are left as they were |
+| `render_frames` | both | the frames at up to 64 `seconds` as one PNG contact sheet (`max_side`, `columns`), with where each frame is on it (`program.renderFrames`) |
 | `sequence_assemble` | both | a new sequence from a whole edit plan, one undo step (`sequence.assemble`, below) |
+| `sequence_check` | both | what is wrong with the active sequence before an export (`sequence.check`, below) |
 | `ui_inspect` | bridge | UI state: tool, workspace, panels, zoom, playback, fps |
 | `ui_elements` | bridge | on-screen interactive elements with id, label and rect (`prefix` filter) |
 | `ui_click` | bridge | click by `id` or `x`,`y`; `button`, `count`, `modifiers` |
@@ -101,6 +103,11 @@ seconds; every time lands on a frame of the sequence. Files are imported once ea
 checked before anything is made (an error names the clip: `V1 clip 2: no file …`), and a step that
 fails later takes the whole assembly back, so a failed call leaves the project as it was.
 
+Then `sequence_check` lists what would be wrong in the export — `black` gaps (nothing on any video
+track), `flashFrame`s, `offline` media, clips `pastMediaEnd`, linked sound `outOfSync`,
+`captionOverlap`, `captionTooFast` (more than 20 characters a second), `captionTooLong` (more than
+two lines of 42 characters once wrapped), captions and markers past the end — each with its time,
+track and clip; `ok` is true when there is no error. `render_frames` shows the cuts at a glance.
 
 ### Conventions
 

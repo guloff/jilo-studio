@@ -85,6 +85,18 @@ pub struct RenderParams {
     pub max_side: Option<u32>,
 }
 
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+pub struct FramesParams {
+    /// Timeline times in seconds, 1 to 64 (e.g. the middle of every shot, or every cut ± 2 frames).
+    pub seconds: Vec<f64>,
+    /// Longest side of each frame (default 480; 960 for one frame).
+    #[serde(default)]
+    pub max_side: Option<u32>,
+    /// Frames to a row (default: about square).
+    #[serde(default)]
+    pub columns: Option<u32>,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AssembleParams {
     /// Name of the new sequence.
@@ -302,6 +314,16 @@ impl FilmcraftMcp {
     }
 
     /// Run an engine command on whichever backend.
+    /// `program.renderFrames` (in this process or the app's), its PNG read back and removed, and
+    /// where each frame is on it.
+    async fn frames_png(&self, params: Value) -> Result<(Vec<u8>, Value), AutomationError> {
+        let r = self.run("program.renderFrames", params).await?;
+        let path = r.get("path").and_then(Value::as_str).ok_or_else(|| AutomationError::Other("no frames were written".into()))?.to_string();
+        let png = std::fs::read(&path).map_err(|e| AutomationError::Other(format!("{path}: {e}")))?;
+        let _ = std::fs::remove_file(&path);
+        Ok((png, json!({"frames": r["frames"], "columns": r["columns"]})))
+    }
+
     pub async fn run(&self, id: &str, params: Value) -> Result<Value, AutomationError> {
         match &*self.backend {
             Backend::Headless(s) => {
@@ -500,7 +522,7 @@ impl FilmcraftMcp {
 
     #[tool(
         title = "Build a sequence from an edit plan",
-        description = "Make a new sequence from a whole edit plan in one call and one undo step: clips cut from source files (in/out seconds, framing, gain), stills (cards), music, caption tracks from cues, chapter markers. Files are imported as needed. Everything is checked first; a failing step takes it all back. Returns the sequence id and the clip ids per track.",
+        description = "Make a new sequence from a whole edit plan in one call and one undo step: clips cut from source files (in/out seconds, framing, gain), stills (cards), music, caption tracks from cues, chapter markers. Files are imported as needed. Everything is checked first; a failing step takes it all back. Returns the sequence id and the clip ids per track. Follow with `sequence_check` and `render_frames`.",
         annotations(read_only_hint = false, destructive_hint = false, idempotent_hint = false, open_world_hint = false)
     )]
     async fn sequence_assemble(&self, Parameters(p): Parameters<AssembleParams>) -> Result<CallToolResult, McpError> {
@@ -521,6 +543,38 @@ impl FilmcraftMcp {
             }
         }
         wrap(self.run("sequence.assemble", q).await)
+    }
+
+    #[tool(
+        title = "Check the active sequence",
+        description = "Problems of the active sequence before an export, each with kind, severity (error: shows in the export; warning: worth a look), time in seconds, track, clip and a sentence: black gaps, flash frames, offline media, clips past their media, linked sound out of sync, overlapping, too fast or too long captions, markers past the end. `ok` is true when there is no error.",
+        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn sequence_check(&self) -> Result<CallToolResult, McpError> {
+        wrap(self.run("sequence.check", json!({})).await)
+    }
+
+    #[tool(
+        title = "Render frames as a contact sheet",
+        description = "Render the active sequence's frames at several times and return them as one PNG contact sheet (left to right, top to bottom, in the order given), with where each frame is. Rendered by the engine: works while the app's window is hidden, and the playhead does not move.",
+        annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false)
+    )]
+    async fn render_frames(&self, Parameters(p): Parameters<FramesParams>) -> Result<CallToolResult, McpError> {
+        let mut q = json!({"seconds": p.seconds});
+        if let Some(m) = p.max_side {
+            q["maxSide"] = json!(m);
+        }
+        if let Some(c) = p.columns {
+            q["columns"] = json!(c);
+        }
+        Ok(match self.frames_png(q).await {
+            Ok((png, info)) => {
+                let mut r = png_result(&png, "contact sheet");
+                r.content.push(Content::text(info.to_string()));
+                r
+            }
+            Err(e) => fail(e),
+        })
     }
 
     #[tool(
@@ -551,6 +605,17 @@ impl FilmcraftMcp {
                 })
             }
             Backend::Bridge(b) => {
+                // the app's engine renders the frame: no window needed, the playhead stays; an app
+                // without that command gets the Program monitor's screenshot as before
+                let sec = match p.seconds {
+                    Some(s) => Some(s),
+                    None => self.run("sequence.inspect", json!({})).await.ok().and_then(|v| v["playhead"].as_i64()).map(|t| filmcraft_time::Tick(t).seconds()),
+                };
+                if let Some(t) = sec
+                    && let Ok((png, _)) = self.frames_png(json!({"seconds": [t], "maxSide": max})).await
+                {
+                    return Ok(png_result(&png, "rendered frame"));
+                }
                 let Some(sec) = p.seconds else {
                     return self.screenshot(&b.clone(), Some("Program".into()), max).await;
                 };
@@ -698,7 +763,7 @@ impl FilmcraftMcp {
     }
 }
 
-const INSTRUCTIONS: &str = "FilmCraft video editor (Premiere Pro-class). Every edit is an engine command: `command_list` to discover ids/params, `command_run` to execute (undoable; `command_batch` runs several). `doc_inspect` (or `project_inspect`/`sequence_inspect`) returns ids you can pass to commands; `render_preview` shows the result. To cut a video from a plan, `sequence_assemble` builds the whole sequence in one call. In bridge mode the `ui_*` tools drive the live app: `ui_elements` lists clickable ids, `ui_click`/`ui_drag`/`ui_key` operate it, `ui_screenshot` shows it. Time is in ticks: 254016000000 per second (commands also accept `seconds`, `frame` or `timecode`). Long work runs as a job with progress and cancellation: pass `wait: true` to commands that take it (exports, renders, proxies, transcription), and AI tasks and face reframing run as jobs by themselves; `jobs_list` / `job_cancel` follow others. Cloud AI features send audio or text to Google or OpenAI: when a command answers CONFIRM_CLOUD, ask the user in your conversation and pass `confirm: true` only after they agree; never decide it for them.";
+const INSTRUCTIONS: &str = "FilmCraft video editor (Premiere Pro-class). Every edit is an engine command: `command_list` to discover ids/params, `command_run` to execute (undoable; `command_batch` runs several). `doc_inspect` (or `project_inspect`/`sequence_inspect`) returns ids you can pass to commands; `render_preview` shows the result. To cut a video from a plan, `sequence_assemble` builds the whole sequence in one call; `sequence_check` lists what would be wrong in the export and `render_frames` shows many frames at once. In bridge mode the `ui_*` tools drive the live app: `ui_elements` lists clickable ids, `ui_click`/`ui_drag`/`ui_key` operate it, `ui_screenshot` shows it. Time is in ticks: 254016000000 per second (commands also accept `seconds`, `frame` or `timecode`). Long work runs as a job with progress and cancellation: pass `wait: true` to commands that take it (exports, renders, proxies, transcription), and AI tasks and face reframing run as jobs by themselves; `jobs_list` / `job_cancel` follow others. Cloud AI features send audio or text to Google or OpenAI: when a command answers CONFIRM_CLOUD, ask the user in your conversation and pass `confirm: true` only after they agree; never decide it for them.";
 
 /// Resources: the project (as `doc_inspect`) and the command catalog (as `command_list`).
 const DOCUMENT_URI: &str = "filmcraft://document";
@@ -904,6 +969,46 @@ mod tests {
         async fn call(&mut self, id: u64, name: &str, arguments: Value) -> Value {
             self.ask(json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":name,"arguments":arguments}})).await
         }
+    }
+
+    /// The editing loop over MCP: a plan becomes a sequence (`sequence_assemble`), `sequence_check`
+    /// reports what is wrong with it, `render_frames` shows it as one contact sheet.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn assemble_check_and_look() {
+        let s = demo();
+        let item = |name: &str| s.project.items.values().find(|i| i.name == name).map(|i| i.id.0).unwrap();
+        let (ocean, aurora) = (item("Ocean_Sunset.mp4"), item("Aurora_Timelapse.mp4"));
+        let mut c = Client::start(s);
+        c.init().await;
+        let plan = json!({
+            "name": "Reel", "width": 1080, "height": 1920, "fps": 30,
+            "video": [[{"item": ocean, "in": 0, "out": 2}, {"item": aurora, "in": 1, "out": 3, "at": 2.5, "scale": 180}]],
+            "captions": [{"cues": [{"start": 0, "end": 2, "text": "Hello"}]}],
+            "markers": [{"at": 0, "name": "Intro", "kind": "chapter"}]
+        });
+        let r = c.call(1, "sequence_assemble", plan).await;
+        assert_eq!(r["result"]["isError"], false, "{r}");
+        let made: Value = serde_json::from_str(r["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
+        assert_eq!(made["tracks"]["V1"].as_array().unwrap().len(), 2, "{made}");
+        // the half second left between the shots is black
+        let r = c.call(2, "sequence_check", json!({})).await;
+        let check: Value = serde_json::from_str(r["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
+        assert_eq!(check["ok"], false, "{check}");
+        assert_eq!(check["problems"][0]["kind"], "black", "{check}");
+        assert!((check["problems"][0]["at"].as_f64().unwrap() - 2.0).abs() < 0.01, "{check}");
+        // three frames on one sheet, portrait cells
+        let r = c.call(3, "render_frames", json!({"seconds": [0.5, 2.2, 3.0], "max_side": 200, "columns": 3})).await;
+        let content = r["result"]["content"].as_array().unwrap();
+        assert_eq!(content[0]["type"], "image", "{r}");
+        let png = base64::engine::general_purpose::STANDARD.decode(content[0]["data"].as_str().unwrap()).unwrap();
+        let img = image::load_from_memory(&png).unwrap();
+        assert!(img.height() > img.width() / 3, "portrait frames: {}x{}", img.width(), img.height());
+        let info: Value = serde_json::from_str(content[2]["text"].as_str().unwrap()).unwrap();
+        assert_eq!(info["frames"].as_array().unwrap().len(), 3);
+        // a bad plan is an error result that says where
+        let r = c.call(4, "sequence_assemble", json!({"name": "x", "video": [[{"item": ocean}]]})).await;
+        assert_eq!(r["result"]["isError"], true);
+        assert!(r["result"]["content"][0]["text"].as_str().unwrap().contains("V1 clip 1"), "{r}");
     }
 
     /// #499: `media_import` takes `paths` (a required array), and forwards `bin` / `image_sequence` to `file.import`.

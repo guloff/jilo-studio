@@ -2942,6 +2942,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::local_ai::commands());
     v.extend(crate::assistants::commands());
     v.extend(crate::assemble::commands());
+    v.extend(crate::review::commands());
     v.extend(crate::stickers::commands());
     v.extend(crate::shorts::commands());
     v.extend(crate::galleries::commands());
