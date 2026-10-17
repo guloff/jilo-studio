@@ -1579,10 +1579,10 @@ pub fn locate(app: &FilmcraftApp, clip: u64, edge: Option<&str>) -> Option<(f32,
 fn preview_drag(app: &FilmcraftApp, seq: &Sequence, _layout: &Layout, out: &mut HashMap<ClipId, (Tick, Tick, Option<TrackId>)>) {
     let Some(d) = &app.tl.drag else { return };
     match d {
-        Drag::Move { clips, offset, track_delta, .. } => {
+        Drag::Move { clips, offset, track_delta, start_track, .. } => {
             for c in clips {
                 if let Some((tid, it)) = seq.find_item(*c) {
-                    let dest = shift_track(seq, tid, *track_delta);
+                    let dest = shift_track(seq, tid, *start_track, *track_delta);
                     out.insert(*c, ((it.start + *offset).max(Tick::ZERO), it.duration, dest));
                 }
             }
@@ -1621,8 +1621,13 @@ fn preview_drag(app: &FilmcraftApp, seq: &Sequence, _layout: &Layout, out: &mut 
     }
 }
 
-fn shift_track(seq: &Sequence, tid: TrackId, delta: i32) -> Option<TrackId> {
-    if delta == 0 {
+/// Where a dragged clip on `tid` lands when the pointer has moved `delta` rows from `start_track`
+/// (the track of the clip that was grabbed). Only clips of the grabbed kind change tracks: a video
+/// clip dragged from V1 to V2 leaves its sound on A1 rather than pushing it onto A2 and over the
+/// music there (and an audio clip dragged down leaves its picture where it is).
+fn shift_track(seq: &Sequence, tid: TrackId, start_track: TrackId, delta: i32) -> Option<TrackId> {
+    let is_video = |t: TrackId| seq.video_tracks.iter().any(|x| x.id == t);
+    if delta == 0 || is_video(tid) != is_video(start_track) {
         return Some(tid);
     }
     for tracks in [&seq.video_tracks, &seq.audio_tracks] {
@@ -2217,10 +2222,10 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
         && let Some(d) = app.tl.drag.take()
     {
         let r = match d {
-            Drag::Move { clips, offset, track_delta, .. } if offset != Tick::ZERO || track_delta != 0 => {
+            Drag::Move { clips, offset, track_delta, start_track, .. } if offset != Tick::ZERO || track_delta != 0 => {
                 let moves: Vec<Value> = clips
                     .iter()
-                    .filter_map(|c| seq.find_item(*c).map(|(tid, it)| json!({"clip": c.0, "track": shift_track(seq, tid, track_delta).unwrap_or(tid).0, "time": (it.start + offset).max(Tick::ZERO).0})))
+                    .filter_map(|c| seq.find_item(*c).map(|(tid, it)| json!({"clip": c.0, "track": shift_track(seq, tid, start_track, track_delta).unwrap_or(tid).0, "time": (it.start + offset).max(Tick::ZERO).0})))
                     .collect();
                 Some(app.session.execute("timeline.move", json!({"moves": moves, "insert": mods.command, "linked": false})))
             }

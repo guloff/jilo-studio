@@ -274,3 +274,56 @@ fn a_clips_fades_go_with_it_when_dragged() {
     let after = fades(&mut d);
     assert_eq!(after, before.iter().map(|(f, t, s)| (*f, *t, *s + moved)).collect::<Vec<_>>(), "the fades went with it");
 }
+
+/// (g) A shot with its sound (V1 + A1, linked) and music under it on A2: the shot dragged up to V2
+/// goes there, its sound stays on A1, and the music on A2 is not cut (the sound used to follow
+/// the picture one track down, onto A2, and overwrite part of the music).
+#[test]
+fn a_shot_dragged_up_a_track_leaves_its_sound_on_its_track() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).expect("demo project");
+    s.execute("sequence.addTracks", json!({"video": 1, "audio": 1})).expect("tracks");
+    let (shot, sound, music) = s
+        .edit_sequence("fixture", |seq, ctx, _| {
+            let vproto = seq.video_tracks[0].items[0].clone();
+            let aproto = seq.audio_tracks.iter().flat_map(|t| t.items.iter()).next().expect("an audio clip").clone();
+            for tr in seq.all_tracks_mut() {
+                tr.items.clear();
+                tr.transitions.clear();
+            }
+            seq.markers.clear();
+            (seq.mark_in, seq.mark_out) = (None, None);
+            let mut next = || {
+                *ctx.next_id += 1;
+                ClipId(*ctx.next_id)
+            };
+            let (shot, sound, music) = (next(), next(), next());
+            let mut v = vproto.clone();
+            (v.id, v.start, v.duration, v.source_in, v.link, v.group) = (shot, sec(10.0), sec(8.0), Tick::ZERO, Some(7), None);
+            let mut a = aproto.clone();
+            (a.id, a.start, a.duration, a.source_in, a.link, a.group) = (sound, sec(10.0), sec(8.0), Tick::ZERO, Some(7), None);
+            let mut m = aproto.clone();
+            (m.id, m.start, m.duration, m.source_in, m.link, m.group, m.name) = (music, sec(0.0), sec(40.0), Tick::ZERO, None, None, "music".into());
+            seq.video_tracks[0].items.push(v);
+            seq.audio_tracks[0].items.push(a);
+            seq.audio_tracks[1].items.push(m);
+            Ok((shot, sound, music))
+        })
+        .expect("fixture");
+    s.state.snapping = true;
+    s.set_playhead(sec(60.0));
+    let mut d = Driver::new(s);
+    d.ok("ui.set", json!({"focused": "Timeline"}));
+    d.ok("ui.menu.invoke", json!({"id": "window.maximizeFrame"}));
+    d.ok("ui.menu.invoke", json!({"id": "view.zoomToSequence"}));
+    d.frames(6);
+    let from = centre(d.rect(&format!("timeline.clip.{}", shot.0)));
+    let v2 = centre(d.rect("timeline.track.V2.target"));
+    d.drag(from, egui::pos2(from.x, v2.y));
+    let seq = d.harness.state().session.active_sequence().unwrap().clone();
+    let on = |id: ClipId| seq.find_item(id).map(|(t, it)| (t, it.start, it.duration)).expect("still there");
+    assert_eq!(on(shot), (seq.video_tracks[1].id, sec(10.0), sec(8.0)), "the shot went up to V2 ({})", d.status());
+    assert_eq!(on(sound), (seq.audio_tracks[0].id, sec(10.0), sec(8.0)), "its sound stayed on A1");
+    assert_eq!(on(music), (seq.audio_tracks[1].id, sec(0.0), sec(40.0)), "the music on A2 is whole");
+    assert_eq!(seq.audio_tracks[1].items.len(), 1, "nothing was cut out of the music");
+}
