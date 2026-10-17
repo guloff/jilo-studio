@@ -95,6 +95,20 @@ impl BridgeClient {
         Err(AutomationError::Bridge(format!("{} refused the control token ({why}); is it the app started with --control {port}?", self.addr)))
     }
 
+    /// Why the app could not be reached, and what to do about it: on the AI assistants' port that
+    /// is Jilo Studio's setting, on any other the app's `--control` option.
+    fn not_reachable(&self, e: &str) -> String {
+        let port = self.addr.rsplit_once(':').and_then(|(_, p)| p.parse::<u16>().ok());
+        if port == Some(filmcraft_engine::control_token::ASSISTANT_PORT) {
+            format!(
+                "Jilo Studio is not open, or it does not allow AI assistants: open it and turn on Settings ▸ AI ▸ Allow AI assistants (cannot connect to {}: {e})",
+                self.addr
+            )
+        } else {
+            format!("cannot connect to {} ({e}); start the app with `filmcraft --control <port>`", self.addr)
+        }
+    }
+
     /// Call a control method; returns `result` or the app's error.
     pub async fn call(&self, method: &str, params: Value) -> Result<Value, AutomationError> {
         let mut guard = self.conn.lock().await;
@@ -103,7 +117,7 @@ impl BridgeClient {
                 let s = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(&self.addr))
                     .await
                     .map_err(|_| AutomationError::Bridge(format!("timed out connecting to {}", self.addr)))?
-                    .map_err(|e| AutomationError::Bridge(format!("cannot connect to {} ({e}); start the app with `filmcraft --control <port>`", self.addr)))?;
+                    .map_err(|e| AutomationError::Bridge(self.not_reachable(&e.to_string())))?;
                 let (r, w) = s.into_split();
                 let mut conn = (BufReader::new(r), w);
                 self.authenticate(&mut conn).await?;

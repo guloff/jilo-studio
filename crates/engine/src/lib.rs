@@ -15,6 +15,7 @@ pub mod ai;
 pub mod ai_menu;
 pub mod ai_tasks;
 pub mod assistant;
+pub mod assistants;
 pub mod automix;
 pub mod automulticam;
 pub mod autosave;

@@ -465,6 +465,9 @@ pub struct AiPrefs {
     pub confirmed_providers: Vec<String>,
     /// Only on this computer: every cloud engine is refused.
     pub local_only: bool,
+    /// AI assistants (Claude and other MCP clients) may control the app: the desktop app keeps its
+    /// control channel open on [`crate::control_token::ASSISTANT_PORT`] while this is on.
+    pub allow_assistants: bool,
 }
 
 impl Default for AiPrefs {
@@ -485,6 +488,7 @@ impl Default for AiPrefs {
             elevenlabs_voice_model: filmcraft_ai::elevenlabs::DEFAULT_VOICE_MODEL.into(),
             confirmed_providers: Vec::new(),
             local_only: false,
+            allow_assistants: false,
         }
     }
 }
@@ -985,6 +989,16 @@ static CATEGORIES: &[Category] = &[
                 ],
             ),
             Row::Group("Voices", &[f("ai.elevenlabsVoiceModel", "ElevenLabs voice model", Kind::Text, true)]),
+            Row::Group(
+                "AI Assistants",
+                &[
+                    b("ai.allowAssistants", "Allow AI assistants (Claude and other MCP clients) to control FilmCraft on this computer", true),
+                    Row::Note(
+                        "An assistant connected to FilmCraft can open, edit, save and export your projects as you would. Nothing is sent anywhere by FilmCraft: the assistant talks to it on this computer only.",
+                    ),
+                ],
+            ),
+            Row::Custom("aiAssistants"),
         ],
     },
     Category {

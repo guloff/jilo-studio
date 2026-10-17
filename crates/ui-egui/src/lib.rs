@@ -158,6 +158,29 @@ pub struct HostHooks {
     /// Post a system notification (title, body) when a long job ends in the background
     /// ([`notifications`]). Without it nothing is posted.
     pub notify: Option<Box<dyn FnMut(&str, &str)>>,
+    /// Open the control channel for AI assistants (Settings ▸ AI ▸ Allow AI assistants) on
+    /// [`filmcraft_engine::control_token::ASSISTANT_PORT`]: `Ok(Some(rx))` once it listens,
+    /// `Ok(None)` when the app's own control channel (`--control`) already is that port, `Err` why
+    /// it could not open. Called the first time the setting is on; turned off, the channel stays
+    /// open but refuses every request until it is on again.
+    pub assistant_channel: Option<AssistantChannelFn>,
+}
+
+/// Opens the AI assistants' control channel ([`HostHooks::assistant_channel`]).
+pub type AssistantChannelFn = Box<dyn FnMut() -> Result<Option<Receiver<ControlRequest>>, String>>;
+
+/// The AI assistants' control channel (Settings ▸ AI ▸ Allow AI assistants).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum AssistantChannel {
+    /// Not opened: the setting has not been on in this run (or the host cannot open it).
+    #[default]
+    Closed,
+    /// Listening on its port.
+    Open,
+    /// The app was started with `--control` on that port: that channel serves assistants.
+    ServedByControl,
+    /// It could not open (the port is taken, no data directory for the token…).
+    Failed(String),
 }
 
 /// What [`HostHooks::clipboard_media`] found on the system clipboard.
@@ -277,6 +300,10 @@ pub struct FilmcraftApp {
     /// Named textures (monitors, thumbnails) with the key they show.
     textures: HashMap<String, (FrameKey, TextureHandle)>,
     control_rx: Option<Receiver<ControlRequest>>,
+    /// Requests from AI assistants ([`HostHooks::assistant_channel`]), answered only while
+    /// Settings ▸ AI ▸ Allow AI assistants is on.
+    assistant_rx: Option<Receiver<ControlRequest>>,
+    pub assistant_channel: AssistantChannel,
     /// Requests waiting for the UI to show an element: (request, give-up time).
     deferred: Vec<(ControlRequest, f64)>,
     last_ui_time: f64,
@@ -577,6 +604,8 @@ impl FilmcraftApp {
             auto: Default::default(),
             textures: HashMap::new(),
             control_rx: None,
+            assistant_rx: None,
+            assistant_channel: AssistantChannel::Closed,
             deferred: Vec::new(),
             last_ui_time: 0.0,
             synthetic: Vec::new(),
@@ -1609,8 +1638,51 @@ impl FilmcraftApp {
         ctx.request_repaint();
     }
 
+    /// Open the AI assistants' channel the first time Settings ▸ AI ▸ Allow AI assistants is on.
+    fn sync_assistant_channel(&mut self) {
+        if !self.session.prefs.ai.allow_assistants || self.assistant_channel != AssistantChannel::Closed {
+            return;
+        }
+        let Some(open) = self.hooks.assistant_channel.as_mut() else { return };
+        self.assistant_channel = match open() {
+            Ok(Some(rx)) => {
+                self.assistant_rx = Some(rx);
+                AssistantChannel::Open
+            }
+            Ok(None) => AssistantChannel::ServedByControl,
+            Err(e) => {
+                log::warn!("AI assistants' channel not opened: {e}");
+                AssistantChannel::Failed(e)
+            }
+        };
+    }
+
     fn drain_control(&mut self, ctx: &egui::Context) {
-        let Some(rx) = self.control_rx.take() else { return };
+        self.sync_assistant_channel();
+        // turned off, the assistants' channel answers nothing but that
+        if let Some(rx) = &self.assistant_rx {
+            let allowed = self.session.prefs.ai.allow_assistants;
+            let now = ctx.input(|i| i.time);
+            let mut raise = false;
+            while let Ok(req) = rx.try_recv() {
+                if allowed {
+                    raise |= req.method.starts_with("ui.") && now - self.last_ui_time > 0.25;
+                    self.deferred.push((req, now + 3.0));
+                } else {
+                    let _ = req
+                        .reply
+                        .send(json!({"ok": false, "error": "AI assistants are not allowed: turn on Settings ▸ AI ▸ Allow AI assistants in Jilo Studio"}));
+                }
+            }
+            if raise {
+                self.raise_for_control(ctx);
+            }
+        }
+        let Some(rx) = self.control_rx.take() else {
+            let reqs = std::mem::take(&mut self.deferred);
+            self.handle_requests(ctx, reqs);
+            return;
+        };
         let now = ctx.input(|i| i.time);
         let mut reqs: Vec<(ControlRequest, f64)> = std::mem::take(&mut self.deferred);
         while let Ok(req) = rx.try_recv() {
@@ -1621,6 +1693,12 @@ impl FilmcraftApp {
             }
             reqs.push((req, now + 3.0));
         }
+        self.handle_requests(ctx, reqs);
+        self.control_rx = Some(rx);
+    }
+
+    fn handle_requests(&mut self, ctx: &egui::Context, reqs: Vec<(ControlRequest, f64)>) {
+        let now = ctx.input(|i| i.time);
         for (req, deadline) in reqs {
             let reply = req.reply.clone();
             match control::handle(self, ctx, &req) {
@@ -1645,7 +1723,6 @@ impl FilmcraftApp {
                 }
             }
         }
-        self.control_rx = Some(rx);
     }
 
     /// Capture once the UI shows the current state (`settled`): after a seek the monitor shows the

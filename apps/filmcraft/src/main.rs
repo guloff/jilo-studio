@@ -355,6 +355,20 @@ fn main() -> eframe::Result {
                 let rx = control_server::start(port, cc.egui_ctx.clone(), control_token.clone());
                 app = app.with_control(rx);
             }
+            // Settings ▸ AI ▸ Allow AI assistants: the channel opens when the setting is on (at
+            // start, or later without a restart), on the port `filmcraft-cli mcp --app` connects to
+            let assistant_port = filmcraft_engine::control_token::ASSISTANT_PORT;
+            let served = control_port == Some(assistant_port);
+            let (ctx, dir) = (cc.egui_ctx.clone(), data_dir.clone().or_else(default_data_dir));
+            app.hooks.assistant_channel = Some(Box::new(move || {
+                if served {
+                    return Ok(None);
+                }
+                let listener = control_server::bind(assistant_port)?;
+                let token = control_auth(assistant_port, dir.clone())?;
+                log::info!("AI assistants can connect on 127.0.0.1:{assistant_port}");
+                Ok(Some(control_server::listen(listener, ctx.clone(), token)))
+            }));
             Ok(Box::new(app))
         }),
     );

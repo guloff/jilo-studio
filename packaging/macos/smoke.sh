@@ -18,7 +18,16 @@ fail() { printf '  FAIL  %s\n' "$*" >&2; exit 1; }
 
 echo "==> launch: framework symbols against the deployment target"
 python3 -I "$ROOT/packaging/macos/check_symbols.py" "$BIN/filmcraft" || fail "a framework symbol is newer than the deployment target"
-pass "no symbol newer than the binary's minos"
+python3 -I "$ROOT/packaging/macos/check_symbols.py" "$CLI" || fail "a framework symbol of the CLI is newer than the deployment target"
+pass "no symbol newer than the binaries' minos"
+
+echo "==> MCP server"
+# initialize + tools/list on stdio (headless): the server the app bundles for AI assistants
+tools=$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | "$CLI" mcp --demo 2>/dev/null | jq -s '[.[] | select(.id == 2) | .result.tools[].name] | length')
+[ "${tools:-0}" -ge 10 ] || fail "mcp tools/list returned ${tools:-nothing}"
+pass "mcp: $tools tools"
 
 echo "==> test media"
 # 10 s of 1080p25 H.264 + stereo AAC with real detail (noise), a 4:2:2 10-bit ProRes clip and a

@@ -4480,3 +4480,22 @@ mode	Edit	Монтаж
 	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	Список лицензий лежит в собранном приложении (Resources/Licenses); его создаёт `cargo xtask licenses`.
 	{n} item	{n} эл.
 	{total} item	{total} элемент
+	AI Assistants	ИИ-ассистенты
+	Added to Claude Code. Start a new Claude Code session to use FilmCraft there.	Добавлено в Claude Code. Начните новый сеанс Claude Code, чтобы работать в нём с FilmCraft.
+	Added to Claude Desktop. Quit and reopen Claude to use FilmCraft there.	Добавлено в Claude Desktop. Закройте и снова откройте Claude, чтобы работать в нём с FilmCraft.
+	Allow AI assistants (Claude and other MCP clients) to control FilmCraft on this computer	Разрешить ИИ-ассистентам (Claude и другим MCP-клиентам) управлять FilmCraft на этом компьютере
+	An assistant connected to FilmCraft can open, edit, save and export your projects as you would. Nothing is sent anywhere by FilmCraft: the assistant talks to it on this computer only.	Подключённый ассистент может открывать, править, сохранять и экспортировать ваши проекты так же, как вы. FilmCraft ничего никуда не отправляет: ассистент работает с ним только на этом компьютере.
+	Connect Again	Подключить снова
+	Connect an Assistant	Подключить ассистента
+	Connect to Claude Code	Подключить к Claude Code
+	Connect to Claude Desktop	Подключить к Claude Desktop
+	Connected	Подключено
+	Copy Command	Скопировать команду
+	Could not open the channel: {error}	Не удалось открыть канал: {error}
+	Off: no assistant can reach FilmCraft.	Выключено: ни один ассистент не может подключиться к FilmCraft.
+	On.	Включено.
+	On: assistants connect on this computer (port {port}).	Включено: ассистенты подключаются на этом компьютере (порт {port}).
+	Other MCP clients: run the server below with the arguments mcp --app.	Другие MCP-клиенты: запустите сервер ниже с аргументами mcp --app.
+	The MCP server comes with FilmCraft installed from its .dmg: it is not next to this copy of the app.	MCP-сервер входит в FilmCraft, установленный из .dmg: рядом с этой копией приложения его нет.
+	The command is copied: paste it in Terminal.	Команда скопирована: вставьте её в Терминал.
+	Turns on when you press OK.	Включится, когда вы нажмёте OK.

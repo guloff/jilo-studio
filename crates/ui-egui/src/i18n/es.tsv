@@ -4485,3 +4485,22 @@
 	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	La lista de licencias está en la app empaquetada (Resources/Licenses); la crea `cargo xtask licenses`.
 	{n} item	{n} elemento
 	{total} item	{total} elemento
+	AI Assistants	Asistentes de IA
+	Added to Claude Code. Start a new Claude Code session to use FilmCraft there.	Añadido a Claude Code. Inicia una nueva sesión de Claude Code para usar FilmCraft allí.
+	Added to Claude Desktop. Quit and reopen Claude to use FilmCraft there.	Añadido a Claude Desktop. Cierra y vuelve a abrir Claude para usar FilmCraft allí.
+	Allow AI assistants (Claude and other MCP clients) to control FilmCraft on this computer	Permitir que los asistentes de IA (Claude y otros clientes MCP) controlen FilmCraft en este ordenador
+	An assistant connected to FilmCraft can open, edit, save and export your projects as you would. Nothing is sent anywhere by FilmCraft: the assistant talks to it on this computer only.	Un asistente conectado a FilmCraft puede abrir, editar, guardar y exportar tus proyectos como lo harías tú. FilmCraft no envía nada a ninguna parte: el asistente se comunica con él solo en este ordenador.
+	Connect Again	Conectar de nuevo
+	Connect an Assistant	Conectar un asistente
+	Connect to Claude Code	Conectar a Claude Code
+	Connect to Claude Desktop	Conectar a Claude Desktop
+	Connected	Conectado
+	Copy Command	Copiar comando
+	Could not open the channel: {error}	No se pudo abrir el canal: {error}
+	Off: no assistant can reach FilmCraft.	Desactivado: ningún asistente puede llegar a FilmCraft.
+	On.	Activado.
+	On: assistants connect on this computer (port {port}).	Activado: los asistentes se conectan en este ordenador (puerto {port}).
+	Other MCP clients: run the server below with the arguments mcp --app.	Otros clientes MCP: ejecuta el servidor de abajo con los argumentos mcp --app.
+	The MCP server comes with FilmCraft installed from its .dmg: it is not next to this copy of the app.	El servidor MCP viene con FilmCraft instalado desde su .dmg: no está junto a esta copia de la aplicación.
+	The command is copied: paste it in Terminal.	Comando copiado: pégalo en Terminal.
+	Turns on when you press OK.	Se activa al pulsar OK.

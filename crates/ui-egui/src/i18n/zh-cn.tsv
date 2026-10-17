@@ -4520,3 +4520,22 @@
 	The licence list is in the packaged app (Resources/Licenses); `cargo xtask licenses` makes it.	许可列表位于打包后的应用中（Resources/Licenses），由 `cargo xtask licenses` 生成。
 	{n} item	{n} 项
 	{total} item	{total} 项
+	AI Assistants	AI 助手
+	Added to Claude Code. Start a new Claude Code session to use FilmCraft there.	已添加到 Claude Code。新建一个 Claude Code 会话即可在其中使用 FilmCraft。
+	Added to Claude Desktop. Quit and reopen Claude to use FilmCraft there.	已添加到 Claude Desktop。退出并重新打开 Claude 即可在其中使用 FilmCraft。
+	Allow AI assistants (Claude and other MCP clients) to control FilmCraft on this computer	允许 AI 助手（Claude 和其他 MCP 客户端）在本机上控制 FilmCraft
+	An assistant connected to FilmCraft can open, edit, save and export your projects as you would. Nothing is sent anywhere by FilmCraft: the assistant talks to it on this computer only.	连接到 FilmCraft 的助手可以像你一样打开、编辑、保存和导出你的项目。FilmCraft 不会向任何地方发送内容：助手只在本机上与它通信。
+	Connect Again	重新连接
+	Connect an Assistant	连接助手
+	Connect to Claude Code	连接到 Claude Code
+	Connect to Claude Desktop	连接到 Claude Desktop
+	Connected	已连接
+	Copy Command	复制命令
+	Could not open the channel: {error}	无法打开通道：{error}
+	Off: no assistant can reach FilmCraft.	已关闭：任何助手都无法访问 FilmCraft。
+	On.	已开启。
+	On: assistants connect on this computer (port {port}).	已开启：助手在本机上连接（端口 {port}）。
+	Other MCP clients: run the server below with the arguments mcp --app.	其他 MCP 客户端：使用参数 mcp --app 运行下面的服务器。
+	The MCP server comes with FilmCraft installed from its .dmg: it is not next to this copy of the app.	MCP 服务器随从 .dmg 安装的 FilmCraft 一起提供：这份应用旁边没有它。
+	The command is copied: paste it in Terminal.	命令已复制：请粘贴到“终端”中。
+	Turns on when you press OK.	按“确定”后开启。

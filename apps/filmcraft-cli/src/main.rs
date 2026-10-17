@@ -92,7 +92,7 @@ SUBCOMMANDS
                                 media info as JSON, with MXF / Ogg / BWF details; with
                                 --image-sequence <media> is the first numbered still of a sequence
   bench-decode <media> [--frames N]
-  mcp                           MCP server on stdio (headless, or --bridge to the live app)
+  mcp                           MCP server on stdio (headless, or --app / --bridge to the live app)
   help                          this text
   --version                     print the version
 
@@ -102,6 +102,8 @@ OPTIONS
   --save                        save the project back to --project when done
   --save-as <p.fcproj>          save the project to this path when done
   --bridge <127.0.0.1:PORT>     send commands to the running app (`filmcraft --control PORT`)
+  --app                         send commands to the open Jilo Studio that allows AI assistants
+                                (Settings ▸ AI ▸ Allow AI assistants; same as --bridge 127.0.0.1:47821)
   --data-dir <dir>              FilmCraft data directory for user export presets (headless;
                                 default: the app's data directory)
   --keep-going                  `run`: report failing lines and continue
@@ -182,6 +184,15 @@ fn fail(msg: impl std::fmt::Display) -> ! {
     std::process::exit(1)
 }
 
+/// The running app to drive: `--bridge ADDR`, or `--app` for the one that allows AI assistants
+/// (Settings ▸ AI ▸ Allow AI assistants, on [`filmcraft_engine::control_token::ASSISTANT_PORT`]).
+fn bridge_addr(a: &Args) -> Option<String> {
+    if a.flag("--app") && a.opt("--bridge").is_some() {
+        usage("give --app or --bridge, not both");
+    }
+    a.opt("--bridge").map(str::to_string).or_else(|| a.flag("--app").then(|| format!("127.0.0.1:{}", filmcraft_engine::control_token::ASSISTANT_PORT)))
+}
+
 /// Where commands go: an in-process session, or the desktop app's control channel.
 enum Backend {
     Local(Box<Session>),
@@ -190,9 +201,9 @@ enum Backend {
 
 impl Backend {
     fn open(a: &Args) -> Self {
-        if let Some(addr) = a.opt("--bridge") {
+        if let Some(addr) = bridge_addr(a) {
             if a.opt("--project").is_some() || a.flag("--demo") {
-                usage("--bridge drives the running app; open projects there (exec file.open path=…)");
+                usage("--bridge and --app drive the running app; open projects there (exec file.open path=…)");
             }
             return Backend::Bridge(BridgeClient::with_data_dir(addr, a.opt("--data-dir").map(std::path::PathBuf::from)).unwrap_or_else(|e| usage(e)));
         }
@@ -505,7 +516,7 @@ async fn cli() {
             }
         }
         "render" => {
-            if a.opt("--bridge").is_some() {
+            if bridge_addr(&a).is_some() {
                 usage("render is headless; with --bridge use the MCP `render_frame` tool or `exec` ui commands");
             }
             let Backend::Local(mut s) = Backend::open(&a) else { usage("render is headless") };
@@ -521,10 +532,10 @@ async fn cli() {
             diag(format_args!("rendered {}x{} in {:.1} ms → {out}", img.w, img.h, dt.as_secs_f64() * 1000.0));
         }
         "mcp" => {
-            if let Some(opt) = a.unknown_opt(&["--bridge", "--project", "--demo", "--data-dir"]) {
+            if let Some(opt) = a.unknown_opt(&["--bridge", "--app", "--project", "--demo", "--data-dir"]) {
                 usage(format!("unknown mcp option `{opt}`"));
             }
-            let server = match a.opt("--bridge") {
+            let server = match bridge_addr(&a).as_deref() {
                 Some(addr) => filmcraft_automation::FilmcraftMcp::bridge_with_data_dir(addr, a.opt("--data-dir").map(std::path::PathBuf::from))
                     .unwrap_or_else(|e| fail(e)),
                 None => match Backend::open(&a) {

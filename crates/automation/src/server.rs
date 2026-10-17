@@ -336,7 +336,7 @@ impl FilmcraftMcp {
         match self.bridge_client() {
             Some(b) => wrap(b.call(method, params).await),
             None => Ok(fail(
-                "this tool drives the live app: run `filmcraft-cli mcp --bridge 127.0.0.1:<port>` with the app started as `filmcraft --control <port>`",
+                "this tool drives the live app: run `filmcraft-cli mcp --app` with Jilo Studio open and Settings ▸ AI ▸ Allow AI assistants on (or `mcp --bridge 127.0.0.1:<port>` with the app started as `filmcraft --control <port>`)",
             )),
         }
     }

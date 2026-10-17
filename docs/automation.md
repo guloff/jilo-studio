@@ -10,10 +10,27 @@ the control channel, or from the command line. This page covers all three.
 | Mode | Command | What it drives |
 |---|---|---|
 | Headless | `filmcraft-cli mcp --demo` or `--project p.fcproj` (neither = empty project) | an in-process engine session, no window |
+| Bridge | `filmcraft-cli mcp --app` | the open Jilo Studio, with Settings ▸ AI ▸ Allow AI assistants on (port 47821) |
 | Bridge | `filmcraft-cli mcp --bridge 127.0.0.1:9876` | the running desktop app started with `filmcraft --control 9876` |
 
-**Connecting an MCP client.** Build the CLI, start the app with the control channel if you want
-the bridge, and register the server in your MCP client with the absolute path of the binary:
+**Connecting Claude to the app you are working in.** The `.app` carries the MCP server
+(`Jilo Studio.app/Contents/MacOS/filmcraft-cli`). In Settings ▸ AI ▸ AI Assistants turn on *Allow AI
+assistants* and press *Connect to Claude Desktop* (adds the server to
+`~/Library/Application Support/Claude/claude_desktop_config.json`, keeping the rest of it and the
+old file as `.bak`; quit and reopen Claude) or *Connect to Claude Code* (runs `claude mcp add
+--scope user jilo-studio -- …/filmcraft-cli mcp --app`; *Copy Command* gives the same line for
+Terminal). The engine commands are `ai.assistants.status` and `ai.assistants.connect {client:
+"claudeDesktop" | "claudeCode"}`.
+
+The setting takes effect at once: the app opens its control channel on `127.0.0.1:47821` (token in
+`control-47821.token` in the data directory, as for `--control`) when it is turned on, and refuses
+every request while it is off. It stays on across launches, so a client registered once finds the
+app after every restart; `mcp --app` reconnects on each call, and while the app is closed or does
+not allow assistants its tools say so. An app started with `--control 47821` serves assistants on
+that channel.
+
+**Connecting an MCP client by hand.** Build the CLI, start the app with the control channel if you
+want the bridge, and register the server in your MCP client with the absolute path of the binary:
 
 ```sh
 cargo build --release -p filmcraft-cli -p filmcraft
@@ -23,6 +40,9 @@ cargo build --release -p filmcraft-cli -p filmcraft
 ```json
 { "mcpServers": { "filmcraft": { "command": "/abs/path/filmcraft-cli", "args": ["mcp", "--bridge", "127.0.0.1:9876"] } } }
 ```
+
+`--app` works for the other subcommands too: `filmcraft-cli --app exec file.save` saves the
+project open in Jilo Studio.
 
 ### Tools
 

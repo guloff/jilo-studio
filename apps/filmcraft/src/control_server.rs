@@ -29,15 +29,27 @@ pub const MAX_CONNECTIONS: usize = 16;
 
 /// Listen on `127.0.0.1:port`. With `token`, each connection must present it first.
 pub fn start(port: u16, ctx: egui::Context, token: Option<String>) -> Receiver<ControlRequest> {
-    let (tx, rx) = channel::<ControlRequest>();
-    let listener = match TcpListener::bind(("127.0.0.1", port)) {
-        Ok(l) => l,
+    match bind(port) {
+        Ok(listener) => listen(listener, ctx, token),
         Err(e) => {
-            eprintln!("filmcraft: control server failed to bind 127.0.0.1:{port}: {e}");
-            return rx;
+            eprintln!("filmcraft: {e}");
+            channel::<ControlRequest>().1
         }
-    };
-    eprintln!("filmcraft: control server listening on 127.0.0.1:{port}");
+    }
+}
+
+/// Take `127.0.0.1:port` (before its token is written, so a port another copy of the app holds
+/// keeps that copy's token file).
+pub fn bind(port: u16) -> Result<TcpListener, String> {
+    TcpListener::bind(("127.0.0.1", port)).map_err(|e| format!("control server failed to bind 127.0.0.1:{port}: {e}"))
+}
+
+/// Serve a bound listener. With `token`, each connection must present it first.
+pub fn listen(listener: TcpListener, ctx: egui::Context, token: Option<String>) -> Receiver<ControlRequest> {
+    let (tx, rx) = channel::<ControlRequest>();
+    if let Ok(addr) = listener.local_addr() {
+        eprintln!("filmcraft: control server listening on {addr}");
+    }
     let token: Option<Arc<str>> = token.map(Arc::from);
     std::thread::spawn(move || accept_loop(listener, tx, ctx, token));
     rx

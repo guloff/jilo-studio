@@ -45,6 +45,9 @@ pub struct SettingsDraft {
     /// `ai.status` when the AI page was shown (never holds a key).
     #[serde(default)]
     pub ai_status: Value,
+    /// `ai.assistants.status` when the AI page was shown, or after a Connect button.
+    #[serde(default)]
+    pub assistants: Value,
 }
 
 /// Open the dialog on a category page.
@@ -608,6 +611,7 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
         "appearanceModes" => appearance_modes(app, ui, d),
         "aiKeys" => ai_keys(app, ui, d),
         "aiLocal" => ai_local(app, ui, d),
+        "aiAssistants" => ai_assistants(app, ui, d),
         "autoSaveStatus" => {
             let status = app.session.execute("file.autoSaveStatus", json!({})).unwrap_or_default();
             if let Some(dir) = status["autoSaveDir"].as_str() {
@@ -627,6 +631,83 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
             }
         }
         _ => {}
+    }
+}
+
+/// Settings ▸ AI ▸ AI Assistants: whether the assistants' channel is open, and registering the MCP
+/// server bundled with the app with Claude Desktop or Claude Code (`ai.assistants.status`,
+/// `ai.assistants.connect`). A Connect button turns Allow AI assistants on in the draft too, so OK
+/// does not turn it back off.
+fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
+    let t = app.tokens;
+    if d.assistants.is_null() {
+        d.assistants = app.session.execute("ai.assistants.status", json!({})).unwrap_or(json!({}));
+    }
+    let st = d.assistants.clone();
+    let allowed_in_draft = d.values["ai"]["allowAssistants"] == true;
+    let port = st["port"].as_u64().unwrap_or(u64::from(filmcraft_engine::control_token::ASSISTANT_PORT));
+    let state = match (&app.assistant_channel, app.session.prefs.ai.allow_assistants, allowed_in_draft) {
+        (_, _, false) => tl!("Off: no assistant can reach FilmCraft.").to_string(),
+        (_, false, true) => tl!("Turns on when you press OK.").to_string(),
+        (crate::AssistantChannel::Open | crate::AssistantChannel::ServedByControl, true, true) => {
+            tlf!("On: assistants connect on this computer (port {port}).", port)
+        }
+        (crate::AssistantChannel::Failed(e), true, true) => tlf!("Could not open the channel: {error}", error = e),
+        (crate::AssistantChannel::Closed, true, true) => tl!("On.").to_string(),
+    };
+    let mut refresh = false;
+    group(ui, &t, tl!("Connect an Assistant"), |ui| {
+        ui.horizontal(|ui| {
+            field_label(ui, tl!("Status"));
+            ui.label(RichText::new(state).size(12.5));
+        });
+        if st["cli"].is_null() {
+            note(ui, &t, tl!("The MCP server comes with FilmCraft installed from its .dmg: it is not next to this copy of the app."));
+            return;
+        }
+        ui.horizontal(|ui| {
+            field_label(ui, "Claude Desktop");
+            let connected = st["claudeDesktop"]["connected"] == true;
+            if connected {
+                ui.label(RichText::new(tl!("Connected")).size(12.5).color(t.text_dim));
+            }
+            let label = if connected { tl!("Connect Again") } else { tl!("Connect to Claude Desktop") };
+            if button(app, ui, "settings.aiAssistants.claudeDesktop", label, false) {
+                d.message = match app.session.execute("ai.assistants.connect", json!({"client": "claudeDesktop"})) {
+                    Ok(_) => tl!("Added to Claude Desktop. Quit and reopen Claude to use FilmCraft there.").to_string(),
+                    Err(e) => e.to_string(),
+                };
+                refresh = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            field_label(ui, "Claude Code");
+            if button(app, ui, "settings.aiAssistants.claudeCode", tl!("Connect to Claude Code"), false) {
+                d.message = match app.session.execute("ai.assistants.connect", json!({"client": "claudeCode"})) {
+                    Ok(_) => tl!("Added to Claude Code. Start a new Claude Code session to use FilmCraft there.").to_string(),
+                    Err(e) => e.to_string(),
+                };
+                refresh = true;
+            }
+            if let Some(setup) = st["claudeCode"]["setup"].as_str()
+                && button(app, ui, "settings.aiAssistants.copy", tl!("Copy Command"), false)
+            {
+                ui.ctx().copy_text(setup.to_string());
+                d.message = tl!("The command is copied: paste it in Terminal.").to_string();
+            }
+        });
+        note(ui, &t, tl!("Other MCP clients: run the server below with the arguments mcp --app."));
+        if let Some(cli) = st["cli"].as_str() {
+            note(ui, &t, cli);
+        }
+    });
+    if refresh {
+        d.assistants = Value::Null;
+        if app.session.prefs.ai.allow_assistants
+            && let Some(ai) = d.values.get_mut("ai").and_then(Value::as_object_mut)
+        {
+            ai.insert("allowAssistants".into(), json!(true));
+        }
     }
 }
 
