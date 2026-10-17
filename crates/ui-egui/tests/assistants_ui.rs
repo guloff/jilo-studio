@@ -164,9 +164,8 @@ fn the_ai_page_shows_the_setting_and_the_channel() {
             Err(e) => eprintln!("snapshot skipped: {e}"),
         }
     }
-    // with the MCP server next to the app (an installed copy), the Connect buttons; a test build
-    // has none, and the page says where it comes from instead
-    let st = d.app().session.execute("ai.assistants.status", json!({})).unwrap();
-    let buttons = ids.iter().any(|i| i == "settings.aiAssistants.claudeDesktop") && ids.iter().any(|i| i == "settings.aiAssistants.claudeCode");
-    assert_eq!(buttons, st["cli"].is_string(), "{ids:?} {st}");
+    // the app itself is the MCP server: the Connect buttons are always there
+    for b in ["claudeDesktop", "claudeCode", "copy"] {
+        assert!(ids.iter().any(|i| *i == format!("settings.aiAssistants.{b}")), "{b}: {ids:?}");
+    }
 }

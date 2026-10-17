@@ -15,6 +15,9 @@ Options:
   --process '<steps>' <files...>
                      process the files without a window (Finder Quick Actions, Shortcuts):
                      the steps are AI ▸ Batch Process's as JSON (`{}`: export only)
+  --mcp [--bridge 127.0.0.1:<port>] [--data-dir <dir>]
+                     serve MCP on stdio for an AI assistant (Claude…), driving the open app
+                     that allows AI assistants (Settings ▸ AI; port 47821), or the one at --bridge
   --data-dir <dir>   folder for auto-save, crash recovery and logs
                      (also: FILMCRAFT_DATA_DIR)
   --version          print the version and exit
@@ -29,6 +32,11 @@ pub enum Cli {
     Process {
         params: String,
         files: Vec<String>,
+        data_dir: Option<std::path::PathBuf>,
+    },
+    /// `--mcp [--bridge <addr>] [--data-dir <dir>]`: the MCP server for AI assistants, no window.
+    Mcp {
+        addr: String,
         data_dir: Option<std::path::PathBuf>,
     },
     Help,
@@ -71,6 +79,20 @@ pub fn parse(env_control_port: Option<String>, args: impl IntoIterator<Item = St
             }
         }
         return Ok(Cli::Process { params, files, data_dir });
+    }
+    if args.peek().is_some_and(|a| a == "--mcp") {
+        args.next();
+        let (mut addr, mut data_dir) = (None, None);
+        while let Some(a) = args.next() {
+            match a.as_str() {
+                "--bridge" => addr = Some(args.next().ok_or("--bridge needs 127.0.0.1:<port>")?),
+                "--app" => {}
+                "--data-dir" => data_dir = Some(args.next().map(std::path::PathBuf::from).ok_or("--data-dir needs a folder")?),
+                _ => return Err(format!("unknown --mcp option `{a}`")),
+            }
+        }
+        let addr = addr.unwrap_or_else(|| format!("127.0.0.1:{}", filmcraft_engine::assistants::ASSISTANT_PORT));
+        return Ok(Cli::Mcp { addr, data_dir });
     }
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -124,6 +146,17 @@ mod tests {
             Ok(Cli::Run(l)) => l,
             other => panic!("{args:?} should start the app, got {other:?}"),
         }
+    }
+
+    /// `--mcp` serves MCP for the open app (the assistants' port) or the one at `--bridge`.
+    #[test]
+    fn mcp_serves_without_a_window() {
+        let data = Some(std::path::PathBuf::from("/d"));
+        assert_eq!(parse_args(&["--mcp"]), Ok(Cli::Mcp { addr: "127.0.0.1:47821".into(), data_dir: None }));
+        assert_eq!(parse_args(&["--mcp", "--app", "--data-dir", "/d"]), Ok(Cli::Mcp { addr: "127.0.0.1:47821".into(), data_dir: data }));
+        assert_eq!(parse_args(&["--mcp", "--bridge", "127.0.0.1:9876"]), Ok(Cli::Mcp { addr: "127.0.0.1:9876".into(), data_dir: None }));
+        assert!(parse_args(&["--mcp", "--demo"]).is_err());
+        assert!(parse_args(&["--mcp", "--bridge"]).is_err());
     }
 
     /// `filmcraft --help` used to open the app with "--help" as a media file to import.

@@ -91,6 +91,7 @@ fn main() -> eframe::Result {
             register_hardware_decoders();
             std::process::exit(process::run(&params, &files, data_dir));
         }
+        Ok(Cli::Mcp { addr, data_dir }) => std::process::exit(serve_mcp(&addr, data_dir)),
         Ok(Cli::Version) => {
             tell(&format!("filmcraft {}\n", env!("CARGO_PKG_VERSION")), false);
             return Ok(());
@@ -452,6 +453,32 @@ fn register_gpu_frame_renderer() {
 /// The token clients of `--control <port>` must present (#163): `FILMCRAFT_CONTROL_TOKEN`, else a
 /// new random one written to `<data dir>/control-<port>.token` (user-only permissions), where
 /// `filmcraft-cli --bridge` finds it. `Ok(None)` when `FILMCRAFT_CONTROL_NO_AUTH=1` turns it off.
+/// `--mcp`: serve MCP on stdio, bridged to the app at `addr` (no window; stdout is the protocol, so
+/// every message goes to stderr). The exit code.
+fn serve_mcp(addr: &str, data_dir: Option<std::path::PathBuf>) -> i32 {
+    let server = match filmcraft_automation::FilmcraftMcp::bridge_with_data_dir(addr, data_dir) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("filmcraft --mcp: {e}");
+            return 2;
+        }
+    };
+    let rt = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("filmcraft --mcp: {e}");
+            return 1;
+        }
+    };
+    match rt.block_on(server.serve_stdio()) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("filmcraft --mcp: {e}");
+            1
+        }
+    }
+}
+
 fn control_auth(port: u16, data_dir: Option<std::path::PathBuf>) -> Result<Option<String>, String> {
     use filmcraft_engine::control_token as ct;
     if ct::auth_disabled() {

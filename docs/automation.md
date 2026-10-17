@@ -5,27 +5,29 @@ the control channel, or from the command line. This page covers all three.
 
 ## 1. MCP server
 
-`filmcraft-cli mcp` serves MCP on stdio. It has two modes:
+`filmcraft-cli mcp` serves MCP on stdio, and so does the app itself started with `--mcp` (no
+window). The modes:
 
 | Mode | Command | What it drives |
 |---|---|---|
 | Headless | `filmcraft-cli mcp --demo` or `--project p.fcproj` (neither = empty project) | an in-process engine session, no window |
-| Bridge | `filmcraft-cli mcp --app` | the open Jilo Studio, with Settings ▸ AI ▸ Allow AI assistants on (port 47821) |
-| Bridge | `filmcraft-cli mcp --bridge 127.0.0.1:9876` | the running desktop app started with `filmcraft --control 9876` |
+| Bridge | `"Jilo Studio.app/Contents/MacOS/Jilo Studio" --mcp`, or `filmcraft-cli mcp --app` | the open Jilo Studio, with Settings ▸ AI ▸ Allow AI assistants on (port 47821) |
+| Bridge | `filmcraft-cli mcp --bridge 127.0.0.1:9876` (or the app's `--mcp --bridge 127.0.0.1:9876`) | the running desktop app started with `filmcraft --control 9876` |
 
-**Connecting Claude to the app you are working in.** The `.app` carries the MCP server
-(`Jilo Studio.app/Contents/MacOS/filmcraft-cli`). In Settings ▸ AI ▸ AI Assistants turn on *Allow AI
-assistants* and press *Connect to Claude Desktop* (adds the server to
+**Connecting Claude to the app you are working in.** The app's own executable is the MCP server:
+`Jilo Studio.app/Contents/MacOS/Jilo Studio --mcp` serves MCP on stdio without opening a window and
+bridges to the open app (nothing else is installed). In Settings ▸ AI ▸ AI Assistants turn on
+*Allow AI assistants* and press *Connect to Claude Desktop* (adds the server to
 `~/Library/Application Support/Claude/claude_desktop_config.json`, keeping the rest of it and the
 old file as `.bak`; quit and reopen Claude) or *Connect to Claude Code* (runs `claude mcp add
---scope user jilo-studio -- …/filmcraft-cli mcp --app`; *Copy Command* gives the same line for
+--scope user jilo-studio -- '…/Jilo Studio' --mcp`; *Copy Command* gives the same line for
 Terminal). The engine commands are `ai.assistants.status` and `ai.assistants.connect {client:
 "claudeDesktop" | "claudeCode"}`.
 
 The setting takes effect at once: the app opens its control channel on `127.0.0.1:47821` (token in
 `control-47821.token` in the data directory, as for `--control`) when it is turned on, and refuses
 every request while it is off. It stays on across launches, so a client registered once finds the
-app after every restart; `mcp --app` reconnects on each call, and while the app is closed or does
+app after every restart; the server reconnects on each call, and while the app is closed or does
 not allow assistants its tools say so. An app started with `--control 47821` serves assistants on
 that channel.
 

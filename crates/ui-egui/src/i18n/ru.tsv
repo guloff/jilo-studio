@@ -4495,7 +4495,6 @@ mode	Edit	Монтаж
 	Off: no assistant can reach FilmCraft.	Выключено: ни один ассистент не может подключиться к FilmCraft.
 	On.	Включено.
 	On: assistants connect on this computer (port {port}).	Включено: ассистенты подключаются на этом компьютере (порт {port}).
-	Other MCP clients: run the server below with the arguments mcp --app.	Другие MCP-клиенты: запустите сервер ниже с аргументами mcp --app.
-	The MCP server comes with FilmCraft installed from its .dmg: it is not next to this copy of the app.	MCP-сервер входит в FilmCraft, установленный из .dmg: рядом с этой копией приложения его нет.
 	The command is copied: paste it in Terminal.	Команда скопирована: вставьте её в Терминал.
 	Turns on when you press OK.	Включится, когда вы нажмёте OK.
+	Other MCP clients: run FilmCraft itself as the server, with this command:	Другие MCP-клиенты: запускайте сервером сам FilmCraft такой командой:

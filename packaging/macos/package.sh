@@ -127,9 +127,6 @@ echo "==> assembling $APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Executable and icon carry the display name (CFBundleExecutable / CFBundleIconFile).
 cp "$WORK/bin/filmcraft" "$APP/Contents/MacOS/$APP_NAME"
-# the MCP server AI assistants run (`filmcraft-cli mcp --app`; Settings ▸ AI ▸ AI Assistants
-# registers it with Claude), next to the app so the app finds it
-cp "$WORK/bin/filmcraft-cli" "$APP/Contents/MacOS/filmcraft-cli"
 cp "$ROOT/assets/brand/jilo/jilo-studio.icns" "$APP/Contents/Resources/JiloStudio.icns"
 sed -e "s/@VERSION@/$VERSION/g" -e "s/@SHORT_VERSION@/$SHORT_VERSION/g" \
   -e "s/@BUILD_SHA@/${FILMCRAFT_BUILD_SHA:-unknown}/g" \
@@ -147,8 +144,7 @@ cp "$ROOT/assets/brand/jilo/LICENSE-brand.txt" "$APP/Contents/Resources/Licenses
 copy_font_licences "$APP/Contents/Resources"
 
 # Sign inside-out: nested code first, then the bundle itself (no --deep on the final signature).
-# The nested code is the main executable and the MCP server beside it.
-sign --options runtime "$APP/Contents/MacOS/filmcraft-cli"
+# The only nested code is the main executable (it is also the MCP server: `--mcp`).
 sign --options runtime --entitlements "$HERE/entitlements.plist" "$APP/Contents/MacOS/$APP_NAME"
 sign --options runtime --entitlements "$HERE/entitlements.plist" "$APP"
 codesign --verify --strict --deep --verbose=2 "$APP"

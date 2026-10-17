@@ -4535,7 +4535,6 @@
 	Off: no assistant can reach FilmCraft.	已关闭：任何助手都无法访问 FilmCraft。
 	On.	已开启。
 	On: assistants connect on this computer (port {port}).	已开启：助手在本机上连接（端口 {port}）。
-	Other MCP clients: run the server below with the arguments mcp --app.	其他 MCP 客户端：使用参数 mcp --app 运行下面的服务器。
-	The MCP server comes with FilmCraft installed from its .dmg: it is not next to this copy of the app.	MCP 服务器随从 .dmg 安装的 FilmCraft 一起提供：这份应用旁边没有它。
 	The command is copied: paste it in Terminal.	命令已复制：请粘贴到“终端”中。
 	Turns on when you press OK.	按“确定”后开启。
+	Other MCP clients: run FilmCraft itself as the server, with this command:	其他 MCP 客户端：用下面的命令把 FilmCraft 本身作为服务器运行：

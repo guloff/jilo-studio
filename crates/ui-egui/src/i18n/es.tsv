@@ -4500,7 +4500,6 @@
 	Off: no assistant can reach FilmCraft.	Desactivado: ningún asistente puede llegar a FilmCraft.
 	On.	Activado.
 	On: assistants connect on this computer (port {port}).	Activado: los asistentes se conectan en este ordenador (puerto {port}).
-	Other MCP clients: run the server below with the arguments mcp --app.	Otros clientes MCP: ejecuta el servidor de abajo con los argumentos mcp --app.
-	The MCP server comes with FilmCraft installed from its .dmg: it is not next to this copy of the app.	El servidor MCP viene con FilmCraft instalado desde su .dmg: no está junto a esta copia de la aplicación.
 	The command is copied: paste it in Terminal.	Comando copiado: pégalo en Terminal.
 	Turns on when you press OK.	Se activa al pulsar OK.
+	Other MCP clients: run FilmCraft itself as the server, with this command:	Otros clientes MCP: ejecuta el propio FilmCraft como servidor con este comando:

@@ -28,6 +28,13 @@ tools=$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"
   | "$CLI" mcp --demo 2>/dev/null | jq -s '[.[] | select(.id == 2) | .result.tools[].name] | length')
 [ "${tools:-0}" -ge 10 ] || fail "mcp tools/list returned ${tools:-nothing}"
 pass "mcp: $tools tools"
+# the app itself serves MCP for assistants (`--mcp`), without a window and with nothing but the
+# protocol on stdout
+app_tools=$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | "$BIN/filmcraft" --mcp --bridge 127.0.0.1:9 2>/dev/null | jq -s '[.[] | select(.id == 2) | .result.tools[].name] | length')
+[ "${app_tools:-0}" -ge 10 ] || fail "filmcraft --mcp tools/list returned ${app_tools:-nothing}"
+pass "app --mcp: $app_tools tools"
 
 echo "==> test media"
 # 10 s of 1080p25 H.264 + stereo AAC with real detail (noise), a 4:2:2 10-bit ProRes clip and a

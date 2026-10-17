@@ -634,8 +634,8 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
     }
 }
 
-/// Settings ▸ AI ▸ AI Assistants: whether the assistants' channel is open, and registering the MCP
-/// server bundled with the app with Claude Desktop or Claude Code (`ai.assistants.status`,
+/// Settings ▸ AI ▸ AI Assistants: whether the assistants' channel is open, and registering the app
+/// itself (`--mcp`) as an MCP server with Claude Desktop or Claude Code (`ai.assistants.status`,
 /// `ai.assistants.connect`). A Connect button turns Allow AI assistants on in the draft too, so OK
 /// does not turn it back off.
 fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
@@ -661,10 +661,6 @@ fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
             field_label(ui, tl!("Status"));
             ui.label(RichText::new(state).size(12.5));
         });
-        if st["cli"].is_null() {
-            note(ui, &t, tl!("The MCP server comes with FilmCraft installed from its .dmg: it is not next to this copy of the app."));
-            return;
-        }
         ui.horizontal(|ui| {
             field_label(ui, "Claude Desktop");
             let connected = st["claudeDesktop"]["connected"] == true;
@@ -696,9 +692,10 @@ fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
                 d.message = tl!("The command is copied: paste it in Terminal.").to_string();
             }
         });
-        note(ui, &t, tl!("Other MCP clients: run the server below with the arguments mcp --app."));
-        if let Some(cli) = st["cli"].as_str() {
-            note(ui, &t, cli);
+        note(ui, &t, tl!("Other MCP clients: run FilmCraft itself as the server, with this command:"));
+        if let Some(cmd) = st["command"].as_str() {
+            let args: Vec<&str> = st["args"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+            note(ui, &t, &format!("{cmd} {}", args.join(" ")));
         }
     });
     if refresh {
