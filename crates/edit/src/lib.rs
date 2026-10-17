@@ -26,7 +26,7 @@ pub mod transitions;
 
 use std::collections::HashMap;
 
-use filmcraft_project::{ClipId, ItemId, Sequence, Track, TrackId, TrackItem, Transition, TransitionId};
+use filmcraft_project::{ClipId, ItemId, Sequence, Track, TrackId, TrackItem, Transition, TransitionAlign, TransitionId};
 use filmcraft_time::{Tick, TimeRange};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -489,17 +489,27 @@ pub fn move_items(seq: &mut Sequence, moves: &[(ClipId, TrackId, Tick)], insert_
     }
     // Transitions go with the moved clips: a fade on a clip's own edge (in from nothing, out to
     // nothing), and a transition at a cut whose two clips move together onto one track. One whose
-    // other clip stays behind is dropped, as in Premiere.
+    // other clip is moved away stays on the clip left behind, as a fade on its edge (a dip to black
+    // between two shots becomes the remaining shot's fade to black instead of vanishing).
     let offsets: HashMap<ClipId, (TrackId, Tick)> =
         placed.iter().filter_map(|(dest, it)| work.find_item(it.id).map(|(_, old)| (it.id, (*dest, it.start - old.start)))).collect();
     let mut carried: Vec<(TrackId, Tick, Transition)> = Vec::new();
-    for t in work.all_tracks().flat_map(|tr| tr.transitions.iter()) {
-        let sides: Vec<Option<&(TrackId, Tick)>> = [t.from, t.to].into_iter().flatten().map(|c| offsets.get(&c)).collect();
-        let Some(Some(&(dest, delta))) = sides.first().copied() else { continue };
-        if sides.iter().all(|s| *s == Some(&(dest, delta))) {
-            let mut moved = t.clone();
-            moved.start += delta;
-            carried.push((dest, delta, moved));
+    for tr in work.all_tracks() {
+        for t in &tr.transitions {
+            let sides: Vec<Option<&(TrackId, Tick)>> = [t.from, t.to].into_iter().flatten().map(|c| offsets.get(&c)).collect();
+            let Some(Some(&(dest, delta))) = sides.first().copied() else {
+                if let Some(left) = left_behind(tr, t, &offsets) {
+                    carried.push((tr.id, Tick::ZERO, left));
+                }
+                continue;
+            };
+            if sides.iter().all(|s| *s == Some(&(dest, delta))) {
+                let mut moved = t.clone();
+                moved.start += delta;
+                carried.push((dest, delta, moved));
+            } else if let Some(left) = left_behind(tr, t, &offsets) {
+                carried.push((tr.id, Tick::ZERO, left));
+            }
         }
     }
     let anchors: Vec<Option<Tick>> = carried
@@ -525,6 +535,29 @@ pub fn move_items(seq: &mut Sequence, moves: &[(ClipId, TrackId, Tick)], insert_
     }
     *seq = work;
     Ok(())
+}
+
+/// A transition at a cut whose one clip moves away while the other stays: the same transition as
+/// a fade on the staying clip's edge (out to nothing on the outgoing clip, in from nothing on the
+/// incoming one), as long as that clip, no longer than it. `None` when both or neither clip moves,
+/// or it already is one-sided.
+fn left_behind(track: &Track, t: &Transition, moving: &HashMap<ClipId, (TrackId, Tick)>) -> Option<Transition> {
+    let (from, to) = (t.from?, t.to?);
+    let mut left = t.clone();
+    match (moving.contains_key(&from), moving.contains_key(&to)) {
+        (false, true) => {
+            let clip = track.item(from)?;
+            left.duration = t.duration.min(clip.duration);
+            (left.start, left.to, left.align) = (clip.end() - left.duration, None, TransitionAlign::EndAtCut);
+        }
+        (true, false) => {
+            let clip = track.item(to)?;
+            left.duration = t.duration.min(clip.duration);
+            (left.start, left.from, left.align) = (clip.start, None, TransitionAlign::StartAtCut);
+        }
+        _ => return None,
+    }
+    Some(left)
 }
 
 fn media_len(ctx: &EditCtx, item: &TrackItem) -> Option<Tick> {

@@ -527,7 +527,8 @@ fn move_with_insert_and_overwrite() {
 }
 
 /// A fade-in on a clip's head (and a fade-out on its tail) goes with the clip when it is moved,
-/// on its track or to another; a transition at a cut goes along only when both clips move.
+/// on its track or to another; a transition at a cut goes along when both clips move, and stays on
+/// the clip left behind (as a fade on its edge) when only one does.
 #[test]
 fn transitions_on_a_clips_own_edges_move_with_it() {
     let mut fx = Fx::new();
@@ -557,12 +558,25 @@ fn transitions_on_a_clips_own_edges_move_with_it() {
     assert!(fx.seq.track(v2).unwrap().transitions.is_empty());
     let t = fx.seq.track(v1).unwrap();
     assert!(t.transitions.iter().any(|x| x.id.0 == 1 && x.start == f(60) && x.to == Some(g)), "{:?}", t.transitions);
-    // the cut between A and B: dropped when only B moves, kept when both move together
+    // the cut between A and B: kept when both move together
     let mut both = fx.seq.clone();
     move_items(&mut both, &[(a, v1, f(100)), (b, v1, f(110))], false, &mut Fx::ctx(&mut n)).unwrap();
     assert!(both.track(v1).unwrap().transitions.iter().any(|x| x.id.0 == 3 && x.start == f(108)), "both clips moved");
+    // only A moves: the transition stays on B as a fade in from nothing at B's head
+    let mut first = fx.seq.clone();
+    move_items(&mut first, &[(a, v2, f(100))], false, &mut Fx::ctx(&mut n)).unwrap();
+    let t = first.track(v1).unwrap().transitions.iter().find(|x| x.id.0 == 3).cloned().expect("left on B");
+    assert_eq!((t.from, t.to, t.start, t.duration, t.align), (None, Some(b), f(10), f(4), TransitionAlign::StartAtCut));
+    assert!(first.track(v2).unwrap().transitions.iter().all(|x| x.id.0 != 3), "not on the moved clip");
+    first.check().unwrap();
+    // only B moves: it stays on A as a fade out to nothing ending at A's tail
     move_items(&mut fx.seq, &[(b, v1, f(30))], false, &mut Fx::ctx(&mut n)).unwrap();
-    assert!(!fx.seq.track(v1).unwrap().transitions.iter().any(|x| x.id.0 == 3), "its other clip stayed behind");
+    let t = fx.seq.track(v1).unwrap().transitions.iter().find(|x| x.id.0 == 3).cloned().expect("left on A");
+    assert_eq!((t.from, t.to, t.start, t.duration, t.align), (Some(a), None, f(6), f(4), TransitionAlign::EndAtCut));
+    // moved back onto A's tail, B covers that edge: the fade has nowhere to be and goes
+    let mut covered = fx.seq.clone();
+    move_items(&mut covered, &[(b, v1, f(5))], false, &mut Fx::ctx(&mut n)).unwrap();
+    covered.check().unwrap();
     // in insert mode too
     move_items(&mut fx.seq, &[(g, v1, f(0))], true, &mut Fx::ctx(&mut n)).unwrap();
     assert!(fx.seq.track(v1).unwrap().transitions.iter().any(|x| x.id.0 == 1 && x.start == f(0)));
