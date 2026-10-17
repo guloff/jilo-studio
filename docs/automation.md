@@ -59,6 +59,7 @@ project open in Jilo Studio.
 | `jobs_list` | both | background jobs: exports, renders, transcription, AI tasks, face analysis, batches, downloads (progress, status, result) |
 | `job_cancel` | both | stop a job by id |
 | `render_frame` | both | PNG of the program frame at `seconds` (headless renders; bridge screenshots the Program monitor). Read-only: the playhead and selection are left as they were |
+| `sequence_assemble` | both | a new sequence from a whole edit plan, one undo step (`sequence.assemble`, below) |
 | `ui_inspect` | bridge | UI state: tool, workspace, panels, zoom, playback, fps |
 | `ui_elements` | bridge | on-screen interactive elements with id, label and rect (`prefix` filter) |
 | `ui_click` | bridge | click by `id` or `x`,`y`; `button`, `count`, `modifiers` |
@@ -70,6 +71,36 @@ project open in Jilo Studio.
 
 Typical loop: `project_inspect` / `sequence_inspect` → get ids → `command_run` → `render_frame` or
 `ui_screenshot` → look at the result → `edit.undo` if it's wrong.
+
+### Cutting a video from a plan
+
+An assistant that has decided the cut (from a transcript, a plan the user approved) builds it with
+one `sequence_assemble` call instead of writing a project file or sending hundreds of commands:
+
+```jsonc
+{
+  "name": "Reel 1", "width": 1080, "height": 1920, "fps": 30,
+  "video": [
+    [ // V1: shots cut from the camera file, back to back unless `at` is given
+      {"media": "/Users/me/Movies/talk.mov", "in": 12.4, "out": 18.9, "scale": 180, "anchor": [1460, 900], "label": "Iris"},
+      {"media": "/Users/me/Movies/talk.mov", "in": 25.0, "out": 31.2, "scale": 180, "anchor": [1460, 900]}
+    ],
+    [ // V2: cards (PNG) at given times
+      {"media": "/Users/me/Movies/cards/title.png", "at": 0.5, "duration": 3}
+    ]
+  ],
+  "audio": [[], [{"media": "/Users/me/Music/bed.m4a", "in": 0, "duration": 12.7, "gainDb": -18}]],
+  "captions": [{"name": "RU", "language": "ru", "cues": [{"start": 0, "end": 2.4, "text": "Три принципа"}]}],
+  "markers": [{"at": 0, "name": "Intro", "kind": "chapter"}]
+}
+```
+
+A video clip's sound goes on the audio track of the same number, linked (`audio: false` leaves
+it out, `audioTrack: n` moves it). `in`/`out` are source seconds, `at` and `duration` sequence
+seconds; every time lands on a frame of the sequence. Files are imported once each. The plan is
+checked before anything is made (an error names the clip: `V1 clip 2: no file …`), and a step that
+fails later takes the whole assembly back, so a failed call leaves the project as it was.
+
 
 ### Conventions
 

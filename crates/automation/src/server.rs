@@ -85,6 +85,36 @@ pub struct RenderParams {
     pub max_side: Option<u32>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AssembleParams {
+    /// Name of the new sequence.
+    pub name: String,
+    /// Frame size and rate of the new sequence (default 1920×1080, 23.976).
+    #[serde(default)]
+    pub width: Option<u32>,
+    #[serde(default)]
+    pub height: Option<u32>,
+    #[serde(default)]
+    pub fps: Option<f64>,
+    /// Video tracks bottom to top (V1, V2…), each a list of clips. A clip:
+    /// `{media: "/abs/path" | item: id, in: s, out: s | duration: s, at: s?, name?, label?,
+    /// audio?: bool (its sound on the audio track of the same number, linked; default true),
+    /// audioTrack?: n, scale?: %, position?: [x, y], anchor?: [x, y], opacity?: %, gainDb?: dB}`.
+    /// `in`/`out` are source seconds; `at` is sequence seconds (default: right after the
+    /// previous clip on the track). A still (PNG card) takes `duration`.
+    #[serde(default)]
+    pub video: Option<Vec<Vec<Value>>>,
+    /// Audio tracks A1, A2… (music, voice-over), clips as above without the picture fields.
+    #[serde(default)]
+    pub audio: Option<Vec<Vec<Value>>>,
+    /// Caption tracks: `{name?, language?, cues: [{start: s, end: s, text}], style?: {captions.setStyle params}}`.
+    #[serde(default)]
+    pub captions: Option<Vec<Value>>,
+    /// Markers: `{at: s, name, comment?, kind?: "chapter" | "comment", color?: label, duration?: s}`.
+    #[serde(default)]
+    pub markers: Option<Vec<Value>>,
+}
+
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct ShotParams {
     /// Panel to crop to (e.g. `Timeline`, `Program`); omit for the whole window.
@@ -469,6 +499,31 @@ impl FilmcraftMcp {
     }
 
     #[tool(
+        title = "Build a sequence from an edit plan",
+        description = "Make a new sequence from a whole edit plan in one call and one undo step: clips cut from source files (in/out seconds, framing, gain), stills (cards), music, caption tracks from cues, chapter markers. Files are imported as needed. Everything is checked first; a failing step takes it all back. Returns the sequence id and the clip ids per track.",
+        annotations(read_only_hint = false, destructive_hint = false, idempotent_hint = false, open_world_hint = false)
+    )]
+    async fn sequence_assemble(&self, Parameters(p): Parameters<AssembleParams>) -> Result<CallToolResult, McpError> {
+        let mut q = json!({"name": p.name});
+        for (k, v) in [("width", p.width.map(|x| json!(x))), ("height", p.height.map(|x| json!(x))), ("fps", p.fps.map(|x| json!(x)))] {
+            if let Some(v) = v {
+                q[k] = v;
+            }
+        }
+        for (k, v) in [
+            ("video", p.video.map(|x| json!(x))),
+            ("audio", p.audio.map(|x| json!(x))),
+            ("captions", p.captions.map(|x| json!(x))),
+            ("markers", p.markers.map(|x| json!(x))),
+        ] {
+            if let Some(v) = v {
+                q[k] = v;
+            }
+        }
+        wrap(self.run("sequence.assemble", q).await)
+    }
+
+    #[tool(
         title = "Render a frame",
         description = "Render the active sequence's frame (at `seconds` or the playhead) and return it as PNG.",
         annotations(read_only_hint = true, destructive_hint = false, idempotent_hint = true, open_world_hint = false)
@@ -643,7 +698,7 @@ impl FilmcraftMcp {
     }
 }
 
-const INSTRUCTIONS: &str = "FilmCraft video editor (Premiere Pro-class). Every edit is an engine command: `command_list` to discover ids/params, `command_run` to execute (undoable; `command_batch` runs several). `doc_inspect` (or `project_inspect`/`sequence_inspect`) returns ids you can pass to commands; `render_preview` shows the result. In bridge mode the `ui_*` tools drive the live app: `ui_elements` lists clickable ids, `ui_click`/`ui_drag`/`ui_key` operate it, `ui_screenshot` shows it. Time is in ticks: 254016000000 per second (commands also accept `seconds`, `frame` or `timecode`). Long work runs as a job with progress and cancellation: pass `wait: true` to commands that take it (exports, renders, proxies, transcription), and AI tasks and face reframing run as jobs by themselves; `jobs_list` / `job_cancel` follow others. Cloud AI features send audio or text to Google or OpenAI: when a command answers CONFIRM_CLOUD, ask the user in your conversation and pass `confirm: true` only after they agree; never decide it for them.";
+const INSTRUCTIONS: &str = "FilmCraft video editor (Premiere Pro-class). Every edit is an engine command: `command_list` to discover ids/params, `command_run` to execute (undoable; `command_batch` runs several). `doc_inspect` (or `project_inspect`/`sequence_inspect`) returns ids you can pass to commands; `render_preview` shows the result. To cut a video from a plan, `sequence_assemble` builds the whole sequence in one call. In bridge mode the `ui_*` tools drive the live app: `ui_elements` lists clickable ids, `ui_click`/`ui_drag`/`ui_key` operate it, `ui_screenshot` shows it. Time is in ticks: 254016000000 per second (commands also accept `seconds`, `frame` or `timecode`). Long work runs as a job with progress and cancellation: pass `wait: true` to commands that take it (exports, renders, proxies, transcription), and AI tasks and face reframing run as jobs by themselves; `jobs_list` / `job_cancel` follow others. Cloud AI features send audio or text to Google or OpenAI: when a command answers CONFIRM_CLOUD, ask the user in your conversation and pass `confirm: true` only after they agree; never decide it for them.";
 
 /// Resources: the project (as `doc_inspect`) and the command catalog (as `command_list`).
 const DOCUMENT_URI: &str = "filmcraft://document";

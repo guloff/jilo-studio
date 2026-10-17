@@ -358,7 +358,7 @@ fn apply_parts(s: &mut Session, k: &BrandKit, parts: &[&str]) -> Result<Value> {
 }
 
 /// Run `f` as one undo step named `label`: every edit it makes is taken back when it fails.
-fn as_one_step(s: &mut Session, label: &str, f: impl FnOnce(&mut Session) -> Result<Value>) -> Result<Value> {
+pub(crate) fn as_one_step(s: &mut Session, label: &str, f: impl FnOnce(&mut Session) -> Result<Value>) -> Result<Value> {
     let before = std::sync::Arc::as_ptr(&s.project) as usize;
     let mark = s.undo_mark();
     let selection = s.state.selection.clone();
