@@ -645,7 +645,7 @@ fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
     }
     let st = d.assistants.clone();
     let allowed_in_draft = d.values["ai"]["allowAssistants"] == true;
-    let port = st["port"].as_u64().unwrap_or(u64::from(filmcraft_engine::control_token::ASSISTANT_PORT));
+    let port = st["port"].as_u64().unwrap_or(u64::from(filmcraft_engine::assistants::ASSISTANT_PORT));
     let state = match (&app.assistant_channel, app.session.prefs.ai.allow_assistants, allowed_in_draft) {
         (_, _, false) => tl!("Off: no assistant can reach FilmCraft.").to_string(),
         (_, false, true) => tl!("Turns on when you press OK.").to_string(),

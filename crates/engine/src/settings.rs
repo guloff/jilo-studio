@@ -466,7 +466,7 @@ pub struct AiPrefs {
     /// Only on this computer: every cloud engine is refused.
     pub local_only: bool,
     /// AI assistants (Claude and other MCP clients) may control the app: the desktop app keeps its
-    /// control channel open on [`crate::control_token::ASSISTANT_PORT`] while this is on.
+    /// control channel open on [`crate::assistants::ASSISTANT_PORT`] while this is on.
     pub allow_assistants: bool,
 }
 

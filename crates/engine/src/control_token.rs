@@ -11,10 +11,7 @@
 
 use std::path::{Path, PathBuf};
 
-/// The port the app listens on for AI assistants when Settings ▸ AI ▸ Allow AI assistants is on
-/// (`filmcraft-cli mcp --app` connects to it). Fixed, so a client registered once finds the app
-/// after every restart.
-pub const ASSISTANT_PORT: u16 = 47821;
+pub use crate::assistants::ASSISTANT_PORT;
 
 /// Environment variable that sets the token for both the app and its clients.
 pub const TOKEN_ENV: &str = "FILMCRAFT_CONTROL_TOKEN";

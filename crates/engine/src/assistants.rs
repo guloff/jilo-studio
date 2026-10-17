@@ -1,7 +1,7 @@
 //! Settings ▸ AI ▸ AI Assistants: letting Claude (or another MCP client) drive the running app.
 //!
 //! With `ai.allowAssistants` on, the desktop app keeps its control channel open on
-//! [`crate::control_token::ASSISTANT_PORT`] from the moment the setting is turned on (no restart),
+//! [`ASSISTANT_PORT`] from the moment the setting is turned on (no restart),
 //! and the MCP server bundled with the app (`filmcraft-cli mcp --app`, next to the app's
 //! executable) bridges to it. These commands show how to connect a client and register the server
 //! with one:
@@ -22,6 +22,11 @@ use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, always, bad, str_p};
 use crate::{Result, Session};
+
+/// The port the app listens on for AI assistants when Settings ▸ AI ▸ Allow AI assistants is on
+/// (`filmcraft-cli mcp --app` connects to it). Fixed, so a client registered once finds the app
+/// after every restart.
+pub const ASSISTANT_PORT: u16 = 47821;
 
 /// The name the server is registered under in a client.
 pub const SERVER_NAME: &str = "jilo-studio";
@@ -147,7 +152,7 @@ fn status(s: &mut Session, p: &Value) -> Result<Value> {
     let desktop = str_p(p, "config").map(PathBuf::from).or_else(claude_desktop_config);
     Ok(json!({
         "allowed": s.prefs.ai.allow_assistants,
-        "port": crate::control_token::ASSISTANT_PORT,
+        "port": ASSISTANT_PORT,
         "server": SERVER_NAME,
         "cli": cli.as_ref().map(|c| c.to_string_lossy().to_string()),
         "args": SERVER_ARGS,

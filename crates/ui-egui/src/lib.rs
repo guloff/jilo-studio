@@ -159,7 +159,7 @@ pub struct HostHooks {
     /// ([`notifications`]). Without it nothing is posted.
     pub notify: Option<Box<dyn FnMut(&str, &str)>>,
     /// Open the control channel for AI assistants (Settings ▸ AI ▸ Allow AI assistants) on
-    /// [`filmcraft_engine::control_token::ASSISTANT_PORT`]: `Ok(Some(rx))` once it listens,
+    /// [`filmcraft_engine::assistants::ASSISTANT_PORT`]: `Ok(Some(rx))` once it listens,
     /// `Ok(None)` when the app's own control channel (`--control`) already is that port, `Err` why
     /// it could not open. Called the first time the setting is on; turned off, the channel stays
     /// open but refuses every request until it is on again.
