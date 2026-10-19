@@ -47,8 +47,9 @@ fn hardware_settings() -> ExportSettings {
 }
 
 /// H.265 needs no opt-in: choosing the format is the opt-in.
+/// HEVC with the hardware flag off: choosing the format is the opt-in, the flag governs H.264 only.
 fn hevc_settings() -> ExportSettings {
-    ExportSettings { format: Format::Hevc, bitrate_kbps: 6_000, keyframe_distance: Some(30), ..Default::default() }
+    ExportSettings { format: Format::Hevc, hardware_encoding: HardwareEncoding::Off, bitrate_kbps: 6_000, keyframe_distance: Some(30), ..Default::default() }
 }
 
 /// The hardware encoder for the settings, or `None` (skip) when this machine has none.

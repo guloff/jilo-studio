@@ -61,17 +61,20 @@ impl H264Profile {
     }
 }
 
-/// Export ▸ Hardware encoding: whether H.264 may be encoded by the system's hardware video encoder
-/// (VideoToolbox on macOS, NVENC on NVIDIA GPUs on Windows) instead of FilmCraft's own encoder. Off
-/// by default: hardware encoders make different streams, and exports are otherwise byte-identical
-/// from run to run and machine to machine.
+/// Export ▸ Hardware encoding: whether H.264 (and ProRes on macOS) may be encoded by the system's
+/// hardware video encoder (VideoToolbox on macOS, NVENC on NVIDIA GPUs on Windows) instead of
+/// FilmCraft's own encoder. Auto by default (Jilo Studio; FilmCraft defaults to Off): on a 4K HLG
+/// edit the H.264 export is 1.5× faster (`docs/performance.md`), and whatever the hardware does not
+/// take (two-pass, CRF, HDR H.264, MXF, a machine without one) keeps the built-in encoder. Off =
+/// the built-in encoder, whose files are byte-identical from run to run and machine to machine;
+/// a hardware encoder's stream depends on the machine.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum HardwareEncoding {
-    #[default]
     Off,
     /// Use the hardware encoder when the system has one and it takes the settings; otherwise the
     /// software encoder.
+    #[default]
     Auto,
 }
 

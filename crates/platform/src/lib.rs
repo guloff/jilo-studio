@@ -8,7 +8,7 @@
 //! Windows; NVDEC ([`nvdec`], NVIDIA's driver) and VA-API ([`vaapi`]) on Linux for H.264 and HEVC; on other systems (and on
 //! Linux with neither) registration does nothing and reports [`Availability::Unavailable`]. It also registers a
 //! hardware H.264 encoder factory (`filmcraft_export::register_encoder`) that only acts when an
-//! export asks for it (`ExportSettings::hardware_encoding` = `Auto`), see [`hardware_encode`]; on
+//! export allows it (`ExportSettings::hardware_encoding` = `Auto`, the default), see [`hardware_encode`]; on
 //! macOS and on Windows (NVENC, [`nvenc`]) it also makes the H.265 export format available, and on Windows
 //! (Main 10) lets HDR sequences export as HDR H.265.
 //!

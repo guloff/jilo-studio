@@ -12,7 +12,7 @@ use std::process::Command;
 use std::sync::Arc;
 
 use filmcraft_color::{ColorPipeline, WorkingSpace};
-use filmcraft_export::{BitrateMode, ColorSignal, EncoderFrame, ExportSettings, Format, Progress, export, hw_encode_stats};
+use filmcraft_export::{BitrateMode, ColorSignal, EncoderFrame, ExportSettings, Format, HardwareEncoding, Progress, export, hw_encode_stats};
 use filmcraft_media::generators::GeneratorSource;
 use filmcraft_media::{DemoScene, FrameRequest, Generator, MediaSource};
 use filmcraft_platform::hardware_encode::{hevc_available, hevc_hdr_available, videotoolbox_encoder_factory as factory};
@@ -166,7 +166,13 @@ fn hdr_sequences_export_as_main_10() {
         export(
             &p,
             seq,
-            &ExportSettings { format: Format::ProRes, path: ref_path.clone(), include_audio: false, ..Default::default() },
+            &ExportSettings {
+                format: Format::ProRes,
+                path: ref_path.clone(),
+                include_audio: false,
+                hardware_encoding: HardwareEncoding::Off,
+                ..Default::default()
+            },
             &m,
             &Progress::default(),
         )

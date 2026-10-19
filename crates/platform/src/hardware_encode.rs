@@ -1,15 +1,15 @@
 //! The VideoToolbox H.264 and HEVC encoders behind `filmcraft_export::VideoEncoder` (macOS; safe code
 //! around [`crate::videotoolbox_encode`]).
 //!
-//! H.264 hardware encoding is opt-in per export (`ExportSettings::hardware_encoding`, `Auto`): its output
-//! depends on the machine, while the built-in encoder's is byte-identical everywhere. The factory
+//! H.264 hardware encoding is per export (`ExportSettings::hardware_encoding`, `Auto`, the default): its
+//! output depends on the machine, while the built-in encoder's (`Off`) is byte-identical everywhere. The factory
 //! declines, so the built-in encoder is used, for everything the hardware path does not take: other
 //! formats, MXF (Annex B), two-pass VBR, HDR, odd picture sizes, non-square pixels, and any
 //! configuration VideoToolbox cannot create a hardware session for. A hardware encoder that fails in
 //! the middle of an export reports an error (the export stops); it cannot hand the stream over to
 //! another encoder.
 //!
-//! ProRes (all six profiles) takes the hardware path with the same opt-in as H.264: the ProRes
+//! ProRes (all six profiles) takes the hardware path with the same setting as H.264: the ProRes
 //! engine of Apple silicon Pro / Max chips encodes the planes the built-in encoder would (so the
 //! colours are the same), and any configuration it declines uses the built-in encoder.
 //!

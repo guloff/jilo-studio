@@ -10,6 +10,12 @@ fn tmp(name: &str) -> String {
     d.join(name).to_string_lossy().to_string()
 }
 
+/// Settings for the built-in encoders, the only byte-reproducible ones: hardware encoding is Auto
+/// by default, and an app that registered a hardware encoder would write a machine-dependent stream.
+fn builtin() -> ExportSettings {
+    ExportSettings { hardware_encoding: HardwareEncoding::Off, ..Default::default() }
+}
+
 /// Export on a machine with `threads` cores: `export` renders one frame per core of the pool it
 /// runs in.
 fn export_with_cores(threads: usize, settings: &ExportSettings) -> Vec<u8> {
@@ -33,7 +39,7 @@ fn export_stepped(batch: i64, settings: &ExportSettings) -> Vec<u8> {
 fn same_file_whatever_the_core_count() {
     // 24 frames: one full interleave group and a partial one
     for (format, ext) in [(Format::ProRes, "mov"), (Format::H264, "mp4"), (Format::Mjpeg, "mov")] {
-        let settings = |name: &str| ExportSettings { format, path: tmp(&format!("{name}.{ext}")), ..Default::default() };
+        let settings = |name: &str| ExportSettings { format, path: tmp(&format!("{name}.{ext}")), ..builtin() };
         let reference = export_with_cores(2, &settings(&format!("{}-2", format.id())));
         for threads in [3, 5, 16] {
             let other = export_with_cores(threads, &settings(&format!("{}-{threads}", format.id())));
@@ -49,7 +55,7 @@ fn same_file_whatever_the_core_count() {
 #[test]
 fn an_export_adds_up_the_wall_time_of_its_stages() {
     let before: Vec<(Stage, u64)> = stage_times();
-    let s = ExportSettings { format: Format::H264, path: tmp("stages.mp4"), ..Default::default() };
+    let s = ExportSettings { format: Format::H264, path: tmp("stages.mp4"), ..builtin() };
     let (p, seq, m) = project();
     export(&p, seq, &s, &m, &Progress::default()).unwrap();
     let after = stage_times();
@@ -84,7 +90,7 @@ fn h264_slices_follow_the_frame_size_not_the_cores() {
     // 4096 lines = 256 macroblock rows: one slice per four rows on every machine, also on machines
     // with fewer than 64 cores (the encoder's default caps the slices at the core count)
     let path = tmp("tall.mp4");
-    let s = ExportSettings { format: Format::H264, path: path.clone(), frame_size: Some((64, 4096)), include_audio: false, ..Default::default() };
+    let s = ExportSettings { format: Format::H264, path: path.clone(), frame_size: Some((64, 4096)), include_audio: false, ..builtin() };
     let (p, seq, m) = project();
     export(&p, seq, &s, &m, &Progress::default()).unwrap();
     let bytes = std::fs::read(&path).unwrap();
@@ -128,7 +134,7 @@ fn export_overlapped(threads: usize, batch: i64, overlap: bool, settings: &Expor
 #[test]
 fn rendering_ahead_does_not_change_the_file() {
     for (format, ext) in [(Format::ProRes, "mov"), (Format::H264, "mp4"), (Format::Mjpeg, "mov")] {
-        let settings = |name: &str| ExportSettings { format, path: tmp(&format!("{name}.{ext}")), ..Default::default() };
+        let settings = |name: &str| ExportSettings { format, path: tmp(&format!("{name}.{ext}")), ..builtin() };
         let (reference, ahead) = export_overlapped(3, 7, false, &settings(&format!("ov-{}-off", format.id())));
         assert_eq!(ahead, 0, "{}: overlap is off", format.label());
         for (threads, batch) in [(2, 1), (3, 3), (5, 7), (16, 24)] {
@@ -148,7 +154,7 @@ fn rendering_ahead_in_a_two_pass_export() {
         bitrate_mode: BitrateMode::Vbr2Pass,
         bitrate_kbps: 2000,
         include_audio: false,
-        ..Default::default()
+        ..builtin()
     };
     let (reference, _) = export_overlapped(3, 5, false, &settings("2pass-off.mp4"));
     let (other, ahead) = export_overlapped(3, 5, true, &settings("2pass-on.mp4"));
@@ -171,7 +177,7 @@ fn hdr_with_audio_is_the_same_file_when_the_memory_budget_caps_the_batch() {
             let mut p = (*p).clone();
             p.sequence_mut(seq).unwrap().settings.color = ColorPipeline { working: WorkingSpace::Rec2100Pq, ..ColorPipeline::REC709 };
             let p = Arc::new(p);
-            let s = ExportSettings { format, path: tmp(&format!("{name}.{ext}")), ..Default::default() };
+            let s = ExportSettings { format, path: tmp(&format!("{name}.{ext}")), ..builtin() };
             pool(3).install(|| {
                 let prog = Progress::default();
                 let mut ex = Exporter::new(p, seq, &s, &prog).unwrap();
@@ -243,7 +249,7 @@ impl SourceProvider for Flaky<'_> {
 
 #[test]
 fn a_batch_rendered_ahead_with_missing_media_is_never_encoded() {
-    let settings = |name: &str| ExportSettings { format: Format::Mjpeg, path: tmp(name), include_audio: false, ..Default::default() };
+    let settings = |name: &str| ExportSettings { format: Format::Mjpeg, path: tmp(name), include_audio: false, ..builtin() };
     let (reference, _) = export_overlapped(3, 3, false, &settings("pending-ref.mov"));
     let (p, seq, m) = project();
     let flaky = Flaky::new(&m, 5..70);
@@ -276,7 +282,7 @@ fn a_batch_rendered_ahead_with_missing_media_is_never_encoded() {
 
 #[test]
 fn cancelling_drops_the_batch_rendered_ahead() {
-    let s = ExportSettings { format: Format::Mjpeg, path: tmp("cancel.mov"), ..Default::default() };
+    let s = ExportSettings { format: Format::Mjpeg, path: tmp("cancel.mov"), ..builtin() };
     let (p, seq, m) = project();
     pool(3).install(|| {
         let prog = Progress::default();
@@ -294,7 +300,7 @@ fn cancelling_drops_the_batch_rendered_ahead() {
 
 #[test]
 fn a_panic_while_rendering_ahead_is_an_error() {
-    let s = ExportSettings { format: Format::Mjpeg, path: tmp("panic.mov"), include_audio: false, ..Default::default() };
+    let s = ExportSettings { format: Format::Mjpeg, path: tmp("panic.mov"), include_audio: false, ..builtin() };
     let (p, seq, m) = project();
     let flaky = Flaky::new(&m, 0..0);
     pool(3).install(|| {

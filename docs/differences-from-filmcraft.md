@@ -90,6 +90,10 @@ Jilo Studio добавляет:
 - Пресеты **TikTok, Reels, Shorts, Instagram, YouTube, Telegram, X** с нормализацией громкости.
 - Аппаратный экспорт ProRes (все 6 профилей) и HDR HEVC (PQ/HLG) через VideoToolbox; ProRes 4444
   с альфой; точный битрейт VideoToolbox.
+- **Аппаратное кодирование включено по умолчанию** (Export ▸ Hardware Encoding = Auto; в FilmCraft —
+  Off): H.264 и ProRes кодирует VideoToolbox, а всё, чего он не берёт (два прохода, CRF, MXF), — свой
+  кодировщик. Экспорт 4K HLG-ролика в 1080p — в 1,5 раза быстрее. Побайтно одинаковые файлы на
+  любой машине — с выключенным флажком.
 
 ## 6. Автоматизация
 
