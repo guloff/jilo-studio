@@ -1,9 +1,11 @@
 //! Caption track rows of the Timeline: drawn in their own area above the video tracks (Premiere's
 //! layout). Each row has a header (C1…, name, format, output eye, lock) and caption blocks in a
-//! distinct colour showing their text. Click selects (Cmd/Shift adds), dragging the body moves,
-//! dragging an edge trims, double-click opens the Text panel's Captions tab. Every gesture ends in
-//! one `captions.*` command; every element registers an automation id (`timeline.caption.*`,
-//! `timeline.captionTrack.C1.*`).
+//! distinct colour showing their text. Click selects, Cmd-click adds or takes one out, Shift-click
+//! selects every caption from the last one clicked to this one; dragging the body moves the
+//! selected captions (and the selected clips with them, by the same time), dragging an edge trims,
+//! double-click opens the Text panel's Captions tab, right-click opens the caption menu. Every
+//! gesture ends in one command; every element registers an automation id (`timeline.caption.*`,
+//! `timeline.captionTrack.C1.*`, `timeline.captionMenu.*`).
 
 use egui::{Align2, Color32, CursorIcon, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
 use filmcraft_project::{CaptionTrack, ClipId, Sequence};
@@ -43,18 +45,30 @@ fn drag_state(ctx: &egui::Context) -> Option<(u64, u8, i64)> {
     ctx.data(|d| d.get_temp::<(u64, u8, i64)>(drag_id()))
 }
 
-fn block_rect(c: &filmcraft_project::Caption, row: Rect, layout: &Layout, drag: Option<(u64, u8, i64)>) -> Rect {
+/// How far the selected captions are being moved right now: by their own drag, or by a drag of
+/// the clips selected with them.
+fn group_move(app: &FilmcraftApp, drag: Option<(u64, u8, i64)>) -> Option<Tick> {
+    match (drag, &app.tl.drag) {
+        (Some((_, 0, d)), _) => Some(Tick(d)),
+        (_, Some(super::timeline::Drag::Move { offset, .. })) => Some(*offset),
+        _ => None,
+    }
+}
+
+fn block_rect(c: &filmcraft_project::Caption, row: Rect, layout: &Layout, drag: Option<(u64, u8, i64)>, moving: Option<Tick>, selected: bool) -> Rect {
     let (mut s, mut e) = (c.start, c.end());
-    if let Some((id, g, d)) = drag.filter(|d| d.0 == c.id.0) {
-        let _ = id;
-        match g {
-            0 => {
-                s += Tick(d);
-                e += Tick(d);
-            }
-            1 => s = (s + Tick(d)).min(e),
-            _ => e = (e + Tick(d)).max(s),
+    match (drag.filter(|d| d.0 == c.id.0), moving) {
+        (Some((_, 1, d)), _) => s = (s + Tick(d)).min(e),
+        (Some((_, 2, d)), _) => e = (e + Tick(d)).max(s),
+        (Some((_, 0, d)), _) => {
+            s += Tick(d);
+            e += Tick(d);
         }
+        (_, Some(d)) if selected => {
+            s += d;
+            e += d;
+        }
+        _ => {}
     }
     Rect::from_min_max(pos2(layout.x_of(s), row.min.y + 2.0), pos2(layout.x_of(e).max(layout.x_of(s) + 1.0), row.max.y - 2.0))
 }
@@ -69,6 +83,7 @@ pub fn paint(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, area: Re
     let painter = ui.painter().with_clip_rect(area);
     let sel = app.session.state.caption_selection.clone();
     let drag = drag_state(ui.ctx());
+    let moving = group_move(app, drag);
     let mut actions: Vec<(String, Value)> = Vec::new();
     for (i, (tr, row)) in seq.caption_tracks.iter().zip(rows(area, seq.caption_tracks.len())).enumerate() {
         let lane = Rect::from_min_max(pos2(content.min.x, row.min.y), pos2(content.max.x, row.max.y));
@@ -123,8 +138,8 @@ pub fn paint(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, area: Re
         let p = painter.with_clip_rect(lane);
         let (v0, v1) = (layout.tick_at(content.min.x - 2.0), layout.tick_at(content.max.x + 2.0));
         for c in tr.captions.iter().filter(|c| c.end() >= v0 && c.start <= v1) {
-            let r = block_rect(c, row, layout, drag);
             let selected = sel.contains(&c.id);
+            let r = block_rect(c, row, layout, drag, moving, selected);
             p.rect_filled(r, 3.0, if selected { FILL_SEL } else { FILL });
             if selected {
                 p.rect_stroke(r, 3.0, Stroke::new(1.0, t.clip_selected_border), StrokeKind::Inside);
@@ -156,23 +171,104 @@ pub fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, area:
     let ctx = ui.ctx().clone();
     let rate = seq.settings.frame_rate;
     let drag = drag_state(&ctx);
+    // a caption drag that ended without a stop (its caption went away) leaves no move behind
+    if drag.is_none_or(|d| d.1 != 0) {
+        app.tl.caption_move = None;
+    }
+    let moving = group_move(app, drag);
     let mut actions: Vec<(String, Value)> = Vec::new();
     for (tr, row) in seq.caption_tracks.iter().zip(rows(area, seq.caption_tracks.len())) {
         let lane = Rect::from_min_max(pos2(layout.content.min.x, row.min.y), pos2(layout.content.max.x, row.max.y));
         for c in &tr.captions {
-            let r = block_rect(c, row, layout, drag).intersect(lane);
+            let selected = app.session.state.caption_selection.contains(&c.id);
+            let r = block_rect(c, row, layout, drag, moving, selected).intersect(lane);
             if r.width() <= 0.0 {
                 continue;
             }
-            interact_block(app, ui, tr, c, r, rate, &mut actions);
+            interact_block(app, ui, seq, tr, c, r, rate, &mut actions);
         }
     }
     run(app, ui, actions);
 }
 
+/// The caption menu (right-click on a caption): groups of (label, action id). The ids are commands,
+/// or `caption.*` for what the menu does itself.
+pub(crate) const CAPTION_MENU: &[&[(&str, &str)]] = &[
+    &[("Cut", "edit.cut"), ("Copy", "edit.copy"), ("Paste", "edit.paste")],
+    &[
+        ("Edit Text…", "caption.editText"),
+        ("Split at Playhead", "captions.split"),
+        ("Merge Captions", "captions.merge"),
+        ("Split Long Captions", "captions.splitLong"),
+    ],
+    &[("Select All on Track", "caption.selectTrack"), ("Select to End of Track", "caption.selectForward")],
+    &[("Caption Style…", "caption.style"), ("Translate Captions…", "captions.translate"), ("Export Captions…", "captions.export")],
+    &[("Delete", "edit.clear"), ("Ripple Delete", "caption.rippleDelete")],
+];
+
+/// The command and parameters of a caption menu item for caption `c` on track `tr`, whether it can
+/// run now, and what the menu does besides (the panel to show).
+fn menu_action(app: &FilmcraftApp, seq: &Sequence, tr: &CaptionTrack, c: &filmcraft_project::Caption, id: &str) -> (String, Value, bool) {
+    let st = &app.session.state;
+    let playhead = app.session.playhead();
+    let unlocked = !tr.locked;
+    let selected: Vec<u64> = st.caption_selection.iter().map(|x| x.0).collect();
+    match id {
+        "caption.editText" => ("captions.goTo".into(), json!({"caption": c.id.0}), true),
+        "captions.split" => ("captions.split".into(), json!({"caption": c.id.0, "time": playhead.0}), unlocked && playhead > c.start && playhead < c.end()),
+        "captions.merge" => ("captions.merge".into(), json!({"captions": selected}), unlocked && selected.len() >= 2),
+        "captions.splitLong" => ("captions.splitLong".into(), json!({"captions": selected}), unlocked),
+        "caption.selectTrack" => ("captions.select".into(), json!({"track": tr.id.0, "all": true}), true),
+        "caption.selectForward" => ("captions.select".into(), json!({"from": c.id.0}), true),
+        "caption.style" => (String::new(), Value::Null, true),
+        "captions.translate" => ("captions.translate".into(), json!({}), seq.caption_tracks.iter().any(|t| !t.captions.is_empty())),
+        "captions.export" => ("captions.export".into(), json!({}), true),
+        "caption.rippleDelete" => ("captions.delete".into(), json!({"captions": selected, "ripple": true}), unlocked && !selected.is_empty()),
+        cmd => (cmd.to_string(), json!({}), app.session.is_enabled(cmd)),
+    }
+}
+
+fn caption_menu(
+    app: &mut FilmcraftApp,
+    ui: &mut egui::Ui,
+    seq: &Sequence,
+    tr: &CaptionTrack,
+    c: &filmcraft_project::Caption,
+    actions: &mut Vec<(String, Value)>,
+) {
+    ui.set_min_width(220.0);
+    for (k, group) in CAPTION_MENU.iter().enumerate() {
+        if k > 0 {
+            ui.separator();
+        }
+        for &(label, id) in *group {
+            let (cmd, params, enabled) = menu_action(app, seq, tr, c, id);
+            let label = crate::i18n::t(label);
+            let r = ui.add_enabled(enabled, egui::Button::new(label));
+            app.auto.add(&format!("timeline.captionMenu.{id}"), r.rect, label);
+            if r.clicked() {
+                match id {
+                    "caption.editText" => {
+                        app.show_panel(PanelKind::Text);
+                        app.ui.text_tab = "Captions".into();
+                    }
+                    "caption.style" => app.show_panel(PanelKind::CaptionStyle),
+                    _ => {}
+                }
+                if !cmd.is_empty() {
+                    actions.push((cmd, params));
+                }
+                ui.close();
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn interact_block(
     app: &mut FilmcraftApp,
     ui: &mut egui::Ui,
+    seq: &Sequence,
     tr: &CaptionTrack,
     c: &filmcraft_project::Caption,
     r: Rect,
@@ -206,9 +302,21 @@ fn interact_block(
         return;
     }
     if resp.clicked() {
-        let add = ctx.input(|i| i.modifiers.command || i.modifiers.shift);
-        actions.push(("captions.select".into(), json!({"captions": [c.id.0], "add": add})));
+        let m = ctx.input(|i| i.modifiers);
+        let p = if m.shift {
+            json!({"captions": [c.id.0], "range": true})
+        } else if m.command {
+            json!({"captions": [c.id.0], "toggle": true})
+        } else {
+            json!({"captions": [c.id.0]})
+        };
+        actions.push(("captions.select".into(), p));
     }
+    // a right-click on a caption outside the selection selects it first
+    if resp.secondary_clicked() && !app.session.state.caption_selection.contains(&c.id) {
+        actions.push(("captions.select".into(), json!({"captions": [c.id.0]})));
+    }
+    resp.context_menu(|ui| caption_menu(app, ui, seq, tr, c, actions));
     if tr.locked {
         return;
     }
@@ -225,7 +333,11 @@ fn interact_block(
         ctx.data_mut(|d| d.insert_temp(egui::Id::new("caption-drag-origin"), p.x));
         ctx.data_mut(|d| d.insert_temp(drag_id(), (c.id.0, g, 0i64)));
         if !app.session.state.caption_selection.contains(&c.id) {
-            actions.push(("captions.select".into(), json!({"captions": [c.id.0]})));
+            // select it now (not as a queued action) so the clips' preview knows what moves
+            let _ = app.session.execute("captions.select", json!({"captions": [c.id.0]}));
+        }
+        if g == 0 {
+            app.tl.caption_move = Some(Tick::ZERO);
         }
     }
     if resp.dragged()
@@ -236,12 +348,16 @@ fn interact_block(
         let pps = app.ui.timeline.pps;
         let d = rate.snap_nearest(Tick::from_seconds_f64((p.x - x0) as f64 / pps));
         ctx.data_mut(|dd| dd.insert_temp(drag_id(), (id, g, d.0)));
+        if g == 0 {
+            app.tl.caption_move = Some(d);
+        }
     }
     if resp.drag_stopped()
         && let Some((id, g, d)) = drag_state(&ctx)
         && id == c.id.0
     {
         ctx.data_mut(|dd| dd.remove::<(u64, u8, i64)>(drag_id()));
+        app.tl.caption_move = None;
         // egui ends a drag on Escape: that stop abandons it (#580)
         if d != 0 && !ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             match g {
@@ -251,7 +367,19 @@ fn interact_block(
                     } else {
                         vec![id]
                     };
-                    actions.push(("captions.move".into(), json!({"captions": sel, "delta": d})));
+                    // clips selected with the captions move with them, by the same time, in one step
+                    let clips: Vec<Value> = app
+                        .session
+                        .state
+                        .selection
+                        .iter()
+                        .filter_map(|c| seq.find_item(*c).map(|(tid, it)| json!({"clip": c.0, "track": tid.0, "time": (it.start + Tick(d)).max(Tick::ZERO).0})))
+                        .collect();
+                    if clips.is_empty() {
+                        actions.push(("captions.move".into(), json!({"captions": sel, "delta": d})));
+                    } else {
+                        actions.push(("timeline.move".into(), json!({"moves": clips, "linked": false, "captions": sel})));
+                    }
                 }
                 1 => actions.push(("captions.trim".into(), json!({"caption": id, "edge": "in", "delta": d}))),
                 _ => actions.push(("captions.trim".into(), json!({"caption": id, "edge": "out", "delta": d}))),

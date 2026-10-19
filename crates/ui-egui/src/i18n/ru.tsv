@@ -4498,3 +4498,9 @@ mode	Edit	Монтаж
 	The command is copied: paste it in Terminal.	Команда скопирована: вставьте её в Терминал.
 	Turns on when you press OK.	Включится, когда вы нажмёте OK.
 	Other MCP clients: run FilmCraft itself as the server, with this command:	Другие MCP-клиенты: запускайте сервером сам FilmCraft такой командой:
+	Edit Text…	Изменить текст…
+	Split at Playhead	Разрезать по плейхеду
+	Select All on Track	Выделить все на дорожке
+	Select to End of Track	Выделить до конца дорожки
+	Caption Style…	Стиль субтитров…
+	Export Captions…	Экспорт субтитров…

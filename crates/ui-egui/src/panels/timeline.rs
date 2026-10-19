@@ -36,6 +36,9 @@ const SNAP_PX: f32 = 9.0;
 #[derive(Default)]
 pub struct TlState {
     pub drag: Option<Drag>,
+    /// How far the selected captions are being dragged (their body, in a caption row): the
+    /// selected clips preview the same move, as they will make it with them.
+    pub caption_move: Option<Tick>,
     /// What the primary button went down on in the Timeline (#259); see [`Pressed`].
     pub pressed: Option<Pressed>,
     /// Last layout (for hit-testing from the control channel).
@@ -184,6 +187,8 @@ pub struct Layout {
     pub scroll: f64,
     /// The y of the divider between the video tracks (above) and the audio tracks (below).
     pub split_y: f32,
+    /// The caption track rows (full width, top to bottom; empty without caption tracks).
+    pub captions: Rect,
 }
 
 impl Layout {
@@ -351,7 +356,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         let rect = Rect::from_min_max(pos2(content.min.x, top), pos2(content.max.x, top + ah));
         rows.push(Row { track: tr.id, kind: TrackKind::Audio, index: i, rect, lane: app.ui.timeline.track_lanes.contains_key(&tr.id.0) });
     }
-    let layout = Layout { content, ruler, rows: rows.clone(), pps, scroll, split_y };
+    let layout = Layout { content, ruler, rows: rows.clone(), pps, scroll, split_y, captions: caption_area };
     app.tl.layout = Some(layout.clone());
 
     // ---- backgrounds
@@ -1577,6 +1582,14 @@ pub fn locate(app: &FilmcraftApp, clip: u64, edge: Option<&str>) -> Option<(f32,
 }
 
 fn preview_drag(app: &FilmcraftApp, seq: &Sequence, _layout: &Layout, out: &mut HashMap<ClipId, (Tick, Tick, Option<TrackId>)>) {
+    // captions dragged with clips selected: the clips go along
+    if let Some(d) = app.tl.caption_move {
+        for c in &app.session.state.selection {
+            if let Some((_, it)) = seq.find_item(*c) {
+                out.insert(*c, ((it.start + d).max(Tick::ZERO), it.duration, None));
+            }
+        }
+    }
     let Some(d) = &app.tl.drag else { return };
     match d {
         Drag::Move { clips, offset, track_delta, start_track, .. } => {
@@ -2064,7 +2077,20 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                     Some(Drag::Marquee { start: p })
                 } else {
                     app.session.state.selection.clear();
+                    app.session.state.caption_selection.clear();
                     app.session.state.edit_points.clear();
+                    app.session.state.transition_selection.clear();
+                    None
+                }
+            }
+            // empty space in a caption row (above the tracks): a marquee from there takes captions
+            // and clips alike, a click clears the selection, as on empty track space
+            (Tool::Selection, Grab::Other(Hit::None)) if layout.captions.contains(p) && layout.content.contains(p) => {
+                if resp.drag_started() {
+                    Some(Drag::Marquee { start: p })
+                } else {
+                    app.session.state.selection.clear();
+                    app.session.state.caption_selection.clear();
                     app.session.state.transition_selection.clear();
                     None
                 }
@@ -2227,7 +2253,12 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                     .iter()
                     .filter_map(|c| seq.find_item(*c).map(|(tid, it)| json!({"clip": c.0, "track": shift_track(seq, tid, start_track, track_delta).unwrap_or(tid).0, "time": (it.start + offset).max(Tick::ZERO).0})))
                     .collect();
-                Some(app.session.execute("timeline.move", json!({"moves": moves, "insert": mods.command, "linked": false})))
+                // the selected captions go along, by the same time
+                let mut params = json!({"moves": moves, "insert": mods.command, "linked": false});
+                if offset != Tick::ZERO && !app.session.state.caption_selection.is_empty() {
+                    params["captions"] = json!(app.session.state.caption_selection.iter().map(|c| c.0).collect::<Vec<_>>());
+                }
+                Some(app.session.execute("timeline.move", params))
             }
             Drag::Trim { clip, edge, mode, delta, .. } if delta != Tick::ZERO => Some(app.session.execute(
                 "timeline.trim",
@@ -2256,7 +2287,19 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                         .filter_map(|row| seq.track(row.track))
                         .flat_map(|tr| tr.items.iter().filter(|i| i.start < b && i.end() > a).map(|i| i.id.0))
                         .collect();
-                    Some(app.session.execute("timeline.select", json!({"clips": ids, "add": mods.shift})))
+                    // the captions it covers too (Premiere): clips and captions then move together
+                    let caps: Vec<u64> = seq
+                        .caption_tracks
+                        .iter()
+                        .zip(super::timeline_captions::rows(layout.captions, seq.caption_tracks.len()))
+                        .filter(|(_, row)| row.intersects(r))
+                        .flat_map(|(tr, _)| tr.captions.iter().filter(|c| c.start < b && c.end() > a).map(|c| c.id.0))
+                        .collect();
+                    let r = app.session.execute("timeline.select", json!({"clips": ids, "add": mods.shift}));
+                    if !caps.is_empty() {
+                        let _ = app.session.execute("captions.select", json!({"captions": caps, "add": true}));
+                    }
+                    Some(r)
                 } else {
                     None
                 }

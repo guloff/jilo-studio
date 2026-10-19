@@ -4503,3 +4503,9 @@
 	The command is copied: paste it in Terminal.	Comando copiado: pégalo en Terminal.
 	Turns on when you press OK.	Se activa al pulsar OK.
 	Other MCP clients: run FilmCraft itself as the server, with this command:	Otros clientes MCP: ejecuta el propio FilmCraft como servidor con este comando:
+	Edit Text…	Editar texto…
+	Split at Playhead	Dividir en el cabezal
+	Select All on Track	Seleccionar todo en la pista
+	Select to End of Track	Seleccionar hasta el final de la pista
+	Caption Style…	Estilo de subtítulos…
+	Export Captions…	Exportar subtítulos…

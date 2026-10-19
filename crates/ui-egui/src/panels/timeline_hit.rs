@@ -347,6 +347,7 @@ mod tests {
             pps: 100.0,
             scroll: 0.0,
             split_y: TOP + 60.0,
+            captions: Rect::NOTHING,
         };
         (seq, layout, track)
     }

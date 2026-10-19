@@ -55,7 +55,8 @@ Details of each format and the SCC encoder are in [`crates/captions/README.md`](
 | `captions.trim` | drag a caption edge in the timeline | `caption`, `edge` (`in`/`out`), `delta` or `deltaFrames` |
 | `captions.move` | drag a caption in the timeline | `captions`, `delta` or `deltaFrames` |
 | `captions.delete` | Edit ▸ Clear / Ripple Delete with captions selected | `captions`, `ripple` |
-| `captions.select`, `captions.goTo` | click / number button | `captions`, `add` / `caption` |
+| `captions.select` | click (⌘-click: `toggle`, ⇧-click: `range`), caption menu | `captions`, `add`, `toggle`, `range` (from the last caption clicked to this one, every track between), or `track` + `all`, or `from` (a caption and every later one on its track) |
+| `captions.goTo` | number button, caption menu ▸ Edit Text… | `caption` |
 | `captions.setTrack` | caption track header (eye, lock) | `track`, `name`, `format`, `language`, `enabled`, `locked`, `syncLock` |
 | `captions.setStyle` | Caption Style panel, Text panel style strip | `track` (id, `"C1"`, or `"all"` for every caption track in one undo step), `font`, `fontStyle`, `size`, `uppercase`, `color`, `background`, `backgroundColor`, `boxRadius`, `outline`, `outlineColor`, `shadow`, `shadowColor`, `shadowOffset` `[x, y]`, `shadowBlur`, `align`, `anchor`, `margin`, `lineSpacing`, `reset` |
 | `captions.stylePresets` | (query) | the built-in style presets: `id`, `name`, `style` (`crates/engine/src/caption_presets.rs`) |
@@ -72,9 +73,22 @@ also splits captions.
 ## Timeline and Text panel
 
 - Caption rows: header with `C1…` badge, lock, output eye, name and format; caption blocks in
-  violet showing their text. Click selects (⌘/⇧ adds), drag moves, edge drag trims, double-click
-  opens the Text panel. Automation ids: `timeline.caption.<id>`,
-  `timeline.captionTrack.C1[.locked|.enabled]`.
+  violet showing their text. Click selects one caption, ⌘-click adds or takes one out, ⇧-click
+  selects every caption from the last one clicked to this one (both included, every caption track
+  between); edge drag trims, double-click opens the Text panel. Automation ids:
+  `timeline.caption.<id>`, `timeline.captionTrack.C1[.locked|.enabled]`.
+- **Captions and clips together** (Premiere): a marquee from empty track or caption-row space
+  selects the clips and the captions it touches; ⌘- and ⇧-clicks keep both selections. Dragging a
+  selected caption moves every selected caption and every selected clip by the same time, and
+  dragging a selected clip moves the selected captions with it (`timeline.move` with `captions`),
+  in one undo step. When a caption cannot move that far (another caption is in the way) nothing
+  moves, so picture, sound and captions never drift apart. Copy, Cut, Paste and Clear work on
+  both; pasted captions keep their distance to the pasted clips and overwrite what they land on
+  (a caption they overlap is shortened). Select All selects the captions too.
+- **Caption menu** (right-click a caption; it is selected first if it was not): Cut, Copy, Paste;
+  Edit Text…, Split at Playhead, Merge Captions, Split Long Captions; Select All on Track, Select
+  to End of Track; Caption Style…, Translate Captions…, Export Captions…; Delete, Ripple Delete.
+  Automation ids `timeline.captionMenu.<id>`.
 - **Text panel ▸ Captions**: search, track picker (also creates tracks of each format), add /
   split / merge / delete / export buttons, the list of segments with editable in/out timecodes
   and text (committed when the field loses focus), and the track style strip (size, colour, box,

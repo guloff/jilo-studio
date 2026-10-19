@@ -4538,3 +4538,9 @@
 	The command is copied: paste it in Terminal.	命令已复制：请粘贴到“终端”中。
 	Turns on when you press OK.	按“确定”后开启。
 	Other MCP clients: run FilmCraft itself as the server, with this command:	其他 MCP 客户端：用下面的命令把 FilmCraft 本身作为服务器运行：
+	Edit Text…	编辑文本…
+	Split at Playhead	在播放指示器处拆分
+	Select All on Track	选择轨道上的全部
+	Select to End of Track	选择至轨道末尾
+	Caption Style…	字幕样式…
+	Export Captions…	导出字幕…

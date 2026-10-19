@@ -124,8 +124,8 @@ fn naming_nothing_usable_does_not_enable_a_command() {
         assert_eq!(disabled(s.execute("edit.rippleDelete", p.clone())), "nothing selected", "{p}");
     }
     assert_eq!(disabled(s.execute("clip.replaceFromBin", json!({"clips": [v1(&s)[0].id.0], "item": 987_654_321u64}))), "select a clip in the Project panel");
-    // `edit.cut` takes no `clips`: it works on the selection only
-    assert_eq!(disabled(s.execute("edit.cut", json!({"clips": [v1(&s)[0].id.0]}))), "no clips selected");
+    // `edit.cut` takes no `clips`: it works on the selection (clips or captions) only
+    assert_eq!(disabled(s.execute("edit.cut", json!({"clips": [v1(&s)[0].id.0]}))), "nothing selected");
     assert!(std::sync::Arc::ptr_eq(&before, &s.project), "nothing was edited");
 }
 

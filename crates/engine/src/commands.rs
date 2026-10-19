@@ -116,7 +116,7 @@ pub(crate) fn has_project_selection(s: &Session) -> std::result::Result<(), Stri
 }
 fn has_clipboard(s: &Session) -> std::result::Result<(), String> {
     has_seq(s)?;
-    if s.state.clipboard.is_empty() { Err("clipboard is empty".into()) } else { Ok(()) }
+    if s.state.clipboard.is_empty() && s.state.caption_clipboard.is_empty() { Err("clipboard is empty".into()) } else { Ok(()) }
 }
 
 /// The ids a caller named under `many` (a list) or `one` (a single id), when the command documents
@@ -328,7 +328,31 @@ fn move_clips(s: &mut Session, p: &Value) -> Result<Value> {
         q.into_iter().flat_map(|q| q.all_tracks()).flat_map(|t| t.items.iter().map(move |i| (i.id.0, t.id, i.start, i.end(), i.item))).collect()
     };
     let before = spots(s);
-    s.edit_sequence(if ins { "Move (Insert)" } else { "Move" }, |q, ctx, _| Ok(edit::move_items(q, &moves, ins, ctx)?))?;
+    // captions selected with the clips move by the same time, in the same edit: exactly, or not
+    // at all (a caption in the way would put them out of sync with the picture)
+    let captions: Vec<ClipId> =
+        p.get("captions").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).map(ClipId).collect()).unwrap_or_default();
+    let lead = listed[0].0;
+    let lead_was = before.iter().find(|b| b.0 == lead.0).map(|b| b.2);
+    s.edit_sequence(if ins { "Move (Insert)" } else { "Move" }, |q, ctx, _| {
+        edit::move_items(q, &moves, ins, ctx)?;
+        if captions.is_empty() {
+            return Ok(());
+        }
+        let now = q.find_item(lead).map(|(_, i)| i.start);
+        let (Some(was), Some(now)) = (lead_was, now) else { return Ok(()) };
+        let d = now - was;
+        if d == Tick::ZERO {
+            return Ok(());
+        }
+        match edit::captions::move_captions(q, &captions, d) {
+            Ok(applied) if applied == d => Ok(()),
+            Ok(_) | Err(edit::EditError::Nothing) => {
+                Err(bad(CMD, "the selected captions can't move that far: another caption is in the way, and moving them less would put them out of sync"))
+            }
+            Err(e) => Err(e.into()),
+        }
+    })?;
     // An overwrite shortens, splits or removes whatever already sits where a clip lands, and a
     // shortened clip may live on under a new id: name each clip the move changed without being
     // asked to, with what is left of it, so the caller hears about it instead of finding out later.
@@ -1294,19 +1318,24 @@ fn build() -> Vec<CommandSpec> {
         // ================= Edit =================
         cmd!("edit.undo", "Undo", ["Edit"], Some("Cmd+Z"), "{}", can_undo, |s, _| Ok(json!({"undone": s.undo()}))),
         cmd!("edit.redo", "Redo", ["Edit"], Some("Cmd+Shift+Z"), "{}", can_redo, |s, _| Ok(json!({"redone": s.redo()}))),
-        cmd!("edit.cut", "Cut", ["Edit"], Some("Cmd+X"), "{}", has_selection, |s, _| {
+        cmd!("edit.cut", "Cut", ["Edit"], Some("Cmd+X"), "{}", has_clip_or_caption_selection, |s, _| {
             copy_selection(s);
             let sel = with_links(s, &s.state.selection.clone());
+            let caps = s.state.caption_selection.clone();
             s.edit_sequence("Cut", |q, _, st| {
                 edit::delete_items(q, &sel);
+                if !caps.is_empty() {
+                    edit::captions::delete_captions(q, &caps, false)?;
+                }
                 st.selection.clear();
+                st.caption_selection.clear();
                 Ok(())
             })?;
             Ok(Value::Null)
         }),
-        cmd!("edit.copy", "Copy", ["Edit"], Some("Cmd+C"), "{}", has_selection, |s, _| {
+        cmd!("edit.copy", "Copy", ["Edit"], Some("Cmd+C"), "{}", has_clip_or_caption_selection, |s, _| {
             copy_selection(s);
-            Ok(json!({"copied": s.state.clipboard.len()}))
+            Ok(json!({"copied": s.state.clipboard.len(), "captions": s.state.caption_clipboard.len()}))
         }),
         cmd!("edit.paste", "Paste", ["Edit"], Some("Cmd+V"), "{}", has_clipboard, |s, _| paste(s, false)),
         cmd!("edit.pasteInsert", "Paste Insert", ["Edit"], Some("Cmd+Shift+V"), "{}", has_clipboard, |s, _| paste(s, true)),
@@ -1321,8 +1350,14 @@ fn build() -> Vec<CommandSpec> {
                 return crate::captions::delete(s, &caps, false);
             }
             let sel = with_links(s, &clips_p(s, p));
+            // captions selected with the clips go with them
+            let caps = if p.get("clips").is_none() && p.get("clip").is_none() { s.state.caption_selection.clone() } else { Vec::new() };
             s.edit_sequence("Clear", |q, _, st| {
                 edit::delete_items(q, &sel);
+                if !caps.is_empty() {
+                    edit::captions::delete_captions(q, &caps, false)?;
+                    st.caption_selection.clear();
+                }
                 st.selection.clear();
                 Ok(())
             })?;
@@ -1348,8 +1383,11 @@ fn build() -> Vec<CommandSpec> {
         }),
         cmd!("edit.selectAll", "Select All", ["Edit"], Some("Cmd+A"), "{}", has_seq, |s, _| {
             let all: Vec<ClipId> = s.active_sequence().map(|q| q.all_tracks().flat_map(|t| t.items.iter().map(|i| i.id)).collect()).unwrap_or_default();
+            let captions: Vec<ClipId> =
+                s.active_sequence().map(|q| q.caption_tracks.iter().flat_map(|t| t.captions.iter().map(|c| c.id)).collect()).unwrap_or_default();
             s.state.selection = all;
-            Ok(json!({"selected": s.state.selection.len()}))
+            s.state.caption_selection = captions;
+            Ok(json!({"selected": s.state.selection.len(), "captions": s.state.caption_selection.len()}))
         }),
         cmd!("edit.deselectAll", "Deselect All", ["Edit"], Some("Cmd+Shift+A"), "{}", always, |s, _| {
             s.state.selection.clear();
@@ -2263,7 +2301,7 @@ fn build() -> Vec<CommandSpec> {
             "Move Clips",
             [],
             None,
-            r#"{"moves":[{"clip":id,"track":id|"V2","time":ticks}],"insert":bool,"linked":bool?}"#,
+            r#"{"moves":[{"clip":id,"track":id|"V2","time":ticks}],"insert":bool,"linked":bool?,"captions":[id]? (move by the same time as the first clip)}"#,
             has_seq,
             move_clips
         ),
@@ -3128,8 +3166,23 @@ pub(crate) fn json_to_param(template: &ParamValue, v: &Value) -> Option<ParamVal
 fn copy_selection(s: &mut Session) {
     let Some(q) = s.active_sequence() else { return };
     let sel = with_links(s, &s.state.selection);
-    let min = sel.iter().filter_map(|c| q.find_item(*c).map(|(_, i)| i.start)).min().unwrap_or_default();
-    let max = sel.iter().filter_map(|c| q.find_item(*c).map(|(_, i)| i.end())).max().unwrap_or_default();
+    let caps: Vec<(usize, &filmcraft_project::Caption)> = q
+        .caption_tracks
+        .iter()
+        .enumerate()
+        .flat_map(|(ti, t)| t.captions.iter().filter(|c| s.state.caption_selection.contains(&c.id)).map(move |c| (ti, c)))
+        .collect();
+    // clips and captions keep their places relative to each other
+    let min = sel.iter().filter_map(|c| q.find_item(*c).map(|(_, i)| i.start)).chain(caps.iter().map(|c| c.1.start)).min().unwrap_or_default();
+    let max = sel.iter().filter_map(|c| q.find_item(*c).map(|(_, i)| i.end())).chain(caps.iter().map(|c| c.1.end())).max().unwrap_or_default();
+    let caption_clip: Vec<(usize, filmcraft_project::Caption)> = caps
+        .iter()
+        .map(|(ti, c)| {
+            let mut c = (*c).clone();
+            c.start -= min;
+            (*ti, c)
+        })
+        .collect();
     // Copy Paste Includes Sequence Markers: the markers inside the copied span go along
     let markers: Vec<Marker> = if s.state.copy_paste_sequence_markers {
         q.markers.iter().filter(|m| m.start >= min && m.start < max).map(|m| Marker { start: m.start - min, ..m.clone() }).collect()
@@ -3148,12 +3201,52 @@ fn copy_selection(s: &mut Session) {
     }
     s.state.clipboard = clip;
     s.state.clipboard_markers = markers;
+    s.state.caption_clipboard = caption_clip;
+}
+
+/// Put copied captions at `at` (+ their offset) on the caption track of the same number (the last
+/// one when there are fewer; a new one when there is none), overwriting what is there: a caption
+/// they cover goes, one they overlap is shortened. Returns the new captions' ids.
+fn paste_captions(q: &mut filmcraft_project::Sequence, caps: &[(usize, filmcraft_project::Caption)], at: Tick, ctx: &mut edit::EditCtx) -> Result<Vec<ClipId>> {
+    if caps.is_empty() {
+        return Ok(Vec::new());
+    }
+    if q.caption_tracks.is_empty() {
+        let id = filmcraft_project::TrackId(ctx.alloc());
+        q.caption_tracks.push(filmcraft_project::CaptionTrack::new(id, "Subtitle".into(), filmcraft_project::CaptionFormat::Subtitle));
+    }
+    let mut made = Vec::new();
+    for (ti, c) in caps {
+        let n = q.caption_tracks.len();
+        let tr = &mut q.caption_tracks[(*ti).min(n - 1)];
+        if tr.locked {
+            return Err(EngineError::Edit(edit::EditError::Locked));
+        }
+        let mut c = c.clone();
+        c.id = ClipId(ctx.alloc());
+        c.start += at;
+        let (a, b) = (c.start, c.end());
+        tr.captions.retain(|e| !(e.start >= a && e.end() <= b));
+        for e in tr.captions.iter_mut() {
+            if e.start < a && e.end() > a {
+                e.duration = a - e.start;
+            } else if e.start < b && e.end() > b {
+                e.duration = e.end() - b;
+                e.start = b;
+            }
+        }
+        made.push(c.id);
+        tr.captions.push(c);
+        tr.sort();
+    }
+    Ok(made)
 }
 
 fn paste(s: &mut Session, insert: bool) -> Result<Value> {
     let at = s.playhead();
     let clip = s.state.clipboard.clone();
     let markers = if s.state.copy_paste_sequence_markers { s.state.clipboard_markers.clone() } else { Vec::new() };
+    let caps = s.state.caption_clipboard.clone();
     let end = s.edit_sequence(if insert { "Paste Insert" } else { "Paste" }, |q, ctx, st| {
         let mut placements = Vec::new();
         let mut links = std::collections::HashMap::new();
@@ -3168,8 +3261,15 @@ fn paste(s: &mut Session, insert: bool) -> Result<Value> {
             }
             placements.push((t.id, it));
         }
-        let end = placements.iter().map(|p| p.1.end()).max().unwrap_or(at);
-        let ids = if insert { edit::insert(q, placements, ctx)? } else { edit::overwrite(q, placements, ctx)? };
+        let end = placements.iter().map(|p| p.1.end()).chain(caps.iter().map(|c| c.1.end() + at)).max().unwrap_or(at);
+        let ids = if placements.is_empty() {
+            Vec::new()
+        } else if insert {
+            edit::insert(q, placements, ctx)?
+        } else {
+            edit::overwrite(q, placements, ctx)?
+        };
+        st.caption_selection = paste_captions(q, &caps, at, ctx)?;
         if insert && st.ripple_sequence_markers {
             crate::sequence_tools::ripple_markers(&mut q.markers, at, end - at);
         }

@@ -304,3 +304,151 @@ fn a_long_added_caption_is_split() {
     let r = s.execute("captions.add", json!({"text": "Short", "seconds": 12.0})).unwrap();
     assert!(r.get("split").is_none(), "{r}");
 }
+
+/// Two caption tracks: C1 with captions at 1, 3, 5, 7 s and C2 (added second, so it is C1 now —
+/// new tracks go on top) — returned top to bottom as (ids of C1, ids of C2).
+fn two_caption_tracks(s: &mut Session) -> (Vec<ClipId>, Vec<ClipId>) {
+    s.execute("captions.newTrack", json!({"name": "lower"})).unwrap();
+    for t in [1.0, 3.0, 5.0, 7.0] {
+        s.execute("captions.add", json!({"track": "C1", "seconds": t, "durationSeconds": 1.0, "text": format!("low {t}"), "split": false})).unwrap();
+    }
+    s.execute("captions.newTrack", json!({"name": "upper"})).unwrap();
+    for t in [2.0, 4.0, 6.0] {
+        s.execute("captions.add", json!({"track": "C1", "seconds": t, "durationSeconds": 1.0, "text": format!("up {t}"), "split": false})).unwrap();
+    }
+    let q = s.active_sequence().unwrap();
+    let ids = |i: usize| q.caption_tracks[i].captions.iter().map(|c| c.id).collect::<Vec<_>>();
+    (ids(0), ids(1))
+}
+
+fn selected(s: &Session) -> Vec<ClipId> {
+    let mut v = s.state.caption_selection.clone();
+    v.sort_by_key(|c| c.0);
+    v
+}
+
+fn sorted(mut v: Vec<ClipId>) -> Vec<ClipId> {
+    v.sort_by_key(|c| c.0);
+    v
+}
+
+#[test]
+fn caption_selection_by_click_shift_click_cmd_click_track_and_forward() {
+    let mut s = demo();
+    let (up, low) = two_caption_tracks(&mut s);
+    let clip = s.active_sequence().unwrap().video_tracks[0].items[0].id;
+    s.execute("timeline.select", json!({"clips": [clip.0]})).unwrap();
+    // a click selects one caption, and only it
+    s.execute("captions.select", json!({"captions": [low[0].0]})).unwrap();
+    assert_eq!(selected(&s), vec![low[0]]);
+    assert!(s.state.selection.is_empty(), "a plain click replaces the clip selection");
+    // Shift-click: everything from the first to the last, both included
+    s.execute("captions.select", json!({"captions": [low[3].0], "range": true})).unwrap();
+    assert_eq!(selected(&s), sorted(low.clone()));
+    // the range runs from the anchor again: a shorter Shift-click adds nothing new but keeps the rest
+    s.execute("captions.select", json!({"captions": [low[1].0], "range": true})).unwrap();
+    assert_eq!(selected(&s), sorted(low.clone()));
+    // Cmd-click takes one out and puts it back
+    s.execute("captions.select", json!({"captions": [low[2].0], "toggle": true})).unwrap();
+    assert!(!s.state.caption_selection.contains(&low[2]));
+    s.execute("captions.select", json!({"captions": [low[2].0], "toggle": true})).unwrap();
+    assert!(s.state.caption_selection.contains(&low[2]));
+    // a range across tracks: from low 1 s to up 4 s takes the captions of both that start between
+    s.execute("captions.select", json!({"captions": [low[0].0]})).unwrap();
+    s.execute("captions.select", json!({"captions": [up[1].0], "range": true})).unwrap();
+    assert_eq!(selected(&s), sorted(vec![low[0], low[1], up[0], up[1]]));
+    // Cmd- and Shift-clicks keep the clips selected (captions and clips go together)
+    s.execute("timeline.select", json!({"clips": [clip.0]})).unwrap();
+    s.execute("captions.select", json!({"captions": [up[2].0], "toggle": true})).unwrap();
+    assert!(s.state.selection.contains(&clip) && s.state.caption_selection.contains(&up[2]));
+    // a whole track, and a caption with everything after it
+    s.execute("captions.select", json!({"track": "C2", "all": true})).unwrap();
+    assert_eq!(selected(&s), sorted(low.clone()));
+    s.execute("captions.select", json!({"from": up[1].0})).unwrap();
+    assert_eq!(selected(&s), sorted(vec![up[1], up[2]]));
+    // Select All takes the captions too
+    s.execute("edit.selectAll", json!({})).unwrap();
+    assert_eq!(s.state.caption_selection.len(), 7);
+    assert!(!s.state.selection.is_empty());
+}
+
+#[test]
+fn clips_and_captions_selected_together_move_together() {
+    let mut s = demo();
+    let (up, low) = two_caption_tracks(&mut s);
+    let s1 = TICKS_PER_SECOND;
+    // a V2 clip (nothing else on V2) and two captions at once
+    let clip = s.active_sequence().unwrap().video_tracks[1].items[0].clone();
+    s.execute("timeline.select", json!({"clips": [clip.id.0]})).unwrap();
+    s.execute("captions.select", json!({"captions": [up[0].0, low[3].0], "add": true})).unwrap();
+    let undo = s.history.undo.len();
+    let track = s.active_sequence().unwrap().video_tracks[1].id;
+    let caps: Vec<u64> = s.state.caption_selection.iter().map(|c| c.0).collect();
+    let start_of = |s: &Session, c: ClipId| s.active_sequence().unwrap().find_caption(c).unwrap().1.start;
+    let (u0, l3) = (start_of(&s, up[0]), start_of(&s, low[3]));
+    // 0.5 s later: the gaps between the captions leave room
+    s.execute("timeline.move", json!({"moves": [{"clip": clip.id.0, "track": track.0, "time": clip.start.0 + s1 / 2}], "captions": caps})).unwrap();
+    let d = s.active_sequence().unwrap().find_item(clip.id).unwrap().1.start - clip.start;
+    assert!(d > Tick::ZERO);
+    assert_eq!((start_of(&s, up[0]), start_of(&s, low[3])), (u0 + d, l3 + d), "the captions moved exactly as far as the clip");
+    assert_eq!(s.history.undo.len(), undo + 1, "one undo step");
+    // 1 s later would run the 2.5 s caption into the 4 s one: nothing moves, nothing goes out of sync
+    let before = s.active_sequence().unwrap().clone();
+    let caps: Vec<u64> = s.state.caption_selection.iter().map(|c| c.0).collect();
+    let e = s
+        .execute("timeline.move", json!({"moves": [{"clip": clip.id.0, "track": track.0, "time": clip.start.0 + s1 / 2 + s1}], "captions": caps}))
+        .unwrap_err();
+    assert!(e.to_string().contains("out of sync"), "{e}");
+    assert_eq!(s.active_sequence().unwrap(), &before);
+    s.execute("edit.undo", json!({})).unwrap();
+    assert_eq!(start_of(&s, up[0]), u0);
+}
+
+#[test]
+fn captions_are_copied_cut_pasted_and_cleared_with_the_clips() {
+    let mut s = demo();
+    let (up, low) = two_caption_tracks(&mut s);
+    let s1 = TICKS_PER_SECOND;
+    // a caption alone: copy, paste at 20 s on its own track
+    s.execute("captions.select", json!({"captions": [up[0].0]})).unwrap();
+    s.execute("edit.copy", json!({})).unwrap();
+    s.set_playhead(Tick(20 * s1));
+    let at = s.playhead();
+    s.execute("edit.paste", json!({})).unwrap();
+    let q = s.active_sequence().unwrap();
+    let pasted = q.caption_tracks[0].captions.iter().find(|c| c.start == at).expect("pasted on C1");
+    assert_eq!(pasted.text, "up 2");
+    assert_eq!(s.state.caption_selection, vec![pasted.id]);
+    // pasted over a caption: the one it overlaps is shortened to where the pasted one starts
+    s.execute("captions.select", json!({"captions": [low[1].0]})).unwrap(); // C2, 3–4 s
+    s.execute("edit.copy", json!({})).unwrap();
+    let old = s.active_sequence().unwrap().find_caption(low[3]).unwrap().1.clone(); // C2, 7–8 s
+    s.set_playhead(Tick(7 * s1 + s1 / 2));
+    let at = s.playhead();
+    s.execute("edit.paste", json!({})).unwrap();
+    let q = s.active_sequence().unwrap();
+    let kept = q.find_caption(low[3]).unwrap().1;
+    assert_eq!((kept.start, kept.end()), (old.start, at), "shortened to the pasted caption");
+    assert!(q.caption_tracks[1].captions.iter().any(|c| c.start == at && c.text == "low 3"));
+    q.check().unwrap();
+    // a clip and a caption together keep their distance
+    let clip = s.active_sequence().unwrap().video_tracks[1].items[0].clone();
+    s.execute("timeline.select", json!({"clips": [clip.id.0]})).unwrap();
+    s.execute("captions.select", json!({"captions": [up[2].0], "add": true})).unwrap(); // 6 s
+    s.execute("edit.copy", json!({})).unwrap();
+    let gap = s.active_sequence().unwrap().find_caption(up[2]).unwrap().1.start - clip.start;
+    s.set_playhead(Tick(40 * s1));
+    s.execute("edit.paste", json!({})).unwrap();
+    let q = s.active_sequence().unwrap();
+    let new_cap = q.find_caption(s.state.caption_selection[0]).unwrap().1.clone();
+    let new_clip = q.find_item(s.state.selection[0]).unwrap().1.clone();
+    assert_eq!(new_cap.start - new_clip.start, gap, "the caption is as far from the clip as before");
+    // Clear removes both; Cut too, after copying them
+    s.execute("edit.clear", json!({})).unwrap();
+    let q = s.active_sequence().unwrap();
+    assert!(q.find_caption(new_cap.id).is_none() && q.find_item(new_clip.id).is_none());
+    s.execute("captions.select", json!({"captions": [up[1].0]})).unwrap();
+    s.execute("edit.cut", json!({})).unwrap();
+    assert!(s.active_sequence().unwrap().find_caption(up[1]).is_none());
+    assert_eq!(s.state.caption_clipboard.len(), 1);
+}

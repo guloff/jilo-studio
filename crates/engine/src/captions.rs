@@ -387,6 +387,74 @@ pub fn import(s: &mut Session, path: &str, bytes: &[u8], format: Format, name: O
     Ok(json!({"format": format.name(), "sequence": seq_id.0, "track": tid.0, "captions": n, "warnings": warnings}))
 }
 
+/// `captions.select`. A plain selection replaces the clip selection too (a click on a caption); the
+/// others add to what is selected, clips included, so captions and clips can be moved together.
+fn select(s: &mut Session, p: &Value) -> Result<Value> {
+    let cmd = "captions.select";
+    let seq = s.active_sequence().ok_or(EngineError::NoSequence)?;
+    let listed: Vec<ClipId> = p
+        .get("captions")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_u64).map(ClipId).filter(|c| seq.find_caption(*c).is_some()).collect())
+        .unwrap_or_default();
+    let track_of = |c: ClipId| seq.caption_tracks.iter().position(|t| t.caption(c).is_some());
+    let add = bool_p(p, "add").unwrap_or(false);
+    // a whole track, or a caption and everything after it on its track (Track Select Forward)
+    let group: Option<Vec<ClipId>> = if let Some(from) = u64_p(p, "from").map(ClipId) {
+        let (tid, c) = seq.find_caption(from).ok_or_else(|| bad(cmd, format!("no caption {}", from.0)))?;
+        let start = c.start;
+        Some(seq.caption_track(tid).map(|t| t.captions.iter().filter(|c| c.start >= start).map(|c| c.id).collect()).unwrap_or_default())
+    } else if bool_p(p, "all").unwrap_or(false) {
+        let tid = track_param(s, p).ok_or_else(|| bad(cmd, "no such caption track"))?;
+        Some(seq.caption_track(tid).map(|t| t.captions.iter().map(|c| c.id).collect()).unwrap_or_default())
+    } else {
+        None
+    };
+    let range = bool_p(p, "range").unwrap_or(false);
+    let target = listed.first().copied();
+    let anchor = s.state.caption_anchor.filter(|a| seq.find_caption(*a).is_some()).or_else(|| s.state.caption_selection.last().copied());
+    let picked: Vec<ClipId> = match (group, range, target, anchor) {
+        (Some(g), ..) => g,
+        // every caption on the tracks from the anchor's to the target's that starts between theirs
+        (None, true, Some(t), Some(a)) => {
+            let (ta, tt) = (track_of(a).unwrap_or(0), track_of(t).unwrap_or(0));
+            let (sa, st) = (seq.find_caption(a).map(|x| x.1.start).unwrap_or_default(), seq.find_caption(t).map(|x| x.1.start).unwrap_or_default());
+            let (lo, hi) = (sa.min(st), sa.max(st));
+            seq.caption_tracks[ta.min(tt)..=ta.max(tt)]
+                .iter()
+                .flat_map(|tr| tr.captions.iter().filter(|c| c.start >= lo && c.start <= hi).map(|c| c.id))
+                .collect()
+        }
+        _ => listed.clone(),
+    };
+    let toggle = bool_p(p, "toggle").unwrap_or(false);
+    let sel = &mut s.state.caption_selection;
+    if toggle {
+        for c in &picked {
+            if let Some(i) = sel.iter().position(|x| x == c) {
+                sel.remove(i);
+            } else {
+                sel.push(*c);
+            }
+        }
+    } else if add || range {
+        for c in &picked {
+            if !sel.contains(c) {
+                sel.push(*c);
+            }
+        }
+    } else {
+        *sel = picked.clone();
+        s.state.selection.clear();
+        s.state.transition_selection.clear();
+    }
+    // the anchor stays where a range started, so Shift-clicks go on from it
+    if !range && let Some(t) = target {
+        s.state.caption_anchor = Some(t);
+    }
+    Ok(json!({"captions": s.state.caption_selection.iter().map(|c| c.0).collect::<Vec<_>>()}))
+}
+
 /// Delete captions (Clear / Ripple Delete with captions selected).
 pub fn delete(s: &mut Session, ids: &[ClipId], ripple: bool) -> Result<Value> {
     if ids.is_empty() {
@@ -673,23 +741,15 @@ pub fn commands() -> Vec<CommandSpec> {
             let ids = caption_ids(s, p);
             delete(s, &ids, bool_p(p, "ripple").unwrap_or(false))
         }),
-        spec("captions.select", "Select Captions", &[], None, r#"{"captions":[id],"add":bool?}"#, has_seq, |s, p| {
-            let ids: Vec<ClipId> =
-                p.get("captions").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).map(ClipId).collect()).unwrap_or_default();
-            let seq = s.active_sequence().ok_or(EngineError::NoSequence)?;
-            let ids: Vec<ClipId> = ids.into_iter().filter(|c| seq.find_caption(*c).is_some()).collect();
-            if bool_p(p, "add").unwrap_or(false) {
-                for c in ids {
-                    if !s.state.caption_selection.contains(&c) {
-                        s.state.caption_selection.push(c);
-                    }
-                }
-            } else {
-                s.state.caption_selection = ids;
-                s.state.selection.clear();
-            }
-            Ok(json!({"captions": s.state.caption_selection.iter().map(|c| c.0).collect::<Vec<_>>()}))
-        }),
+        spec(
+            "captions.select",
+            "Select Captions",
+            &[],
+            None,
+            r#"{"captions":[id],"add":bool? (keep the selection, clips too),"toggle":bool? (Cmd-click),"range":bool? (Shift-click: from the last caption clicked to this one, every track between),"track":id|"C1"? with "all":true (every caption of the track) or "from":id (that caption and every later one on its track)}"#,
+            has_seq,
+            select,
+        ),
         spec("captions.goTo", "Go to Caption", &[], None, r#"{"caption":id}"#, has_captions, |s, p| {
             let id = one_caption(s, p, "captions.goTo")?;
             let start = s.active_sequence().and_then(|q| q.find_caption(id)).map(|(_, c)| c.start).ok_or(EngineError::Edit(edit::EditError::NoItem(id)))?;

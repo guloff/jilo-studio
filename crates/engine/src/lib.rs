@@ -346,6 +346,13 @@ pub struct EditorState {
     /// Selected captions (caption tracks / Captions panel).
     #[serde(default)]
     pub caption_selection: Vec<ClipId>,
+    /// The caption a Shift-click selects a range from: the last one clicked or toggled.
+    #[serde(default)]
+    pub caption_anchor: Option<ClipId>,
+    /// Copied captions: (caption track index, the caption with its start relative to the start of
+    /// everything copied with it, clips included), pasted with the clips at the playhead.
+    #[serde(skip)]
+    pub caption_clipboard: Vec<(usize, filmcraft_project::Caption)>,
     /// Selected transitions (clicked in the Timeline): Effect Controls shows one, Delete removes
     /// them. Selecting clips clears it and selecting transitions clears the clip selection.
     #[serde(default)]
