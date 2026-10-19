@@ -26,9 +26,16 @@ impl FrameRenderer for GpuFrameRenderer {
     ) -> Option<filmcraft_render::Image> {
         self.0.render(project, seq, t, opts, sources)
     }
+    fn draws_plans(&self) -> bool {
+        true
+    }
+    fn render_plan(&mut self, plan: &filmcraft_render::plan::FramePlan) -> Option<filmcraft_render::Image> {
+        self.0.render_plan(plan)
+    }
 }
 
-fn project(width: u32, height: u32) -> (Arc<filmcraft_project::Project>, filmcraft_project::ItemId, SourceMap) {
+/// A colour matte on V1; with `fx`, under a GPU effect (Proc Amp), so the export draws it on the GPU.
+fn project(width: u32, height: u32, fx: bool) -> (Arc<filmcraft_project::Project>, filmcraft_project::ItemId, SourceMap) {
     let mut p = filmcraft_project::Project::new("x");
     let g = GeneratorSource::new(
         Generator::ColorMatte { color: [0.2, 0.5, 0.9, 1.0] },
@@ -55,7 +62,7 @@ fn project(width: u32, height: u32) -> (Arc<filmcraft_project::Project>, filmcra
         None,
     );
     let seq = p.new_sequence("s", SequenceSettings { width, height, frame_rate: filmcraft_time::FrameRate::FPS_24, ..Default::default() }, 1, 1, None);
-    let v = p
+    let mut v = p
         .make_track_item(
             red,
             TrackKind::Video,
@@ -64,6 +71,9 @@ fn project(width: u32, height: u32) -> (Arc<filmcraft_project::Project>, filmcra
             filmcraft_time::FrameRate::FPS_24,
         )
         .unwrap();
+    if fx {
+        v.effects.push(filmcraft_project::effect::find_effect("proc_amp").unwrap().instance());
+    }
     p.sequence_mut(seq).unwrap().video_tracks[0].items.push(v);
     let mut m = SourceMap::default();
     m.0.insert(red, Arc::new(g));
@@ -76,8 +86,8 @@ fn png(dir: &str, name: &str) -> Vec<u8> {
     std::fs::read(std::env::temp_dir().join(format!("fc-gpu-export-{dir}{index:03}.png"))).unwrap()
 }
 
-fn export_png(dir: &str, gpu: GpuRendering, (w, h): (u32, u32)) {
-    let (p, seq, m) = project(w, h);
+fn export_png(dir: &str, gpu: GpuRendering, (w, h): (u32, u32), fx: bool) {
+    let (p, seq, m) = project(w, h, fx);
     let mut s = ExportSettings {
         format: Format::PngSequence,
         path: std::env::temp_dir().join(format!("fc-gpu-export-{dir}")).to_string_lossy().into_owned(),
@@ -115,20 +125,31 @@ fn gpu_export_matches_cpu_and_counts() {
         return;
     };
     // Clean registry first: Auto with no factory must be byte-equal to Off.
-    export_png("off-cpu", GpuRendering::Off, (320, 180));
-    export_png("off-auto", GpuRendering::Auto, (320, 180));
+    export_png("off-cpu", GpuRendering::Off, (320, 180), true);
+    export_png("off-auto", GpuRendering::Auto, (320, 180), true);
     assert_eq!(png("off-cpu", "img000.png"), png("off-auto", "img000.png"), "Auto with no registered renderer must be byte-equal to Off");
 
     register_frame_renderer(|| Some(Box::new(GpuFrameRenderer(filmcraft_gpu::ExportRenderer::new().expect("adapter present")))));
     let sizes = [(320u32, 180u32), (17, 13), (1, 1), (257, 129)];
-    for (i, size) in sizes.into_iter().enumerate() {
-        export_png("cpu", GpuRendering::Off, size);
-        export_png("gpu", GpuRendering::Auto, size);
+    for size in sizes {
+        export_png("cpu", GpuRendering::Off, size, true);
+        export_png("gpu", GpuRendering::Auto, size, true);
         for f in ["000", "001"] {
             assert_parity(&png("cpu", &format!("img{f}.png")), &png("gpu", &format!("img{f}.png")), &format!("{:?} frame {f}", size));
         }
-        let _ = i;
     }
     let GpuRenderStats { frames, .. } = filmcraft_export::gpu_render_stats();
     assert!(frames >= 8, "gpu frames counted across the parity exports: {frames}");
+
+    // A plain edit (no effects, masks or transitions) gains nothing on the GPU: the CPU reference
+    // renderer draws it, so Auto writes the same file as Off.
+    let before = filmcraft_export::gpu_render_stats();
+    export_png("plain-cpu", GpuRendering::Off, (320, 180), false);
+    export_png("plain-auto", GpuRendering::Auto, (320, 180), false);
+    for f in ["000", "001"] {
+        assert_eq!(png("plain-cpu", &format!("img{f}.png")), png("plain-auto", &format!("img{f}.png")), "plain frame {f}: Auto must be byte-equal to Off");
+    }
+    let after = filmcraft_export::gpu_render_stats();
+    assert!(after.cpu_frames >= before.cpu_frames + 2, "plain frames drawn on the CPU by choice: {before:?} -> {after:?}");
+    assert_eq!(after.fallbacks, before.fallbacks, "a frame drawn on the CPU by choice is no fallback");
 }

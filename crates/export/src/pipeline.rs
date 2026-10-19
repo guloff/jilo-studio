@@ -53,6 +53,9 @@ impl Geometry {
 /// back (a single renderer behind a mutex made the workers queue, GPU export ~20 % slower than CPU).
 struct RendererPool {
     renderers: std::sync::Mutex<Vec<Box<dyn FrameRenderer>>>,
+    /// Every renderer draws plans ([`FrameRenderer::draws_plans`]): frames are planned before a
+    /// renderer is taken.
+    draws_plans: bool,
     available: std::sync::Condvar,
     /// A renderer panicked: the pool is retired and the rest of the export renders on the CPU.
     failed: std::sync::atomic::AtomicBool,
@@ -62,6 +65,7 @@ impl RendererPool {
     /// `None` for an empty list (a pool nobody could take from).
     fn new(renderers: Vec<Box<dyn FrameRenderer>>) -> Option<Self> {
         (!renderers.is_empty()).then(|| Self {
+            draws_plans: renderers.iter().all(|r| r.draws_plans()),
             renderers: std::sync::Mutex::new(renderers),
             available: std::sync::Condvar::new(),
             failed: std::sync::atomic::AtomicBool::new(false),
@@ -267,7 +271,33 @@ impl Pipeline {
         let t = self.rate.tick_of(f);
         // The registered GPU renderer goes first; `None` (no adapter, a plan the GPU cannot
         // draw, any internal error) falls back to the CPU reference renderer below.
+        // the GPU was not asked for this frame: the CPU drawing it is no fallback
+        let mut cpu_by_choice = false;
         let gpu = match self.renderer.as_ref() {
+            // A frame without standard effects, masks or transitions composites as fast on the CPU
+            // and only pays the GPU's upload and read-back: the CPU reference renderer draws it.
+            Some(pool) if pool.draws_plans && !filmcraft_render::plan::gpu_pays_off(&self.project, self.seq, t, self.opts) => {
+                crate::note_gpu_cpu_frame();
+                cpu_by_choice = true;
+                None
+            }
+            // Planned first, on this thread, with no renderer held: the CPU part of the frame
+            // runs on every export thread at once, as on the CPU path. A plan that already is the
+            // picture (HDR, adjustment layers, complex transitions) needs no renderer at all.
+            Some(pool) if pool.draws_plans => match filmcraft_render::plan::plan_frame(&self.project, self.seq, t, self.opts, sources) {
+                filmcraft_render::plan::FramePlan::Image(img) => Some(img),
+                plan => {
+                    let asked = web_time::Instant::now();
+                    pool.with(|r| {
+                        crate::note_lock_wait(asked.elapsed());
+                        let held = web_time::Instant::now();
+                        let img = r.render_plan(&plan);
+                        crate::note_renderer_busy(held.elapsed());
+                        img
+                    })
+                    .flatten()
+                }
+            },
             Some(pool) => {
                 let asked = web_time::Instant::now();
                 pool.with(|r| {
@@ -287,7 +317,7 @@ impl Pipeline {
                 img
             }
             None => {
-                if self.renderer.is_some() {
+                if self.renderer.is_some() && !cpu_by_choice {
                     note_gpu_fallback();
                 }
                 filmcraft_render::render_sequence(&self.project, self.seq, t, self.opts, sources)

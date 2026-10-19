@@ -153,6 +153,30 @@ CPU. GPU rendering is therefore **Auto by default**. The GPU result matches the 
 compositor's parity tolerance, not bit for bit: Off keeps exports byte-reproducible on every
 machine. (The 4K row used the same scene with the sequence, clip and positions scaled to 4K.)
 
+## GPU export: plain frames on the CPU (Jilo Studio, 2026-10-19)
+
+Export ▸ GPU Rendering Auto now asks the GPU only for frames it can win on: a clip showing has
+standard effects the GPU draws, or opacity masks, or a transition is running
+(`filmcraft_render::plan::gpu_pays_off`, decided from the project before anything is decoded).
+Every other frame is drawn by the CPU reference renderer, so an export of a plain edit is the same
+file as with GPU rendering Off. Frames that do go to the GPU are planned (`plan_frame`) before a
+renderer is taken from the pool, and hold one only while the GPU draws.
+
+Apple M4 Pro (12 cores), release `filmcraft-cli run`, a copy of a user's edit: 4K HEVC Main10 HLG
+iPhone footage in a 1080p30 Rec.709 sequence, a full-frame ProRes 4444 overlay with alpha and PNG
+cards, motion and opacity only; 60–80 s (600 frames), preset "YouTube 1080p Full HD", hardware
+encoding. `perf.stats` `export.gpu` before: all 4 renderers busy for the whole export (`busyMs`
+100.8 s in 26 s, 168 ms a frame, 23.8 fps at most), threads waiting 108.6 s for one; the HLG clip
+is colour-managed on the CPU on both paths, so the GPU only added the half-float uploads and the
+read-back (planning outside the renderer cut the wait to 3.5 s but not the time: the export is
+CPU-bound). Interleaved runs, seconds:
+
+| build | round 1 | round 2 | older copy of the edit |
+|---|---|---|---|
+| GPU Auto, every frame on the GPU (before) | 25.0 | 26.9 | 26.7 |
+| GPU Auto, plain frames on the CPU (after; `cpuFrames` 600) | **24.0** | **23.6** | **23.7** |
+| GPU Off | 24.1 | 24.1 | 24.4 |
+
 ## Results (GPU2: standard effects on the GPU compositor, #30, before → after)
 
 Before = this change with clips that carry standard effects sent back to the CPU layer path in

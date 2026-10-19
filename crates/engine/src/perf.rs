@@ -53,7 +53,8 @@ pub fn decode_json() -> Value {
 /// `convert` part, audio, mux, finish, wait), summed over the exports of this process (diff two readings).
 /// Render and encode overlap (the next batch renders while this one is encoded), so their sum can exceed
 /// the export's wall time; `waitMs` is the encoding side's idle wait for the render.
-/// `gpu`: Export ▸ GPU rendering — frames the GPU composited and those it handed to the CPU, the
+/// `gpu`: Export ▸ GPU rendering — frames the GPU composited, those it handed to the CPU and those
+/// with nothing for the GPU to win on, drawn on the CPU without asking it (`cpuFrames`), the
 /// time export threads waited for a free renderer of the pool (`lockWaitMs`) and held one
 /// (`busyMs`, planning and drawing the frame), both summed over the threads, and the size of the
 /// last export's pool (`renderers`, 0 when it rendered on the CPU).
@@ -67,6 +68,7 @@ pub fn export_json() -> Value {
         "gpu": {
             "frames": gpu.frames,
             "fallbacks": gpu.fallbacks,
+            "cpuFrames": gpu.cpu_frames,
             "lockWaitMs": filmcraft_export::export_lock_wait().as_secs_f64() * 1e3,
             "busyMs": gpu.busy.as_secs_f64() * 1e3,
             "renderers": gpu.renderers,
@@ -126,7 +128,7 @@ mod tests {
         for k in ["frames", "sessions", "declined"] {
             assert!(v["export"]["hardware"][k].is_number(), "export.hardware.{k} in {v}");
         }
-        for k in ["frames", "fallbacks", "lockWaitMs", "busyMs", "renderers"] {
+        for k in ["frames", "fallbacks", "cpuFrames", "lockWaitMs", "busyMs", "renderers"] {
             assert!(v["export"]["gpu"][k].is_number(), "export.gpu.{k} in {v}");
         }
         for k in ["setupMs", "loudnessMs", "renderMs", "encodeMs", "convertMs", "audioMs", "muxMs", "finishMs", "waitMs"] {

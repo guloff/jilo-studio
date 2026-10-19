@@ -213,6 +213,38 @@ pub fn plan_frame(project: &Project, seq_id: ItemId, t: Tick, opts: RenderOption
     layers.finish(w, h)
 }
 
+/// Whether drawing the frame at `t` on the GPU pays for the round trip (texture upload, read-back
+/// of the result): a clip showing has standard effects the GPU draws, or opacity masks, or a
+/// transition is running. Exports draw every other frame with the CPU reference renderer. Plain
+/// layers (motion, opacity, blend modes) composite as fast on the CPU, and clips that need colour
+/// management or CPU-only effects are drawn on the CPU either way, so on the GPU such a frame only
+/// costs the conversions and the copies (`docs/performance.md`, "GPU export: plain frames on the
+/// CPU"). Decided from the project alone, before anything is decoded.
+pub fn gpu_pays_off(project: &Project, seq_id: ItemId, t: Tick, opts: RenderOptions) -> bool {
+    let Some(seq) = project.sequence(seq_id) else { return false };
+    // these frames are drawn on the CPU whole (`plan_frame`)
+    if !seq.settings.color.is_plain() || !layered_at(project, seq, t) {
+        return false;
+    }
+    gpu_work_at(project, seq, t, opts, 0)
+}
+
+fn gpu_work_at(project: &Project, seq: &Sequence, t: Tick, opts: RenderOptions, nest: u32) -> bool {
+    seq.video_tracks.iter().filter(|tr| tr.enabled).any(|tr| {
+        if tr.transitions.iter().any(|x| x.range().contains(t)) {
+            return true;
+        }
+        let Some(item) = tr.item_at(t).filter(|i| i.enabled) else { return false };
+        if item.has_opacity_masks() || gpu_chain(project, item, opts).is_some_and(|c| !c.is_empty()) {
+            return true;
+        }
+        match project.item(item.item).map(|p| &p.kind) {
+            Some(ItemKind::Sequence(nested)) if nest < crate::MAX_NEST_DEPTH => gpu_work_at(project, nested, item.source_time_at(t), opts, nest + 1),
+            _ => false,
+        }
+    })
+}
+
 /// Whether the frame of `seq` at `t` can be planned as layers: no adjustment layer and no
 /// transition the compositor cannot mix itself is showing.
 fn layered_at(project: &Project, seq: &Sequence, t: Tick) -> bool {

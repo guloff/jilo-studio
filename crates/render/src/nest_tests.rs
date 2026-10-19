@@ -364,3 +364,35 @@ fn a_nest_that_is_not_plain_is_still_drawn_right() {
         assert!(w < 0.01, "{what}: plan and reference differ by {w}");
     }
 }
+
+#[test]
+fn the_gpu_pays_off_only_for_effects_masks_and_transitions() {
+    let mut r = Rig::new();
+    let red = r.matte(RED, 320, 180);
+    let seq = r.seq("plain", 320, 180, FrameRate::FPS_24);
+    let clip = r.put(seq, red, 48);
+    let t = Tick(1000);
+    let pays = |r: &Rig, seq| plan::gpu_pays_off(&r.p, seq, t, RenderOptions::default());
+    // motion and opacity only: nothing the GPU draws faster
+    r.clip(seq, clip).effect_mut("opacity").unwrap().params.get_mut("opacity").unwrap().value = ParamValue::Float(50.0);
+    assert!(!pays(&r, seq), "plain layers");
+    // an effect only the CPU draws: the CPU draws the clip either way
+    let mosaic = filmcraft_project::effect::find_effect("mosaic").unwrap().instance();
+    r.clip(seq, clip).effects.push(mosaic);
+    assert!(!pays(&r, seq), "CPU-only effect");
+    r.clip(seq, clip).effects.retain(|e| e.effect != "mosaic");
+    // a standard effect the GPU draws
+    r.clip(seq, clip).effects.push(filmcraft_project::effect::find_effect("gaussian_blur").unwrap().instance());
+    assert!(pays(&r, seq), "GPU effect");
+    assert!(!plan::gpu_pays_off(&r.p, seq, t, RenderOptions { effects: false, ..Default::default() }), "effects off");
+    r.clip(seq, clip).effects.last_mut().unwrap().enabled = false;
+    assert!(!pays(&r, seq), "disabled effect");
+    r.clip(seq, clip).effects.last_mut().unwrap().enabled = true;
+    // inside a nest too, and not past the clip's end
+    let outer = r.seq("outer", 320, 180, FrameRate::FPS_24);
+    r.put(outer, seq, 48);
+    assert!(pays(&r, outer), "GPU effect in a nested sequence");
+    assert!(!plan::gpu_pays_off(&r.p, outer, FrameRate::FPS_24.tick_of(60), RenderOptions::default()), "nothing showing");
+    // not a sequence at all
+    assert!(!plan::gpu_pays_off(&r.p, red, t, RenderOptions::default()));
+}

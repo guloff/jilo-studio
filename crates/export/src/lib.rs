@@ -839,6 +839,21 @@ pub trait FrameRenderer: Send {
         opts: filmcraft_render::RenderOptions,
         sources: &dyn SourceProvider,
     ) -> Option<filmcraft_render::Image>;
+
+    /// Whether this renderer draws a frame from its [`filmcraft_render::plan::plan_frame`] plan
+    /// ([`render_plan`](Self::render_plan)), so the export can plan the frame (decoding, CPU-drawn
+    /// layers) before it takes a renderer from its pool and hold one only while the GPU draws.
+    /// Holding one through the planning limited the export to as many frames at once as the pool
+    /// has renderers.
+    fn draws_plans(&self) -> bool {
+        false
+    }
+
+    /// The frame of `plan` as [`render`](Self::render) would return it for the same frame, which is
+    /// `plan_frame` and then this. Only called when [`draws_plans`](Self::draws_plans).
+    fn render_plan(&mut self, _plan: &filmcraft_render::plan::FramePlan) -> Option<filmcraft_render::Image> {
+        None
+    }
 }
 
 /// Builds the frame renderer for one export, or `None` when this host cannot (no adapter).
@@ -870,6 +885,7 @@ pub(crate) fn reset_frame_renderers_for_tests() {
     frame_renderer_factories().write().unwrap_or_else(|e| e.into_inner()).clear();
     GPU_FRAMES.store(0, Ordering::Relaxed);
     GPU_FALLBACKS.store(0, Ordering::Relaxed);
+    GPU_CPU_FRAMES.store(0, Ordering::Relaxed);
 }
 
 /// Pick the first registered factory that can build a renderer for this host.
@@ -883,6 +899,7 @@ static GPU_FALLBACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU6
 static LOCK_WAIT_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static RENDERER_BUSY_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static RENDERERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static GPU_CPU_FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// A frame was composited by the registered GPU renderer.
 pub fn note_gpu_frame() {
@@ -909,6 +926,12 @@ pub fn reset_export_lock_wait() {
     LOCK_WAIT_NS.store(0, Ordering::Relaxed);
 }
 
+/// A GPU-rendering export drew a frame on the CPU because the GPU would not pay off there
+/// ([`filmcraft_render::plan::gpu_pays_off`]).
+pub(crate) fn note_gpu_cpu_frame() {
+    GPU_CPU_FRAMES.fetch_add(1, Ordering::Relaxed);
+}
+
 /// Time a frame held a GPU renderer of the pool (planning and drawing it).
 pub(crate) fn note_renderer_busy(d: std::time::Duration) {
     RENDERER_BUSY_NS.fetch_add(u64::try_from(d.as_nanos()).unwrap_or(u64::MAX), Ordering::Relaxed);
@@ -927,6 +950,9 @@ pub struct GpuRenderStats {
     pub frames: u64,
     /// Frames the GPU renderer declined (the CPU reference renderer drew them).
     pub fallbacks: u64,
+    /// Frames with nothing for the GPU to win on (no standard effects, masks or transitions),
+    /// which the CPU reference renderer drew without asking the GPU.
+    pub cpu_frames: u64,
     /// Total time frames held a renderer (summed over the export threads).
     pub busy: std::time::Duration,
     /// Renderers in the pool of the export that started last; 0 when it renders on the CPU.
@@ -937,6 +963,7 @@ pub fn gpu_render_stats() -> GpuRenderStats {
     GpuRenderStats {
         frames: GPU_FRAMES.load(Ordering::Relaxed),
         fallbacks: GPU_FALLBACKS.load(Ordering::Relaxed),
+        cpu_frames: GPU_CPU_FRAMES.load(Ordering::Relaxed),
         busy: std::time::Duration::from_nanos(RENDERER_BUSY_NS.load(Ordering::Relaxed)),
         renderers: RENDERERS.load(Ordering::Relaxed),
     }

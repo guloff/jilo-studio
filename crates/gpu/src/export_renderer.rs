@@ -131,8 +131,13 @@ impl ExportRenderer {
     /// One frame as `render_sequence` would return it (premultiplied linear-light RGBA at the
     /// render size), or `None` when this frame must go to the CPU renderer.
     pub fn render(&mut self, project: &Project, seq: ItemId, t: Tick, opts: RenderOptions, sources: &dyn SourceProvider) -> Option<Image> {
-        let plan = plan_frame(project, seq, t, opts, sources);
-        match &plan {
+        self.render_plan(&plan_frame(project, seq, t, opts, sources))
+    }
+
+    /// The frame of a [`plan_frame`] plan, as [`render`](Self::render) returns it: an export plans
+    /// its frames before it takes a renderer, so a renderer is held only while the GPU draws.
+    pub fn render_plan(&mut self, plan: &FramePlan) -> Option<Image> {
+        match plan {
             // Already the CPU image: return it unchanged instead of rendering it twice.
             FramePlan::Image(img) => Some(img.clone()),
             // layers, or a transition's steps (the compositor runs push on the GPU and hands other
@@ -141,8 +146,8 @@ impl ExportRenderer {
                 if device_failed() {
                     return None;
                 }
-                let prep = prepare(&plan);
-                let (w, h, px) = self.compositor.render_export_prepared(&plan, Some(&prep))?;
+                let prep = prepare(plan);
+                let (w, h, px) = self.compositor.render_export_prepared(plan, Some(&prep))?;
                 // an error reported while this frame was drawn leaves its pixels untrusted
                 if device_failed() {
                     return None;
@@ -292,15 +297,32 @@ mod tests {
             fn render(&mut self, project: &Project, seq: ItemId, t: Tick, opts: RenderOptions, sources: &dyn SourceProvider) -> Option<Image> {
                 self.0.render(project, seq, t, opts, sources)
             }
+            fn draws_plans(&self) -> bool {
+                true
+            }
+            fn render_plan(&mut self, plan: &FramePlan) -> Option<Image> {
+                self.0.render_plan(plan)
+            }
         }
         let Some(r) = ExportRenderer::new() else {
             eprintln!("SKIPPED (gpu export parity): no adapter");
             return;
         };
+        let mut r = R(r);
         let (p, seq, m) = project(false);
-        let gpu = R(r).render(&p, seq, Tick::ZERO, RenderOptions::default(), &m).expect("rendered");
+        let gpu = r.render(&p, seq, Tick::ZERO, RenderOptions::default(), &m).expect("rendered");
         let cpu = filmcraft_render::render_sequence(&p, seq, Tick::ZERO, RenderOptions::default(), &m);
         assert_parity(&cpu, &gpu, "frame renderer");
+        // a frame planned beforehand (as the export does, with no renderer held) is the same frame
+        assert!(r.draws_plans());
+        for transform in [false, true] {
+            let (p, seq, m) = project(transform);
+            let t = filmcraft_time::FrameRate::FPS_24.tick_of(10);
+            let whole = r.render(&p, seq, t, RenderOptions::default(), &m).expect("rendered");
+            let planned = r.render_plan(&plan_frame(&p, seq, t, RenderOptions::default(), &m)).expect("rendered from the plan");
+            assert_eq!((planned.w, planned.h), (whole.w, whole.h));
+            assert!(planned.px == whole.px, "planned frame differs from render (transform {transform})");
+        }
     }
 
     #[test]

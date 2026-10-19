@@ -293,6 +293,12 @@ impl filmcraft_export::FrameRenderer for GpuFrameRenderer {
     ) -> Option<filmcraft_render::Image> {
         self.0.render(project, seq, t, opts, sources)
     }
+    fn draws_plans(&self) -> bool {
+        true
+    }
+    fn render_plan(&mut self, plan: &filmcraft_render::plan::FramePlan) -> Option<filmcraft_render::Image> {
+        self.0.render_plan(plan)
+    }
 }
 
 fn register_gpu_frame_renderer() {

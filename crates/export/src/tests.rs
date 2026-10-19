@@ -448,8 +448,58 @@ fn gpu_hook_scenarios() {
     }
     // at most one panic per pooled renderer (4): none is used again after it panicked
     assert!(PANICS.load(std::sync::atomic::Ordering::SeqCst) <= 4, "renderer reused after a panic: {}", PANICS.load(std::sync::atomic::Ordering::SeqCst));
+
+    // 6. A renderer that draws plans is given the frames with a standard effect, planned
+    //    beforehand (`render_plan`, never `render`); plain frames are the CPU's, byte-equal to Off.
+    crate::reset_frame_renderers_for_tests();
+    PLAN_CALLS.store(0, std::sync::atomic::Ordering::SeqCst);
+    crate::register_frame_renderer(|| FAKES.with(std::cell::Cell::get).then(|| Box::new(PlanRenderer) as Box<dyn FrameRenderer>));
+    let (plain, seq, m) = project();
+    let mut fx = (*plain).clone();
+    fx.sequence_mut(seq).unwrap().video_tracks[0].items[0].effects.push(filmcraft_project::find_effect("proc_amp").unwrap().instance());
+    let fx = Arc::new(fx);
+    let mk2 = |p: &Arc<Project>, path: &String, gpu: crate::GpuRendering| {
+        let mut s = ExportSettings { format: Format::PngSequence, path: path.clone(), ..Default::default() };
+        s.range = Some(TimeRange::new(Tick::ZERO, FrameRate::FPS_24.tick_of(2)));
+        s.gpu_rendering = gpu;
+        export(p, seq, &s, &m, &Progress::default()).unwrap()
+    };
+    mk2(&plain, &tmp("plan-off.png"), crate::GpuRendering::Off);
+    mk2(&plain, &tmp("plan-auto.png"), crate::GpuRendering::Auto);
+    assert_eq!(std::fs::read(tmp("plan-off000.png")).unwrap(), std::fs::read(tmp("plan-auto000.png")).unwrap(), "plain frames are drawn on the CPU");
+    assert_eq!(PLAN_CALLS.load(std::sync::atomic::Ordering::SeqCst), 0, "the GPU was not asked for plain frames");
+    mk2(&fx, &tmp("plan-fx-off.png"), crate::GpuRendering::Off);
+    mk2(&fx, &tmp("plan-fx-auto.png"), crate::GpuRendering::Auto);
+    assert_eq!(PLAN_CALLS.load(std::sync::atomic::Ordering::SeqCst), 2, "both frames with an effect drawn from their plans");
+    assert_ne!(std::fs::read(tmp("plan-fx-off000.png")).unwrap(), std::fs::read(tmp("plan-fx-auto000.png")).unwrap(), "the planned picture reaches the export");
     crate::reset_frame_renderers_for_tests();
     crate::register_frame_renderer(|| None);
+}
+
+static PLAN_CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// Draws plans: a blank picture for each plan, counted; `render` itself must not be called.
+struct PlanRenderer;
+
+impl FrameRenderer for PlanRenderer {
+    fn render(
+        &mut self,
+        _project: &Project,
+        _seq: ItemId,
+        _t: Tick,
+        _opts: filmcraft_render::RenderOptions,
+        _sources: &dyn SourceProvider,
+    ) -> Option<filmcraft_render::Image> {
+        panic!("a renderer that draws plans is given plans");
+    }
+    fn draws_plans(&self) -> bool {
+        true
+    }
+    fn render_plan(&mut self, plan: &filmcraft_render::plan::FramePlan) -> Option<filmcraft_render::Image> {
+        assert!(!matches!(plan, filmcraft_render::plan::FramePlan::Image(_)), "a finished picture needs no renderer");
+        PLAN_CALLS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Some(filmcraft_render::Image::new(320, 180))
+    }
 }
 
 /// Renders through rayon joins (and sleeps in them, so the waiting workers look for other work),
