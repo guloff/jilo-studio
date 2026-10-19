@@ -177,6 +177,40 @@ CPU-bound). Interleaved runs, seconds:
 | GPU Auto, plain frames on the CPU (after; `cpuFrames` 600) | **24.0** | **23.6** | **23.7** |
 | GPU Off | 24.1 | 24.1 | 24.4 |
 
+## GPU export: colour management on the GPU (Jilo Studio, 2026-10-19)
+
+On the edit above the remaining cost was the HLG clip on the CPU: drawn at 58.5 % it is not
+decimated, so every 4K frame went through the Y'CbCr → linear conversion and the input
+transform's pixel stage (HLG OOTF, BT.2020 → BT.709 matrix, BT.2390 tone map, desaturation)
+before being resampled to 1080p. A `sample` of the export: ≈ 68 % of busy CPU time in that pixel
+stage (`powf` in `colorman::decode`), ≈ 22 % in `VideoFrame::convert_region`.
+
+Log / HDR / wide-gamut Y'CbCr video without effects, opacity masks or blended in-between frames
+now reaches the compositor with its input transform (`PlanLayer::color`); the shader decodes each
+texel through the transform's tables (curve and tone map, one `R32Float` texture per transform)
+and its pixel stage, then filters in linear light, as the CPU decodes and then resamples. Such
+frames count as GPU work in `gpu_pays_off`. The CPU reference is unchanged
+(`colorman::decode_with` executes the same layers in `plan::execute_cpu`); parity:
+`color_managed_layer_matches_cpu` (HLG, PQ, Rec. 2020, P3, S-Log3, Apple Log: ≤ 1 code and
+< 0.4 % in light where both take one bilinear tap; ≤ 0.02 in light where the GPU supersamples a
+minified layer), `color_managed_video_plans_with_its_input_transform`. Drawn at half size or
+less, the reference renderer decimates first and applies the pixel stage to the averaged pixel;
+the compositor applies it per texel, then filters (a difference in the order of filtering, as for
+plain Y'CbCr layers, whose codes the GPU filters before converting).
+
+Same machine, project and range as above, interleaved runs, seconds (`export.gpu.frames` 600 for
+the new build with Auto):
+
+| build | round 1 | round 2 | round 3 |
+|---|---|---|---|
+| before (GPU Auto: every frame on the CPU) | 24.5 | 26.6 | 28.3 |
+| after, GPU Auto | **9.6** | **7.3** | **9.4** |
+| after, GPU Off | 26.2 | 27.6 | 28.9 |
+
+GPU Off decodes to the same pictures as before (PSNR ∞ against the old build); GPU Auto against
+the CPU picture: PSNR 48.5 dB average, 47.8 dB worst frame (H.264 at the preset's bitrate). The
+four renderers are now the limit (`busyMs` 22–29 s in 7–9 s, `lockWaitMs` 15–22 s).
+
 ## Results (GPU2: standard effects on the GPU compositor, #30, before → after)
 
 Before = this change with clips that carry standard effects sent back to the CPU layer path in

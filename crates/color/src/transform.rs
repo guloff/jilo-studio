@@ -143,6 +143,11 @@ impl ToneMap {
         });
         ToneMap { src_peak_nits, dst_peak_nits, table }
     }
+    /// max(R,G,B) → scale factor below the source peak, indexed by the PQ code of max(R,G,B) in
+    /// cd/m² (see [`ToneMap::apply`]).
+    pub fn table(&self) -> &DecodeTable {
+        &self.table
+    }
     #[inline]
     pub fn apply(&self, c: [f32; 3]) -> [f32; 3] {
         let m = c[0].max(c[1]).max(c[2]);
@@ -182,6 +187,19 @@ pub fn gamut_compress(c: [f32; 3]) -> [f32; 3] {
         let dc = TH + s * x / (1.0 + x.powf(P)).powf(1.0 / P);
         ach - dc * ach
     })
+}
+
+/// The per-pixel stage of an [`InputTransform`] (see [`InputTransform::stage`]): HLG OOTF
+/// (BT.2020 luma weights, scale to working units), gamut matrix, tone mapping, gamut compression
+/// ([`gamut_compress`]), desaturation into the working gamut ([`desaturate_into_gamut`] with
+/// these luma weights). None / false: the step does nothing.
+#[derive(Clone, Copy, Debug)]
+pub struct PixelStage<'a> {
+    pub hlg: Option<([f32; 3], f32)>,
+    pub matrix: Option<[[f32; 3]; 3]>,
+    pub tone: Option<&'a ToneMap>,
+    pub compress: bool,
+    pub desaturate: Option<[f32; 3]>,
 }
 
 /// Source → working-space conversion for one colour space.
@@ -225,6 +243,18 @@ impl InputTransform {
         let l = wg.luma();
         let desaturate = (wider && !src.is_log()).then(|| [l[0] as f32, l[1] as f32, l[2] as f32]);
         InputTransform { source: src, table: DecodeTable::for_curve(curve, range), matrix: to_f32(&m), identity_matrix, hlg, tone, compress, desaturate }
+    }
+
+    /// The parameters of [`InputTransform::apply`], for evaluating it elsewhere (the GPU
+    /// compositor), in the order it applies them.
+    pub fn stage(&self) -> PixelStage<'_> {
+        PixelStage {
+            hlg: self.hlg,
+            matrix: (!self.identity_matrix).then_some(self.matrix),
+            tone: self.tone.as_ref(),
+            compress: self.compress,
+            desaturate: self.desaturate,
+        }
     }
 
     /// Whether anything happens after the per-channel table.

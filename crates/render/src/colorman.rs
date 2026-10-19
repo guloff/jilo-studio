@@ -26,7 +26,13 @@ pub fn source_space(project: &Project, item: ItemId, frame: &VideoFrame) -> Colo
 
 /// Whether the frame needs more than the default (transfer-only) decode.
 pub fn needs_management(pipe: &ColorPipeline, cs: ColorSpace, frame: &VideoFrame) -> bool {
-    let default_decode = cs == ColorSpace::from_info(&frame.color) && matches!(cs, ColorSpace::Rec709 | ColorSpace::Srgb | ColorSpace::Linear709);
+    needs_management_for(pipe, cs, &frame.color)
+}
+
+/// [`needs_management`] for a frame with colour metadata `color` (e.g. a stream's, before any
+/// frame is decoded).
+pub fn needs_management_for(pipe: &ColorPipeline, cs: ColorSpace, color: &filmcraft_color::ColorInfo) -> bool {
+    let default_decode = cs == ColorSpace::from_info(color) && matches!(cs, ColorSpace::Rec709 | ColorSpace::Srgb | ColorSpace::Linear709);
     !(pipe.is_plain() && default_decode)
 }
 
@@ -64,6 +70,11 @@ pub fn decode(project: &Project, item: ItemId, frame: &VideoFrame, n: usize, pip
         _ => frame.color.range,
     };
     let t = input_transform(cs, range, pipe, source_peak_nits(project, item));
+    decode_with(frame, n, &t)
+}
+
+/// Decode a frame (box-decimated by `n`) through an input transform.
+pub fn decode_with(frame: &VideoFrame, n: usize, t: &InputTransform) -> Image {
     let float_src = matches!(frame.data, filmcraft_frame::PixelData::RgbaF32(_));
     // float frames are linear already: only the gamut/tone stages apply to them
     let (w, h, px) = frame.to_linear_f32_decimated_with(n, if float_src { None } else { Some(&t.table) });
@@ -72,6 +83,17 @@ pub fn decode(project: &Project, item: ItemId, frame: &VideoFrame, n: usize, pip
         img.map_rgb(|c, _, _| t.apply(c));
     }
     img
+}
+
+/// The input transform the GPU compositor applies to a frame of `item` that needs colour
+/// management (see [`decode`]): Y'CbCr frames only, whose decode the compositor's shader does
+/// itself. None when the frame needs none or is RGB (decoded on the CPU).
+pub fn gpu_transform(project: &Project, item: ItemId, frame: &VideoFrame, pipe: &ColorPipeline) -> Option<Arc<InputTransform>> {
+    let cs = source_space(project, item, frame);
+    if !needs_management(pipe, cs, frame) || !matches!(frame.data, filmcraft_frame::PixelData::Yuv8 { .. } | filmcraft_frame::PixelData::Yuv16 { .. }) {
+        return None;
+    }
+    Some(input_transform(cs, frame.color.range, pipe, source_peak_nits(project, item)))
 }
 
 /// Working space → monitor (SDR BT.709) for a non-plain pipeline; no-op otherwise.

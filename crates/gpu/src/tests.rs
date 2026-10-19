@@ -122,13 +122,14 @@ fn gpu_matches_cpu_plan() {
         width: w,
         height: h,
         layers: vec![
-            PlanLayer { frame: yuv_frame(640, 360), matrix: Affine::scale(0.5, 0.5), opacity: 1.0, blend: Blend::Normal, fx: None },
+            PlanLayer { frame: yuv_frame(640, 360), matrix: Affine::scale(0.5, 0.5), opacity: 1.0, blend: Blend::Normal, fx: None, color: None },
             PlanLayer {
                 frame: rgba,
                 matrix: Affine::motion(Vec2::new(200.0, 100.0), Vec2::new(0.4, 0.4), 12.0, Vec2::new(160.0, 90.0)),
                 opacity: 0.7,
                 blend: Blend::Normal,
                 fx: None,
+                color: None,
             },
         ],
     };
@@ -287,8 +288,8 @@ fn prepared_upload_matches_inline_conversion() {
         width: w as usize,
         height: h as usize,
         layers: vec![
-            PlanLayer { frame: yuv16, matrix: Affine::IDENTITY, opacity: 1.0, blend: Blend::Normal, fx: None },
-            PlanLayer { frame: rgbaf, matrix: Affine::scale(0.5, 0.5), opacity: 0.8, blend: Blend::Normal, fx: None },
+            PlanLayer { frame: yuv16, matrix: Affine::IDENTITY, opacity: 1.0, blend: Blend::Normal, fx: None, color: None },
+            PlanLayer { frame: rgbaf, matrix: Affine::scale(0.5, 0.5), opacity: 0.8, blend: Blend::Normal, fx: None, color: None },
         ],
     };
     let image = FramePlan::Image(filmcraft_render::Image { w: w as usize, h: h as usize, px: f32_layer });
@@ -317,8 +318,11 @@ fn upload_cache_keeps_buffers_alive() {
     let mut c = GpuCompositor::new(&dev, &q);
     let px = Arc::new(vec![200u8; 16 * 8 * 4]);
     let frame = Arc::new(VideoFrame { width: 16, height: 8, data: PixelData::Rgba8(px.clone()), ..(*yuv_frame(16, 8)).clone() });
-    let plan =
-        FramePlan::Layers { width: 16, height: 8, layers: vec![PlanLayer { frame, matrix: Affine::IDENTITY, opacity: 1.0, blend: Blend::Normal, fx: None }] };
+    let plan = FramePlan::Layers {
+        width: 16,
+        height: 8,
+        layers: vec![PlanLayer { frame, matrix: Affine::IDENTITY, opacity: 1.0, blend: Blend::Normal, fx: None, color: None }],
+    };
     c.composite(&plan);
     drop(plan);
     assert!(Arc::strong_count(&px) > 1, "cached upload must own its pixel buffer");
@@ -467,8 +471,8 @@ fn gpu_draws_yuv_alpha_plane_like_the_cpu() {
             width: w,
             height: h,
             layers: vec![
-                PlanLayer { frame: background.clone(), matrix: Affine::IDENTITY, opacity: 1.0, blend: Blend::Normal, fx: None },
-                PlanLayer { frame: yuv_alpha_frame(320, 180, bits), matrix: Affine::IDENTITY, opacity: 0.9, blend: Blend::Normal, fx: None },
+                PlanLayer { frame: background.clone(), matrix: Affine::IDENTITY, opacity: 1.0, blend: Blend::Normal, fx: None, color: None },
+                PlanLayer { frame: yuv_alpha_frame(320, 180, bits), matrix: Affine::IDENTITY, opacity: 0.9, blend: Blend::Normal, fx: None, color: None },
             ],
         };
         let cpu = execute_cpu(&plan).over_black_rgba8();
@@ -484,7 +488,7 @@ fn gpu_draws_yuv_alpha_plane_like_the_cpu() {
         let bg = execute_cpu(&FramePlan::Layers {
             width: w,
             height: h,
-            layers: vec![PlanLayer { frame: background.clone(), matrix: Affine::IDENTITY, opacity: 1.0, blend: Blend::Normal, fx: None }],
+            layers: vec![PlanLayer { frame: background.clone(), matrix: Affine::IDENTITY, opacity: 1.0, blend: Blend::Normal, fx: None, color: None }],
         })
         .over_black_rgba8();
         let (l, r, b0) = (at(&gpu, 1), at(&gpu, w - 2), at(&bg, 1));
@@ -498,5 +502,80 @@ fn fast_half_float_conversion_matches_the_reference_for_every_value() {
     for h in 0..=u16::MAX {
         let (fast, slow) = (f16_to_f32_fast(h), f16_to_f32(h));
         assert!(fast.to_bits() == slow.to_bits() || (fast.is_nan() && slow.is_nan()), "{h:#06x}: {fast} vs {slow}");
+    }
+}
+
+/// A 10-bit BT.2020 Y'CbCr sweep: luma across, chroma varying down over `chroma` codes around
+/// neutral (the full range reaches far outside BT.709).
+fn bt2020_sweep(w: u32, h: u32, chroma: f32, color: filmcraft_color::ColorInfo) -> Arc<VideoFrame> {
+    let n = (w * h) as usize;
+    let at = |i: usize| ((i as u32 % w) as f32 / (w - 1) as f32, (i as u32 / w) as f32 / (h - 1) as f32);
+    let y: Vec<u16> = (0..n).map(|i| (64.0 + at(i).0 * 876.0) as u16).collect();
+    let cb: Vec<u16> = (0..n).map(|i| (512.0 + (at(i).1 - 0.5) * chroma) as u16).collect();
+    let cr: Vec<u16> = (0..n).map(|i| (512.0 - (at(i).1 * 0.7 + at(i).0 * 0.3 - 0.5) * chroma) as u16).collect();
+    Arc::new(VideoFrame {
+        width: w,
+        height: h,
+        data: PixelData::Yuv16 { planes: [Arc::new(y), Arc::new(cb), Arc::new(cr)], chroma: Chroma::C444, bits: 10, alpha: None },
+        color,
+        par: (1, 1),
+        pts: Default::default(),
+    })
+}
+
+/// Colour-managed layers (`PlanLayer::color`: log, HDR and wide-gamut video in a Rec. 709
+/// sequence) decode on the GPU as `colorman::decode_with` does on the CPU: the curve's table,
+/// HLG OOTF, gamut matrix, BT.2390 tone map, gamut compression / desaturation.
+#[test]
+fn color_managed_layer_matches_cpu() {
+    use filmcraft_color::{ColorInfo, ColorPipeline, ColorSpace, InputTransform, Primaries};
+    let Some((dev, q)) = device() else {
+        eprintln!("no GPU adapter; skipping");
+        return;
+    };
+    let mut c = GpuCompositor::new(&dev, &q);
+    let bt2020 = |transfer| ColorInfo { matrix: Matrix::Bt2020Ncl, transfer, primaries: Primaries::Bt2020, range: Range::Limited };
+    let cases = [
+        (ColorSpace::Rec2100Hlg, bt2020(Transfer::Hlg)),
+        (ColorSpace::Rec2100Pq, bt2020(Transfer::Pq)),
+        (ColorSpace::Rec2020, bt2020(Transfer::Bt709)),
+        (ColorSpace::P3D65, ColorInfo { primaries: Primaries::P3D65, ..ColorInfo::REC709 }),
+        // log media (Interpret Footage): camera-gamut compression, super-whites in the table
+        (ColorSpace::SLog3SGamut3Cine, bt2020(Transfer::Bt709)),
+        (ColorSpace::AppleLog, bt2020(Transfer::Bt709)),
+    ];
+    for (cs, info) in cases {
+        let t = Arc::new(InputTransform::new(cs, info.range, &ColorPipeline::REC709, None));
+        // every pixel as drawn, over the whole code range (far out of gamut, above the HDR peak);
+        // then minified like a 4K clip in an HD sequence, on gentler colours (the GPU supersamples
+        // where the CPU takes one bilinear tap, which differs across steep non-linear gradients)
+        for (w, h, chroma, scale) in [(192u32, 48u32, 896.0, 1.0), (192, 96, 300.0, 0.85), (192, 96, 300.0, 0.585)] {
+            let (ow, oh) = ((w as f64 * scale).floor() as usize, (h as f64 * scale).floor() as usize);
+            let layer =
+                PlanLayer { color: Some(t.clone()), ..PlanLayer::new(bt2020_sweep(w, h, chroma, info), Affine::scale(scale, scale), 1.0, Blend::Normal) };
+            let plan = FramePlan::Layers { width: ow, height: oh, layers: vec![layer] };
+            let cpu = execute_cpu(&plan);
+            c.composite(&plan);
+            let (_, _, acc) = c.read_accumulator().expect("readback");
+            let (_, _, gpu8) = c.read_output().expect("readback");
+            let cpu8 = cpu.over_black_rgba8();
+            // (the partly covered last row and column are rasterised differently)
+            let interior = |i: usize| scale == 1.0 || (i / 4 % ow < ow - 1 && i / 4 / ow < oh - 1);
+            let pairs = || (0..cpu.px.len()).filter(|i| interior(*i));
+            let lin_err = pairs().map(|i| (cpu.px[i] - acc[i]).abs() / cpu.px[i].abs().max(0.05)).fold(0f32, f32::max);
+            let abs_err = pairs().map(|i| (cpu.px[i] - acc[i]).abs()).fold(0f32, f32::max);
+            let code_err = pairs().map(|i| cpu8[i].abs_diff(gpu8[i])).max().unwrap_or(0);
+            eprintln!("{cs:?} at {scale}: max relative error {lin_err:.5}, absolute {abs_err:.5}, max code error {code_err}");
+            if scale < 0.8 {
+                // 2×2 supersampling against one bilinear tap: small in light (largest on the PQ
+                // ramp, 0 to 10 000 cd/m² across the frame), though near black, where
+                // desaturation clips a channel to 0, sRGB codes magnify it
+                assert!(abs_err < 0.02, "{cs:?} at {scale}: linear error {abs_err}");
+            } else {
+                // one tap each, f16 accumulator (≈ 1e-3 relative) and f32 shader maths
+                assert!(lin_err < 4e-3, "{cs:?} at {scale}: linear error {lin_err}");
+                assert!(code_err <= 1, "{cs:?} at {scale}: code error {code_err}");
+            }
+        }
     }
 }

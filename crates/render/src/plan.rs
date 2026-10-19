@@ -39,6 +39,9 @@ pub struct PlanLayer {
     pub blend: Blend,
     /// Standard effects to run on the frame before it is placed (None: draw the frame directly).
     pub fx: Option<Arc<LayerFx>>,
+    /// Colour management of a Y'CbCr frame without effects: decoded through this transform
+    /// ([`crate::colorman::decode_with`]) instead of the frame's own transfer curve.
+    pub color: Option<Arc<filmcraft_color::InputTransform>>,
 }
 
 /// The GPU effect stage of a layer: the frame is decoded into a working image of `size` (the
@@ -54,7 +57,7 @@ pub struct LayerFx {
 impl PlanLayer {
     /// A layer drawing `frame` directly.
     pub fn new(frame: Arc<VideoFrame>, matrix: Affine, opacity: f32, blend: Blend) -> Self {
-        Self { frame, matrix, opacity, blend, fx: None }
+        Self { frame, matrix, opacity, blend, fx: None, color: None }
     }
 
     /// Size of the picture the matrix places: the working image with effects, else the frame.
@@ -214,12 +217,13 @@ pub fn plan_frame(project: &Project, seq_id: ItemId, t: Tick, opts: RenderOption
 }
 
 /// Whether drawing the frame at `t` on the GPU pays for the round trip (texture upload, read-back
-/// of the result): a clip showing has standard effects the GPU draws, or opacity masks, or a
+/// of the result): a clip showing has standard effects the GPU draws, or opacity masks, or needs
+/// colour management the GPU does (log / HDR / wide-gamut video without effects), or a
 /// transition is running. Exports draw every other frame with the CPU reference renderer. Plain
-/// layers (motion, opacity, blend modes) composite as fast on the CPU, and clips that need colour
-/// management or CPU-only effects are drawn on the CPU either way, so on the GPU such a frame only
-/// costs the conversions and the copies (`docs/performance.md`, "GPU export: plain frames on the
-/// CPU"). Decided from the project alone, before anything is decoded.
+/// layers (motion, opacity, blend modes) composite as fast on the CPU, and clips with CPU-only
+/// effects are drawn on the CPU either way, so on the GPU such a frame only costs the
+/// conversions and the copies (`docs/performance.md`, "GPU export: plain frames on the CPU").
+/// Decided from the project alone, before anything is decoded.
 pub fn gpu_pays_off(project: &Project, seq_id: ItemId, t: Tick, opts: RenderOptions) -> bool {
     let Some(seq) = project.sequence(seq_id) else { return false };
     // these frames are drawn on the CPU whole (`plan_frame`)
@@ -235,7 +239,7 @@ fn gpu_work_at(project: &Project, seq: &Sequence, t: Tick, opts: RenderOptions, 
             return true;
         }
         let Some(item) = tr.item_at(t).filter(|i| i.enabled) else { return false };
-        if item.has_opacity_masks() || gpu_chain(project, item, opts).is_some_and(|c| !c.is_empty()) {
+        if item.has_opacity_masks() || gpu_chain(project, item, opts).is_some_and(|c| !c.is_empty()) || gpu_color_managed(project, seq, item, t, opts) {
             return true;
         }
         match project.item(item.item).map(|p| &p.kind) {
@@ -243,6 +247,18 @@ fn gpu_work_at(project: &Project, seq: &Sequence, t: Tick, opts: RenderOptions, 
             _ => false,
         }
     })
+}
+
+/// Whether `item` (showing at `t`) is video that needs colour management and that `push_item`
+/// hands to the compositor to decode (`PlanLayer::color`): no effects, no opacity masks, no
+/// blended in-between frames. Judged from the stream's colour metadata.
+fn gpu_color_managed(project: &Project, seq: &Sequence, item: &TrackItem, t: Tick, opts: RenderOptions) -> bool {
+    if item.has_opacity_masks() || !gpu_chain(project, item, opts).is_some_and(|c| c.is_empty()) {
+        return false;
+    }
+    let Some(v) = project.resolve_media(item.item).and_then(|(_, media, _)| media.info.video.as_ref()) else { return false };
+    let cs = crate::colorman::override_of(project, item.item).unwrap_or_else(|| filmcraft_color::ColorSpace::from_info(&v.color));
+    crate::colorman::needs_management_for(&seq.settings.color, cs, &v.color) && crate::interpolation_blend(item, t, v.frame_rate).is_none()
 }
 
 /// Whether the frame of `seq` at `t` can be planned as layers: no adjustment layer and no
@@ -430,11 +446,16 @@ fn push_item(
         let time = crate::video_source_time(item, t, src.info().frame_rate());
         let Ok(frame) = src.video_frame(FrameRequest { time, scale: want }) else { return };
         let cs = crate::colorman::source_space(project, item.item, &frame);
-        // log / HDR / wide-gamut media is converted on the CPU (below), and so are blended
-        // in-between frames (Frame Blending / Optical Flow on speed-changed clips)
-        let plain =
-            !crate::colorman::needs_management(&seq.settings.color, cs, &frame) && crate::interpolation_blend(item, t, src.info().frame_rate()).is_none();
+        // Blended in-between frames (Frame Blending / Optical Flow on speed-changed clips) are
+        // drawn on the CPU (below), and so is log / HDR / wide-gamut media, unless it is a
+        // Y'CbCr frame without effects: the compositor then decodes it through its input
+        // transform itself (`color`).
+        let blended = crate::interpolation_blend(item, t, src.info().frame_rate()).is_some();
+        let plain = !crate::colorman::needs_management(&seq.settings.color, cs, &frame) && !blended;
         let opacity_masks = item.has_opacity_masks();
+        let color = (!plain && !blended && chain.is_empty() && !opacity_masks)
+            .then(|| crate::colorman::gpu_transform(project, item.item, &frame, &seq.settings.color))
+            .flatten();
         if plain && (!chain.is_empty() || opacity_masks) {
             // GPU effect stage: the working image the CPU would decode (`base_layer`), the
             // effects evaluated for it, placed as `item_layer` places it
@@ -477,10 +498,10 @@ fn push_item(
                 .collect();
             if let Some(ops) = ops {
                 let fx = LayerFx { size: (lw as u32, lh as u32), decimation: n as u32, ops };
-                out.push(PlanLayer { frame, matrix: m, opacity: op * extra_opacity, blend: bl, fx: Some(Arc::new(fx)) });
+                out.push(PlanLayer { frame, matrix: m, opacity: op * extra_opacity, blend: bl, fx: Some(Arc::new(fx)), color: None });
                 return;
             }
-        } else if plain {
+        } else if plain || color.is_some() {
             // Draft playback at reduced resolution: hand over planes box-filtered to the size
             // drawn instead of the full picture (a quarter at 1/2, a sixteenth at 1/4 of the
             // upload and sampling). The mean is taken over Y'CbCr codes, not linear light as
@@ -492,7 +513,7 @@ fn push_item(
             };
             let px_scale = frame.width as f64 / size.0.max(1) as f64;
             let m = Affine::scale(opts.scale as f64, opts.scale as f64).then_apply(&motion).then_apply(&Affine::scale(1.0 / px_scale, 1.0 / px_scale));
-            out.push(PlanLayer::new(frame, m, op * extra_opacity, bl));
+            out.push(PlanLayer { color, ..PlanLayer::new(frame, m, op * extra_opacity, bl) });
             return;
         }
     }
@@ -573,9 +594,10 @@ pub fn execute_cpu(plan: &FramePlan) -> crate::Image {
 fn execute_layers(canvas: &mut crate::Image, layers: &[PlanLayer]) {
     let (width, height) = (canvas.w, canvas.h);
     for l in layers {
-        let src = match &l.fx {
-            Some(fx) => effect_image(&l.frame, fx),
-            None => crate::Image { w: l.frame.width as usize, h: l.frame.height as usize, px: l.frame.to_linear_f32() },
+        let src = match (&l.fx, &l.color) {
+            (Some(fx), _) => effect_image(&l.frame, fx),
+            (None, Some(t)) => crate::colorman::decode_with(&l.frame, 1, t),
+            (None, None) => crate::Image { w: l.frame.width as usize, h: l.frame.height as usize, px: l.frame.to_linear_f32() },
         };
         let placed = if l.matrix == Affine::scale(width as f64, height as f64) && src.w == 1 && src.h == 1 {
             crate::Image::filled(width, height, src.get(0, 0))

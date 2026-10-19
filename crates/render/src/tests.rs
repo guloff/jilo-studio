@@ -478,6 +478,40 @@ fn draft_reduced_resolution_plans_carry_decimated_yuv() {
     }
 }
 
+/// Log / HDR / wide-gamut video without effects goes to the compositor with its input transform
+/// (which decodes it), and exports draw such frames on the GPU; the plan's CPU execution matches
+/// the reference renderer. With an effect, the CPU decodes it.
+#[test]
+fn color_managed_video_plans_with_its_input_transform() {
+    let (mut p, red, _ocean, seq, mut map) = setup();
+    let matte = GeneratorSource::new(Generator::ColorMatte { color: [0.0, 0.0, 0.0, 1.0] }, 320, 180, FrameRate::FPS_24, Tick(10 * TICKS_PER_SECOND));
+    map.0.insert(red, Arc::new(YuvSource(matte)) as SharedSource);
+    let clip = place(&mut p, seq, 0, red, 0, 48);
+    // drawn smaller than its size, off centre (a 4K clip punched in an HD sequence)
+    let (_, it) = p.sequence_mut(seq).unwrap().find_item_mut(clip).unwrap();
+    it.effect_mut("motion").unwrap().params.get_mut("scale").unwrap().value = filmcraft_project::ParamValue::Float(58.5);
+    let t = FrameRate::FPS_24.tick_of(3);
+    let opts = RenderOptions::default();
+    assert!(!plan::gpu_pays_off(&p, seq, t, opts), "Rec. 709 media");
+    // Interpret Footage: HLG
+    let Some(ItemKind::Media(m)) = p.item_mut(red).map(|i| &mut i.kind) else { panic!("media") };
+    m.interpret.color_space = Some(filmcraft_color::ColorSpace::Rec2100Hlg);
+    assert!(plan::gpu_pays_off(&p, seq, t, opts), "colour-managed media");
+    let plan = plan::plan_frame(&p, seq, t, opts, &map);
+    let plan::FramePlan::Layers { layers, .. } = &plan else { panic!("GPU-drawable") };
+    assert!(layers[0].color.is_some() && matches!(layers[0].frame.data, filmcraft_frame::PixelData::Yuv8 { .. }));
+    let got = plan::execute_cpu(&plan);
+    let reference = render_sequence(&p, seq, t, opts, &map);
+    let max = got.px.iter().zip(&reference.px).map(|(a, b)| (a - b).abs()).fold(0f32, f32::max);
+    assert!(max < 1e-5, "plan and reference differ by {max}");
+    // an effect the GPU draws takes plain frames: this clip's layer is decoded on the CPU
+    let (_, it) = p.sequence_mut(seq).unwrap().find_item_mut(clip).unwrap();
+    it.effects.push(filmcraft_project::effect::find_effect("gaussian_blur").unwrap().instance());
+    let plan = plan::plan_frame(&p, seq, t, opts, &map);
+    let plan::FramePlan::Layers { layers, .. } = &plan else { panic!("GPU-drawable") };
+    assert!(layers[0].color.is_none() && matches!(layers[0].frame.data, filmcraft_frame::PixelData::RgbaF32(_)));
+}
+
 /// A damaged project can hold a multi-camera clip whose angle is the clip itself. Planning and
 /// rendering its frame must end: the plan's multi-camera shortcut used to recurse until the stack
 /// overflowed.

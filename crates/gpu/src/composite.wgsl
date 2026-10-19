@@ -15,6 +15,15 @@ struct U {
     p1: vec4<f32>,   // y_off y_scale c_off c_scale (code units)
     p2: vec4<f32>,   // kr kb code_scale footprint
     p3: vec4<f32>,   // blend mode, alpha-plane scale (0: none), effect-source integer decimation, unused
+    // Input transform of a colour-managed Y'CbCr layer (`input_transform`; p4.x 0: none).
+    p4: vec4<f32>,   // managed, tone map, gamut compression, desaturation (1 / 0)
+    p5: vec4<f32>,   // HLG OOTF luma weights, scale to working units (0: no OOTF)
+    p6: vec4<f32>,   // gamut matrix row 0, matrix on (1 / 0)
+    p7: vec4<f32>,   // gamut matrix row 1
+    p8: vec4<f32>,   // gamut matrix row 2
+    p9: vec4<f32>,   // decode table lo, hi, entries; tone map source peak (cd/m²)
+    p10: vec4<f32>,  // tone table entries, target peak in working units, tone table lo, hi
+    p11: vec4<f32>,  // desaturation luma weights
 };
 
 @group(0) @binding(0) var<uniform> u: U;
@@ -25,6 +34,9 @@ struct U {
 @group(0) @binding(4) var backdrop: texture_2d<f32>;
 // The alpha plane of a Y'CbCr source (ProRes 4444, ...); a dummy texture when `u.p3.y` is 0.
 @group(0) @binding(5) var tex3: texture_2d<f32>;
+// The input transform's tables (R32Float; row 0 the curve, row 1 the tone map); a dummy texture
+// when `u.p4.x` is 0.
+@group(0) @binding(6) var tables: texture_2d<f32>;
 
 struct VOut {
     @builtin(position) pos: vec4<f32>,
@@ -77,6 +89,84 @@ fn hlg_inv(e: vec3<f32>) -> vec3<f32> {
     return select(hi, lo, e <= vec3(0.5));
 }
 
+// `filmcraft_color::DecodeTable::lookup` of row `row` (`n` entries over lo..hi).
+fn table_at(row: i32, lo: f32, hi: f32, n: f32, v: f32) -> f32 {
+    let last = n - 1.0;
+    let p = clamp((v - lo) / (hi - lo), 0.0, 1.0) * last;
+    let i = min(floor(p), last - 1.0);
+    let f = p - i;
+    let a = textureLoad(tables, vec2<i32>(i32(i), row), 0).r;
+    let b = textureLoad(tables, vec2<i32>(i32(i) + 1, row), 0).r;
+    return a + (b - a) * f;
+}
+
+fn pq_inverse_eotf(y: f32) -> f32 {
+    let m1 = 0.15930176; let m2 = 78.84375; let c1 = 0.8359375; let c2 = 18.851563; let c3 = 18.6875;
+    let p = pow(max(y, 0.0), m1);
+    return pow((c1 + c2 * p) / (1.0 + c3 * p), m2);
+}
+
+// `filmcraft_color::transform::gamut_compress`.
+fn gamut_compress(c: vec3<f32>) -> vec3<f32> {
+    let th = 0.8; let lim = 1.25; let pw = 1.2;
+    let ach = max(max(c.r, c.g), c.b);
+    if ach <= 1e-9 {
+        return max(c, vec3(0.0));
+    }
+    let s = (lim - th) / pow(pow((lim - th) / (1.0 - th), pw) - 1.0, 1.0 / pw);
+    let d = (ach - c) / ach;
+    let x = max(d - th, vec3(0.0)) / s;
+    let dc = th + s * x / pow(1.0 + pow(x, vec3(pw)), vec3(1.0 / pw));
+    return select(ach - dc * ach, c, d < vec3(th));
+}
+
+// `filmcraft_color::transform::desaturate_into_gamut`.
+fn desaturate_into_gamut(c: vec3<f32>, l: vec3<f32>) -> vec3<f32> {
+    let mn = min(min(c.r, c.g), c.b);
+    if mn >= 0.0 {
+        return c;
+    }
+    let y = dot(l, c);
+    if y <= 0.0 {
+        return vec3(0.0);
+    }
+    let t = y / (y - mn);
+    return max(y + (c - y) * t, vec3(0.0));
+}
+
+// Signal → working linear through the layer's input transform: the decode table per channel,
+// then `filmcraft_color::InputTransform::apply` (HLG OOTF with γ = 1.2, gamut matrix, BT.2390 tone
+// map on max(R,G,B) as a ratio, gamut compression or desaturation).
+fn input_transform(e: vec3<f32>) -> vec3<f32> {
+    var c = vec3(table_at(0, u.p9.x, u.p9.y, u.p9.z, e.r), table_at(0, u.p9.x, u.p9.y, u.p9.z, e.g), table_at(0, u.p9.x, u.p9.y, u.p9.z, e.b));
+    if u.p5.w > 0.0 {
+        let ys = max(dot(u.p5.xyz, c), 0.0);
+        c = c * select(0.0, u.p5.w * pow(ys, 0.2), ys > 0.0);
+    }
+    if u.p6.w > 0.0 {
+        c = vec3(dot(u.p6.xyz, c), dot(u.p7.xyz, c), dot(u.p8.xyz, c));
+    }
+    if u.p4.y > 0.0 {
+        let m = max(max(c.r, c.g), c.b);
+        if m > 0.0 {
+            let nits = m * 203.0;
+            // above the source peak: clip to the target peak
+            var k = u.p10.y / m;
+            if nits < u.p9.w {
+                k = table_at(1, u.p10.z, u.p10.w, u.p10.x, pq_inverse_eotf(nits / 10000.0));
+            }
+            c = c * k;
+        }
+    }
+    if u.p4.z > 0.0 {
+        c = gamut_compress(c);
+    }
+    if u.p4.w > 0.0 {
+        c = desaturate_into_gamut(c, u.p11.xyz);
+    }
+    return c;
+}
+
 fn to_linear(v: vec3<f32>) -> vec3<f32> {
     let t = u32(u.p0.w);
     if t == 1u { return v; }
@@ -85,9 +175,51 @@ fn to_linear(v: vec3<f32>) -> vec3<f32> {
     return srgb_to_linear(clamp(v, vec3(0.0), vec3(1.0)));
 }
 
+// Texel `i` (clamped) of a colour-managed Y'CbCr source, decoded through its input transform:
+// linear premultiplied, with the chroma sample the texel lies in (as the CPU's
+// `VideoFrame::convert_region` decodes it).
+fn managed_texel(i: vec2<i32>) -> vec4<f32> {
+    let d = vec2<i32>(textureDimensions(tex0));
+    let q = clamp(i, vec2(0), d - 1);
+    let cq = q / max(d / vec2<i32>(textureDimensions(tex1)), vec2(1));
+    let cs = u.p2.z;
+    let y = (textureLoad(tex0, q, 0).r * cs - u.p1.x) / u.p1.y;
+    let b = (textureLoad(tex1, cq, 0).r * cs - u.p1.z) / u.p1.w;
+    let r = (textureLoad(tex2, cq, 0).r * cs - u.p1.z) / u.p1.w;
+    let kr = u.p2.x; let kb = u.p2.y; let kg = 1.0 - kr - kb;
+    let R = y + 2.0 * (1.0 - kr) * r;
+    let B = y + 2.0 * (1.0 - kb) * b;
+    let G = (y - kr * R - kb * B) / kg;
+    var a = 1.0;
+    if u.p3.y > 0.0 {
+        a = clamp(textureLoad(tex3, q, 0).r * u.p3.y, 0.0, 1.0);
+    }
+    return vec4(input_transform(vec3(R, G, B)) * a, a);
+}
+
+// A colour-managed source at p: the four texels around it decoded first, then filtered in linear
+// light (the CPU decodes the frame, then resamples it). Converting before filtering matters here:
+// the tone map and gamut mapping are not linear in the signal.
+fn sample_managed(p: vec2<f32>) -> vec4<f32> {
+    var q = p - 0.5;
+    let rq = round(q);
+    if abs(q.x - rq.x) < 1e-4 { q.x = rq.x; }
+    if abs(q.y - rq.y) < 1e-4 { q.y = rq.y; }
+    let i = vec2<i32>(floor(q));
+    let f = q - floor(q);
+    let a = managed_texel(i);
+    let b = managed_texel(i + vec2(1, 0));
+    let cc = managed_texel(i + vec2(0, 1));
+    let dd = managed_texel(i + vec2(1, 1));
+    return mix(mix(a, b, f.x), mix(cc, dd, f.x), f.y);
+}
+
 // One linear premultiplied sample at source position p.
 fn sample(p: vec2<f32>) -> vec4<f32> {
     let kind = u32(u.p0.y);
+    if kind == 2u && u.p4.x > 0.0 {
+        return sample_managed(p);
+    }
     if kind == 0u {
         // rgba8 sRGB texture: loads are already linear, straight alpha
         let c = load4(tex0, p);
