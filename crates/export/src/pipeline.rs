@@ -172,6 +172,7 @@ impl Pipeline {
             None
         };
         let renderer = if settings.gpu_rendering == GpuRendering::Off {
+            crate::note_renderers(0);
             None
         } else {
             // Four renderers: as fast as one per worker (measured on 16 threads, where more only
@@ -185,6 +186,7 @@ impl Pipeline {
                     break;
                 }
             }
+            crate::note_renderers(list.len());
             RendererPool::new(list)
         };
         Ok(Pipeline {
@@ -270,7 +272,10 @@ impl Pipeline {
                 let asked = web_time::Instant::now();
                 pool.with(|r| {
                     crate::note_lock_wait(asked.elapsed());
-                    r.render(&self.project, self.seq, t, self.opts, sources)
+                    let held = web_time::Instant::now();
+                    let img = r.render(&self.project, self.seq, t, self.opts, sources);
+                    crate::note_renderer_busy(held.elapsed());
+                    img
                 })
                 .flatten()
             }

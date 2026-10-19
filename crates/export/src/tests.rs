@@ -350,8 +350,11 @@ fn gpu_hook_scenarios() {
     // 2. Producing renderer: counters up and its picture reaches the export.
     crate::reset_frame_renderers_for_tests();
     crate::register_frame_renderer(|| FAKES.with(std::cell::Cell::get).then(|| Box::new(FakeRenderer) as Box<dyn FrameRenderer>));
+    let busy = gpu_render_stats().busy;
     mk(&tmp("fake-gpu.png"), Some(true));
     assert!(gpu_render_stats().frames >= 2, "gpu frames counted: {:?}", gpu_render_stats());
+    // the time its frames held a renderer is counted too (`perf.stats` `export.gpu.busyMs`)
+    assert!(gpu_render_stats().busy > busy, "renderer time counted: {:?}", gpu_render_stats());
     assert_eq!(gpu_render_stats().fallbacks, 0);
     mk(&tmp("fake-off.png"), Some(false));
     assert_eq!(gpu_render_stats().fallbacks, 0, "Off must not count as fallback");

@@ -53,11 +53,26 @@ pub fn decode_json() -> Value {
 /// `convert` part, audio, mux, finish, wait), summed over the exports of this process (diff two readings).
 /// Render and encode overlap (the next batch renders while this one is encoded), so their sum can exceed
 /// the export's wall time; `waitMs` is the encoding side's idle wait for the render.
+/// `gpu`: Export ▸ GPU rendering — frames the GPU composited and those it handed to the CPU, the
+/// time export threads waited for a free renderer of the pool (`lockWaitMs`) and held one
+/// (`busyMs`, planning and drawing the frame), both summed over the threads, and the size of the
+/// last export's pool (`renderers`, 0 when it rendered on the CPU).
 pub fn export_json() -> Value {
     let hw = filmcraft_export::hw_encode_stats();
+    let gpu = filmcraft_export::gpu_render_stats();
     let stages: serde_json::Map<String, Value> =
         filmcraft_export::stage_times().into_iter().map(|(s, ns)| (format!("{}Ms", s.name()), json!(ns as f64 / 1e6))).collect();
-    json!({"hardware": {"frames": hw.frames, "sessions": hw.sessions, "declined": hw.declined}, "stages": stages})
+    json!({
+        "hardware": {"frames": hw.frames, "sessions": hw.sessions, "declined": hw.declined},
+        "gpu": {
+            "frames": gpu.frames,
+            "fallbacks": gpu.fallbacks,
+            "lockWaitMs": filmcraft_export::export_lock_wait().as_secs_f64() * 1e3,
+            "busyMs": gpu.busy.as_secs_f64() * 1e3,
+            "renderers": gpu.renderers,
+        },
+        "stages": stages,
+    })
 }
 
 /// The engine's `perf.stats`.
@@ -110,6 +125,9 @@ mod tests {
         assert!(v["decode"]["hardware"]["backend"].is_null() || v["decode"]["hardware"]["backend"].is_string());
         for k in ["frames", "sessions", "declined"] {
             assert!(v["export"]["hardware"][k].is_number(), "export.hardware.{k} in {v}");
+        }
+        for k in ["frames", "fallbacks", "lockWaitMs", "busyMs", "renderers"] {
+            assert!(v["export"]["gpu"][k].is_number(), "export.gpu.{k} in {v}");
         }
         for k in ["setupMs", "loudnessMs", "renderMs", "encodeMs", "convertMs", "audioMs", "muxMs", "finishMs", "waitMs"] {
             assert!(v["export"]["stages"][k].is_number(), "export.stages.{k} in {v}");

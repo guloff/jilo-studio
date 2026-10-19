@@ -881,6 +881,8 @@ pub(crate) fn build_frame_renderer() -> Option<Box<dyn FrameRenderer>> {
 static GPU_FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static GPU_FALLBACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static LOCK_WAIT_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static RENDERER_BUSY_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static RENDERERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// A frame was composited by the registered GPU renderer.
 pub fn note_gpu_frame() {
@@ -907,15 +909,37 @@ pub fn reset_export_lock_wait() {
     LOCK_WAIT_NS.store(0, Ordering::Relaxed);
 }
 
-/// GPU-vs-CPU frame counters of the export renderer (per-process, like the hardware ones).
+/// Time a frame held a GPU renderer of the pool (planning and drawing it).
+pub(crate) fn note_renderer_busy(d: std::time::Duration) {
+    RENDERER_BUSY_NS.fetch_add(u64::try_from(d.as_nanos()).unwrap_or(u64::MAX), Ordering::Relaxed);
+}
+
+/// GPU renderers in the pool of the export that started last (0: it renders on the CPU).
+pub(crate) fn note_renderers(n: usize) {
+    RENDERERS.store(u64::try_from(n).unwrap_or(u64::MAX), Ordering::Relaxed);
+}
+
+/// GPU-vs-CPU frame counters of the export renderer (per-process, like the hardware ones;
+/// `perf.stats` `export.gpu`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GpuRenderStats {
+    /// Frames composited by the GPU renderer.
     pub frames: u64,
+    /// Frames the GPU renderer declined (the CPU reference renderer drew them).
     pub fallbacks: u64,
+    /// Total time frames held a renderer (summed over the export threads).
+    pub busy: std::time::Duration,
+    /// Renderers in the pool of the export that started last; 0 when it renders on the CPU.
+    pub renderers: u64,
 }
 
 pub fn gpu_render_stats() -> GpuRenderStats {
-    GpuRenderStats { frames: GPU_FRAMES.load(Ordering::Relaxed), fallbacks: GPU_FALLBACKS.load(Ordering::Relaxed) }
+    GpuRenderStats {
+        frames: GPU_FRAMES.load(Ordering::Relaxed),
+        fallbacks: GPU_FALLBACKS.load(Ordering::Relaxed),
+        busy: std::time::Duration::from_nanos(RENDERER_BUSY_NS.load(Ordering::Relaxed)),
+        renderers: RENDERERS.load(Ordering::Relaxed),
+    }
 }
 pub fn register_audio_encoder(f: AudioEncoderFactory) {
     audio_factories().write().unwrap_or_else(|e| e.into_inner()).insert(0, f);
