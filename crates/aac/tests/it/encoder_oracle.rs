@@ -1,6 +1,6 @@
 //! Encoder quality/bitrate tests using ffmpeg as an external decoding oracle (skipped if absent).
 
-mod common;
+use crate::common;
 
 use common::*;
 use filmcraft_aac::{BitrateMode, EncoderConfig, WindowShape};

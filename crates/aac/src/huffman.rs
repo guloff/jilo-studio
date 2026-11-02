@@ -53,60 +53,92 @@ pub fn book(cb: u8) -> &'static Book {
     &BOOKS[(cb as usize).clamp(1, 11) - 1]
 }
 
-const LEAF: u32 = 1 << 31;
+/// Bits resolved by the first table level.
+const L1: u32 = 9;
+/// Flag of a first-level entry that points to a sub-table.
+const SUB: u32 = 1 << 31;
 
-/// Binary decoding tree for one codebook.
-struct Tree {
-    nodes: Vec<[u32; 2]>,
+/// Two-level decoding table for one prefix code. A leaf entry is `len << 24 | symbol`; a first-level
+/// entry with `SUB` set is `SUB | offset << 5 | width` and selects a sub-table of `1 << width`
+/// leaves indexed by the next `width` bits. An entry of 0 is a bit pattern that no codeword starts
+/// with (the codebooks are complete, so this does not occur).
+struct Lut {
+    t: Vec<u32>,
 }
 
-impl Tree {
-    fn build(codes: &[(u32, u8)]) -> Tree {
-        let mut nodes: Vec<[u32; 2]> = vec![[0, 0]];
-        for (sym, &(code, len)) in codes.iter().enumerate() {
-            let mut node = 0usize;
-            for i in (0..len).rev() {
-                let bit = ((code >> i) & 1) as usize;
-                if i == 0 {
-                    nodes[node][bit] = LEAF | sym as u32;
-                } else {
-                    if nodes[node][bit] == 0 {
-                        nodes.push([0, 0]);
-                        nodes[node][bit] = (nodes.len() - 1) as u32;
-                    }
-                    node = nodes[node][bit] as usize;
-                }
+impl Lut {
+    fn build(codes: &[(u32, u8)]) -> Lut {
+        let mut t = vec![0u32; 1 << L1];
+        // sub-table width per first-level prefix
+        let mut width = vec![0u32; 1 << L1];
+        for &(code, len) in codes {
+            let len = len as u32;
+            if len > L1 {
+                let p = (code >> (len - L1)) as usize;
+                width[p] = width[p].max(len - L1);
             }
         }
-        Tree { nodes }
+        for (p, &w) in width.iter().enumerate() {
+            if w > 0 {
+                t[p] = SUB | (t.len() as u32) << 5 | w;
+                t.resize(t.len() + (1 << w), 0);
+            }
+        }
+        for (sym, &(code, len)) in codes.iter().enumerate() {
+            let len = len as u32;
+            let leaf = len << 24 | sym as u32;
+            if len <= L1 {
+                let first = (code << (L1 - len)) as usize;
+                t[first..first + (1 << (L1 - len))].fill(leaf);
+            } else {
+                let e = t[(code >> (len - L1)) as usize];
+                let (off, w) = (((e & !SUB) >> 5) as usize, e & 31);
+                let rest = code & ((1 << (len - L1)) - 1);
+                let first = off + (rest << (w - (len - L1))) as usize;
+                t[first..first + (1 << (w - (len - L1)))].fill(leaf);
+            }
+        }
+        Lut { t }
     }
 
+    /// The symbol of the codeword at the reader position; `Eof` if the codeword is cut off.
     #[inline]
     fn decode(&self, br: &mut BitReader) -> Result<u32> {
-        let mut node = 0usize;
-        loop {
-            let bit = br.read_bits(1)? as usize;
-            let next = self.nodes[node][bit];
-            if next & LEAF != 0 {
-                return Ok(next & !LEAF);
-            }
-            if next == 0 {
-                return Err(Error::Bitstream("invalid Huffman codeword"));
-            }
-            node = next as usize;
+        let bits = peek32(br);
+        let mut e = self.t[(bits >> (32 - L1)) as usize];
+        if e & SUB != 0 {
+            let w = e & 31;
+            e = self.t[((e & !SUB) >> 5) as usize + ((bits << L1) >> (32 - w)) as usize];
         }
+        let len = e >> 24;
+        if len == 0 {
+            return Err(Error::Bitstream("invalid Huffman codeword"));
+        }
+        br.skip(len as usize).map_err(|_| Error::Eof)?;
+        Ok(e & 0xFF_FFFF)
     }
 }
 
-fn trees() -> &'static [Tree; 12] {
-    static TREES: OnceLock<[Tree; 12]> = OnceLock::new();
-    TREES.get_or_init(|| std::array::from_fn(|i| if i == 0 { Tree::build(&SCALEFACTOR) } else { Tree::build(BOOKS[i - 1].codes) }))
+/// The next 32 bits (zero padded past the end), from one 8-byte load when possible.
+#[inline]
+fn peek32(br: &BitReader) -> u32 {
+    let pos = br.position();
+    let byte = pos >> 3;
+    match br.data().get(byte..byte.saturating_add(8)).and_then(|b| <[u8; 8]>::try_from(b).ok()) {
+        Some(b) => ((u64::from_be_bytes(b) << (pos & 7)) >> 32) as u32,
+        None => br.peek(32),
+    }
+}
+
+fn luts() -> &'static [Lut; 12] {
+    static LUTS: OnceLock<[Lut; 12]> = OnceLock::new();
+    LUTS.get_or_init(|| std::array::from_fn(|i| if i == 0 { Lut::build(&SCALEFACTOR) } else { Lut::build(BOOKS[i - 1].codes) }))
 }
 
 /// Decode one scalefactor difference (`-60..=60`).
 #[inline]
 pub fn decode_sf(br: &mut BitReader) -> Result<i32> {
-    Ok(trees()[0].decode(br)? as i32 - 60)
+    Ok(luts()[0].decode(br)? as i32 - 60)
 }
 
 /// Write one scalefactor difference (`-60..=60`).
@@ -125,7 +157,7 @@ pub fn sf_bits(diff: i32) -> u32 {
 /// Decode one codeword of codebook `cb` (1..=11) into `out[..dim]`, including sign bits and escapes.
 pub fn decode_spectral(br: &mut BitReader, cb: u8, out: &mut [i32]) -> Result<()> {
     let b = book(cb);
-    let mut idx = trees()[cb as usize].decode(br)?;
+    let mut idx = luts()[cb as usize].decode(br)?;
     for i in (0..b.dim).rev() {
         out[i] = (idx % b.modulo) as i32;
         idx /= b.modulo;
@@ -256,6 +288,53 @@ mod tests {
         for b in &BOOKS {
             assert_eq!(b.codes.len() as u32, b.modulo.pow(b.dim as u32));
             check_complete(b.codes);
+        }
+    }
+
+    /// Every codeword, followed by arbitrary bits, decodes to its own symbol and length.
+    #[test]
+    fn lut_decodes_every_codeword() {
+        let mut seed = 7u32;
+        for (i, lut) in luts().iter().enumerate() {
+            let codes: &[(u32, u8)] = if i == 0 { &SCALEFACTOR } else { BOOKS[i - 1].codes };
+            for (sym, &(code, len)) in codes.iter().enumerate() {
+                for _ in 0..3 {
+                    seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                    let mut bw = BitWriter::new();
+                    bw.write_bits(code, len as u32);
+                    bw.write_bits(seed >> 8, 24);
+                    let data = bw.finish();
+                    let mut br = BitReader::new(&data);
+                    assert_eq!(lut.decode(&mut br).unwrap(), sym as u32, "book {i}");
+                    assert_eq!(br.position(), len as usize);
+                }
+            }
+        }
+    }
+
+    /// A codeword cut off by the end of the data is `Eof`, also at an unaligned position.
+    #[test]
+    fn truncated_codeword_is_eof() {
+        for (i, lut) in luts().iter().enumerate() {
+            let codes: &[(u32, u8)] = if i == 0 { &SCALEFACTOR } else { BOOKS[i - 1].codes };
+            let &(code, len) = codes.iter().max_by_key(|c| c.1).unwrap();
+            for lead in 0..8u32 {
+                let mut bw = BitWriter::new();
+                bw.write_bits(0, lead);
+                bw.write_bits(code, len as u32);
+                let total = lead as usize + len as usize;
+                let data = bw.finish();
+                // drop the last byte if that cuts the codeword, else the codeword is whole
+                let short = &data[..data.len() - 1];
+                let mut br = BitReader::new(short);
+                br.skip(lead as usize).unwrap();
+                let r = lut.decode(&mut br);
+                if short.len() * 8 < total {
+                    assert!(matches!(r, Err(Error::Eof)), "book {i} lead {lead}");
+                } else {
+                    assert!(r.is_ok());
+                }
+            }
         }
     }
 

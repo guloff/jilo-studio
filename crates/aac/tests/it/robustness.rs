@@ -1,7 +1,7 @@
 //! Fuzz-style robustness: mutated access units, configs and ADTS streams must never panic, and the
 //! encoder must accept hostile input (NaN, ±inf, > full scale, silence, odd chunk sizes).
 
-mod common;
+use crate::common;
 
 use common::*;
 use filmcraft_aac::{AudioSpecificConfig, Decoder, Encoder, EncoderConfig, split_adts};

@@ -1,7 +1,7 @@
 //! Decoder accuracy against ffmpeg's decoder on streams produced by ffmpeg's AAC encoder (oracle
 //! only; skipped when ffmpeg is absent).
 
-mod common;
+use crate::common;
 
 use common::*;
 
