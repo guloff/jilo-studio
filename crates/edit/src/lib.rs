@@ -445,16 +445,34 @@ pub fn ripple_delete_items(seq: &mut Sequence, items: &[ClipId]) -> Result<Vec<T
     Ok(spans)
 }
 
-/// Close the gap containing `t` on a track (Ripple Delete on a gap).
-pub fn close_gap(seq: &mut Sequence, track: TrackId, t: Tick) -> Result<()> {
-    let tr = seq.track(track).ok_or(EditError::NoTrack(track))?;
-    if tr.item_at(t).is_some() {
-        return Err(EditError::Nothing);
+/// The gap on a track at `t`: from the end of the clip before it (or the start of the sequence) to
+/// the start of the next clip. `None` on a clip, and after the last one (nothing follows to close it).
+pub fn gap_at(tr: &Track, t: Tick) -> Option<TimeRange> {
+    if t < Tick::ZERO || tr.item_at(t).is_some() {
+        return None;
     }
     let prev_end = tr.items.iter().filter(|i| i.end() <= t).map(|i| i.end()).max().unwrap_or(Tick::ZERO);
-    let next_start = tr.items.iter().filter(|i| i.start > t).map(|i| i.start).min().ok_or(EditError::Nothing)?;
-    let gap = TimeRange::from_bounds(prev_end, next_start);
+    let next_start = tr.items.iter().filter(|i| i.start > t).map(|i| i.start).min()?;
+    Some(TimeRange::from_bounds(prev_end, next_start))
+}
+
+/// Close the gap containing `t` on a track (Ripple Delete on a gap): everything after it on that
+/// track and on the sync-locked ones, caption tracks included, moves up by its length. Refused when
+/// a sync-locked track has something in the gap (it would lose sync). Returns the gap closed.
+pub fn close_gap(seq: &mut Sequence, track: TrackId, t: Tick) -> Result<TimeRange> {
+    let tr = seq.track(track).ok_or(EditError::NoTrack(track))?;
+    if tr.locked {
+        return Err(EditError::Locked);
+    }
+    let gap = gap_at(tr, t).ok_or(EditError::Nothing)?;
     let mut work = seq.clone();
+    // the captions stay with their clips, as in an extract
+    for ct in work.caption_tracks.iter_mut().filter(|c| !c.locked && c.sync_lock) {
+        if ct.captions.iter().any(|c| c.start < gap.end() && c.end() > gap.start) {
+            return Err(EditError::SyncLockConflict(ct.name.clone()));
+        }
+        captions::shift_from(ct, gap.end(), -gap.duration);
+    }
     for tr in work.all_tracks_mut() {
         if tr.locked {
             continue;
@@ -470,7 +488,7 @@ pub fn close_gap(seq: &mut Sequence, track: TrackId, t: Tick) -> Result<()> {
         shift_track_from(tr, gap.end(), -gap.duration);
     }
     *seq = work;
-    Ok(())
+    Ok(gap)
 }
 
 /// Move items by (track, time) offsets with overwrite (default drag) or insert (Cmd-drag) semantics.

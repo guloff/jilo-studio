@@ -385,6 +385,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     // ---- clips
     let visible = (layout.tick_at(content.min.x - 2.0), layout.tick_at(content.max.x + 2.0));
     let selection: Vec<ClipId> = app.session.state.selection.clone();
+    let gap = app.session.selected_gap();
     let mut previews: HashMap<ClipId, (Tick, Tick, Option<TrackId>)> = HashMap::new(); // live drag preview: (start, dur, track)
     preview_drag(app, &seq, &layout, &mut previews);
     for r in &rows {
@@ -395,6 +396,13 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             continue;
         }
         let p = painter.with_clip_rect(Rect::from_min_max(pos2(content.min.x, row.min.y), pos2(content.max.x, row.max.y)));
+        // the selected gap, outlined as a selected clip is
+        if let Some((_, g)) = gap.filter(|(track, _)| *track == r.track) {
+            let gr = Rect::from_min_max(pos2(layout.x_of(g.start), r.rect.min.y + 1.0), pos2(layout.x_of(g.end()), r.rect.max.y - 1.0));
+            p.rect_filled(gr, 0.0, t.clip_selected_border.gamma_multiply(0.22));
+            p.rect_stroke(gr, 0.0, Stroke::new(2.0, t.clip_selected_border), StrokeKind::Inside);
+            app.auto.add("timeline.gap", gr.intersect(content), "selected gap");
+        }
         let volume_line = r.kind == TrackKind::Audio && !r.lane;
         for it in &tr.items {
             let (start, dur, moved_track) = previews.get(&it.id).copied().unwrap_or((it.start, it.duration, None));
@@ -1961,6 +1969,8 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             }
         };
         let (p, t) = (pressed.pos, pressed.tick);
+        // a press anywhere drops a selected gap; a click in a gap selects it again below
+        app.session.state.gap_selection = None;
         let adding = tool == Tool::Pen || mods.command;
         // a plain click on a Volume line selects the clip, as anywhere else on it
         let grab = match pressed.grab {
@@ -2072,7 +2082,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                 }
             }
             (_, Grab::Other(Hit::Transition { .. })) => None,
-            (_, Grab::Other(Hit::Empty { .. })) => {
+            (_, Grab::Other(Hit::Empty { track })) => {
                 if resp.drag_started() {
                     Some(Drag::Marquee { start: p })
                 } else {
@@ -2080,6 +2090,11 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                     app.session.state.caption_selection.clear();
                     app.session.state.edit_points.clear();
                     app.session.state.transition_selection.clear();
+                    // a click in a gap between clips selects the gap (Premiere): Delete closes it.
+                    // After the last clip there is no gap, and the click only deselects.
+                    if tool == Tool::Selection && !mods.shift && !mods.command {
+                        let _ = app.session.execute("timeline.selectGap", json!({"track": track.0, "time": t.0}));
+                    }
                     None
                 }
             }
@@ -2365,10 +2380,33 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             let _ = app.session.execute("timeline.select", json!({"clips": [clip.0]}));
         }
     }
+    // right-clicking a gap selects it, and its menu is Ripple Delete (Premiere)
+    if resp.secondary_clicked()
+        && tool == Tool::Selection
+        && let Some(p) = resp.interact_pointer_pos()
+        && let Hit::Empty { track } = hit(seq, layout, p)
+    {
+        ctx.data_mut(|d| d.insert_temp(edit_point_menu_id, None::<EditPointTarget>));
+        if app.session.execute("timeline.selectGap", json!({"track": track.0, "time": layout.tick_at(p.x).0})).is_err() {
+            app.session.state.gap_selection = None;
+        }
+    }
     resp.context_menu(|ui| {
         ui.set_min_width(220.0);
         if let Some(target) = ctx.data(|d| d.get_temp::<Option<EditPointTarget>>(edit_point_menu_id)).flatten() {
             edit_point_menu(app, &ctx, ui, seq, target);
+            return;
+        }
+        if app.session.selected_gap().is_some() {
+            let label = crate::i18n::t("Ripple Delete");
+            let r = ui.button(label);
+            app.auto.add("timeline.gapMenu.edit.rippleDelete", r.rect, label);
+            if r.clicked() {
+                if let Err(e) = crate::menus::invoke(app, &ctx, "edit.rippleDelete", json!({})) {
+                    app.ui.status = e;
+                }
+                ui.close();
+            }
             return;
         }
         let sel = app.session.state.selection.clone();

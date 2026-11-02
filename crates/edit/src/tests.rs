@@ -235,6 +235,56 @@ fn close_gap_works() {
 }
 
 #[test]
+fn a_gap_runs_from_the_clip_before_to_the_next_one() {
+    let mut fx = Fx::new();
+    let v1 = fx.v(0);
+    fx.put(v1, 10, 10, 0);
+    fx.put(v1, 30, 10, 0);
+    let tr = fx.seq.track(v1).unwrap();
+    assert_eq!(gap_at(tr, f(25)), Some(TimeRange::from_bounds(f(20), f(30))));
+    assert_eq!(gap_at(tr, f(5)), Some(TimeRange::from_bounds(f(0), f(10))), "before the first clip");
+    assert_eq!(gap_at(tr, f(15)), None, "on a clip");
+    assert_eq!(gap_at(tr, f(50)), None, "after the last clip nothing follows to close it");
+}
+
+#[test]
+fn closing_a_gap_moves_the_sync_locked_tracks_and_captions_with_it() {
+    let mut fx = Fx::new();
+    let (v1, v2, a1) = (fx.v(0), fx.v(1), fx.a(0));
+    fx.put(v1, 0, 10, 0);
+    fx.put(v1, 30, 10, 0);
+    fx.put(v2, 35, 5, 0);
+    fx.put(a1, 30, 10, 0);
+    fx.seq.caption_tracks.push(filmcraft_project::CaptionTrack::new(TrackId(900), "Subtitles".into(), Default::default()));
+    let mut n = fx.next;
+    let cap = captions::add_caption(&mut fx.seq, TrackId(900), f(32), f(4), "hi", &mut Fx::ctx(&mut n)).unwrap();
+    assert_eq!(close_gap(&mut fx.seq, v1, f(20)).unwrap(), TimeRange::from_bounds(f(10), f(30)));
+    assert_eq!(fx.spans(v1), vec![(0, 10), (10, 10)]);
+    assert_eq!(fx.spans(v2), vec![(15, 5)]);
+    assert_eq!(fx.spans(a1), vec![(10, 10)]);
+    assert_eq!(fx.seq.find_caption(cap).unwrap().1.start, f(12), "the caption stays with its clip");
+}
+
+#[test]
+fn a_gap_with_a_caption_in_it_or_on_a_locked_track_stays() {
+    let mut fx = Fx::new();
+    let (v1, v2) = (fx.v(0), fx.v(1));
+    fx.put(v1, 0, 10, 0);
+    fx.put(v1, 30, 10, 0);
+    fx.seq.caption_tracks.push(filmcraft_project::CaptionTrack::new(TrackId(900), "Subtitles".into(), Default::default()));
+    let mut n = fx.next;
+    captions::add_caption(&mut fx.seq, TrackId(900), f(15), f(4), "over the gap", &mut Fx::ctx(&mut n)).unwrap();
+    let before = fx.seq.clone();
+    assert_eq!(close_gap(&mut fx.seq, v1, f(20)), Err(EditError::SyncLockConflict("Subtitles".into())));
+    assert_eq!(fx.seq, before);
+    fx.seq.caption_tracks[0].sync_lock = false;
+    fx.put(v2, 12, 4, 0);
+    assert!(matches!(close_gap(&mut fx.seq, v1, f(20)), Err(EditError::SyncLockConflict(t)) if t == "V2"), "a clip in the gap on V2");
+    fx.seq.track_mut(v1).unwrap().locked = true;
+    assert_eq!(close_gap(&mut fx.seq, v1, f(20)), Err(EditError::Locked));
+}
+
+#[test]
 fn reversed_trim_uses_the_handle_its_playback_direction_consumes() {
     let mut fx = Fx::new();
     let v1 = fx.v(0);

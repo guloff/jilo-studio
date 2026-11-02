@@ -121,6 +121,15 @@ start: if one would be, all clips of the call land later by the same amount (the
 kept). A `time` beyond the representable range is an "invalid parameters" error. The timeline
 panel's drag passes `linked: false`, because it already lists exactly the clips it moves.
 
+**Gaps** (Premiere): `timeline.selectGap {track, time}` selects the gap on a track at `time` (from the
+clip before it, or the sequence start, to the next clip) on its own → `{track, start, end}`; it is an
+error on a clip and after the last one. While it is the only selection, `edit.clear` (Delete) and
+`edit.rippleDelete` close it like `sequence.closeGap`: everything after it on that track and on the
+sync-locked tracks, caption tracks included, moves up by its length, refused when a sync-locked
+track has something in the gap. In the Timeline a click in a gap selects it (outlined, element
+`timeline.gap`) and a right-click opens its menu (`timeline.gapMenu.edit.rippleDelete`); a marquee
+starts on any empty space, off the tracks too.
+
 **Trim mode** (`crates/engine/src/trim.rs`): `trim.selectEditPoint` / `trim.selectNearest` enter trim
 mode (the Program monitor becomes the Trim Monitor, ids `trimMonitor.*`); `trim.monitor` returns what
 it shows. Dynamic trimming takes an explicit clock (seconds) so it is deterministic: `trim.shuttle

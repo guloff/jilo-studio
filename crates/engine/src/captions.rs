@@ -391,6 +391,7 @@ pub fn import(s: &mut Session, path: &str, bytes: &[u8], format: Format, name: O
 /// others add to what is selected, clips included, so captions and clips can be moved together.
 fn select(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "captions.select";
+    s.state.gap_selection = None;
     let seq = s.active_sequence().ok_or(EngineError::NoSequence)?;
     let listed: Vec<ClipId> = p
         .get("captions")

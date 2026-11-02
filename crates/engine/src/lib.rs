@@ -305,6 +305,13 @@ pub struct Targeting {
     pub audio_dest: Option<TrackId>,
 }
 
+/// A gap selected in the Timeline: the track and a time inside the gap (its ends follow the clips).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GapSelection {
+    pub track: TrackId,
+    pub time: Tick,
+}
+
 /// Editing state that commands depend on (not project data, but headless-relevant).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EditorState {
@@ -357,6 +364,10 @@ pub struct EditorState {
     /// them. Selecting clips clears it and selecting transitions clears the clip selection.
     #[serde(default)]
     pub transition_selection: Vec<filmcraft_project::TransitionId>,
+    /// The gap between clips clicked in the Timeline (Premiere): Delete closes it. It counts only
+    /// while nothing else is selected and it is still a gap ([`Session::selected_gap`]).
+    #[serde(default)]
+    pub gap_selection: Option<GapSelection>,
     /// Selected layers (indices among the graphic layers, 0 = back) of the selected graphic clip.
     #[serde(default)]
     pub graphic_layers: Vec<usize>,
@@ -1136,6 +1147,18 @@ impl Session {
         self.state.active_sequence.and_then(|s| self.project.sequence(s))
     }
 
+    /// The selected gap (its track and extent), while nothing else is selected and it is still a
+    /// gap in the active sequence.
+    pub fn selected_gap(&self) -> Option<(TrackId, filmcraft_time::TimeRange)> {
+        let g = self.state.gap_selection?;
+        let st = &self.state;
+        if !(st.selection.is_empty() && st.caption_selection.is_empty() && st.transition_selection.is_empty() && st.edit_points.is_empty()) {
+            return None;
+        }
+        let tr = self.active_sequence()?.track(g.track)?;
+        filmcraft_edit::gap_at(tr, g.time).map(|r| (g.track, r))
+    }
+
     pub fn playhead(&self) -> Tick {
         self.state.active_sequence.and_then(|s| self.state.playheads.get(&s).copied()).unwrap_or_default()
     }
@@ -1279,6 +1302,8 @@ mod explicit_targets_tests;
 mod export_tests;
 #[cfg(test)]
 mod file_tests;
+#[cfg(test)]
+mod gap_selection_tests;
 #[cfg(test)]
 mod image_sequence_tests;
 #[cfg(test)]
