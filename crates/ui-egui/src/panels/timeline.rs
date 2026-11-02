@@ -2083,14 +2083,16 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                     None
                 }
             }
-            // empty space in a caption row (above the tracks): a marquee from there takes captions
-            // and clips alike, a click clears the selection, as on empty track space
-            (Tool::Selection, Grab::Other(Hit::None)) if layout.captions.contains(p) && layout.content.contains(p) => {
+            // empty space off the tracks (a caption row, above the video tracks, below the audio
+            // ones): as in Premiere a marquee from there takes clips and captions alike and a click
+            // clears the selection, as on empty track space. Not the divider: it resizes.
+            (Tool::Selection, Grab::Other(Hit::None)) if layout.content.contains(p) && !(layout.split_y..=layout.split_y + DIVIDER_H).contains(&p.y) => {
                 if resp.drag_started() {
                     Some(Drag::Marquee { start: p })
                 } else {
                     app.session.state.selection.clear();
                     app.session.state.caption_selection.clear();
+                    app.session.state.edit_points.clear();
                     app.session.state.transition_selection.clear();
                     None
                 }
