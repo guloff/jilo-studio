@@ -144,7 +144,8 @@ fn cmd_wheel_moves_the_timeline_sideways_and_option_wheel_zooms() {
     assert_eq!(d.view(), (1.0, 50.0, 0.0, 0.0));
     d.wheel(0.8, 0.0, 1e5, json!({"command": true}));
     assert_eq!(d.view().0, 0.0, "not before the start");
-    // Option + wheel: zoom about the pointer; it is not what Cmd + wheel does
+    // Option + wheel: zoom (here about the pointer); it is not what Cmd + wheel does
+    d.app().session.prefs.timeline.zoom_about = "pointer".into();
     d.ok("ui.set", json!({"timeline": {"scroll": 4.0}}));
     d.frames(3);
     let tracks = d.rect("timeline.tracks");
@@ -163,6 +164,39 @@ fn cmd_wheel_moves_the_timeline_sideways_and_option_wheel_zooms() {
     assert_eq!(d.view(), (5.0, 50.0, 0.0, 0.0));
     d.wheel(0.2, 0.0, -50.0, json!({"shift": true}));
     assert_eq!(d.view(), (6.0, 50.0, 0.0, 0.0));
+}
+
+/// Option + wheel zooms about the playhead when it is in view (Settings ▸ Timeline ▸ Wheel and
+/// Pinch Zoom About, "Playhead" by default): it stays at the same place on screen whatever the
+/// pointer is over. Out of view, the zoom is about the pointer, and the view does not jump.
+#[test]
+fn option_wheel_zooms_about_the_playhead_in_view() {
+    let mut d = Driver::tall();
+    assert_eq!(d.app().session.prefs.timeline.zoom_about, "playhead");
+    let width = d.rect("timeline.tracks")[2] as f64;
+    // the playhead a fifth of the way in, the pointer in the middle
+    d.app().session.set_playhead(filmcraft_time::Tick::from_seconds_f64(4.0 + width * 0.2 / 50.0));
+    d.frames(2);
+    let x = |d: &mut Driver| {
+        let a = d.app();
+        (a.session.playhead().seconds() - a.ui.timeline.target_scroll) * a.ui.timeline.target_pps
+    };
+    let before = x(&mut d);
+    d.wheel(0.2, 0.0, 20.0, json!({"alt": true}));
+    let (_, pps, ..) = d.view();
+    assert!((pps - 60.0).abs() < 1e-6, "{pps}");
+    assert!((x(&mut d) - before).abs() < 0.5, "the playhead stays put: {before} → {}", x(&mut d));
+    d.wheel(0.2, 0.0, -20.0, json!({"alt": true}));
+    let _ = d.view();
+    assert!((x(&mut d) - before).abs() < 0.5, "zooming out too");
+    // out of view: about the pointer
+    d.ok("ui.set", json!({"timeline": {"pps": 50.0, "scroll": 4.0}}));
+    d.app().session.set_playhead(filmcraft_time::Tick::from_seconds_f64(1.0));
+    d.frames(3);
+    let under_pointer = 4.0 + (width * 0.5) / 50.0;
+    d.wheel(0.2, 0.0, 20.0, json!({"alt": true}));
+    let (scroll, pps, ..) = d.view();
+    assert!((scroll + (width * 0.5) / pps - under_pointer).abs() < 0.02, "the time under the pointer stays there: {scroll}");
 }
 
 /// Settings ▸ Timeline ▸ Timeline Mouse Scrolling "Horizontal": the wheel moves the Timeline

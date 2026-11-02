@@ -1887,7 +1887,8 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
     // ---- wheel, as in Premiere Pro on macOS (checked in 26.5.2):
     //   wheel            the tracks under the pointer, up and down
     //   Cmd + wheel      the Timeline, sideways
-    //   Option + wheel   zoom about the pointer
+    //   Option + wheel   zoom about the playhead in view, else the pointer (Settings ▸ Timeline ▸
+    //                    Wheel and Pinch Zoom About "Pointer": always the pointer)
     // Settings ▸ Timeline ▸ Timeline Mouse Scrolling "Horizontal" swaps the first two. A sideways
     // gesture (trackpad swipe, tilt wheel, Shift + wheel) always scrolls sideways; a pinch zooms.
     if ui.rect_contains_pointer(rect)
@@ -1896,10 +1897,15 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
         let w = wheel_input(&ctx);
         if (w.pinch - 1.0).abs() > 1e-4 || (w.alt && w.delta.y != 0.0) {
             let f = if (w.pinch - 1.0).abs() > 1e-4 { w.pinch as f64 } else { (1.0_f64 + w.delta.y as f64 * 0.01).clamp(0.5, 2.0) };
-            let anchor_t = layout.tick_at(p.x).seconds();
+            let ph_x = layout.x_of(app.session.playhead());
+            let (anchor_t, anchor_x) = if app.session.prefs.timeline.zoom_about != "pointer" && (layout.content.min.x..=layout.content.max.x).contains(&ph_x) {
+                (app.session.playhead().seconds(), ph_x)
+            } else {
+                (layout.tick_at(p.x).seconds(), p.x)
+            };
             let v = &mut app.ui.timeline;
             v.target_pps = (v.target_pps * f).clamp(0.05, 24_000.0);
-            app.tl.zoom_anchor = Some((anchor_t, p.x));
+            app.tl.zoom_anchor = Some((anchor_t, anchor_x));
         } else if w.delta != egui::Vec2::ZERO {
             let wheel_sideways = (app.session.prefs.timeline.mouse_scrolling == "horizontal") != w.command;
             let sideways = if w.delta.x.abs() > w.delta.y.abs() {

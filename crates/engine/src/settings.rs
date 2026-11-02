@@ -615,6 +615,9 @@ pub struct TimelinePrefs {
     pub auto_scroll: String,
     /// "Timeline Mouse Scrolling": `vertical` | `horizontal`.
     pub mouse_scrolling: String,
+    /// What Option + wheel and a pinch zoom about: `playhead` (when it is in view; else the
+    /// pointer) | `pointer`.
+    pub zoom_about: String,
     /// Default Audio Tracks per media type: `useFile` | `mono` | `stereo` | `5.1` | `adaptive`.
     pub mono_media_tracks: String,
     pub stereo_media_tracks: String,
@@ -644,6 +647,7 @@ impl Default for TimelinePrefs {
             still_image_unit: "seconds".into(),
             auto_scroll: "pageScroll".into(),
             mouse_scrolling: "vertical".into(),
+            zoom_about: "playhead".into(),
             mono_media_tracks: "useFile".into(),
             stereo_media_tracks: "useFile".into(),
             surround_media_tracks: "useFile".into(),
@@ -877,6 +881,7 @@ const CACHE_MGMT: &[(&str, &str)] = &[
 ];
 const AUTO_SCROLL: &[(&str, &str)] = &[("noScroll", "No Scroll"), ("pageScroll", "Page Scroll"), ("smoothScroll", "Smooth Scroll")];
 const MOUSE_SCROLL: &[(&str, &str)] = &[("vertical", "Vertical"), ("horizontal", "Horizontal")];
+const ZOOM_ABOUT: &[(&str, &str)] = &[("playhead", "Playhead"), ("pointer", "Pointer")];
 const HW_DECODE: &[(&str, &str)] = &[("auto", "Auto"), ("off", "Off")];
 const TRACKS: &[(&str, &str)] = &[("useFile", "Use File"), ("mono", "Mono"), ("stereo", "Stereo"), ("5.1", "5.1"), ("adaptive", "Adaptive")];
 pub const DURATION_UNITS: &[(&str, &str)] = &[("frames", "Frames"), ("seconds", "Seconds")];
@@ -1263,6 +1268,7 @@ static CATEGORIES: &[Category] = &[
             f("timeline.stillImageDuration", "Still Image Default Duration", Kind::Duration { unit_key: "timeline.stillImageUnit" }, true),
             f("timeline.autoScroll", "Timeline Playback Auto-Scrolling", Kind::Choice(AUTO_SCROLL), true),
             f("timeline.mouseScrolling", "Timeline Mouse Scrolling", Kind::Choice(MOUSE_SCROLL), true),
+            f("timeline.zoomAbout", "Wheel and Pinch Zoom About", Kind::Choice(ZOOM_ABOUT), true),
             Row::Group(
                 "Default Audio Tracks",
                 &[
