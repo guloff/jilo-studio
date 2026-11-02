@@ -497,12 +497,10 @@ impl Exporter {
         let (bytes, extra_files) = match self.mxf.take() {
             Some(m) => m.finish(&self.settings)?,
             None => {
-                let w = self
-                    .mux
-                    .take()
-                    .ok_or_else(|| ExportError::Encode("internal: the container writer was not created".into()))?
-                    .finish()
-                    .map_err(|e| ExportError::Io(e.to_string()))?;
+                let mux = self.mux.take().ok_or_else(|| ExportError::Encode("internal: the container writer was not created".into()))?;
+                // upload services and progressive players (Telegram, browsers) need the MP4's
+                // `moov` before its media: the muxer moves the media in place and fixes the offsets
+                let w = if self.brand == Brand::Mp4 { mux.finish_faststart() } else { mux.finish() }.map_err(|e| ExportError::Io(e.to_string()))?;
                 (w.finish(&self.settings)?, Vec::new())
             }
         };

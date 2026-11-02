@@ -361,7 +361,9 @@ impl Out {
         if settings.sink.is_some() {
             return Ok(Out::Mem(std::io::Cursor::new(Vec::new())));
         }
-        let f = std::fs::File::create(path).map_err(|e| ExportError::Io(format!("{path}: {e}")))?;
+        // readable too: a fast-start MP4 reads its media back to move it after the `moov`
+        let f =
+            std::fs::OpenOptions::new().read(true).write(true).create(true).truncate(true).open(path).map_err(|e| ExportError::Io(format!("{path}: {e}")))?;
         Ok(Out::File(std::io::BufWriter::new(f)))
     }
 
@@ -412,6 +414,20 @@ impl std::io::Seek for Out {
         match self {
             Out::File(w) => w.seek(pos),
             Out::Mem(w) => w.seek(pos),
+        }
+    }
+}
+
+impl std::io::Read for Out {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self {
+            Out::File(w) => {
+                // fast-start muxing reads media back to shift it in place: commit the buffered
+                // writes before reading through the same file and cursor
+                w.flush()?;
+                std::io::Read::read(w.get_mut(), buf)
+            }
+            Out::Mem(w) => std::io::Read::read(w, buf),
         }
     }
 }

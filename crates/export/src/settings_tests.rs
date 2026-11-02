@@ -89,6 +89,94 @@ fn files_in(dir: &Path) -> Vec<String> {
     v
 }
 
+/// Walk top-level boxes, including the extended-size `mdat`; never match codec payload bytes.
+fn top_level_boxes(bytes: &[u8]) -> Vec<([u8; 4], usize, usize)> {
+    let mut boxes = Vec::new();
+    let mut offset = 0;
+    while offset < bytes.len() {
+        let header = &bytes[offset..offset + 8];
+        let size = u32::from_be_bytes(header[..4].try_into().unwrap());
+        let (size, header_len) = match size {
+            0 => (bytes.len() - offset, 8),
+            1 => (usize::try_from(u64::from_be_bytes(bytes[offset + 8..offset + 16].try_into().unwrap())).unwrap(), 16),
+            n => (n as usize, 8),
+        };
+        assert!(size >= header_len && size <= bytes.len() - offset);
+        boxes.push((header[4..8].try_into().unwrap(), offset, offset + size));
+        offset += size;
+    }
+    boxes
+}
+
+/// An MP4 export puts `moov` before `mdat` (fast start), on disk and in memory alike, so an upload
+/// or a browser plays it before it has all arrived; a MOV keeps `moov` at the end. Picture and
+/// sound read back intact (upstream FilmCraft #3459).
+#[test]
+fn mp4_exports_are_fast_start_and_play_back() {
+    let (p, seq, m) = matte([1.0, 0.0, 0.0, 1.0], 64, 36, Some(-6.0));
+    let dir = Scratch::new("mp4-faststart");
+    for multiplexer in [Multiplexer::Mp4, Multiplexer::Mov] {
+        for mode in ["disk", "memory"] {
+            let ext = if multiplexer == Multiplexer::Mp4 { "mp4" } else { "mov" };
+            let path = dir.path(&format!("{mode}.{ext}"));
+            let captured = Arc::new(std::sync::Mutex::new(Vec::new()));
+            let mut settings = ExportSettings {
+                format: Format::H264,
+                multiplexer,
+                path: path.clone(),
+                range: Some(TimeRange::new(Tick::ZERO, FrameRate::FPS_24.tick_of(6))),
+                hardware_encoding: HardwareEncoding::Off,
+                gpu_rendering: GpuRendering::Off,
+                audio: AudioSettings { codec: AudioCodec::Aac, ..Default::default() },
+                ..Default::default()
+            };
+            if mode == "memory" {
+                let captured = captured.clone();
+                settings.sink = Some(OutputSink(Arc::new(move |_, bytes| {
+                    *captured.lock().unwrap() = bytes;
+                    Ok(())
+                })));
+            }
+            let report = export(&p, seq, &settings, &m, &Progress::default()).unwrap();
+            let bytes = if mode == "memory" {
+                assert!(!Path::new(&path).exists(), "a download must not create a disk file");
+                std::mem::take(&mut *captured.lock().unwrap())
+            } else {
+                std::fs::read(&path).unwrap()
+            };
+            assert_eq!(report.frames, 6);
+            assert_eq!(report.bytes, bytes.len() as u64);
+            let boxes = top_level_boxes(&bytes);
+            assert_eq!(boxes[0].0, *b"ftyp");
+            let moov = boxes.iter().find(|b| b.0 == *b"moov").unwrap();
+            let mdat = boxes.iter().find(|b| b.0 == *b"mdat").unwrap();
+            assert_eq!(moov.1 < mdat.1, multiplexer == Multiplexer::Mp4, "{mode}.{ext}");
+            let file = filmcraft_isobmff::open(bytes.as_slice()).unwrap();
+            assert_eq!(file.tracks.len(), 2);
+            let video = file.track_of_kind(filmcraft_isobmff::TrackKind::Video).unwrap();
+            assert_eq!(file.tracks[video].samples.len(), 6);
+            for (track, t) in file.tracks.iter().enumerate() {
+                for (index, sample) in t.samples.iter().enumerate() {
+                    assert!(sample.offset >= mdat.1 as u64 + 8);
+                    assert!(sample.offset + u64::from(sample.size) <= mdat.2 as u64);
+                    assert_eq!(file.read_sample(bytes.as_slice(), track, index).unwrap().len(), sample.size as usize);
+                }
+            }
+            let src = filmcraft_codecs::open_bytes(&path, bytes.into()).unwrap();
+            for frame in [0, 3, 5] {
+                let rgba = src.video_frame(FrameRequest::full(FrameRate::FPS_24.tick_of(frame))).unwrap().to_rgba8();
+                assert!(rgba[0] > 230 && rgba[1] < 30 && rgba[2] < 30, "{mode}.{ext}: frame {frame}");
+            }
+            let audio = src.audio(0, 12_000, 48_000).unwrap();
+            assert_eq!(audio.channels.len(), 2);
+            // a -6 dB sine has an RMS near 0.35; allow for AAC loss and the edges
+            let n: usize = audio.channels.iter().map(Vec::len).sum();
+            let level = (audio.channels.iter().flatten().map(|v| f64::from(*v) * f64::from(*v)).sum::<f64>() / n as f64).sqrt();
+            assert!((0.2..0.5).contains(&level), "{mode}.{ext}: decoded tone RMS {level}");
+        }
+    }
+}
+
 #[test]
 fn image_sequences_are_numbered_like_premiere() {
     let (p, seq, m) = matte([1.0, 0.0, 0.0, 1.0], 320, 180, None);
