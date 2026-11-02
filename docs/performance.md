@@ -153,6 +153,29 @@ CPU. GPU rendering is therefore **Auto by default**. The GPU result matches the 
 compositor's parity tolerance, not bit for bit: Off keeps exports byte-reproducible on every
 machine. (The 4K row used the same scene with the sequence, clip and positions scaled to 4K.)
 
+## Built-in encoders and fast-start MP4 (Jilo Studio, 2026-11-03)
+
+Upstream FilmCraft's encoder work taken into Jilo Studio: the H.264 encoder as of FilmCraft main
+(#3456 encoder half, #3206, #3208, #3691), the colour half of #3456 (RGBA → 4:2:0 and 8-bit
+Y'CbCr → linear through tables of the same values), the ProRes rate control (#3685) and the AAC
+encoder and decoder (#3264, #3271). MP4 exports are now fast-start (#3470): the muxer moves the
+media after `moov` at the end, which the times below include.
+
+10 s 3840×2160 30p test clip (ffmpeg `testsrc2` with noise, AAC), `filmcraft-cli export`, release
+build, M4 Pro, idle machine, three runs each (median):
+
+| Export | 0.11.0 | after | |
+|---|---|---|---|
+| H.264 40 Mbit/s, Hardware Encoding Off | 16.9 s | **10.3 s** | −39 % |
+| ProRes 422 HQ, Hardware Encoding Off | 24.1 s | **11.0 s** | −54 %, same bytes |
+| H.264 40 Mbit/s, Hardware Encoding Auto | 6.0 s | **5.6 s** | −7 % (decode tables) |
+
+The colour changes give the same bytes (the H.264 file before and after them has one SHA-256);
+the H.264 encoder's decisions are pinned by `h264enc` tests, and #3691 changes only how a
+single-pass VBR / CBR clip pays back an overshoot (39.9 Mbit/s for a 40 Mbit/s target). Not taken:
+#3456's `VideoEncoder::prepare_ahead`, which moves the RGBA → 4:2:0 conversion to the render
+threads; with the faster conversion it would gain a few percent on the built-in H.264 path only.
+
 ## GPU export: plain frames on the CPU (Jilo Studio, 2026-10-19)
 
 Export ▸ GPU Rendering Auto now asks the GPU only for frames it can win on: a clip showing has
