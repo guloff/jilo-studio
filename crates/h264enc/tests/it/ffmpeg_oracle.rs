@@ -3,7 +3,7 @@
 //! Every stream must decode with zero errors, with the exact frame count, and the decoder's output must be
 //! bit-identical to the encoder's own reconstruction (catches prediction/transform/deblocking mismatches).
 
-mod common;
+use crate::common;
 
 use common::{Yuv, annexb_nals, ffmpeg, ffmpeg_decode, ffmpeg_source, ffprobe, out_dir, psnr, synth};
 use filmcraft_h264enc::*;

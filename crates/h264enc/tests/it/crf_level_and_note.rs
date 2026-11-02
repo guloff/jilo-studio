@@ -1,7 +1,7 @@
 //! Constant quality has no bitrate cap, so the level must allow what low factors spend; and every
 //! stream says which settings made it.
 
-mod common;
+use crate::common;
 
 use common::synth;
 use filmcraft_h264enc::*;
