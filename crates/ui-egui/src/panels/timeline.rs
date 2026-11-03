@@ -2018,7 +2018,19 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                     .map(|i| i.id.0)
                     .collect();
                 let _ = app.session.execute("timeline.select", json!({"clips": ids}));
-                None
+                // the captions on that side too, so the subtitles go with the clips (#3388); Shift keeps
+                // to the clicked track, and a locked caption track keeps its captions
+                if !mods.shift {
+                    let picked = |c: &&filmcraft_project::Caption| if fwd { c.end() > t } else { c.start < t };
+                    let captions: Vec<u64> =
+                        seq.caption_tracks.iter().filter(|tr| !tr.locked).flat_map(|tr| tr.captions.iter()).filter(picked).map(|c| c.id.0).collect();
+                    if !captions.is_empty() {
+                        let _ = app.session.execute("captions.select", json!({"captions": captions, "add": true}));
+                    }
+                }
+                // as in Premiere Pro, a drag with the tool moves what it just selected
+                let clips = app.session.state.selection.clone();
+                (resp.drag_started() && !clips.is_empty()).then_some(Drag::Move { clips, grab_tick: t, start_track: track, offset: Tick::ZERO, track_delta: 0 })
             }
             (Tool::Selection | Tool::Ripple | Tool::Rolling, Grab::Edge { clip, edge, track, .. }) if resp.clicked() => {
                 // click an edge = select it as an edit point (trim mode); Shift adds
