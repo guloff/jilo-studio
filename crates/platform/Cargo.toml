@@ -57,7 +57,13 @@ objc2-video-toolbox = "0.3.2"
 # Windows: Media Foundation decoder MFTs + Direct3D 11 / DXVA through the official `windows` bindings
 # (MIT OR Apache-2.0; already in the lockfile through wgpu / winit).
 [target.'cfg(target_os = "windows")'.dependencies]
+# Emoji pictures for stickers (`emoji.rs`): Segoe UI Emoji's COLR glyphs, drawn by our own rasteriser.
+jilo-text = { workspace = true }
 windows = { version = "0.62", features = [
+    # Faces for Auto Reframe to faces (`vision.rs`): Windows.Media.FaceAnalysis (WinRT)
+    "Graphics_Imaging",
+    "Media_FaceAnalysis",
+    "Storage_Streams",
     "Win32_Foundation",
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D11",

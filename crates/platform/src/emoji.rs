@@ -1,10 +1,18 @@
 //! Emoji as pictures, drawn on this computer with the system's colour emoji font (Apple Color
-//! Emoji) for stickers: nothing is downloaded or shipped, every emoji the system knows can be a
-//! sticker. The picture is trimmed to the emoji with a small margin. Other systems report that
-//! emoji pictures are not available.
+//! Emoji through AppKit on macOS; Segoe UI Emoji on Windows, a COLR font drawn by
+//! [`jilo_text::color`]) for stickers: nothing is downloaded or shipped, every emoji the system
+//! knows can be a sticker. The picture is trimmed to the emoji with a small margin. Other systems
+//! report that emoji pictures are not available.
+
+/// Windows's colour emoji font.
+#[cfg(target_os = "windows")]
+const WINDOWS_EMOJI_FONT: &str = "Segoe UI Emoji";
 
 /// Whether this system can draw emoji pictures.
 pub fn available() -> bool {
+    #[cfg(target_os = "windows")]
+    return jilo_text::color::is_color_family(WINDOWS_EMOJI_FONT);
+    #[cfg(not(target_os = "windows"))]
     cfg!(target_os = "macos")
 }
 
@@ -51,10 +59,19 @@ fn trim(w: u32, h: u32, px: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
     Some((tw as u32, th as u32, out))
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+mod imp {
+    /// Premultiplied RGBA of `text` in Segoe UI Emoji, `size` pixels to the em.
+    pub fn render(text: &str, size: u32) -> Result<(u32, u32, Vec<u8>), String> {
+        jilo_text::color::render(text, super::WINDOWS_EMOJI_FONT, size as f32)
+            .ok_or_else(|| format!("{} has no picture for `{text}`", super::WINDOWS_EMOJI_FONT))
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 mod imp {
     pub fn render(_: &str, _: u32) -> Result<(u32, u32, Vec<u8>), String> {
-        Err("emoji pictures need macOS".into())
+        Err("emoji pictures need macOS or Windows".into())
     }
 }
 
@@ -116,7 +133,7 @@ mod tests {
     }
 
     /// The system draws a colourful emoji: many opaque pixels, more than one colour.
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     #[test]
     fn an_emoji_is_drawn_in_colour() {
         let (w, h, px) = render("😀", 128).unwrap();
