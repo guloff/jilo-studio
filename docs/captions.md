@@ -92,7 +92,8 @@ also splits captions.
 - **Text panel ▸ Captions**: search, track picker (also creates tracks of each format), add /
   split / merge / delete / export buttons, the list of segments with editable in/out timecodes
   and text (committed when the field loses focus), and the track style strip (size, colour, box,
-  alignment, position). Automation ids: `text.tab.Captions`, `text.captions.add|split|merge|delete|export|search|track`,
+  alignment, position). The list keeps the caption under the playhead in view (centred as the
+  playhead reaches it, not while a field is being edited). Automation ids: `text.tab.Captions`, `text.captions.add|split|merge|delete|export|search|track`,
   `text.captions.<id>.in|out|text|goto|row`, `text.captions.style.*`; its Styles… button opens the
   Caption Style panel.
 - **Caption fonts** (`crates/engine/src/caption_fonts.rs`): eight open families popular for captions
