@@ -226,8 +226,8 @@ fn report_names_the_video_tracks_an_edl_leaves_out() {
     let (_, rep) = export(&p, s, Format::Edl, &ExportOptions::default()).unwrap();
     assert!(!rep.mentions("EDLs hold one video track"), "only V1 has clips: {rep}");
     let a = p.items.values().find(|i| i.name == "city.mp4").unwrap().id;
-    clip(&mut p, s, TrackKind::Video, 1, a, 10..30, 0);
-    clip(&mut p, s, TrackKind::Video, 2, a, 40..60, 0);
+    clip(&mut p, s, TrackKind::Video, 1, a, 10, 20, 0);
+    clip(&mut p, s, TrackKind::Video, 2, a, 40, 20, 0);
     let (_, rep) = export(&p, s, Format::Edl, &ExportOptions::default()).unwrap();
     assert!(rep.mentions("EDLs hold one video track; only V1 was exported (not V2, V3)"), "{rep}");
     assert!(!rep.mentions("export_edl_per_track"), "{rep}");
