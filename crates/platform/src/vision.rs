@@ -1,11 +1,13 @@
-//! Faces in a picture, with Apple Vision on macOS (`VNDetectFaceRectanglesRequest`), for framing a
+//! Faces in a picture, with Apple Vision on macOS (`VNDetectFaceRectanglesRequest`) and the
+//! system's face detector on Windows (`Windows.Media.FaceAnalysis.FaceDetector`), for framing a
 //! clip on its speaker (Auto Reframe to faces).
 //!
 //! On a wide shot a face can be 60–70 px of a 4K frame, too small for Vision on the whole picture,
 //! so the picture is cut into nine overlapping tiles (half the frame each, a quarter apart), each is
 //! searched, the boxes are brought back to fractions of the whole picture and duplicates from
 //! neighbouring tiles are merged (intersection over union above 0.3 keeps the more confident box),
-//! as Jilo Studio does. Other systems report that face detection is not available.
+//! as Jilo Studio does. Windows's detector gives no confidence: its faces count as 1. Other systems
+//! report that face detection is not available.
 //!
 //! The subject of a picture cut out from its background (`VNGenerateForegroundInstanceMaskRequest`,
 //! macOS 14+): people, animals and things in front, as a picture with transparency — for stickers
@@ -65,6 +67,9 @@ pub fn tiles(w: usize, h: usize) -> Vec<(usize, usize, usize, usize)> {
 
 /// Whether this system can find faces.
 pub fn available() -> bool {
+    #[cfg(target_os = "windows")]
+    return windows_faces::available();
+    #[cfg(not(target_os = "windows"))]
     cfg!(target_os = "macos")
 }
 
@@ -168,11 +173,74 @@ mod imp {
     pub fn foreground_mask(_: &[u8], _: usize, _: usize) -> Result<Vec<f32>, String> {
         Err("cutting out needs macOS (Apple Vision)".into())
     }
+    #[cfg(target_os = "windows")]
+    pub use super::windows_faces::detect;
+    #[cfg(not(target_os = "windows"))]
     pub fn detect(_: &[u8], _: usize, _: usize) -> Result<Vec<super::Face>, String> {
-        Err("face detection needs macOS (Apple Vision)".into())
+        Err("face detection needs macOS (Apple Vision) or Windows".into())
     }
     pub fn classify(_: &[u8], _: usize, _: usize) -> Result<Vec<(String, f32)>, String> {
         Err("scene labels need macOS (Apple Vision)".into())
+    }
+}
+
+/// Windows: `FaceDetector` (WinRT, safe bindings) on 8-bit grey tiles of the picture.
+#[cfg(target_os = "windows")]
+mod windows_faces {
+    use super::{Face, merge_face, tiles};
+    use windows::Graphics::Imaging::{BitmapPixelFormat, SoftwareBitmap};
+    use windows::Media::FaceAnalysis::FaceDetector;
+    use windows::Storage::Streams::DataWriter;
+
+    pub fn available() -> bool {
+        FaceDetector::IsSupported().unwrap_or(false)
+    }
+
+    /// One tile of `rgba` as grey (BT.601 luma), the format every FaceDetector takes.
+    fn grey_tile(rgba: &[u8], w: usize, (tx, ty, tw, th): (usize, usize, usize, usize)) -> Vec<u8> {
+        let mut out = Vec::with_capacity(tw * th);
+        for y in ty..ty + th {
+            let row = &rgba[(y * w + tx) * 4..(y * w + tx + tw) * 4];
+            out.extend(row.as_chunks::<4>().0.iter().map(|p| ((77 * u32::from(p[0]) + 150 * u32::from(p[1]) + 29 * u32::from(p[2]) + 128) >> 8) as u8));
+        }
+        out
+    }
+
+    fn bitmap(grey: &[u8], w: usize, h: usize) -> windows::core::Result<SoftwareBitmap> {
+        let writer = DataWriter::new()?;
+        writer.WriteBytes(grey)?;
+        let buffer = writer.DetachBuffer()?;
+        SoftwareBitmap::CreateCopyFromBuffer(&buffer, BitmapPixelFormat::Gray8, w as i32, h as i32)
+    }
+
+    pub fn detect(rgba: &[u8], w: usize, h: usize) -> Result<Vec<Face>, String> {
+        if !available() {
+            return Err("this Windows has no face detector".into());
+        }
+        let detector = FaceDetector::CreateAsync().and_then(|op| op.join()).map_err(|e| format!("the face detector could not start: {e}"))?;
+        let mut faces: Vec<Face> = Vec::new();
+        for tile in tiles(w, h) {
+            let (tx, ty, tw, th) = tile;
+            if tw < 8 || th < 8 || tx + tw > w || ty + th > h {
+                continue;
+            }
+            let Ok(image) = bitmap(&grey_tile(rgba, w, tile), tw, th) else { continue };
+            let Ok(found) = detector.DetectFacesAsync(&image).and_then(|op| op.join()) else { continue };
+            for f in found {
+                let Ok(b) = f.FaceBox() else { continue };
+                let face = Face {
+                    x: (tx as f64 + f64::from(b.X)) as f32 / w as f32,
+                    y: (ty as f64 + f64::from(b.Y)) as f32 / h as f32,
+                    w: b.Width as f32 / w as f32,
+                    h: b.Height as f32 / h as f32,
+                    confidence: 1.0,
+                };
+                if face.w > 0.0 && face.h > 0.0 {
+                    merge_face(&mut faces, face);
+                }
+            }
+        }
+        Ok(faces)
     }
 }
 
@@ -451,7 +519,7 @@ mod tests {
     }
 
     /// A blank picture has no faces (Vision runs, finds nothing).
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     #[test]
     fn vision_finds_no_face_in_a_blank_picture() {
         let rgba = vec![128u8; 320 * 180 * 4];
