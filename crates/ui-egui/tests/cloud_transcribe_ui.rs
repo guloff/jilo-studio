@@ -1015,11 +1015,11 @@ fn an_update_downloads_with_progress_and_says_what_comes_next() {
         use sha2::Digest;
         sha2::Sha256::digest(&image).iter().map(|b| format!("{b:02x}")).collect()
     };
-    let name = "jilo-studio-9.3.0-macos-aarch64.dmg";
+    let name = jilo_engine::updates::asset_name("9.3.0");
     let url = format!("https://github.com/{}/releases/download/v9.3.0/{name}", jilo_engine::updates::REPO);
     let release = json!({"tag_name": "v9.3.0", "html_url": format!("{}/tag/v9.3.0", jilo_engine::updates::RELEASES_PAGE),
         "body": include_str!("../../../docs/releases/0.6.3.md"),
-        "assets": [{"name": name, "browser_download_url": url, "size": image.len(), "digest": format!("sha256:{digest}")}]});
+        "assets": [{"name": &name, "browser_download_url": url, "size": image.len(), "digest": format!("sha256:{digest}")}]});
     let fake = Arc::new(FakeTransport::new());
     fake.route(|r| r.url == jilo_engine::updates::RELEASES_API, move |_| Ok(Response::json(200, &release)));
     // the download waits until the test lets it finish

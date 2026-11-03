@@ -4005,6 +4005,12 @@ mode	Edit	Монтаж
 	It can't install itself here: {why}.	Здесь она не может установиться сама: {why}.
 	It will be installed when you quit Jilo Studio; the next launch opens the new version.	Она будет установлена, когда вы закроете Jilo Studio; при следующем запуске откроется новая версия.
 	Open Disk Image	Открыть образ диска
+	1. Open the installer.	1. Откройте установщик.
+	2. Follow its steps: it puts the new version in place of this one.	2. Следуйте его шагам: он поставит новую версию на место этой.
+	3. Open Jilo Studio again.	3. Снова откройте Jilo Studio.
+	Download and Install fetches the new version's installer, checks it and runs it when you restart Jilo Studio.	«Скачать и установить» загрузит установщик новой версии, проверит его и запустит при перезапуске Jilo Studio.
+	This release has no installer for Windows: its page on GitHub opens instead.	В этом релизе нет установщика для Windows: вместо этого откроется его страница на GitHub.
+	Open Installer	Открыть установщик
 	Open Release Page	Открыть страницу релиза
 	Release page on GitHub	Страница релиза на GitHub
 	Restart and Install	Перезапустить и установить

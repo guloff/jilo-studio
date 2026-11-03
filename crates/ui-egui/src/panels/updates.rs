@@ -232,11 +232,16 @@ fn window(app: &mut JiloApp, ctx: &egui::Context) {
                         let why = d.as_ref().and_then(|d| d.reason.clone()).map(|w| crate::i18n::t(&w).to_string()).unwrap_or_default();
                         ui.add(egui::Label::new(dim(&tlf!("It can't install itself here: {why}.", why))).wrap());
                         ui.label(RichText::new(tl!("To install it:")).strong());
-                        for step in [
-                            tl!("1. Open the disk image."),
-                            tl!("2. Drag Jilo Studio to Applications and choose Replace."),
-                            tl!("3. Quit this version and open Jilo Studio again."),
-                        ] {
+                        let steps = if cfg!(windows) {
+                            [tl!("1. Open the installer."), tl!("2. Follow its steps: it puts the new version in place of this one."), tl!("3. Open Jilo Studio again.")]
+                        } else {
+                            [
+                                tl!("1. Open the disk image."),
+                                tl!("2. Drag Jilo Studio to Applications and choose Replace."),
+                                tl!("3. Quit this version and open Jilo Studio again."),
+                            ]
+                        };
+                        for step in steps {
                             ui.label(step);
                         }
                     }
@@ -254,10 +259,11 @@ fn window(app: &mut JiloApp, ctx: &egui::Context) {
                                 });
                             });
                         }
-                        let note = if v["asset"].is_object() {
-                            tl!("Download and Install fetches the new version, checks its signature and installs it when you restart Jilo Studio.")
-                        } else {
-                            tl!("This release has no disk image for this Mac: its page on GitHub opens instead.")
+                        let note = match (v["asset"].is_object(), cfg!(windows)) {
+                            (true, false) => tl!("Download and Install fetches the new version, checks its signature and installs it when you restart Jilo Studio."),
+                            (true, true) => tl!("Download and Install fetches the new version's installer, checks it and runs it when you restart Jilo Studio."),
+                            (false, false) => tl!("This release has no disk image for this Mac: its page on GitHub opens instead."),
+                            (false, true) => tl!("This release has no installer for Windows: its page on GitHub opens instead."),
                         };
                         ui.add(egui::Label::new(dim(note).small()).wrap());
                     }
@@ -290,7 +296,8 @@ fn window(app: &mut JiloApp, ctx: &egui::Context) {
                         button(ui, false, "updates.onQuit", tl!("Install When I Quit"), Action::InstallOnQuit);
                     }
                     Some("manual") => {
-                        button(ui, true, "updates.openImage", tl!("Open Disk Image"), Action::OpenImage);
+                        let open = if cfg!(windows) { tl!("Open Installer") } else { tl!("Open Disk Image") };
+                        button(ui, true, "updates.openImage", open, Action::OpenImage);
                         button(ui, false, "updates.close", tl!("Close"), Action::Close);
                     }
                     _ => {

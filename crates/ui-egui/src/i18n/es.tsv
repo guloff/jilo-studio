@@ -4010,6 +4010,12 @@
 	It can't install itself here: {why}.	Aquí no puede instalarse sola: {why}.
 	It will be installed when you quit Jilo Studio; the next launch opens the new version.	Se instalará cuando salgas de Jilo Studio; el próximo inicio abrirá la nueva versión.
 	Open Disk Image	Abrir imagen de disco
+	1. Open the installer.	1. Abre el instalador.
+	2. Follow its steps: it puts the new version in place of this one.	2. Sigue sus pasos: pone la nueva versión en lugar de esta.
+	3. Open Jilo Studio again.	3. Vuelve a abrir Jilo Studio.
+	Download and Install fetches the new version's installer, checks it and runs it when you restart Jilo Studio.	Descargar e instalar obtiene el instalador de la nueva versión, lo comprueba y lo ejecuta al reiniciar Jilo Studio.
+	This release has no installer for Windows: its page on GitHub opens instead.	Esta versión no tiene instalador para Windows: se abrirá su página en GitHub.
+	Open Installer	Abrir instalador
 	Open Release Page	Abrir página de la versión
 	Release page on GitHub	Página de la versión en GitHub
 	Restart and Install	Reiniciar e instalar

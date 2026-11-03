@@ -4045,6 +4045,12 @@
 	It can't install itself here: {why}.	此处无法自动安装：{why}。
 	It will be installed when you quit Jilo Studio; the next launch opens the new version.	退出 Jilo Studio 时将安装新版本；下次启动时打开的就是新版本。
 	Open Disk Image	打开磁盘映像
+	1. Open the installer.	1. 打开安装程序。
+	2. Follow its steps: it puts the new version in place of this one.	2. 按照其步骤操作：它会用新版本替换当前版本。
+	3. Open Jilo Studio again.	3. 再次打开 Jilo Studio。
+	Download and Install fetches the new version's installer, checks it and runs it when you restart Jilo Studio.	“下载并安装”会获取新版本的安装程序、检查它，并在重新启动 Jilo Studio 时运行。
+	This release has no installer for Windows: its page on GitHub opens instead.	此版本没有适用于 Windows 的安装程序：将改为打开其 GitHub 页面。
+	Open Installer	打开安装程序
 	Open Release Page	打开发布页面
 	Release page on GitHub	GitHub 上的发布页面
 	Restart and Install	重新启动并安装

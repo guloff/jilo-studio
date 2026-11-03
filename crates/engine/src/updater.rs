@@ -149,7 +149,17 @@ pub fn fetch(t: &dyn jilo_ai::Transport, asset: &Asset, dir: &Path, prog: &jilo_
     Ok(dest)
 }
 
+/// Windows: the folder of an installed copy, the one the installer made (its uninstaller,
+/// `unins000.exe`, is next to the app); a portable copy or a build is none.
+#[cfg(target_os = "windows")]
+pub fn running_bundle() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    dir.join("unins000.exe").is_file().then(|| dir.to_path_buf())
+}
+
 /// The app bundle this process runs from (`…/Name.app/Contents/MacOS/<exe>`), if it is one.
+#[cfg(not(target_os = "windows"))]
 pub fn running_bundle() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
@@ -235,14 +245,28 @@ pub fn prepare(dmg: &Path, version: &str, current: Option<&Path>, dir: &Path) ->
     Ok(Prepared::Ready { staged, target: current.to_path_buf() })
 }
 
-#[cfg(not(target_os = "macos"))]
+/// Windows: the downloaded installer (its size and SHA-256 already checked against GitHub's) is
+/// what installs; it runs when the app quits and updates the copy at `current` in place.
+#[cfg(target_os = "windows")]
+pub fn prepare(installer: &Path, _: &str, current: Option<&Path>, _: &Path) -> std::result::Result<Prepared, String> {
+    let Some(current) = current else {
+        return Ok(Prepared::Manual("this copy of Jilo Studio is not an installed app (a development build)".into()));
+    };
+    if let Some(why) = install_blocker(current) {
+        return Ok(Prepared::Manual(why));
+    }
+    Ok(Prepared::Ready { staged: installer.to_path_buf(), target: current.to_path_buf() })
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn prepare(_: &Path, _: &str, _: Option<&Path>, _: &Path) -> std::result::Result<Prepared, String> {
-    Ok(Prepared::Manual("updates install themselves only on macOS".into()))
+    Ok(Prepared::Manual("updates install themselves only on macOS and Windows".into()))
 }
 
 /// Waits for the app's process to end, puts the new app in place of the old one (the old one
 /// comes back if that fails), removes what was downloaded and, with `relaunch`, opens the app.
 /// Arguments: pid, new app, app to replace, relaunch (1/0), log file, updates folder.
+#[cfg(unix)]
 const INSTALL_SCRIPT: &str = r#"
 pid=$1; new=$2; app=$3; relaunch=$4; log=$5; dir=$6
 i=0
@@ -292,9 +316,22 @@ pub fn spawn_installer(pid: u32, staged: &Path, target: &Path, relaunch: bool, d
         .map_err(|e| format!("the installer could not start: {e}"))
 }
 
-#[cfg(not(unix))]
+/// Windows: run the installer `staged` silently. It closes what is left of this process (Restart
+/// Manager), installs over the copy it installed before and, with `relaunch`, opens it again
+/// (packaging/windows/jilo-studio.iss, `/RELAUNCH=1`).
+#[cfg(windows)]
+pub fn spawn_installer(_: u32, staged: &Path, _: &Path, relaunch: bool, dir: &Path) -> std::result::Result<(), String> {
+    let mut c = std::process::Command::new(staged);
+    c.args(["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/SP-"]).arg(format!("/LOG={}", dir.join("install.log").display()));
+    if relaunch {
+        c.arg("/RELAUNCH=1");
+    }
+    c.stdin(std::process::Stdio::null()).spawn().map(|_| ()).map_err(|e| format!("the installer could not start: {e}"))
+}
+
+#[cfg(not(any(unix, windows)))]
 pub fn spawn_installer(_: u32, _: &Path, _: &Path, _: bool, _: &Path) -> std::result::Result<(), String> {
-    Err("updates install themselves only on macOS".into())
+    Err("updates install themselves only on macOS and Windows".into())
 }
 
 /// Run by the host as the app exits: install an armed update. Ok(true) when the installer started.
@@ -304,8 +341,9 @@ pub fn install_on_exit(s: &Session) -> std::result::Result<bool, String> {
         return Ok(false);
     }
     let (Some(staged), Some(target)) = (d.staged.as_deref(), d.target.as_deref()) else { return Ok(false) };
-    // the folder it was downloaded to (Staged's parent)
-    let Some(dir) = Path::new(staged).parent().and_then(Path::parent) else { return Ok(false) };
+    // the folder it was downloaded to (Staged's parent; on Windows the installer is in it)
+    let dir = if cfg!(windows) { Path::new(staged).parent() } else { Path::new(staged).parent().and_then(Path::parent) };
+    let Some(dir) = dir else { return Ok(false) };
     spawn_installer(std::process::id(), Path::new(staged), Path::new(target), d.relaunch, dir)?;
     Ok(true)
 }
@@ -317,7 +355,7 @@ pub fn clean_up(s: &Session) {
         if let Ok(rd) = std::fs::read_dir(&dir) {
             for e in rd.flatten() {
                 let p = e.path();
-                if p.extension().is_some_and(|x| x == "dmg" || x == "part") {
+                if p.extension().is_some_and(|x| x == "dmg" || x == "exe" || x == "part") {
                     let _ = std::fs::remove_file(p);
                 }
             }
@@ -332,7 +370,12 @@ fn download_update(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(cmd, "no newer release is known: run app.checkUpdates first"));
     };
     let version = c.latest.clone().unwrap_or_default();
-    let asset = c.asset.clone().ok_or_else(|| bad(cmd, "the release has no disk image for this Mac: download it from its page"))?;
+    let missing = if cfg!(windows) {
+        "the release has no installer for Windows: download it from its page"
+    } else {
+        "the release has no disk image for this Mac: download it from its page"
+    };
+    let asset = c.asset.clone().ok_or_else(|| bad(cmd, missing))?;
     if let Some(d) =
         lock(&s.update_download).as_ref().filter(|d| d.version == version && ["downloading", "verifying", "ready", "manual"].contains(&d.phase.as_str()))
     {
@@ -419,6 +462,11 @@ fn open_update_image(s: &mut Session, _: &Value) -> Result<Value> {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("/usr/bin/open").arg(&image).spawn().map_err(|e| bad(cmd, e.to_string()))?;
+    }
+    // Windows: the downloaded installer, with its own window
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new(&image).spawn().map_err(|e| bad(cmd, e.to_string()))?;
     }
     Ok(json!({"opened": image}))
 }
@@ -556,9 +604,10 @@ mod tests {
 
     /// A session whose last check found release `99.0.0` with a disk image of `image`'s bytes.
     fn session_with_release(image: &[u8], digest: &str) -> (Session, Arc<FakeTransport>) {
-        let url = format!("https://github.com/{}/releases/download/v99.0.0/jilo-studio-99.0.0-macos-aarch64.dmg", crate::updates::REPO);
+        let name = crate::updates::asset_name("99.0.0");
+        let url = format!("https://github.com/{}/releases/download/v99.0.0/{name}", crate::updates::REPO);
         let release = json!({"tag_name": "v99.0.0", "html_url": format!("{}/tag/v99.0.0", crate::updates::RELEASES_PAGE), "body": "",
-            "assets": [{"name": "jilo-studio-99.0.0-macos-aarch64.dmg", "browser_download_url": url, "size": image.len(), "digest": format!("sha256:{digest}")}]});
+            "assets": [{"name": name, "browser_download_url": url, "size": image.len(), "digest": format!("sha256:{digest}")}]});
         let fake = Arc::new(FakeTransport::new());
         let body = release.to_string().into_bytes();
         fake.route(|r| r.url == crate::updates::RELEASES_API, move |_| Ok(Response::new(200, body.clone())));
@@ -578,8 +627,9 @@ mod tests {
 
     #[test]
     fn only_this_repositorys_disk_image_with_a_checksum_is_offered() {
-        let good = json!({"name": "jilo-studio-1.0.0-macos-aarch64.dmg", "size": 10,
-            "browser_download_url": "https://github.com/guloff/jilo-studio/releases/download/v1.0.0/jilo-studio-1.0.0-macos-aarch64.dmg",
+        let name = crate::updates::asset_name("1.0.0");
+        let good = json!({"name": &name, "size": 10,
+            "browser_download_url": format!("https://github.com/guloff/jilo-studio/releases/download/v1.0.0/{name}"),
             "digest": format!("sha256:{}", "AB".repeat(32))});
         let a = crate::updates::asset_of(&json!({"assets": [good]}), "1.0.0").unwrap();
         assert_eq!((a.size, a.sha256.as_str()), (10, "ab".repeat(32).as_str()));
@@ -589,9 +639,9 @@ mod tests {
             crate::updates::asset_of(&json!({"assets": [x]}), "1.0.0")
         };
         for url in [
-            "https://evil.example/jilo-studio-1.0.0-macos-aarch64.dmg",
-            "https://github.com/other/jilo-studio/releases/download/v1/jilo-studio-1.0.0-macos-aarch64.dmg",
-            "https://github.com/guloff/jilo-studio/releases/download/../x/jilo-studio-1.0.0-macos-aarch64.dmg",
+            format!("https://evil.example/{name}"),
+            format!("https://github.com/other/jilo-studio/releases/download/v1/{name}"),
+            format!("https://github.com/guloff/jilo-studio/releases/download/../x/{name}"),
         ] {
             assert!(with("browser_download_url", json!(url)).is_none(), "{url}");
         }
@@ -615,7 +665,7 @@ mod tests {
         assert_eq!((d["version"].as_str(), d["phase"].as_str()), (Some("99.0.0"), Some("manual")), "{st}");
         let path = d["diskImage"].as_str().unwrap();
         assert_eq!(std::fs::read(path).unwrap(), image);
-        assert!(!dir.join("jilo-studio-99.0.0-macos-aarch64.dmg.part").exists());
+        assert!(!dir.join(format!("{}.part", crate::updates::asset_name("99.0.0"))).exists());
         // asked again, nothing is downloaded twice
         let sent = fake.sent().len();
         s.execute("app.downloadUpdate", json!({"wait": true, "dir": dir.to_string_lossy()})).unwrap();

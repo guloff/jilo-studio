@@ -56,11 +56,16 @@ pub struct Asset {
     pub sha256: String,
 }
 
-/// The disk image of release `version` for an Apple silicon Mac, from GitHub's `assets`: only
-/// `jilo-studio-<version>-macos-aarch64.dmg`, downloaded from this repository, with a size and a
-/// SHA-256 digest.
+/// The file of release `version` this system installs from: the disk image for an Apple silicon
+/// Mac, the installer for x64 Windows.
+pub fn asset_name(version: &str) -> String {
+    if cfg!(target_os = "windows") { format!("jilo-studio-{version}-windows-x64-setup.exe") } else { format!("jilo-studio-{version}-macos-aarch64.dmg") }
+}
+
+/// This system's file of release `version` ([`asset_name`]) from GitHub's `assets`: only that
+/// name, downloaded from this repository, with a size and a SHA-256 digest.
 pub fn asset_of(release: &Value, version: &str) -> Option<Asset> {
-    let name = format!("jilo-studio-{version}-macos-aarch64.dmg");
+    let name = asset_name(version);
     let prefix = format!("https://github.com/{REPO}/releases/download/");
     release["assets"].as_array()?.iter().find_map(|a| {
         if a["name"].as_str()? != name {
