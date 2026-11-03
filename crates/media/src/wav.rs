@@ -138,7 +138,7 @@ impl WavSource {
         let (off, size) = data.ok_or_else(|| MediaError::Decode(format!("{name}: missing data chunk")))?;
         let float = tag == 3;
         let valid = (tag == 1 && matches!(bits, 8 | 16 | 24 | 32)) || (float && matches!(bits, 32 | 64));
-        if !valid || ch == 0 || rate == 0 {
+        if !valid || ch == 0 || rate == 0 || u32::from(ch) > crate::MAX_AUDIO_CHANNELS || rate > crate::MAX_AUDIO_SAMPLE_RATE {
             return Err(MediaError::Unsupported(format!("{name}: WAV format tag {tag}, {bits} bits, {ch} channels, {rate} Hz")));
         }
         let sample_bytes = usize::from(bits / 8);
@@ -222,6 +222,7 @@ impl MediaSource for WavSource {
         Err(MediaError::NoStream("video"))
     }
     fn audio(&self, start: i64, frames: usize, sample_rate: u32) -> Result<AudioBuffer> {
+        crate::validate_audio_buffer_shape(self.channels, frames)?;
         let mut out = AudioBuffer::silence(sample_rate, self.channels, frames);
         if frames == 0 || sample_rate == 0 {
             return Ok(out);

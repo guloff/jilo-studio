@@ -501,7 +501,9 @@ fn audio_stream_info(t: &filmcraft_isobmff::Track, bytes: &crate::Src) -> Option
         CodecConfig::Opus(o) => (crate::audio::OPUS_RATE, (o.output_channels as u32).max(1), None),
         _ => (if ap.sample_rate > 0.0 { ap.sample_rate as u32 } else { t.timescale }, ap.channels.max(1), None),
     };
-    Some(AudioStreamInfo { sample_rate: rate.max(1), channels: ch.max(1), codec: codec_label(&entry.codec), bits_per_sample: bits })
+    // advertised dimensions out of range: no stream at all (see filmcraft_media::bounded_audio_dimensions)
+    let (rate, ch) = filmcraft_media::bounded_audio_dimensions(rate, ch).ok()?;
+    Some(AudioStreamInfo { sample_rate: rate, channels: ch, codec: codec_label(&entry.codec), bits_per_sample: bits })
 }
 
 fn codec_label(c: &CodecConfig) -> String {

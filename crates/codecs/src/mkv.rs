@@ -239,6 +239,20 @@ fn color_of(v: &filmcraft_matroska::VideoInfo, w: u32, h: u32, stream: Option<Co
     (crate::stream_color::resolve(w, h, &sources), explicit)
 }
 
+/// The stream description of an audio track, `None` when its advertised sample rate or channel
+/// count is out of range (see [`filmcraft_media::bounded_audio_dimensions`]).
+fn audio_info(t: &filmcraft_matroska::Track) -> Option<AudioStreamInfo> {
+    let a = t.audio.clone().unwrap_or_default();
+    let mut rate = a.output_sampling_frequency.unwrap_or(a.sampling_frequency).round().max(1.0) as u32;
+    let mut channels = (a.channels as u32).max(1);
+    if let Some(h) = opus_head(&t.codec) {
+        rate = crate::audio::OPUS_RATE;
+        channels = h.channels as u32;
+    }
+    let (rate, channels) = filmcraft_media::bounded_audio_dimensions(rate, channels).ok()?;
+    Some(AudioStreamInfo { sample_rate: rate, channels, codec: codec_label(&t.codec), bits_per_sample: a.bit_depth.map(|b| b as u32) })
+}
+
 fn codec_label(c: &Codec) -> String {
     match c {
         Codec::Avc { .. } => "H.264".into(),
@@ -280,7 +294,9 @@ impl MkvSource {
             .tracks
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.kind == TrackKind::Audio && !t.samples.is_empty())
+            // A track whose advertised dimensions are refused is no stream at all, so `atracks[k]` and
+            // `info.audio_streams[k]` stay the same track.
+            .filter(|(_, t)| t.kind == TrackKind::Audio && !t.samples.is_empty() && audio_info(t).is_some())
             .map(|(i, _)| i)
             .take(filmcraft_media::MAX_AUDIO_STREAMS)
             .collect();
@@ -326,20 +342,7 @@ impl MkvSource {
                 hdr: v.colour.as_ref().and_then(hdr_metadata),
             }
         });
-        let audio_streams: Vec<AudioStreamInfo> = atracks
-            .iter()
-            .filter_map(|&i| file.tracks.get(i))
-            .map(|t| {
-                let a = t.audio.clone().unwrap_or_default();
-                let mut rate = a.output_sampling_frequency.unwrap_or(a.sampling_frequency).round().max(1.0) as u32;
-                let mut channels = (a.channels as u32).max(1);
-                if let Some(h) = opus_head(&t.codec) {
-                    rate = crate::audio::OPUS_RATE;
-                    channels = h.channels as u32;
-                }
-                AudioStreamInfo { sample_rate: rate, channels, codec: codec_label(&t.codec), bits_per_sample: a.bit_depth.map(|b| b as u32) }
-            })
-            .collect();
+        let audio_streams: Vec<AudioStreamInfo> = atracks.iter().filter_map(|&i| file.tracks.get(i).and_then(audio_info)).collect();
         let duration = match file.duration_ns() {
             Some(ns) => Tick::from_rational(ns as i64, 1, 1_000_000_000),
             None => vtrack
