@@ -308,6 +308,9 @@ pub struct FilmcraftApp {
     deferred: Vec<(ControlRequest, f64)>,
     last_ui_time: f64,
     pub(crate) synthetic: Vec<egui::Event>,
+    /// A synthetic release whose modifiers go up in the next frame, so the frame of the release (a
+    /// click is handled there) still reads them in `i.modifiers`, as with real keys.
+    synthetic_mods_up: bool,
     /// The mouse press in progress (its start time) and the undo history when it began, for Escape
     /// to take back what the press changed (#580).
     value_press: Option<(f64, filmcraft_engine::UndoMark)>,
@@ -609,6 +612,7 @@ impl FilmcraftApp {
             deferred: Vec::new(),
             last_ui_time: 0.0,
             synthetic: Vec::new(),
+            synthetic_mods_up: false,
             value_press: None,
             loudness: None,
             status_seen: (String::new(), 0.0),
@@ -2138,6 +2142,10 @@ impl FilmcraftApp {
 
 impl eframe::App for FilmcraftApp {
     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        // released in the frame before: the modifiers go up now
+        if std::mem::take(&mut self.synthetic_mods_up) {
+            raw_input.events.push(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+        }
         if !self.synthetic.is_empty() {
             // Pointer events go one per frame so egui sees press → moves → release as a real drag
             // (all in one frame reads as a click); key/text runs go together up to a key release.
@@ -2160,7 +2168,7 @@ impl eframe::App for FilmcraftApp {
                     }
                     egui::Event::PointerButton { pressed: false, modifiers, .. } if !modifiers.is_none() => {
                         raw_input.events.push(e);
-                        raw_input.events.push(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+                        self.synthetic_mods_up = true;
                     }
                     _ => raw_input.events.push(e),
                 }
