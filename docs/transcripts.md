@@ -110,11 +110,18 @@ changed in Settings ▸ AI. Each provider is asked about once before anything is
 ### Generated images
 
 AI ▸ Generate Image… (`ai.generateImage`) draws a picture from a description with the image
-engine of Settings ▸ AI (OpenAI or Gemini), in the sequence's shape (or `shape`), saves it with the
+engine of Settings ▸ AI (OpenAI, Gemini or a custom service), in the sequence's shape (or `shape`), saves it with the
 project's media (Scratch Disks ▸ Captured, else next to the project), imports it as a still and,
 with `place`, puts it on the timeline at the playhead on the first free video track (a new one when
 none is free), scaled to the frame. It runs as a cloud task: consent, a job with progress and Stop,
 undoable.
+
+A custom service is any image service at your own address that answers OpenAI's
+`POST /images/generations` (another OpenAI account, OpenRouter, a server on this computer):
+Settings ▸ AI ▸ Images ▸ Engine ▸ Custom service, its address (`https://…/v1`; plain `http://` only
+to `localhost`) and model, and its key under API keys (optional: a local server often needs none).
+The picture comes back in the answer (`b64_json`) or at an address in it (`url`, fetched without the
+key). Consent is asked once per host. Draw a Sticker (Libraries ▸ Stickers) uses the same engine.
 
 ### ElevenLabs narration voices
 

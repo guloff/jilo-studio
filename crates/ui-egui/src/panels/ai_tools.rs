@@ -150,6 +150,9 @@ fn missing(app: &FilmcraftApp, need: Need) -> Option<String> {
             let p = s.prefs.ai.image_provider();
             if s.prefs.ai.local_only {
                 Some(tl!("Cloud only: turned off").to_string())
+            } else if p == filmcraft_ai::Provider::Custom {
+                // a server on this computer may need no key; it does need its address
+                filmcraft_ai::images::custom_base(&s.prefs.ai.custom_image_url).is_err().then(|| tl!("Set the custom service's address").to_string())
             } else {
                 (!has_key(p)).then(|| tlf!("Needs a {provider} key", provider = p.name()))
             }

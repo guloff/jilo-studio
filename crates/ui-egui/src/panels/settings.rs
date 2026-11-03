@@ -797,7 +797,7 @@ fn ai_keys(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
     let mut refresh = false;
     for p in status["providers"].as_array().cloned().unwrap_or_default() {
         let id = p["id"].as_str().unwrap_or_default().to_string();
-        let name = p["name"].as_str().unwrap_or_default().to_string();
+        let name = if id == "custom" { tl!("Custom image service").to_string() } else { p["name"].as_str().unwrap_or_default().to_string() };
         let (key_mem, job_mem, msg_mem) =
             (egui::Id::new(("settings-ai-key", &id)), egui::Id::new(("settings-ai-job", &id)), egui::Id::new(("settings-ai-msg", &id)));
         group(ui, &t, &name, |ui| {
@@ -844,7 +844,8 @@ fn ai_keys(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
                         Err(e) => d.message = e.to_string(),
                     }
                 }
-                if button(app, ui, &format!("settings.ai.{id}.getKey"), tl!("Get a Key…"), false) {
+                // the custom service's key comes from wherever the user runs it
+                if !p["keyUrl"].as_str().unwrap_or_default().is_empty() && button(app, ui, &format!("settings.ai.{id}.getKey"), tl!("Get a Key…"), false) {
                     crate::links::open(ui.ctx(), p["keyUrl"].as_str().unwrap_or_default());
                 }
             });

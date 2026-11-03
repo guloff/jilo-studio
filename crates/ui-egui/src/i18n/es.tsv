@@ -4511,3 +4511,8 @@
 	Select to End of Track	Seleccionar hasta el final de la pista
 	Caption Style…	Estilo de subtítulos…
 	Export Captions…	Exportar subtítulos…
+	Custom service (OpenAI-compatible)	Servicio propio (compatible con OpenAI)
+	Custom service address	Dirección del servicio propio
+	Custom service model	Modelo del servicio propio
+	Custom image service	Servicio de imágenes propio
+	Set the custom service's address	Indica la dirección del servicio propio

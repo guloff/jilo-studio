@@ -4546,3 +4546,8 @@
 	Select to End of Track	选择至轨道末尾
 	Caption Style…	字幕样式…
 	Export Captions…	导出字幕…
+	Custom service (OpenAI-compatible)	自定义服务（兼容 OpenAI）
+	Custom service address	自定义服务地址
+	Custom service model	自定义服务模型
+	Custom image service	自定义图像服务
+	Set the custom service's address	请设置自定义服务的地址

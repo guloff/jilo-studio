@@ -49,18 +49,23 @@ pub enum Provider {
     Anthropic,
     #[serde(rename = "elevenlabs")]
     ElevenLabs,
+    /// An image service at an address of the user's choice that speaks OpenAI's
+    /// `/images/generations` (OpenAI itself through another account, OpenRouter, a server on this
+    /// computer): Settings ▸ AI ▸ Images.
+    Custom,
 }
 
 impl Provider {
-    pub const ALL: [Provider; 4] = [Provider::Gemini, Provider::OpenAi, Provider::Anthropic, Provider::ElevenLabs];
+    pub const ALL: [Provider; 5] = [Provider::Gemini, Provider::OpenAi, Provider::Anthropic, Provider::ElevenLabs, Provider::Custom];
 
-    /// Stable id (`gemini`, `openai`, `anthropic`, `elevenlabs`), as in preferences and commands.
+    /// Stable id (`gemini`, `openai`, `anthropic`, `elevenlabs`, `custom`), as in preferences and commands.
     pub fn id(self) -> &'static str {
         match self {
             Provider::Gemini => "gemini",
             Provider::OpenAi => "openai",
             Provider::Anthropic => "anthropic",
             Provider::ElevenLabs => "elevenlabs",
+            Provider::Custom => "custom",
         }
     }
 
@@ -70,6 +75,7 @@ impl Provider {
             "openai" => Some(Provider::OpenAi),
             "anthropic" | "claude" => Some(Provider::Anthropic),
             "elevenlabs" | "eleven" => Some(Provider::ElevenLabs),
+            "custom" | "compatible" => Some(Provider::Custom),
             _ => None,
         }
     }
@@ -81,6 +87,7 @@ impl Provider {
             Provider::OpenAi => "OpenAI",
             Provider::Anthropic => "Anthropic Claude",
             Provider::ElevenLabs => "ElevenLabs",
+            Provider::Custom => "Custom image service",
         }
     }
 
@@ -91,6 +98,7 @@ impl Provider {
             Provider::OpenAi => "https://platform.openai.com/api-keys",
             Provider::Anthropic => "https://console.anthropic.com/settings/keys",
             Provider::ElevenLabs => "https://elevenlabs.io/app/settings/api-keys",
+            Provider::Custom => "",
         }
     }
 
@@ -101,6 +109,7 @@ impl Provider {
             Provider::OpenAi => &["OPENAI_API_KEY"],
             Provider::Anthropic => &["ANTHROPIC_API_KEY"],
             Provider::ElevenLabs => &["ELEVENLABS_API_KEY", "XI_API_KEY"],
+            Provider::Custom => &["JILO_IMAGE_API_KEY"],
         }
     }
 
@@ -116,7 +125,12 @@ impl Provider {
 
     /// Whether it generates images.
     pub fn does_images(self) -> bool {
-        matches!(self, Provider::Gemini | Provider::OpenAi)
+        matches!(self, Provider::Gemini | Provider::OpenAi | Provider::Custom)
+    }
+
+    /// Whether a request may go without a key (a server on this computer often needs none).
+    pub fn key_optional(self) -> bool {
+        matches!(self, Provider::Custom)
     }
 
     /// Whether it speaks text with its voices.
@@ -131,7 +145,7 @@ impl Provider {
             Provider::Gemini => gemini::DEFAULT_MODEL,
             Provider::OpenAi => openai::DEFAULT_SPEECH_MODEL,
             Provider::ElevenLabs => elevenlabs::DEFAULT_SPEECH_MODEL,
-            Provider::Anthropic => "",
+            Provider::Anthropic | Provider::Custom => "",
         }
     }
 
@@ -141,7 +155,7 @@ impl Provider {
             Provider::Gemini => gemini::DEFAULT_MODEL,
             Provider::OpenAi => openai::DEFAULT_TEXT_MODEL,
             Provider::Anthropic => anthropic::DEFAULT_TEXT_MODEL,
-            Provider::ElevenLabs => "",
+            Provider::ElevenLabs | Provider::Custom => "",
         }
     }
 
@@ -149,7 +163,7 @@ impl Provider {
     pub fn default_image_model(self) -> &'static str {
         match self {
             Provider::Gemini => images::DEFAULT_GEMINI_MODEL,
-            Provider::OpenAi => images::DEFAULT_OPENAI_MODEL,
+            Provider::OpenAi | Provider::Custom => images::DEFAULT_OPENAI_MODEL,
             _ => "",
         }
     }
@@ -344,6 +358,7 @@ pub fn list_models(ctx: &Ctx, provider: Provider, key: &Secret, usage: ModelUse)
         Provider::OpenAi => openai::list_models(ctx, key, usage),
         Provider::Anthropic => anthropic::list_models(ctx, key),
         Provider::ElevenLabs => elevenlabs::list_models(ctx, key),
+        Provider::Custom => Err(AiError::Api(provider, "the custom image service lists no models here: type the model's name".into())),
     }
 }
 
@@ -381,7 +396,9 @@ pub fn generate_json(ctx: &Ctx, provider: Provider, key: &Secret, model: &str, r
         Provider::Gemini => gemini::generate_json(ctx, key, m, req),
         Provider::OpenAi => openai::generate_json(ctx, key, m, req),
         Provider::Anthropic => anthropic::generate_json(ctx, key, m, req),
-        Provider::ElevenLabs => Err(AiError::Api(provider, "ElevenLabs does not write texts; choose Gemini, OpenAI or Claude".into())),
+        Provider::ElevenLabs | Provider::Custom => {
+            Err(AiError::Api(provider, format!("{} does not write texts; choose Gemini, OpenAI or Claude", provider.name())))
+        }
     })?;
     Ok(JsonAnswer { value, model })
 }

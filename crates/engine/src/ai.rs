@@ -162,11 +162,15 @@ fn test(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// List the provider's models (OpenAI: the speech and the text models are told apart by id).
 fn check(c: &Ctx, provider: Provider, k: &Secret) -> std::result::Result<(String, ProviderModels), AiError> {
+    if provider == Provider::Custom {
+        // such services seldom list models: the key is checked the first time the service draws
+        return Ok(("Key saved; the custom image service checks it when it draws".into(), ProviderModels { speech: Vec::new(), text: Vec::new() }));
+    }
     let (msg, text) = filmcraft_ai::test_key(c, provider, k)?;
     let speech = match provider {
         Provider::Gemini | Provider::ElevenLabs => text.clone(),
         Provider::OpenAi => filmcraft_ai::list_models(c, provider, k, ModelUse::Speech)?,
-        Provider::Anthropic => Vec::new(),
+        Provider::Anthropic | Provider::Custom => Vec::new(),
     };
     Ok((msg, ProviderModels { speech, text }))
 }
@@ -174,7 +178,7 @@ fn check(c: &Ctx, provider: Provider, k: &Secret) -> std::result::Result<(String
 pub fn commands() -> Vec<CommandSpec> {
     vec![
         spec("ai.status", "AI Status", "{}", status),
-        spec("ai.setKey", "Set AI Key", r#"{"provider":"gemini|openai|anthropic|elevenlabs","key":str|null}"#, set_key),
-        spec("ai.test", "Check AI Key", r#"{"provider":"gemini|openai|anthropic|elevenlabs","wait":bool?}"#, test),
+        spec("ai.setKey", "Set AI Key", r#"{"provider":"gemini|openai|anthropic|elevenlabs|custom","key":str|null}"#, set_key),
+        spec("ai.test", "Check AI Key", r#"{"provider":"gemini|openai|anthropic|elevenlabs|custom","wait":bool?}"#, test),
     ]
 }

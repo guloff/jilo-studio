@@ -147,11 +147,15 @@ pub fn ensure_consent_for(s: &mut Session, provider: Provider, p: &Value, cmd: &
     }
     if bool_p(p, "confirm") == Some(true) {
         let mut list = s.prefs.ai.confirmed_providers.clone();
-        list.push(provider.id().to_string());
+        list.push(s.prefs.ai.consent_id(provider));
         s.execute("prefs.set", json!({"key": "ai.confirmedProviders", "value": list}))?;
         return Ok(());
     }
-    Err(bad(cmd, format!("CONFIRM_CLOUD: {} would receive {what}. Ask the user, then pass confirm: true (asked once per provider).", provider.name())))
+    let who = match provider {
+        Provider::Custom => format!("{} ({})", provider.name(), filmcraft_ai::images::custom_host(&s.prefs.ai.custom_image_url)),
+        _ => provider.name().to_string(),
+    };
+    Err(bad(cmd, format!("CONFIRM_CLOUD: {who} would receive {what}. Ask the user, then pass confirm: true (asked once per provider).")))
 }
 
 fn minutes(seconds: f64) -> String {

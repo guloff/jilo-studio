@@ -410,3 +410,47 @@ fn every_provider_says_what_it_does() {
     }
     assert_eq!(Provider::from_id("claude"), Some(Provider::Anthropic));
 }
+
+#[test]
+fn images_from_a_custom_service_at_the_users_address() {
+    let png = [0x89u8, b'P', b'N', b'G', 13, 10, 26, 10, 0, 0];
+    let fake = Arc::new(FakeTransport::new());
+    let (c, _) = ctx(&fake);
+    // the picture in the answer, the key as a bearer token, the address's path kept
+    fake.push(Response::json(200, &json!({"data": [{"b64_json": base64::encode(&png)}]})));
+    let pic = images::generate_custom(&c, "https://images.example.com/v1/", Some(&key()), "flux-1", "a red fox", images::Shape::Square).unwrap();
+    assert_eq!(pic.extension, "png");
+    let r = &fake.sent()[0];
+    assert_eq!(r.url, "https://images.example.com/v1/images/generations");
+    assert_eq!(r.json().unwrap()["model"], "flux-1");
+    assert!(r.headers.iter().any(|(k, v)| k == "Authorization" && v.starts_with("Bearer ")));
+    // a server on this computer: no key, plain http, and the picture at an address in the answer
+    fake.push(Response::json(200, &json!({"data": [{"url": "http://127.0.0.1:7860/out/1.png"}]})));
+    fake.push(Response::new(200, png.to_vec()));
+    let pic = images::generate_custom(&c, "http://localhost:7860/v1", None, "sdxl", "a red fox", images::Shape::Landscape).unwrap();
+    assert_eq!(pic.data, png);
+    let sent = fake.sent();
+    assert!(!sent[1].headers.iter().any(|(k, _)| k == "Authorization"), "no key, no header");
+    assert_eq!((sent[2].method, sent[2].url.as_str()), ("GET", "http://127.0.0.1:7860/out/1.png"));
+    assert!(!sent[2].headers.iter().any(|(k, _)| k == "Authorization"), "the key never goes to the picture's address");
+    // plain http elsewhere, a picture address that is not https, and an answer that is not a picture
+    for bad in ["http://images.example.com/v1", "ftp://x", "", "https://", "https://a b", "https://x/v1?k=1"] {
+        assert!(images::custom_base(bad).is_err(), "{bad}");
+    }
+    assert!(images::generate_custom(&c, "http://images.example.com/v1", None, "m", "x", images::Shape::Square).is_err());
+    // a signed picture address keeps its query
+    fake.push(Response::json(200, &json!({"data": [{"url": "https://cdn.example.com/1.png?sig=abc"}]})));
+    fake.push(Response::new(200, png.to_vec()));
+    images::generate_custom(&c, "https://images.example.com/v1", None, "m", "x", images::Shape::Square).unwrap();
+    assert_eq!(fake.sent().last().unwrap().url, "https://cdn.example.com/1.png?sig=abc");
+    fake.push(Response::json(200, &json!({"data": [{"url": "http://cdn.example.com/1.png"}]})));
+    assert!(matches!(images::generate_custom(&c, "https://images.example.com/v1", None, "m", "x", images::Shape::Square), Err(AiError::BadResponse(..))));
+    fake.push(Response::json(401, &json!({"error": {"message": "bad key"}})));
+    assert!(matches!(
+        images::generate_custom(&c, "https://images.example.com/v1", Some(&key()), "m", "x", images::Shape::Square),
+        Err(AiError::BadApiKey(Provider::Custom))
+    ));
+    assert_eq!(images::custom_host("https://user@Images.Example.com:8443/v1"), "images.example.com:8443");
+    assert_eq!(Provider::from_id("custom"), Some(Provider::Custom));
+    assert!(Provider::Custom.does_images() && !Provider::Custom.does_text() && Provider::Custom.key_optional());
+}

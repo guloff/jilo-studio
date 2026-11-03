@@ -70,7 +70,9 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(CMD, format!("the description is longer than {PROMPT_MAX} characters")));
     }
     let provider = match str_p(p, "engine") {
-        Some(e) => Provider::from_id(e).filter(|p| p.does_images()).ok_or_else(|| bad(CMD, format!("unknown image engine `{e}` (openai or gemini)")))?,
+        Some(e) => {
+            Provider::from_id(e).filter(|p| p.does_images()).ok_or_else(|| bad(CMD, format!("unknown image engine `{e}` (openai, gemini or custom)")))?
+        }
         None => s.prefs.ai.image_provider(),
     };
     let model = str_p(p, "model").map(str::to_string).unwrap_or_else(|| s.prefs.ai.image_model(provider));
@@ -84,7 +86,13 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(v) = ready {
         return apply(s, p, v["path"].as_str().unwrap_or_default(), provider, &model);
     }
-    let (secret, _) = crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(AiError::NoKey(provider)))?;
+    // the custom service: its address from Settings ▸ AI (a server on this computer may need no key)
+    let custom = if provider == Provider::Custom { Some(images::custom_base(&s.prefs.ai.custom_image_url).map_err(|e| bad(CMD, e))?) } else { None };
+    let secret = match crate::ai::key(s, provider) {
+        Some((k, _)) => Some(k),
+        None if provider.key_optional() => None,
+        None => return Err(crate::ai::ai_err(AiError::NoKey(provider))),
+    };
     let transport = crate::ai::transport(s).map_err(crate::ai::ai_err)?;
     crate::recognition::ensure_consent_for(s, provider, p, CMD, "the picture's description")?;
     let dir = crate::voiceover::media_dir(s, p, "Generated Images");
@@ -102,7 +110,12 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
             ctx = ctx.with_sleep(sleep);
         }
         *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("{} is drawing…", provider.name());
-        let r = images::generate(&ctx, provider, &secret, &model_c, &prompt, shape).map_err(|e| e.to_string()).and_then(|pic| {
+        let drawn = match (&custom, &secret) {
+            (Some(base), k) => images::generate_custom(&ctx, base, k.as_ref(), &model_c, &prompt, shape),
+            (None, Some(k)) => images::generate(&ctx, provider, k, &model_c, &prompt, shape),
+            (None, None) => Err(AiError::NoKey(provider)),
+        };
+        let r = drawn.map_err(|e| e.to_string()).and_then(|pic| {
             let stamp = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
             let path = std::path::Path::new(&dir).join(format!("Generated Image {stamp}.{}", pic.extension));
             std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&path, &pic.data)).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -132,7 +145,7 @@ pub fn commands() -> Vec<CommandSpec> {
         label: "Generate Image…",
         menu: crate::ai_menu::TOP,
         shortcut: None,
-        params: r#"{"prompt":str,"engine":"openai|gemini"?,"model":str?,"shape":"landscape|portrait|square"?,"place":bool?,"dir":str?,"confirm":bool?,"background":bool?}"#,
+        params: r#"{"prompt":str,"engine":"openai|gemini|custom"?,"model":str?,"shape":"landscape|portrait|square"?,"place":bool?,"dir":str?,"confirm":bool?,"background":bool?}"#,
         enabled: crate::commands::always,
         run: generate,
         journal: true,

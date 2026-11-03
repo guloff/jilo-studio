@@ -4506,3 +4506,8 @@ mode	Edit	Монтаж
 	Select to End of Track	Выделить до конца дорожки
 	Caption Style…	Стиль субтитров…
 	Export Captions…	Экспорт субтитров…
+	Custom service (OpenAI-compatible)	Свой сервис (совместимый с OpenAI)
+	Custom service address	Адрес своего сервиса
+	Custom service model	Модель своего сервиса
+	Custom image service	Свой сервис картинок
+	Set the custom service's address	Укажите адрес своего сервиса

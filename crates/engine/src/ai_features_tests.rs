@@ -774,6 +774,40 @@ fn reframing_without_faces_or_a_face_finder_says_why() {
     assert_eq!(s.history.undo.len(), undo);
 }
 
+#[test]
+fn a_custom_image_service_draws_at_its_address_with_consent_per_host() {
+    let (mut s, fake, dir) = session("imagegen-custom");
+    let b64 = filmcraft_ai::base64::encode(&png_bytes(32, 32));
+    fake.route(|r| r.url.ends_with("/images/generations"), move |_| Ok(Response::json(200, &json!({"data": [{"b64_json": b64}]}))));
+    let p = json!({"prompt": "a lighthouse", "engine": "custom", "dir": dir.to_string_lossy(), "place": false});
+    // no address yet
+    let e = s.execute("ai.generateImage", p.clone()).unwrap_err().to_string();
+    assert!(e.contains("address"), "{e}");
+    s.execute("prefs.set", json!({"key": "ai.customImageUrl", "value": "http://localhost:7860/v1"})).unwrap();
+    s.execute("prefs.set", json!({"key": "ai.customImageModel", "value": "sdxl"})).unwrap();
+    let e = s.execute("ai.generateImage", p.clone()).unwrap_err().to_string();
+    assert!(e.contains("CONFIRM_CLOUD") && e.contains("localhost:7860"), "consent names the host: {e}");
+    // no key is needed for a server on this computer
+    let mut ok = p.clone();
+    ok["confirm"] = json!(true);
+    let r = s.execute("ai.generateImage", ok).unwrap();
+    assert!(std::path::Path::new(r["path"].as_str().unwrap()).exists(), "{r}");
+    let sent = fake.sent();
+    assert_eq!(sent[0].url, "http://localhost:7860/v1/images/generations");
+    assert_eq!(sent[0].json().unwrap()["model"], "sdxl");
+    assert!(!sent[0].headers.iter().any(|(k, _)| k == "Authorization"));
+    assert!(s.prefs.ai.confirmed_providers.contains(&"custom:localhost:7860".to_string()));
+    // another address is asked about again; plain http elsewhere is refused before anything goes out
+    s.execute("prefs.set", json!({"key": "ai.customImageUrl", "value": "https://images.example.com/v1"})).unwrap();
+    assert!(s.execute("ai.generateImage", p.clone()).unwrap_err().to_string().contains("CONFIRM_CLOUD"));
+    s.execute("prefs.set", json!({"key": "ai.customImageUrl", "value": "http://images.example.com/v1"})).unwrap();
+    let mut again = p.clone();
+    again["confirm"] = json!(true);
+    assert!(s.execute("ai.generateImage", again).unwrap_err().to_string().contains("https"));
+    assert_eq!(fake.sent().len(), 1);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// A real PNG of `w` × `h`, as an image engine answers.
 fn png_bytes(w: u32, h: u32) -> Vec<u8> {
     let mut out = std::io::Cursor::new(Vec::new());

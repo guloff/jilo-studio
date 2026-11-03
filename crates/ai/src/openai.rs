@@ -19,14 +19,19 @@ fn bearer(key: &Secret) -> String {
 
 /// OpenAI's error answer as an [`AiError`] (429 and 5xx were retried before this).
 pub fn error(model: &str, r: &Response) -> AiError {
+    error_for(P, model, r)
+}
+
+/// [`error`] for a service that answers as OpenAI does ([`Provider::Custom`]).
+pub fn error_for(p: Provider, model: &str, r: &Response) -> AiError {
     let msg = error_message(r);
     match r.status {
-        401 => AiError::BadApiKey(P),
-        403 => AiError::Forbidden(P, msg),
-        404 => AiError::ModelNotFound(P, model.to_string()),
-        429 => AiError::RateLimited(P),
-        s if s >= 500 => AiError::Unavailable(P, msg),
-        _ => AiError::Api(P, msg),
+        401 => AiError::BadApiKey(p),
+        403 => AiError::Forbidden(p, msg),
+        404 => AiError::ModelNotFound(p, model.to_string()),
+        429 => AiError::RateLimited(p),
+        s if s >= 500 => AiError::Unavailable(p, msg),
+        _ => AiError::Api(p, msg),
     }
 }
 

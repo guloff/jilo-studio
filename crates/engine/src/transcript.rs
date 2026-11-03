@@ -196,7 +196,7 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
             filmcraft_ai::Provider::Gemini => Some("ai.geminiSpeechModel"),
             filmcraft_ai::Provider::OpenAi => Some("ai.openaiSpeechModel"),
             filmcraft_ai::Provider::ElevenLabs => Some("ai.elevenlabsSpeechModel"),
-            filmcraft_ai::Provider::Anthropic => None,
+            filmcraft_ai::Provider::Anthropic | filmcraft_ai::Provider::Custom => None,
         };
         if let Some(k) = k {
             s.execute("prefs.set", json!({"key": k, "value": m}))?;

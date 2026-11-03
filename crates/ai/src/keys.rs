@@ -72,6 +72,9 @@ struct KeyFile {
     anthropic_api_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     elevenlabs_api_key: Option<String>,
+    /// The custom image service's key (Settings ▸ AI ▸ Images).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    custom_api_key: Option<String>,
     /// Entries this version does not know are kept as they are.
     #[serde(flatten)]
     other: serde_json::Map<String, serde_json::Value>,
@@ -84,6 +87,7 @@ impl KeyFile {
             Provider::OpenAi => &mut self.openai_api_key,
             Provider::Anthropic => &mut self.anthropic_api_key,
             Provider::ElevenLabs => &mut self.elevenlabs_api_key,
+            Provider::Custom => &mut self.custom_api_key,
         }
     }
 }

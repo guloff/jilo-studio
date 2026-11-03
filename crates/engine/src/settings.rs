@@ -459,6 +459,10 @@ pub struct AiPrefs {
     pub elevenlabs_speech_model: String,
     pub openai_image_model: String,
     pub gemini_image_model: String,
+    /// The custom image service: its address (`https://…/v1`, plain http only to this computer)
+    /// and model; it answers as OpenAI's `/images/generations` does.
+    pub custom_image_url: String,
+    pub custom_image_model: String,
     /// The ElevenLabs model that speaks narrations.
     pub elevenlabs_voice_model: String,
     /// Cloud providers the user has agreed to send material to (asked once per provider).
@@ -485,6 +489,8 @@ impl Default for AiPrefs {
             elevenlabs_speech_model: Provider::ElevenLabs.default_speech_model().into(),
             openai_image_model: Provider::OpenAi.default_image_model().into(),
             gemini_image_model: Provider::Gemini.default_image_model().into(),
+            custom_image_url: String::new(),
+            custom_image_model: Provider::Custom.default_image_model().into(),
             elevenlabs_voice_model: filmcraft_ai::elevenlabs::DEFAULT_VOICE_MODEL.into(),
             confirmed_providers: Vec::new(),
             local_only: false,
@@ -516,7 +522,7 @@ impl AiPrefs {
             Provider::Gemini => &self.gemini_speech_model,
             Provider::OpenAi => &self.openai_speech_model,
             Provider::ElevenLabs => &self.elevenlabs_speech_model,
-            Provider::Anthropic => return String::new(),
+            Provider::Anthropic | Provider::Custom => return String::new(),
         };
         if m.trim().is_empty() { p.default_speech_model().to_string() } else { m.trim().to_string() }
     }
@@ -528,7 +534,7 @@ impl AiPrefs {
             Provider::Gemini => &self.gemini_text_model,
             Provider::OpenAi => &self.openai_text_model,
             Provider::Anthropic => &self.anthropic_text_model,
-            Provider::ElevenLabs => return String::new(),
+            Provider::ElevenLabs | Provider::Custom => return String::new(),
         };
         if m.trim().is_empty() { p.default_text_model().to_string() } else { m.trim().to_string() }
     }
@@ -539,6 +545,7 @@ impl AiPrefs {
         let m = match p {
             Provider::Gemini => &self.gemini_image_model,
             Provider::OpenAi => &self.openai_image_model,
+            Provider::Custom => &self.custom_image_model,
             _ => return String::new(),
         };
         if m.trim().is_empty() { p.default_image_model().to_string() } else { m.trim().to_string() }
@@ -552,7 +559,17 @@ impl AiPrefs {
 
     /// Whether the user agreed to send material to `p`.
     pub fn confirmed(&self, p: filmcraft_ai::Provider) -> bool {
-        self.confirmed_providers.iter().any(|c| c == p.id())
+        let id = self.consent_id(p);
+        self.confirmed_providers.contains(&id)
+    }
+
+    /// What the user's consent is recorded as: the provider's id, and for the custom image service
+    /// its host too (`custom:images.example.com`), so another address is asked about again.
+    pub fn consent_id(&self, p: filmcraft_ai::Provider) -> String {
+        match p {
+            filmcraft_ai::Provider::Custom => format!("custom:{}", filmcraft_ai::images::custom_host(&self.custom_image_url)),
+            _ => p.id().to_string(),
+        }
     }
 }
 
@@ -873,7 +890,7 @@ pub const SPEECH_ENGINES: &[(&str, &str)] = &[
     ("elevenlabs", "ElevenLabs Scribe (cloud)"),
 ];
 const TEXT_ENGINES: &[(&str, &str)] = &[("gemini", "Google Gemini (cloud)"), ("openai", "OpenAI (cloud)"), ("anthropic", "Anthropic Claude (cloud)")];
-const IMAGE_ENGINES: &[(&str, &str)] = &[("openai", "OpenAI (cloud)"), ("gemini", "Google Gemini (cloud)")];
+const IMAGE_ENGINES: &[(&str, &str)] = &[("openai", "OpenAI (cloud)"), ("gemini", "Google Gemini (cloud)"), ("custom", "Custom service (OpenAI-compatible)")];
 const CACHE_MGMT: &[(&str, &str)] = &[
     ("never", "Do not delete cache files automatically"),
     ("olderThan", "Automatically delete cache files older than"),
@@ -991,6 +1008,8 @@ static CATEGORIES: &[Category] = &[
                     f("ai.imageEngine", "Engine", Kind::Choice(IMAGE_ENGINES), true),
                     f("ai.openaiImageModel", "OpenAI model", Kind::Text, true),
                     f("ai.geminiImageModel", "Gemini model", Kind::Text, true),
+                    f("ai.customImageUrl", "Custom service address", Kind::Text, true),
+                    f("ai.customImageModel", "Custom service model", Kind::Text, true),
                 ],
             ),
             Row::Group("Voices", &[f("ai.elevenlabsVoiceModel", "ElevenLabs voice model", Kind::Text, true)]),
