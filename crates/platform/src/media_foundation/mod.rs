@@ -144,8 +144,8 @@ pub struct MfDecoder {
 impl MfDecoder {
     /// A decoder for the stream, or why Media Foundation does not take it (unsupported format, no
     /// DXVA decoder for it on the GPU, no Direct3D-aware decoder MFT).
-    pub fn new(stream: impl Into<Stream>) -> std::result::Result<Self, String> {
-        let stream = stream.into();
+    pub fn new(stream: impl Into<StreamInfo>) -> std::result::Result<Self, String> {
+        let stream = Stream::try_from(stream.into())?;
         let plan = stream.plan()?;
         let api = mft::api()?;
         let gpu = Gpu::shared(api)?;

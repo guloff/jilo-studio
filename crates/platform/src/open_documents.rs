@@ -28,6 +28,8 @@ pub fn set_waker(waker: Waker) {
     *WAKER.lock().unwrap_or_else(PoisonError::into_inner) = Some(waker);
 }
 
+// the macOS Apple Event handler and the tests feed the queue
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
 fn push(paths: Vec<String>) {
     if paths.is_empty() {
         return;

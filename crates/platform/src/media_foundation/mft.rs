@@ -192,6 +192,8 @@ pub enum Poll {
 /// An attribute of the decoder's input media type.
 pub enum Attr {
     U32(u32),
+    // no codec sets a blob attribute today (VP9 and AV1 go in without codec private data)
+    #[allow(dead_code)]
     Blob(Vec<u8>),
 }
 

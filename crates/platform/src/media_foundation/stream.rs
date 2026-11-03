@@ -36,11 +36,15 @@ pub struct Plan {
     pub size: (u32, u32),
 }
 
-impl From<StreamInfo> for Stream {
-    fn from(i: StreamInfo) -> Self {
+impl TryFrom<StreamInfo> for Stream {
+    type Error = String;
+
+    fn try_from(i: StreamInfo) -> Result<Self, String> {
         match i {
-            StreamInfo::Nal(n) => Self::Nal(n),
-            StreamInfo::Frame(f) => Self::Frame(f),
+            StreamInfo::Nal(n) => Ok(Self::Nal(n)),
+            StreamInfo::Frame(f) => Ok(Self::Frame(f)),
+            // ProRes: Windows has no ProRes decoder MFT (our own decoder takes it)
+            StreamInfo::Intra => Err("intra-only (ProRes) stream".into()),
         }
     }
 }
@@ -183,6 +187,7 @@ impl Stream {
     }
 
     /// The even-rectangle test sharing a surface needs (see `MfDecoder::can_share`).
+    #[allow(dead_code)]
     pub fn picture_is_even(&self, g: &Geometry) -> bool {
         let (x, y, w, h) = g.crop;
         [x, y, w, h].iter().all(|v| v % 2 == 0)
