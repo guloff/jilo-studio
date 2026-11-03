@@ -50,7 +50,7 @@ fn parse_tc(s: &str) -> Option<Tc> {
     if parts.len() != 4 || parts.iter().any(|p| p.is_empty() || !p.bytes().all(|b| b.is_ascii_digit())) {
         return None;
     }
-    let n: Vec<i64> = parts.iter().map(|p| p.parse().unwrap_or(0)).collect();
+    let n: Vec<i64> = parts.iter().map(|p| p.parse().ok()).collect::<Option<_>>()?;
     Some(Tc { h: n[0], m: n[1], s: n[2], f: n[3], df: s.contains(';') || s.contains(',') })
 }
 
@@ -152,6 +152,7 @@ struct Parsed {
 fn parse(text: &str, report: &mut Report) -> Parsed {
     let mut p = Parsed { title: None, events: Vec::new(), any_df: false, max_ff: 0 };
     let mut df = false;
+    let mut skip_metadata = false;
     for raw in text.lines() {
         let l = raw.trim();
         if l.is_empty() {
@@ -165,6 +166,9 @@ fn parse(text: &str, report: &mut Report) -> Parsed {
         if upper.starts_with("FCM:") {
             df = upper.contains("DROP") && !upper.contains("NON");
             p.any_df |= df;
+            continue;
+        }
+        if skip_metadata && (l.starts_with('*') || upper.starts_with("M2") || upper.starts_with("AUD")) {
             continue;
         }
         if let Some(c) = l.strip_prefix('*') {
@@ -224,15 +228,20 @@ fn parse(text: &str, report: &mut Report) -> Parsed {
                 p.max_ff = p.max_ff.max(tc.f);
                 p.any_df |= tc.df;
             }
-            if let Some(e) = p.events.last_mut().filter(|e| e.lines.last().is_some_and(|last| last.num == line.num)) {
+            if let Some(e) = p.events.last_mut().filter(|e| !skip_metadata && e.lines.last().is_some_and(|last| last.num == line.num)) {
                 e.lines.push(line);
             } else {
                 p.events.push(Event { lines: vec![line], df, ..Default::default() });
             }
+            skip_metadata = false;
             continue;
         }
         if upper.starts_with(">>>") || upper.starts_with("REM") {
             continue;
+        }
+        if l.split_whitespace().next().is_some_and(|token| token.bytes().all(|b| b.is_ascii_digit())) {
+            // Comments and auxiliary lines after a rejected event do not belong to the previous one.
+            skip_metadata = true;
         }
         report.warn(format!("unrecognised EDL line ignored: {}", l.chars().take(60).collect::<String>()));
     }
@@ -1023,6 +1032,43 @@ mod tests {
         assert_eq!(parse_channels("AA/V"), Some(vec![Ch::A(1), Ch::A(2), Ch::V]));
         assert_eq!(parse_channels("A4"), Some(vec![Ch::A(4)]));
         assert_eq!(parse_channels("X"), None);
+    }
+
+    #[test]
+    fn timecode_rejects_fields_too_large_for_i64() {
+        for tc in ["9223372036854775808:00:00:00", "00:9223372036854775808:00:00", "00:00:9223372036854775808:00", "00:00:00:9223372036854775808"] {
+            assert!(parse_tc(tc).is_none(), "accepted {tc}");
+        }
+        assert_eq!(parse_tc("01:02:03:04"), Some(Tc { h: 1, m: 2, s: 3, f: 4, df: false }));
+    }
+
+    #[test]
+    fn rejected_event_metadata_does_not_change_previous_event() {
+        let text = "TITLE: Rejected event\n\
+001 A V C 00:00:00:00 00:00:01:00 01:00:00:00 01:00:01:00\n\
+* FROM CLIP NAME: First\n\
+* SOURCE FILE: first.mov\n\
+002 B V C 9223372036854775808:00:00:00 00:00:01:00 01:00:01:00 01:00:02:00\n\
+* FROM CLIP NAME: Rejected\n\
+* SOURCE FILE: rejected.mov\n\
+* LOC: 01:00:01:00 RED Rejected marker\n\
+M2 B 12.0 00:00:00:00\n\
+AUD 2\n\
+003 C V C 00:00:00:00 00:00:01:00 01:00:02:00 01:00:03:00\n\
+* FROM CLIP NAME: Third\n";
+        for number in ["001", "003"] {
+            let text = text.replace("003 C", &format!("{number} C"));
+            let mut report = Report::default();
+            let parsed = parse(&text, &mut report);
+            assert_eq!(parsed.events.len(), 2);
+            let first = &parsed.events[0];
+            assert_eq!(first.from_clip.as_deref(), Some("First"));
+            assert_eq!(first.files, ["first.mov"]);
+            assert!(first.locs.is_empty());
+            assert!(first.m2.is_empty());
+            assert_eq!(first.lines[0].chans, [Ch::V]);
+            assert_eq!(parsed.events[1].from_clip.as_deref(), Some("Third"));
+        }
     }
 
     #[test]
