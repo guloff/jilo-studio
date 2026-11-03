@@ -93,10 +93,11 @@ fn golden_drop_frame_dissolves() {
     assert_eq!(s.markers[0].name, "gull lands");
     assert_eq!(s.markers[0].start, f(r, 285));
     assert_eq!(s.markers[0].color, filmcraft_project::Label::Rose);
-    // media without a source file is offline with its reel as tape name
+    // media without a source file has its reel as tape name, and is missing until relinked,
+    // not made offline (#3997)
     let gm = p.item(g.item).unwrap();
     assert_eq!(gm.metadata.get("Tape Name").map(String::as_str), Some("GULLS"));
-    assert!(gm.as_media().unwrap().offline);
+    assert!(!gm.as_media().unwrap().offline);
 }
 
 #[test]
