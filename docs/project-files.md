@@ -162,8 +162,8 @@ Premiere's auto-save can lose up to one interval of work. Jilo Studio also keeps
 Desktop flags: `--recover` recovers the newest candidate without asking. `--no-recover` starts
 without asking; the changes stay available through File ▸ Recover Unsaved Changes…. `--data-dir
 <dir>` (or `JILO_DATA_DIR`) moves the data directory. The default is `~/Library/Application
-Support/com.rustamguloff.jilostudio` (builds from source on other systems use `%APPDATA%\Jilo Studio`
-on Windows, and `$XDG_DATA_HOME/jilo-studio` or `~/.local/share/jilo-studio` elsewhere). A
+Support/com.rustamguloff.jilostudio` on macOS and `%APPDATA%\com.rustamguloff.jilostudio` on Windows
+(builds from source on other systems use `$XDG_DATA_HOME/jilo-studio` or `~/.local/share/jilo-studio`). A
 `portable.txt` file next to the executable makes it `data` next to the executable instead.
 
 ### Cost

@@ -503,8 +503,9 @@ pub fn portable_data_dir(exe_dir: &Path) -> Option<PathBuf> {
 
 /// The data directory. `JILO_DATA_DIR` overrides; a portable install ([`PORTABLE_MARKER`] next
 /// to the executable) uses `<exe dir>/data`; otherwise the per-user directory:
-/// macOS `~/Library/Application Support/com.rustamguloff.jilostudio` (Jilo Studio; named by its
-/// bundle id so it never mixes with the Electron Jilo Studio's `Jilo Studio` folder), Windows `%APPDATA%\Jilo Studio`,
+/// macOS `~/Library/Application Support/com.rustamguloff.jilostudio`, Windows
+/// `%APPDATA%\com.rustamguloff.jilostudio` (named by the bundle id so it never mixes with the Electron
+/// Jilo Studio's `Jilo Studio` folder),
 /// elsewhere `$XDG_DATA_HOME/jilo-studio` or `~/.local/share/jilo-studio`.
 pub fn default_data_dir() -> Option<PathBuf> {
     let env = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
@@ -518,7 +519,7 @@ pub fn default_data_dir() -> Option<PathBuf> {
         return env("HOME").map(|h| h.join("Library/Application Support/com.rustamguloff.jilostudio"));
     }
     if cfg!(windows) {
-        return env("APPDATA").map(|h| h.join("Jilo Studio"));
+        return env("APPDATA").map(|h| h.join("com.rustamguloff.jilostudio"));
     }
     env("XDG_DATA_HOME").map(|d| d.join("jilo-studio")).or_else(|| env("HOME").map(|h| h.join(".local/share/jilo-studio")))
 }
