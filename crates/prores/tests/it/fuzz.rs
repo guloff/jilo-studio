@@ -1,6 +1,6 @@
 //! Robustness: mutated and random inputs must never panic (errors are fine).
 
-mod common;
+use crate::common;
 use filmcraft_prores::*;
 
 struct Rng(u64);

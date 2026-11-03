@@ -1,7 +1,7 @@
 //! Decode/encode throughput. Run with
-//! `cargo test --release -p filmcraft-prores --test perf -- --ignored --nocapture`.
+//! `cargo test --release -p filmcraft-prores --test it perf:: -- --ignored --nocapture`.
 
-mod common;
+use crate::common;
 use filmcraft_prores::*;
 use std::time::Instant;
 

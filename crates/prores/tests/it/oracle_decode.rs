@@ -1,6 +1,6 @@
 //! Decoder accuracy against ffmpeg's ProRes decoder (oracle only; skipped without ffmpeg).
 
-mod common;
+use crate::common;
 use common::*;
 use filmcraft_prores::{AlphaType, ChromaFormat, DecodeOptions, Interlace, decode_frame, decode_frame_with, probe};
 

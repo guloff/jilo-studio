@@ -1,6 +1,6 @@
 //! Encoder → decoder round trips on synthetic content (no external tools needed).
 
-mod common;
+use crate::common;
 use common::psnr;
 use filmcraft_prores::*;
 
