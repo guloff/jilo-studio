@@ -307,3 +307,11 @@ pub fn meter_bar(painter: &egui::Painter, rect: Rect, db: f32, peak_db: f32, t: 
         Stroke::new(1.0, if peak_db > -0.5 { t.danger } else { Color32::from_rgb(0xf0, 0xf0, 0x4f) }),
     );
 }
+
+/// `text` laid out on one line no wider than `max_width`, ending in "…" when it is longer (card and
+/// tile labels, where a longer translation must not run into the next item).
+pub fn elided(ui: &egui::Ui, text: &str, font: egui::FontId, color: egui::Color32, max_width: f32) -> std::sync::Arc<egui::Galley> {
+    let mut job = egui::text::LayoutJob::simple_singleline(text.to_string(), font, color);
+    job.wrap = egui::text::TextWrapping { max_width: max_width.max(1.0), max_rows: 1, break_anywhere: true, overflow_character: Some('…') };
+    ui.painter().layout_job(job)
+}

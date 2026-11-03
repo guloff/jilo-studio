@@ -571,33 +571,39 @@ fn footer(app: &mut JiloApp, ui: &mut egui::Ui, bar: Rect, v: &View, actions: &m
         x += 28.0;
     }
     // thumbnail size: in-memory while dragging, saved on release
-    let sw = (bar.width() - 300.0).clamp(40.0, 120.0);
-    let sr = Rect::from_min_size(pos2(x + 8.0, bar.min.y + 8.0), vec2(sw, 16.0));
-    let mut sz = v.icon_size;
-    let resp = ui.put(sr, egui::Slider::new(&mut sz, 48.0..=400.0).show_value(false));
-    app.auto.add(&format!("{pre}.iconSize"), sr, "Zoom");
-    // a drag ended by Escape goes back to the size it started from (#580)
-    let orig_id = egui::Id::new((pre, "icon-size-before-drag"));
-    if resp.drag_started() {
-        ui.data_mut(|d| d.insert_temp(orig_id, v.icon_size));
-    }
-    let escaped = resp.drag_stopped() && ui.input(|i| i.key_pressed(egui::Key::Escape));
-    if resp.drag_stopped()
-        && let Some(before) = ui.data_mut(|d| d.remove_temp(orig_id))
-        && escaped
-    {
-        sz = before;
-    }
-    if sz != v.icon_size {
-        match v.inst {
-            Inst::Main => app.session.prefs.project_panel.view.icon_size = sz,
-            Inst::Tab(k) => app.ui.project_panel.tabs[k].icon_size = sz,
+    // only the room left between the view buttons and the five on the right (narrow columns)
+    let sort_w = if v.mode == ViewMode::Icon { 30.0 } else { 0.0 };
+    let sw = (bar.max.x - 6.0 - 5.0 * 24.0 - 6.0 - sort_w - (x + 8.0)).min(120.0);
+    if sw >= 30.0 {
+        let sr = Rect::from_min_size(pos2(x + 8.0, bar.min.y + 8.0), vec2(sw, 16.0));
+        let mut sz = v.icon_size;
+        let resp = ui.put(sr, egui::Slider::new(&mut sz, 48.0..=400.0).show_value(false));
+        app.auto.add(&format!("{pre}.iconSize"), sr, "Zoom");
+        // a drag ended by Escape goes back to the size it started from (#580)
+        let orig_id = egui::Id::new((pre, "icon-size-before-drag"));
+        if resp.drag_started() {
+            ui.data_mut(|d| d.insert_temp(orig_id, v.icon_size));
         }
+        let escaped = resp.drag_stopped() && ui.input(|i| i.key_pressed(egui::Key::Escape));
+        if resp.drag_stopped()
+            && let Some(before) = ui.data_mut(|d| d.remove_temp(orig_id))
+            && escaped
+        {
+            sz = before;
+        }
+        if sz != v.icon_size {
+            match v.inst {
+                Inst::Main => app.session.prefs.project_panel.view.icon_size = sz,
+                Inst::Tab(k) => app.ui.project_panel.tabs[k].icon_size = sz,
+            }
+        }
+        if v.inst == Inst::Main && !escaped && (resp.drag_stopped() || (resp.changed() && !resp.dragged())) {
+            actions.push(("project.view.set".into(), json!({"iconSize": sz})));
+        }
+        x = sr.max.x + 6.0;
+    } else {
+        x += 6.0;
     }
-    if v.inst == Inst::Main && !escaped && (resp.drag_stopped() || (resp.changed() && !resp.dragged())) {
-        actions.push(("project.view.set".into(), json!({"iconSize": sz})));
-    }
-    x = sr.max.x + 6.0;
     // Sort Icons (Icon view)
     if v.mode == ViewMode::Icon {
         let r = Rect::from_min_size(pos2(x, bar.min.y + 5.0), vec2(24.0, 22.0));

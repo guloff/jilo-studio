@@ -83,7 +83,15 @@ fn captions(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
         let c = rect.center();
         icons::paint(ui.painter(), Rect::from_center_size(c - vec2(0.0, 70.0), vec2(40.0, 40.0)), Icon::Captions, t.text_dim);
         ui.painter().text(c - vec2(0.0, 30.0), Align2::CENTER_CENTER, tl!("Add captions"), Tokens::semibold(16.0), t.text);
-        ui.painter().text(c - vec2(0.0, 8.0), Align2::CENTER_CENTER, tl!("Create a caption track or import a caption file."), Tokens::ui(12.0), t.text_dim);
+        let mut job = egui::text::LayoutJob::simple(
+            tl!("Create a caption track or import a caption file.").to_string(),
+            Tokens::ui(12.0),
+            t.text_dim,
+            (rect.width() - 24.0).max(80.0),
+        );
+        job.halign = egui::Align::Center;
+        let g = ui.painter().layout_job(job);
+        ui.painter().galley(c - vec2(0.0, 8.0 + g.size().y / 2.0), g, t.text_dim);
         for (i, (id, label, cmd)) in [
             ("text.captions.newTrack", tl!("Create new caption track"), "captions.newTrack"),
             ("text.captions.import", tl!("Import captions file…"), "captions.import"),
@@ -91,7 +99,10 @@ fn captions(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
         .into_iter()
         .enumerate()
         {
-            let r = Rect::from_center_size(c + vec2(0.0, 26.0 + i as f32 * 34.0), vec2(200.0, 26.0));
+            // as wide as the label (Russian and Spanish run longer than 200 px), within the panel
+            let text_w = ui.painter().layout_no_wrap(label.to_string(), Tokens::semibold(12.0), Color32::WHITE).size().x;
+            let w = (text_w + 32.0).max(200.0).min((rect.width() - 16.0).max(120.0));
+            let r = Rect::from_center_size(c + vec2(0.0, 26.0 + i as f32 * 34.0), vec2(w, 26.0));
             let resp = ui.interact(r, egui::Id::new(id), Sense::click());
             ui.painter().rect_filled(r, 13.0, if i == 0 { if resp.hovered() { t.accent_hover } else { t.accent } } else { t.field_bg });
             ui.painter().text(r.center(), Align2::CENTER_CENTER, label, Tokens::semibold(12.0), Color32::WHITE);

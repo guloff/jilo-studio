@@ -56,8 +56,14 @@ fn sources(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, width: f32, columns
         let resp = ui.interact(r, egui::Id::new(("imp", *cmd)), Sense::click());
         app.auto.add(&format!("import.{cmd}"), r, title);
         ui.painter().rect_filled(r, 8.0, if resp.hovered() { t.hover } else { t.tl_header_bg });
-        ui.painter().text(r.min + vec2(16.0, 110.0), Align2::LEFT_CENTER, *title, Tokens::semibold(14.0), t.text);
-        ui.painter().text(r.min + vec2(16.0, 132.0), Align2::LEFT_CENTER, *sub, Tokens::ui(11.5), t.text_dim);
+        let title_g = crate::widgets::elided(ui, title, Tokens::semibold(14.0), t.text, cw - 32.0);
+        ui.painter().galley(r.min + vec2(16.0, 110.0 - title_g.size().y / 2.0), title_g, t.text);
+        // the line under the title takes up to two lines of the card, then ends in "…"
+        let mut job = egui::text::LayoutJob::simple(sub.to_string(), Tokens::ui(11.5), t.text_dim, cw - 32.0);
+        job.wrap.max_rows = 2;
+        job.wrap.overflow_character = Some('…');
+        let sub_g = ui.painter().layout_job(job);
+        ui.painter().galley(r.min + vec2(16.0, 125.0), sub_g, t.text_dim);
         crate::icons::paint(
             ui.painter(),
             Rect::from_min_size(r.min + vec2(16.0, 18.0), vec2(56.0, 56.0)),

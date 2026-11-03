@@ -377,9 +377,13 @@ fn combo(app: &mut JiloApp, ui: &mut Ui, key: &str, current: &str, opts: &[(Stri
     let shown = opts.iter().find(|o| o.0 == current).map(|o| o.1.clone()).unwrap_or_else(|| current.to_string());
     let mut chosen = None;
     let mut items: Vec<(String, Rect, String)> = Vec::new();
-    let r = egui::ComboBox::from_id_salt(("settings", key)).selected_text(RichText::new(crate::i18n::t(&shown)).size(12.5)).width(width).height(480.0).show_ui(
-        ui,
-        |ui| {
+    let r = egui::ComboBox::from_id_salt(("settings", key))
+        .selected_text(RichText::new(crate::i18n::t(&shown)).size(12.5))
+        .width(width.min((ui.available_width() - 8.0).max(80.0)))
+        // a long choice (Russian) is cut short instead of widening the dialog
+        .truncate()
+        .height(480.0)
+        .show_ui(ui, |ui| {
             for (v, l) in opts {
                 let r = ui.selectable_label(v == current, crate::i18n::t(l));
                 items.push((format!("settings.{key}.{v}"), r.rect, l.clone()));
@@ -387,8 +391,7 @@ fn combo(app: &mut JiloApp, ui: &mut Ui, key: &str, current: &str, opts: &[(Stri
                     chosen = Some(v.clone());
                 }
             }
-        },
-    );
+        });
     app.auto.add(&format!("settings.{key}"), r.response.rect, &shown);
     for (id, rect, l) in items {
         app.auto.add(&id, rect, &l);
@@ -435,6 +438,8 @@ fn draw_field(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft, f: &Field) 
             match f.kind {
                 Kind::Bool => {
                     let mut b = cur.as_bool().unwrap_or(false);
+                    // a long label (Russian) wraps within the page instead of widening the dialog
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                     let r = ui.checkbox(&mut b, RichText::new(crate::i18n::t(f.label)).size(12.5));
                     app.auto.add(&format!("settings.{}", f.key), r.rect, f.label);
                     if r.changed() {
@@ -814,7 +819,13 @@ fn ai_keys(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft) {
             let mut typed: String = ui.data(|m| m.get_temp(key_mem)).unwrap_or_default();
             ui.horizontal(|ui| {
                 field_label(ui, "");
-                let r = ui.add(egui::TextEdit::singleline(&mut typed).password(true).desired_width(220.0).hint_text(tl!("Paste a new key")));
+                // the field gives way to the buttons when their labels are long (Russian)
+                let font = egui::TextStyle::Button.resolve(ui.style());
+                let pad = ui.spacing().button_padding.x * 2.0 + ui.spacing().item_spacing.x + 12.0;
+                let bw = |s: &str| ui.painter().layout_no_wrap(s.to_string(), font.clone(), t.text).size().x + pad;
+                let buttons = bw(tl!("Save Key")) + if src.as_deref() == Some("file") { bw(tl!("Remove Key")) } else { 0.0 };
+                let edit_w = (ui.available_width() - buttons - 8.0).clamp(100.0, 220.0);
+                let r = ui.add(egui::TextEdit::singleline(&mut typed).password(true).desired_width(edit_w).hint_text(tl!("Paste a new key")));
                 app.auto.add(&format!("settings.ai.{id}.key"), r.rect, "API key");
                 if button(app, ui, &format!("settings.ai.{id}.save"), tl!("Save Key"), false) && !typed.trim().is_empty() {
                     d.message = match app.session.execute("ai.setKey", json!({"provider": id, "key": typed.trim()})) {
@@ -985,17 +996,18 @@ pub fn show(app: &mut JiloApp, ctx: &egui::Context) -> bool {
             ui.add_space(20.0);
             // the page
             let Some(cat) = settings::category(&d.page) else { return };
-            ui.vertical(|ui| {
-                ui.set_width(W - LIST_W - 60.0);
-                ui.set_height(BODY_H);
-                egui::ScrollArea::vertical().id_salt(("settings-page", cat.id)).auto_shrink([false, false]).max_height(BODY_H).show(ui, |ui| {
-                    ui.spacing_mut().item_spacing.y = 6.0;
-                    rows(app, ui, &mut d, cat.rows);
-                    if !d.message.is_empty() {
-                        ui.add_space(6.0);
-                        note(ui, &t, &d.message);
-                    }
-                });
+            // the page is a child of a fixed rect, so a row wider than the page (a long translation)
+            // is cut at its edge instead of widening the whole dialog
+            let (page_rect, _) = ui.allocate_exact_size(vec2(W - LIST_W - 60.0, BODY_H), Sense::hover());
+            let mut page = ui.new_child(egui::UiBuilder::new().max_rect(page_rect).layout(Layout::top_down(Align::Min)));
+            page.set_clip_rect(page_rect.intersect(ui.clip_rect()));
+            egui::ScrollArea::vertical().id_salt(("settings-page", cat.id)).auto_shrink([false, false]).max_height(BODY_H).show(&mut page, |ui| {
+                ui.spacing_mut().item_spacing.y = 6.0;
+                rows(app, ui, &mut d, cat.rows);
+                if !d.message.is_empty() {
+                    ui.add_space(6.0);
+                    note(ui, &t, &d.message);
+                }
             });
         });
         ui.add_space(14.0);

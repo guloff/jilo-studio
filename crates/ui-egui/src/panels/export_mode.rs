@@ -203,7 +203,13 @@ fn queue_column(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let qtop = mf.max.y + 18.0;
     let n = app.session.export_queue.items.len();
     p.text(pos2(rect.min.x + 14.0, qtop), Align2::LEFT_CENTER, tlf!("Queue ({n})", n), Tokens::semibold(13.0), t.text);
-    let body = Rect::from_min_max(pos2(rect.min.x + 8.0, qtop + 14.0), pos2(rect.max.x - 8.0, rect.max.y - 40.0));
+    // the footer's buttons wrap to a second row when the column is too narrow for them
+    let foot_labels = [tl!("Start Queue"), tl!("Stop"), tl!("Clear Finished")];
+    let button_font = egui::TextStyle::Button.resolve(ui.style());
+    let (pad, gap) = (ui.spacing().button_padding.x * 2.0, ui.spacing().item_spacing.x);
+    let foot_need: f32 = foot_labels.iter().map(|l| ui.painter().layout_no_wrap(l.to_string(), button_font.clone(), t.text).size().x + pad + gap).sum();
+    let foot_h = if foot_need > rect.width() - 16.0 { 52.0 } else { 22.0 };
+    let body = Rect::from_min_max(pos2(rect.min.x + 8.0, qtop + 14.0), pos2(rect.max.x - 8.0, rect.max.y - foot_h - 12.0));
     let items: Vec<Value> = app.session.execute("export.queue.list", json!({})).ok().and_then(|v| v["items"].as_array().cloned()).unwrap_or_default();
     let mut action: Option<(&'static str, Value)> = None;
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body).id_salt("export-queue"));
@@ -265,20 +271,19 @@ fn queue_column(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     // footer
     let running = app.session.export_queue.running;
     let has_ready = items.iter().any(|i| i["status"] == "ready");
-    let foot = Rect::from_min_max(pos2(rect.min.x + 8.0, rect.max.y - 34.0), pos2(rect.max.x - 8.0, rect.max.y - 6.0));
-    let mut f = ui.new_child(egui::UiBuilder::new().max_rect(foot).layout(egui::Layout::left_to_right(egui::Align::Center)));
-    let r = f.add_enabled(!running && has_ready, egui::Button::new(tl!("Start Queue")));
+    let foot = Rect::from_min_max(pos2(rect.min.x + 8.0, rect.max.y - foot_h - 6.0), pos2(rect.max.x - 8.0, rect.max.y - 6.0));
+    let mut f = ui.new_child(egui::UiBuilder::new().max_rect(foot).layout(egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(true)));
+    let r = f.add_enabled(!running && has_ready, egui::Button::new(foot_labels[0]));
     reg.add("export.queue.start", r.rect, "Start Queue");
     if r.clicked() {
         action = Some(("export.queue.start", json!({})));
     }
-    let r = f.add_enabled(running, egui::Button::new(tl!("Stop")));
+    let r = f.add_enabled(running, egui::Button::new(foot_labels[1]));
     reg.add("export.queue.stop", r.rect, "Stop");
     if r.clicked() {
         action = Some(("export.queue.stop", json!({})));
     }
-    let r =
-        f.add_enabled(items.iter().any(|i| matches!(i["status"].as_str(), Some("done" | "failed" | "cancelled"))), egui::Button::new(tl!("Clear Finished")));
+    let r = f.add_enabled(items.iter().any(|i| matches!(i["status"].as_str(), Some("done" | "failed" | "cancelled"))), egui::Button::new(foot_labels[2]));
     reg.add("export.queue.clear", r.rect, "Clear Finished");
     if r.clicked() {
         action = Some(("export.queue.clear", json!({})));

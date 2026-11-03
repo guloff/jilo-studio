@@ -175,7 +175,10 @@ fn browse(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     b.set_clip_rect(rect);
     let st = &mut app.ui.gfx_templates;
     b.horizontal(|ui| {
-        let r = ui.add(egui::TextEdit::singleline(&mut st.query).hint_text(tl!("Search templates")).desired_width((ui.available_width() - 230.0).max(110.0)));
+        // room for the category list and Install…, as wide as its label in this language
+        let install_w = ui.painter().layout_no_wrap(tl!("Install…").to_string(), egui::TextStyle::Button.resolve(ui.style()), t.text).size().x;
+        let reserve = 130.0 + install_w + ui.spacing().button_padding.x * 2.0 + ui.spacing().item_spacing.x * 3.0 + 24.0;
+        let r = ui.add(egui::TextEdit::singleline(&mut st.query).hint_text(tl!("Search templates")).desired_width((ui.available_width() - reserve).max(90.0)));
         elems.push(("gfxTemplates.search".into(), r.rect, "Search".into()));
         let cur = if st.category.is_empty() { tl!("All Categories").to_string() } else { crate::i18n::t(&st.category).to_string() };
         let r = egui::ComboBox::from_id_salt("gfx-cat").selected_text(cur).width(130.0).show_ui(ui, |ui| {
@@ -203,9 +206,10 @@ fn browse(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
         })
         .collect();
     let selected = st.selected.clone();
-    let card = vec2(160.0, 90.0 + 34.0);
-    let avail = (b.available_width()).max(card.x);
-    let cols = ((avail + 8.0) / (card.x + 8.0)).floor().max(1.0) as usize;
+    // cards share the panel's width: as many columns of at least 140 px as fit, no wider than 200 px
+    let avail = b.available_width().max(140.0);
+    let cols = ((avail + 8.0) / (140.0 + 8.0)).floor().max(1.0) as usize;
+    let card = vec2(((avail - 8.0 * (cols - 1) as f32) / cols as f32).min(200.0), 90.0 + 34.0);
     let mut new_sel: Option<String> = None;
     let mut apply: Option<String> = None;
     egui::ScrollArea::vertical().id_salt("gfx-browse-scroll").max_height((rect.max.y - b.cursor().min.y - 40.0).max(60.0)).auto_shrink([false, false]).show(
@@ -238,10 +242,14 @@ fn browse(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
                         let k = (ir.width() / sz.x).min(ir.height() / sz.y);
                         let tr = Rect::from_center_size(ir.center(), sz * k);
                         ui.painter().image(tex.id(), tr, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-                        ui.painter().text(pos2(r.min.x + 6.0, ir.max.y + 6.0), Align2::LEFT_TOP, crate::i18n::t(&e.template.name), Tokens::ui(11.5), t.text);
+                        // names longer than the card end in an ellipsis instead of running into the next card
+                        let max_w = r.width() - 12.0;
+                        let name = crate::widgets::elided(ui, crate::i18n::t(&e.template.name), Tokens::ui(11.5), t.text, max_w);
+                        ui.painter().galley(pos2(r.min.x + 6.0, ir.max.y + 6.0), name, t.text);
                         let category = crate::i18n::t(&e.template.category);
                         let sub = if e.path.is_some() { tlf!("{category} · My Template", category) } else { category.to_string() };
-                        ui.painter().text(pos2(r.min.x + 6.0, ir.max.y + 20.0), Align2::LEFT_TOP, sub, Tokens::ui(10.0), t.text_faint);
+                        let sub = crate::widgets::elided(ui, &sub, Tokens::ui(10.0), t.text_faint, max_w);
+                        ui.painter().galley(pos2(r.min.x + 6.0, ir.max.y + 20.0), sub, t.text_faint);
                         if on {
                             ui.painter().rect_stroke(r, 4.0, Stroke::new(1.5, t.accent), StrokeKind::Inside);
                         }

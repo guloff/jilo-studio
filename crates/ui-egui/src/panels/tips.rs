@@ -60,22 +60,39 @@ pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
             ui.add_space(4.0);
             ui.add(egui::Label::new(RichText::new(crate::i18n::t(TIPS[i])).size(15.0)).wrap());
             ui.add_space(10.0);
-            ui.horizontal(|ui| {
-                let r = ui.checkbox(&mut at_start, tl!("Show tips when Jilo Studio starts"));
-                app.auto.add("tips.atStart", r.rect, "Show tips at start");
+            let (check, next, previous) = (tl!("Show tips when Jilo Studio starts"), tl!("Next Tip"), tl!("Previous"));
+            // the check box and the buttons share a row when they fit (in Russian they do not)
+            let font = egui::TextStyle::Button.resolve(ui.style());
+            let width = |s: &str| ui.painter().layout_no_wrap(s.to_string(), font.clone(), t.text).size().x;
+            let sp = ui.spacing();
+            let need =
+                width(check) + sp.icon_width + sp.icon_spacing + width(next) + width(previous) + 2.0 * sp.button_padding.x * 2.0 + 3.0 * sp.item_spacing.x;
+            let one_row = need <= ui.available_width();
+            let buttons = |ui: &mut egui::Ui, app: &mut JiloApp| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let n = ui.button(tl!("Next Tip"));
+                    let n = ui.button(next);
                     app.auto.add("tips.next", n.rect, "Next Tip");
                     if n.clicked() {
                         app.ui.tips.index = (i + 1) % TIPS.len();
                     }
-                    let p = ui.button(tl!("Previous"));
+                    let p = ui.button(previous);
                     app.auto.add("tips.previous", p.rect, "Previous");
                     if p.clicked() {
                         app.ui.tips.index = (i + TIPS.len() - 1) % TIPS.len();
                     }
                 });
+            };
+            ui.horizontal(|ui| {
+                let r = ui.checkbox(&mut at_start, check);
+                app.auto.add("tips.atStart", r.rect, "Show tips at start");
+                if one_row {
+                    buttons(ui, app);
+                }
             });
+            if !one_row {
+                ui.add_space(4.0);
+                ui.horizontal(|ui| buttons(ui, app));
+            }
         });
     if at_start != app.session.prefs.general.show_tips {
         let _ = app.session.execute("prefs.set", json!({"key": "general.showTips", "value": at_start}));
