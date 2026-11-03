@@ -1,0 +1,8 @@
+asset:        jilo-studio.ico
+title:        Jilo Studio Windows app icon (32-256 px)
+author:       Rustam Gulov (Jilo Studio owner)
+source:       original work: concept generated with Higgsfield (GPT Image 2.5) at the owner's request, redrawn as exact geometry by packaging/macos/icon/
+license:      LicenseRef-Jilo-Trademark — the Jilo name and icon are the owner's marks, usable unmodified for Jilo Studio; not covered by the project's MIT OR Apache-2.0 license (assets/brand/jilo/LICENSE-brand.txt)
+license-file: assets/brand/jilo/LICENSE-brand.txt
+added:        2026-10-10 by Rustam Gulov
+notes:        2026-11-03: the 32, 64, 128 and 256 px PNG images of jilo-studio.icns packed into an .ico by packaging/windows/make_ico.py, unchanged.
