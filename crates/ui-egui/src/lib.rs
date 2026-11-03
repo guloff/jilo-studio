@@ -259,9 +259,18 @@ pub struct Playback {
 
 /// How long (s) the audio clock may stand still during playback before the wall clock takes over.
 /// An output stream can open and then never call back (ALSA with a busy or misconfigured device,
-/// #136); playback must not freeze on it. Devices that are slow to start (Bluetooth) stay well
-/// under this.
+/// #136); playback must not freeze on it.
 pub const AUDIO_STALL_S: f64 = 1.0;
+
+/// The same before the device has consumed its first samples: an output that sleeps when idle
+/// takes a while to wake (Windows laptops' Intel Smart Sound, Bluetooth), and the first callback
+/// came about 2 s after the stream started on one; with [`AUDIO_STALL_S`] it was never heard.
+pub const AUDIO_START_S: f64 = 3.0;
+
+/// How long the audio clock may stand still at `frames` played (see [`AUDIO_START_S`]).
+pub fn audio_stall_limit(frames: u64) -> f64 {
+    if frames == 0 { AUDIO_START_S } else { AUDIO_STALL_S }
+}
 
 /// How long `ui.screenshot` waits for the window to present the frame.
 const SCREENSHOT_TIMEOUT_S: f64 = 10.0;
@@ -1161,7 +1170,7 @@ impl JiloApp {
         if let Some((f, sr)) = reading {
             if f != self.playback.audio_seen.0 {
                 self.playback.audio_seen = (f, now);
-            } else if now - self.playback.audio_seen.1 >= AUDIO_STALL_S {
+            } else if now - self.playback.audio_seen.1 >= audio_stall_limit(f) {
                 // the device stopped consuming samples: continue from where the audio got to on
                 // the wall clock, without sound
                 let played = if sr > 0 { f as f64 / sr as f64 } else { 0.0 };
@@ -1171,7 +1180,7 @@ impl JiloApp {
                 if let Some(a) = self.audio.as_mut() {
                     a.stop();
                 }
-                log::warn!("audio output stalled (no samples consumed for {AUDIO_STALL_S} s); playing without sound");
+                log::warn!("audio output stalled (no samples consumed for {} s); playing without sound", audio_stall_limit(f));
                 self.ui.status = tl!("Audio output is not responding: playing without sound (check Settings ▸ Audio Hardware)").into();
             }
         }

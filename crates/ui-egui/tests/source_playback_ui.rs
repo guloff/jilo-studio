@@ -141,7 +141,7 @@ fn stalled_source_audio_falls_back_to_wall_clock() {
     let mut h = Harness::builder().with_step_dt(0.25).with_size(egui::vec2(1280.0, 800.0)).build_eframe(move |_cc| app);
     h.step();
     h.state_mut().play_source().unwrap();
-    for _ in 0..16 {
+    for _ in 0..16 + (jilo_ui_egui::AUDIO_START_S * 4.0) as usize {
         h.step();
     }
     assert!(!h.state().source_playback.clock.audio_clock);

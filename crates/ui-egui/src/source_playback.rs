@@ -8,7 +8,7 @@ use jilo_render::SourceProvider;
 use jilo_time::Tick;
 use serde_json::json;
 
-use crate::{AUDIO_STALL_S, JiloApp, Playback};
+use crate::{JiloApp, Playback, audio_stall_limit};
 
 #[derive(Default)]
 pub struct SourcePlayback {
@@ -208,7 +208,7 @@ impl JiloApp {
         {
             clock.audio_seen = (frames, now);
         }
-        if clock.audio_clock && (reading.is_none() || now - clock.audio_seen.1 >= AUDIO_STALL_S) {
+        if clock.audio_clock && (reading.is_none() || now - clock.audio_seen.1 >= audio_stall_limit(clock.audio_seen.0)) {
             clock.anchor_tick = time;
             clock.anchor_time = now;
             clock.audio_clock = false;

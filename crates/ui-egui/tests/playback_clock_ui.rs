@@ -57,10 +57,11 @@ fn play_with(per_poll: u64, steps: usize) -> (f64, bool) {
 }
 
 /// #136: the stream opened, the device never asked for samples, the audio clock stayed at 0 and
-/// the playhead never moved. After a short grace period playback falls back to the wall clock.
+/// the playhead never moved. After a short grace period (`AUDIO_START_S` for a device that never
+/// started) playback falls back to the wall clock.
 #[test]
 fn a_stalled_audio_device_does_not_freeze_playback() {
-    let (t, audio_clock) = play_with(0, 16);
+    let (t, audio_clock) = play_with(0, 16 + (jilo_ui_egui::AUDIO_START_S * 4.0) as usize);
     assert!(t > 1.5, "the playhead should move with the wall clock, it is at {t:.2} s");
     assert!(!audio_clock, "the stalled device no longer drives the clock");
 }
