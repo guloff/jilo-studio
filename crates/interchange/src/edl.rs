@@ -504,7 +504,10 @@ fn import_event(ctx: &mut Ctx, ev: &Event, report: &mut Report) {
         [l1, l2] if matches!(l2.trans, Trans::Dissolve | Trans::Wipe(_)) => {
             let t0 = ctx.rec(l2.tcs[2], df);
             let t1 = ctx.rec(l2.tcs[3], df);
-            let d = ctx.rate.tick_of(l2.dur);
+            if l2.dur < 0 {
+                report.warn(format!("EDL event {} has a negative transition duration ({}); it was set to 0", l2.num, l2.dur));
+            }
+            let d = ctx.rate.tick_of(l2.dur.max(0));
             let effect = transition_for(l2.trans, ev.effect.as_deref(), report);
             let to_black = l2.reel.eq_ignore_ascii_case("BL");
             let from_black = l1.reel.eq_ignore_ascii_case("BL");
