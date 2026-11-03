@@ -92,3 +92,29 @@ of its own, as the Developer ID signature is what is checked.
 - puts it on a drag-to-Applications DMG with the window layout of `packaging/macos/dmg/`;
 - zips the CLI with its README and licences.
 
+
+## Windows
+
+`packaging/windows/package.ps1` (PowerShell, on Windows) builds `jilo-studio` and `jilo-cli` in
+release mode for `x86_64-pc-windows-gnu` (or `-Toolchain msvc`) with the C runtime linked statically,
+embeds the icon and version info (`apps/jilo-studio/build.rs`; `JILO_REQUIRE_WINRES=1` makes a
+missing resource compiler an error), checks the PE headers (x64; the app a GUI program, the CLI a
+console one) and that only system DLLs are imported, then:
+
+- builds `jilo-studio-<version>-windows-x64-setup.exe` with Inno Setup 6
+  (`packaging/windows/jilo-studio.iss`): per-user install into `%LOCALAPPDATA%\Programs\Jilo Studio`
+  without administrator rights (all users on request), Start menu and optional desktop shortcut,
+  `.jsproj` / `.jstpl` opened with Jilo Studio, an uninstaller that keeps the data folder
+  (`%APPDATA%\com.rustamguloff.jilostudio`);
+- zips a portable copy (`portable.txt` next to the exe keeps the data in `data\` beside it).
+
+The icon `assets/brand/jilo/jilo-studio.ico` is packed from the macOS icon set by
+`packaging/windows/make_ico.py`. The builds are not code-signed (no certificate yet): SmartScreen
+asks once.
+
+In-app updates on Windows look for `jilo-studio-<version>-windows-x64-setup.exe` among the release's
+assets (same rules as the DMG: this repository, a size and a SHA-256 digest). After the download
+and the checksum, Restart and Install runs the installer silently as the app quits
+(`/SILENT /CLOSEAPPLICATIONS /RELAUNCH=1`); a portable copy or a build from source gets the
+installer to open by hand. So a release with a Windows build attaches the setup under exactly that
+name next to the DMG.

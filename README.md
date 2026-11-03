@@ -34,6 +34,14 @@ can be driven by you, a script or an AI assistant (MCP).
 [Releases](https://github.com/guloff/jilo-studio/releases/latest) (Apple silicon, macOS 15 Sequoia
 or later). From 0.6.4 on it updates itself (Help ▸ Check for Updates).
 
+**Windows 10 and 11 (x64)**: `jilo-studio-<version>-windows-x64-setup.exe` installs for your user
+account without administrator rights (Start menu, `.jsproj` files open with it, Settings ▸ Apps
+removes it); the portable zip runs from any folder and keeps its data next to it. The Windows build
+is not code-signed yet, so SmartScreen asks once (More info ▸ Run anyway). On Windows, Whisper and
+the Kokoro voices run on the CPU, faces come from Windows's own face detector, hardware decoding is
+Media Foundation (DXVA) and hardware encoding NVENC on NVIDIA cards; the Apple Vision features
+(background removal, cut-out stickers, scene labels for B-roll) and emoji stickers are macOS-only for now.
+
 ## What it does
 
 - **AI first**: one AI menu and an AI panel. Speech recognition in Russian, Tajik and English with
@@ -84,6 +92,14 @@ cargo run --release -p jilo-studio                      # the app
 cargo run --release -p jilo-studio -- --control 9876    # plus the JSON-lines control server
 cargo run --release -p jilo-cli -- mcp                  # MCP server (headless)
 bash packaging/macos/package.sh                         # Jilo Studio.app and the DMG (ad-hoc signed)
+```
+
+On Windows, with Rust for `x86_64-pc-windows-gnu`, MinGW-w64 GCC on `PATH`
+(`winget install BrechtSanders.WinLibs.POSIX.MSVCRT`) and Inno Setup 6
+(`winget install JRSoftware.InnoSetup`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging/windows/package.ps1   # installer and portable zip in dist/release
 ```
 
 The rules and quality gates: [docs/rules.md](docs/rules.md) and
