@@ -422,3 +422,16 @@ M2   A              072.0                00:00:00:10\n\
         }
     }
 }
+
+/// A sequence start timecode at the end of the i64 range (a hostile project file) overflowed the
+/// record timecodes; they saturate instead.
+#[test]
+fn extreme_start_timecode_exports_without_overflow() {
+    let rate = FrameRate::FPS_25;
+    let mut p = filmcraft_project::Project::new("p");
+    let a = media(&mut p, "/media/A.mov", true, true, rate);
+    let s = sequence(&mut p, "S", rate, false);
+    clip(&mut p, s, TrackKind::Video, 0, a, 0, 25, 0);
+    p.sequence_mut(s).unwrap().start_timecode = i64::MAX;
+    assert!(export(&p, s, Format::Edl, &ExportOptions::default()).is_ok());
+}
