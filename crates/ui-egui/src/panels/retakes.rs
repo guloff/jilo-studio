@@ -10,7 +10,7 @@
 use egui::RichText;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The dialog's state.
 #[derive(Clone, Debug, Default)]
@@ -21,8 +21,8 @@ pub struct RetakesUi {
     pub checked: Vec<bool>,
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("transcript.removeRetakes").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("transcript.removeRetakes").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
     let r = app.session.execute("transcript.findRetakes", json!({})).map_err(|e| e.to_string())?;
     let found = r["retakes"].as_array().cloned().unwrap_or_default();
     if found.is_empty() {
@@ -41,7 +41,7 @@ fn kind_name(kind: &str) -> &'static str {
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.retakes.open {
         return;
     }

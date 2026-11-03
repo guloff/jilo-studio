@@ -8,11 +8,11 @@
 //!
 //! Safe code only: `rustix` wraps `getrlimit` / `setrlimit`.
 
-/// The soft limit FilmCraft asks for. macOS caps the soft limit at `OPEN_MAX` (10240) for
+/// The soft limit Jilo Studio asks for. macOS caps the soft limit at `OPEN_MAX` (10240) for
 /// `setrlimit`, whatever `kern.maxfilesperproc` says; Linux allows up to the hard limit.
 #[cfg(target_os = "macos")]
 pub const WANTED: u64 = 10_240;
-/// The soft limit FilmCraft asks for.
+/// The soft limit Jilo Studio asks for.
 #[cfg(not(target_os = "macos"))]
 pub const WANTED: u64 = 65_536;
 

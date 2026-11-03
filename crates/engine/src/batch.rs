@@ -21,7 +21,7 @@
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
 
-use filmcraft_project::{ItemId, ItemKind};
+use jilo_project::{ItemId, ItemKind};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, bool_p};
@@ -371,7 +371,7 @@ fn start(s: &mut Session, p: &Value) -> Result<Value> {
     if steps.contains(&"transcribe") {
         match crate::recognition::engine_choice(s, &with_engine(p, "speechEngine"), cmd)? {
             crate::recognition::EngineChoice::Cloud { provider, .. } => {
-                crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(filmcraft_ai::AiError::NoKey(provider)))?;
+                crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(jilo_ai::AiError::NoKey(provider)))?;
                 crate::recognition::ensure_consent_for(s, provider, p, cmd, "the audio of the sequences")?;
             }
             crate::recognition::EngineChoice::Local(_) => crate::transcript::can_transcribe(s).map_err(|e| bad(cmd, e))?,

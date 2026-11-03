@@ -8,12 +8,12 @@
 //! `timeline.captionTrack.C1.*`, `timeline.captionMenu.*`).
 
 use egui::{Align2, Color32, CursorIcon, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_project::{CaptionTrack, ClipId, Sequence};
-use filmcraft_time::Tick;
+use jilo_project::{CaptionTrack, ClipId, Sequence};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use super::timeline::Layout;
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::dock::PanelKind;
 use crate::icons::Icon;
 use crate::theme::Tokens;
@@ -47,7 +47,7 @@ fn drag_state(ctx: &egui::Context) -> Option<(u64, u8, i64)> {
 
 /// How far the selected captions are being moved right now: by their own drag, or by a drag of
 /// the clips selected with them.
-fn group_move(app: &FilmcraftApp, drag: Option<(u64, u8, i64)>) -> Option<Tick> {
+fn group_move(app: &JiloApp, drag: Option<(u64, u8, i64)>) -> Option<Tick> {
     match (drag, &app.tl.drag) {
         (Some((_, 0, d)), _) => Some(Tick(d)),
         (_, Some(super::timeline::Drag::Move { offset, .. })) => Some(*offset),
@@ -55,7 +55,7 @@ fn group_move(app: &FilmcraftApp, drag: Option<(u64, u8, i64)>) -> Option<Tick> 
     }
 }
 
-fn block_rect(c: &filmcraft_project::Caption, row: Rect, layout: &Layout, drag: Option<(u64, u8, i64)>, moving: Option<Tick>, selected: bool) -> Rect {
+fn block_rect(c: &jilo_project::Caption, row: Rect, layout: &Layout, drag: Option<(u64, u8, i64)>, moving: Option<Tick>, selected: bool) -> Rect {
     let (mut s, mut e) = (c.start, c.end());
     match (drag.filter(|d| d.0 == c.id.0), moving) {
         (Some((_, 1, d)), _) => s = (s + Tick(d)).min(e),
@@ -74,7 +74,7 @@ fn block_rect(c: &filmcraft_project::Caption, row: Rect, layout: &Layout, drag: 
 }
 
 /// Paint headers and caption blocks.
-pub fn paint(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, area: Rect, layout: &Layout, t: &Tokens) {
+pub fn paint(app: &mut JiloApp, ui: &mut egui::Ui, seq: &Sequence, area: Rect, layout: &Layout, t: &Tokens) {
     if seq.caption_tracks.is_empty() {
         return;
     }
@@ -145,7 +145,7 @@ pub fn paint(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, area: Re
                 p.rect_stroke(r, 3.0, Stroke::new(1.0, t.clip_selected_border), StrokeKind::Inside);
             }
             if r.width() > 14.0 {
-                let text = filmcraft_project::plain_text(&c.text).replace('\n', " ");
+                let text = jilo_project::plain_text(&c.text).replace('\n', " ");
                 p.with_clip_rect(r.shrink2(vec2(4.0, 0.0)).intersect(lane)).text(
                     pos2(r.min.x + 5.0, r.center().y),
                     Align2::LEFT_CENTER,
@@ -167,7 +167,7 @@ pub fn paint(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, area: Re
 
 /// Pointer interaction on caption blocks (call after the timeline's own interaction so captions
 /// are on top).
-pub fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, area: Rect, layout: &Layout) {
+pub fn interact(app: &mut JiloApp, ui: &mut egui::Ui, seq: &Sequence, area: Rect, layout: &Layout) {
     let ctx = ui.ctx().clone();
     let rate = seq.settings.frame_rate;
     let drag = drag_state(&ctx);
@@ -208,7 +208,7 @@ pub(crate) const CAPTION_MENU: &[&[(&str, &str)]] = &[
 
 /// The command and parameters of a caption menu item for caption `c` on track `tr`, whether it can
 /// run now, and what the menu does besides (the panel to show).
-fn menu_action(app: &FilmcraftApp, seq: &Sequence, tr: &CaptionTrack, c: &filmcraft_project::Caption, id: &str) -> (String, Value, bool) {
+fn menu_action(app: &JiloApp, seq: &Sequence, tr: &CaptionTrack, c: &jilo_project::Caption, id: &str) -> (String, Value, bool) {
     let st = &app.session.state;
     let playhead = app.session.playhead();
     let unlocked = !tr.locked;
@@ -228,14 +228,7 @@ fn menu_action(app: &FilmcraftApp, seq: &Sequence, tr: &CaptionTrack, c: &filmcr
     }
 }
 
-fn caption_menu(
-    app: &mut FilmcraftApp,
-    ui: &mut egui::Ui,
-    seq: &Sequence,
-    tr: &CaptionTrack,
-    c: &filmcraft_project::Caption,
-    actions: &mut Vec<(String, Value)>,
-) {
+fn caption_menu(app: &mut JiloApp, ui: &mut egui::Ui, seq: &Sequence, tr: &CaptionTrack, c: &jilo_project::Caption, actions: &mut Vec<(String, Value)>) {
     ui.set_min_width(220.0);
     for (k, group) in CAPTION_MENU.iter().enumerate() {
         if k > 0 {
@@ -266,13 +259,13 @@ fn caption_menu(
 
 #[allow(clippy::too_many_arguments)]
 fn interact_block(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     seq: &Sequence,
     tr: &CaptionTrack,
-    c: &filmcraft_project::Caption,
+    c: &jilo_project::Caption,
     r: Rect,
-    rate: filmcraft_time::FrameRate,
+    rate: jilo_time::FrameRate,
     actions: &mut Vec<(String, Value)>,
 ) {
     let ctx = ui.ctx().clone();
@@ -388,7 +381,7 @@ fn interact_block(
     }
 }
 
-fn run(app: &mut FilmcraftApp, ui: &egui::Ui, actions: Vec<(String, Value)>) {
+fn run(app: &mut JiloApp, ui: &egui::Ui, actions: Vec<(String, Value)>) {
     let ctx = ui.ctx().clone();
     for (cmd, p) in actions {
         if let Err(e) = crate::menus::invoke(app, &ctx, &cmd, p) {

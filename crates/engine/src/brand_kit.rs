@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use filmcraft_project::{ClipId, ItemId, TrackId};
-use filmcraft_time::Tick;
+use jilo_project::{ClipId, ItemId, TrackId};
+use jilo_time::Tick;
 
 use crate::commands::{CommandSpec, always, bad, has_seq, str_p};
 use crate::{EngineError, Result, Session};

@@ -5,7 +5,7 @@
 //! of the sequence when "All caption tracks" is on. Every change is `captions.setStyle` or
 //! `captions.applyStylePreset`, so the panel, MCP and the control channel share one path.
 //!
-//! Presets in the caption font pack ([`filmcraft_engine::caption_fonts`]) carry a ↓ badge until the
+//! Presets in the caption font pack ([`jilo_engine::caption_fonts`]) carry a ↓ badge until the
 //! pack is downloaded (the button above the gallery says its size, source and licence); until then
 //! they draw in Inter.
 //!
@@ -21,11 +21,11 @@
 //! `captionStyle.newTrack`.
 
 use egui::{Color32, Rect, RichText, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_project::{Caption, CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle, ClipId};
-use filmcraft_time::Tick;
+use jilo_project::{Caption, CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle, ClipId};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::theme::Tokens;
 
 const PAD: f32 = 12.0;
@@ -51,7 +51,7 @@ fn memory_id() -> egui::Id {
     egui::Id::new("caption-style-panel")
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     ui.painter().rect_filled(rect, 0.0, t.panel_bg);
     let mut actions: Vec<(String, Value)> = Vec::new();
@@ -129,7 +129,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             ui.label(
                 RichText::new(tlf!(
                     "Presets marked ↓ use the caption fonts: Montserrat, Oswald, Fira Sans Condensed and five more, with Russian and Tajik letters. {size} from Google Fonts, SIL Open Font License.",
-                    size = format!("{:.1} MB", filmcraft_engine::caption_fonts::size() as f64 / 1e6)
+                    size = format!("{:.1} MB", jilo_engine::caption_fonts::size() as f64 / 1e6)
                 ))
                 .size(11.5)
                 .color(t.text_dim),
@@ -142,7 +142,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             ui.add_space(6.0);
         }
         let cols = ((ui.available_width() + 8.0) / (TILE_W + 8.0)).floor().max(1.0) as usize;
-        let presets = filmcraft_engine::caption_presets::builtin();
+        let presets = jilo_engine::caption_presets::builtin();
         for row in presets.chunks(cols) {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
@@ -201,11 +201,11 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 
         // ---- text
         heading(ui, tl!("Text"), &t);
-        let fams = filmcraft_text::families();
+        let fams = jilo_text::families();
         row(ui, tl!("Font"), |ui| {
             let r = egui::ComboBox::from_id_salt("caption-style-font").selected_text(&style.font).width(180.0).height(400.0).show_ui(ui, |ui| {
-                if !filmcraft_text::fonts::system_scanned() {
-                    filmcraft_text::fonts::scan_system();
+                if !jilo_text::fonts::system_scanned() {
+                    jilo_text::fonts::scan_system();
                 }
                 for (f, _) in &fams {
                     if ui.selectable_label(f.eq_ignore_ascii_case(&style.font), f).clicked() {
@@ -456,7 +456,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 /// Import. Hovering a tile previews it in the Program monitor, as for the presets.
 #[allow(clippy::too_many_arguments)]
 fn my_styles(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     style: &CaptionStyle,
     target: &Value,
@@ -467,8 +467,8 @@ fn my_styles(
 ) {
     let t = app.tokens;
     heading(ui, tl!("My Styles"), &t);
-    let mine: Vec<filmcraft_engine::caption_presets::UserStyle> =
-        filmcraft_engine::caption_presets::user_dir().map(|d| filmcraft_engine::caption_presets::user_styles_in(&d)).unwrap_or_default();
+    let mine: Vec<jilo_engine::caption_presets::UserStyle> =
+        jilo_engine::caption_presets::user_dir().map(|d| jilo_engine::caption_presets::user_styles_in(&d)).unwrap_or_default();
     if mine.is_empty() {
         ui.label(RichText::new(tl!("Save the current look to use it again in any project, or import one someone shared.")).size(11.5).color(t.text_dim));
     }
@@ -557,7 +557,7 @@ fn pack_installed(ctx: &egui::Context) -> bool {
     {
         return v;
     }
-    let v = filmcraft_engine::caption_fonts::installed();
+    let v = jilo_engine::caption_fonts::installed();
     ctx.data_mut(|d| d.insert_temp(id, (now, v)));
     v
 }
@@ -623,7 +623,7 @@ fn zoomed(style: &CaptionStyle, k: f32) -> CaptionStyle {
 /// sRGB RGBA bytes of a preview frame: a dusk-coloured gradient (so light and dark styles both
 /// read) with the caption composited over it.
 pub fn preview_rgba(style: &CaptionStyle, sample: &str) -> Vec<u8> {
-    use filmcraft_color::{linear_to_srgb, srgb_to_linear};
+    use jilo_color::{linear_to_srgb, srgb_to_linear};
     let (w, h) = (RENDER_W, RENDER_H);
     let mut canvas = vec![0.0f32; w * h * 4];
     for y in 0..h {
@@ -639,7 +639,7 @@ pub fn preview_rgba(style: &CaptionStyle, sample: &str) -> Vec<u8> {
         }
     }
     // a second per word, shown during the second word: the highlight, chunks and typewriter show
-    let sec = filmcraft_time::TICKS_PER_SECOND;
+    let sec = jilo_time::TICKS_PER_SECOND;
     let n = sample.split_whitespace().count() as i64;
     let cap = Caption {
         id: ClipId(0),
@@ -652,13 +652,13 @@ pub fn preview_rgba(style: &CaptionStyle, sample: &str) -> Vec<u8> {
         style: None,
         words: (0..n).map(|i| Tick(i * sec)).collect(),
     };
-    if let Some(o) = filmcraft_captions::burn::render_caption_at(&cap, &zoomed(style, PREVIEW_ZOOM), w, h, Some(Tick(sec + sec / 2))) {
+    if let Some(o) = jilo_captions::burn::render_caption_at(&cap, &zoomed(style, PREVIEW_ZOOM), w, h, Some(Tick(sec + sec / 2))) {
         o.composite_onto(&mut canvas, w, h);
     }
     canvas.chunks(4).flat_map(|p| [0, 1, 2].map(|k| (linear_to_srgb(p[k].clamp(0.0, 1.0)) * 255.0).round() as u8).into_iter().chain([255])).collect()
 }
 
-fn run(app: &mut FilmcraftApp, ui: &egui::Ui, actions: Vec<(String, Value)>) {
+fn run(app: &mut JiloApp, ui: &egui::Ui, actions: Vec<(String, Value)>) {
     let ctx = ui.ctx().clone();
     for (cmd, p) in actions {
         if let Err(e) = crate::menus::invoke(app, &ctx, &cmd, p) {
@@ -673,9 +673,9 @@ mod tests {
 
     #[test]
     fn preview_frames_show_the_preset() {
-        let presets = filmcraft_engine::caption_presets::builtin();
+        let presets = jilo_engine::caption_presets::builtin();
         let classic = preview_rgba(&presets[0].style, "Sample caption text");
-        let yellow = preview_rgba(&filmcraft_engine::caption_presets::find("yellow-pop").unwrap().style, "Sample caption text");
+        let yellow = preview_rgba(&jilo_engine::caption_presets::find("yellow-pop").unwrap().style, "Sample caption text");
         assert_eq!(classic.len(), RENDER_W * RENDER_H * 4);
         assert_ne!(classic, yellow);
         // yellow text pixels: red and green high, blue low

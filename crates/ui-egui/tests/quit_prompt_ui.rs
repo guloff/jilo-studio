@@ -6,13 +6,13 @@ use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::control::ControlRequest;
-use filmcraft_ui_egui::{Dialog, FilmcraftApp};
+use jilo_engine::Session;
+use jilo_ui_egui::control::ControlRequest;
+use jilo_ui_egui::{Dialog, JiloApp};
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
     /// Viewport commands the app sent, oldest first.
     commands: Vec<egui::ViewportCommand>,
@@ -23,7 +23,7 @@ impl Driver {
         let mut s = Session::default();
         s.execute("file.openDemoProject", json!({})).unwrap();
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(s).with_control(rx);
+        let app = JiloApp::new(s).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx, commands: Vec::new() };
         d.frames(4);
@@ -138,7 +138,7 @@ fn save_writes_the_project_then_quits() {
     let mut d = Driver::new();
     let dir = std::env::temp_dir().join(format!("fc-quit-save-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("quit.fcproj");
+    let path = dir.join("quit.jsproj");
     let picked = path.to_string_lossy().to_string();
     // Untitled: Save goes through the Save As dialog.
     d.harness.state_mut().hooks.pick_save = Some(Box::new(move |_| Some(picked.clone())));

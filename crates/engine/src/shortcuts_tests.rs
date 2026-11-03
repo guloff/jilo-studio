@@ -47,7 +47,7 @@ fn defaults_follow_the_registry_and_the_premiere_audit() {
     let mut s = Session::default();
     with_ui_commands(&mut s);
     let sc = &s.shortcuts;
-    assert_eq!(sc.preset, "FilmCraft Default");
+    assert_eq!(sc.preset, "Jilo Studio Default");
     assert_eq!(sc.primary("sequence.addEdit").as_deref(), Some("Cmd+K"));
     assert_eq!(sc.primary("playback.toggle").as_deref(), Some("Space"));
     // the audit adopts Premiere defaults for commands that had none
@@ -170,7 +170,7 @@ fn compat_presets_map_other_editors() {
     assert_eq!(s.shortcuts.primary("trim.rippleNext").as_deref(), Some("W"));
     assert_eq!(s.shortcuts.primary("clip.nest").as_deref(), Some("Alt+G"));
     assert!(s.execute("shortcuts.loadPreset", json!({"name": "Nope"})).is_err());
-    s.execute("shortcuts.loadPreset", json!({"name": "FilmCraft Default"})).unwrap();
+    s.execute("shortcuts.loadPreset", json!({"name": "Jilo Studio Default"})).unwrap();
     assert_eq!(s.shortcuts.primary("source.insert").as_deref(), Some(","));
 }
 
@@ -185,14 +185,14 @@ fn custom_presets_persist_export_and_import() {
     let p = s.execute("shortcuts.presets", json!({})).unwrap();
     assert_eq!(p["active"], json!("My Keys"));
     assert_eq!(p["custom"], json!(["My Keys"]));
-    assert!(s.execute("shortcuts.savePreset", json!({"name": "FilmCraft Default"})).is_err());
+    assert!(s.execute("shortcuts.savePreset", json!({"name": "Jilo Studio Default"})).is_err());
     // the active set survives a restart
     let mut t = Shortcuts::new();
     t.set_dir(&dir);
     assert_eq!(t.preset, "My Keys");
     assert_eq!(t.primary("sequence.addEdit").as_deref(), Some("Cmd+Shift+B"));
     // switch away and back
-    s.execute("shortcuts.loadPreset", json!({"name": "FilmCraft Default"})).unwrap();
+    s.execute("shortcuts.loadPreset", json!({"name": "Jilo Studio Default"})).unwrap();
     assert_eq!(s.shortcuts.primary("sequence.addEdit").as_deref(), Some("Cmd+K"));
     s.execute("shortcuts.loadPreset", json!({"name": "My Keys"})).unwrap();
     assert_eq!(s.shortcuts.primary("sequence.addEdit").as_deref(), Some("Cmd+Shift+B"));
@@ -215,7 +215,7 @@ fn custom_presets_persist_export_and_import() {
     assert_eq!(s.shortcuts.primary("sequence.addEdit").as_deref(), Some("Cmd+Alt+K"));
     assert_eq!(s.shortcuts.bindings.len(), 2, "unknown commands dropped");
     s.execute("shortcuts.deletePreset", json!({"name": "My Keys"})).unwrap();
-    assert!(s.execute("shortcuts.deletePreset", json!({"name": "FilmCraft Default"})).is_err());
+    assert!(s.execute("shortcuts.deletePreset", json!({"name": "Jilo Studio Default"})).is_err());
     assert_eq!(s.execute("shortcuts.presets", json!({})).unwrap()["custom"], json!(["From Windows"]));
     let _ = std::fs::remove_dir_all(&dir);
 }

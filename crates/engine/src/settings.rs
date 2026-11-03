@@ -14,8 +14,8 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use filmcraft_project::Label;
-use filmcraft_time::{FrameRate, Tick};
+use jilo_project::Label;
+use jilo_time::{FrameRate, Tick};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -381,8 +381,8 @@ impl LabelPrefs {
         self.colors.get(&label_id(l)).map(|c| c.name.trim()).filter(|n| !n.is_empty()).unwrap_or(l.name()).to_string()
     }
     /// The label a new media item of `kind` gets.
-    pub fn for_media(&self, kind: filmcraft_media::MediaKind, has_video: bool, has_audio: bool) -> Label {
-        use filmcraft_media::MediaKind as K;
+    pub fn for_media(&self, kind: jilo_media::MediaKind, has_video: bool, has_audio: bool) -> Label {
+        use jilo_media::MediaKind as K;
         match kind {
             K::AudioOnly => self.defaults.audio,
             K::Still | K::ImageSequence => self.defaults.still,
@@ -433,7 +433,7 @@ impl Default for MediaAnalysisPrefs {
             speaker_labeling: "on".into(),
             language_auto_detect: false,
             default_language: "en".into(),
-            whisper_model: filmcraft_speech::models::DEFAULT_MODEL.into(),
+            whisper_model: jilo_speech::models::DEFAULT_MODEL.into(),
         }
     }
 }
@@ -478,7 +478,7 @@ pub struct AiPrefs {
 
 impl Default for AiPrefs {
     fn default() -> Self {
-        use filmcraft_ai::Provider;
+        use jilo_ai::Provider;
         Self {
             speech_engine: "whisper".into(),
             text_engine: "gemini".into(),
@@ -493,7 +493,7 @@ impl Default for AiPrefs {
             gemini_image_model: Provider::Gemini.default_image_model().into(),
             custom_image_url: String::new(),
             custom_image_model: Provider::Custom.default_image_model().into(),
-            elevenlabs_voice_model: filmcraft_ai::elevenlabs::DEFAULT_VOICE_MODEL.into(),
+            elevenlabs_voice_model: jilo_ai::elevenlabs::DEFAULT_VOICE_MODEL.into(),
             confirmed_providers: Vec::new(),
             local_only: false,
             allow_assistants: false,
@@ -504,23 +504,23 @@ impl Default for AiPrefs {
 
 impl AiPrefs {
     /// The cloud provider for speech recognition (None: Whisper on this computer).
-    pub fn speech_provider(&self) -> Option<filmcraft_ai::Provider> {
-        filmcraft_ai::Provider::from_id(&self.speech_engine).filter(|p| p.does_speech())
+    pub fn speech_provider(&self) -> Option<jilo_ai::Provider> {
+        jilo_ai::Provider::from_id(&self.speech_engine).filter(|p| p.does_speech())
     }
 
     /// The provider of the text features.
-    pub fn text_provider(&self) -> filmcraft_ai::Provider {
-        filmcraft_ai::Provider::from_id(&self.text_engine).filter(|p| p.does_text()).unwrap_or(filmcraft_ai::Provider::Gemini)
+    pub fn text_provider(&self) -> jilo_ai::Provider {
+        jilo_ai::Provider::from_id(&self.text_engine).filter(|p| p.does_text()).unwrap_or(jilo_ai::Provider::Gemini)
     }
 
     /// The provider of image generation.
-    pub fn image_provider(&self) -> filmcraft_ai::Provider {
-        filmcraft_ai::Provider::from_id(&self.image_engine).filter(|p| p.does_images()).unwrap_or(filmcraft_ai::Provider::OpenAi)
+    pub fn image_provider(&self) -> jilo_ai::Provider {
+        jilo_ai::Provider::from_id(&self.image_engine).filter(|p| p.does_images()).unwrap_or(jilo_ai::Provider::OpenAi)
     }
 
     /// The speech model of `p` (its default when the field is empty).
-    pub fn speech_model(&self, p: filmcraft_ai::Provider) -> String {
-        use filmcraft_ai::Provider;
+    pub fn speech_model(&self, p: jilo_ai::Provider) -> String {
+        use jilo_ai::Provider;
         let m = match p {
             Provider::Gemini => &self.gemini_speech_model,
             Provider::OpenAi => &self.openai_speech_model,
@@ -531,8 +531,8 @@ impl AiPrefs {
     }
 
     /// The text model of `p` (its default when the field is empty).
-    pub fn text_model(&self, p: filmcraft_ai::Provider) -> String {
-        use filmcraft_ai::Provider;
+    pub fn text_model(&self, p: jilo_ai::Provider) -> String {
+        use jilo_ai::Provider;
         let m = match p {
             Provider::Gemini => &self.gemini_text_model,
             Provider::OpenAi => &self.openai_text_model,
@@ -543,8 +543,8 @@ impl AiPrefs {
     }
 
     /// The image model of `p` (its default when the field is empty).
-    pub fn image_model(&self, p: filmcraft_ai::Provider) -> String {
-        use filmcraft_ai::Provider;
+    pub fn image_model(&self, p: jilo_ai::Provider) -> String {
+        use jilo_ai::Provider;
         let m = match p {
             Provider::Gemini => &self.gemini_image_model,
             Provider::OpenAi => &self.openai_image_model,
@@ -557,20 +557,20 @@ impl AiPrefs {
     /// The ElevenLabs model that speaks narrations.
     pub fn voice_model(&self) -> String {
         let m = self.elevenlabs_voice_model.trim();
-        if m.is_empty() { filmcraft_ai::elevenlabs::DEFAULT_VOICE_MODEL.to_string() } else { m.to_string() }
+        if m.is_empty() { jilo_ai::elevenlabs::DEFAULT_VOICE_MODEL.to_string() } else { m.to_string() }
     }
 
     /// Whether the user agreed to send material to `p`.
-    pub fn confirmed(&self, p: filmcraft_ai::Provider) -> bool {
+    pub fn confirmed(&self, p: jilo_ai::Provider) -> bool {
         let id = self.consent_id(p);
         self.confirmed_providers.contains(&id)
     }
 
     /// What the user's consent is recorded as: the provider's id, and for the custom image service
     /// its host too (`custom:images.example.com`), so another address is asked about again.
-    pub fn consent_id(&self, p: filmcraft_ai::Provider) -> String {
+    pub fn consent_id(&self, p: jilo_ai::Provider) -> String {
         match p {
-            filmcraft_ai::Provider::Custom => format!("custom:{}", filmcraft_ai::images::custom_host(&self.custom_image_url)),
+            jilo_ai::Provider::Custom => format!("custom:{}", jilo_ai::images::custom_host(&self.custom_image_url)),
             _ => p.id().to_string(),
         }
     }
@@ -784,7 +784,7 @@ pub struct Field {
     pub indent: bool,
     /// Only editable while this boolean key is on.
     pub enabled_by: Option<&'static str>,
-    /// Whether FilmCraft acts on the value (false = remembered for parity, no effect yet).
+    /// Whether Jilo Studio acts on the value (false = remembered for parity, no effect yet).
     pub wired: bool,
 }
 
@@ -964,10 +964,10 @@ static CATEGORIES: &[Category] = &[
             b("general.showProjectBinInTab", "Show \"Project:\" and \"Bin:\" in Project panel tab", false),
             b("general.showMaskTrackerPreview", "Show Mask Tracker Preview", false),
             b("general.simpleMode", "Simple mode: fewer panels and tools (everything stays in the menus and the command palette, ⌘J)", true),
-            b("general.showTips", "Show tips when FilmCraft starts", true),
+            b("general.showTips", "Show tips when Jilo Studio starts", true),
             b("general.checkForUpdates", "Check for updates once a day", true),
             b("general.notifyWhenDone", "Notify when an export or a long AI task ends while the app is in the background", true),
-            Row::Note("The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once."),
+            Row::Note("The check asks GitHub for the latest Jilo Studio release and sends nothing else; a newer one is offered once."),
         ],
     },
     Category {
@@ -975,7 +975,7 @@ static CATEGORIES: &[Category] = &[
         title: "AI",
         rows: &[
             Row::Note(
-                "Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.",
+                "Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; Jilo Studio says so before the first time.",
             ),
             // API keys first: what a cloud engine needs before anything else on this page works
             b("ai.localOnly", "Only on this computer: never use a cloud engine", true),
@@ -1019,9 +1019,9 @@ static CATEGORIES: &[Category] = &[
             Row::Group(
                 "AI Assistants",
                 &[
-                    b("ai.allowAssistants", "Allow AI assistants (Claude and other MCP clients) to control FilmCraft on this computer", true),
+                    b("ai.allowAssistants", "Allow AI assistants (Claude and other MCP clients) to control Jilo Studio on this computer", true),
                     Row::Note(
-                        "An assistant connected to FilmCraft can open, edit, save and export your projects as you would. Nothing is sent anywhere by FilmCraft: the assistant talks to it on this computer only.",
+                        "An assistant connected to Jilo Studio can open, edit, save and export your projects as you would. Nothing is sent anywhere by Jilo Studio: the assistant talks to it on this computer only.",
                     ),
                 ],
             ),
@@ -1109,7 +1109,7 @@ static CATEGORIES: &[Category] = &[
                     b("autoSave.recoveryJournal", "Keep a recovery copy of unsaved changes", true),
                     sub("autoSave.recoveryIntervalSeconds", "Update it at least every", int(1.0, 600.0, "second(s)"), "autoSave.recoveryJournal", true),
                     Row::Note(
-                        "Changes are copied in the background a moment after each edit. If FilmCraft quits unexpectedly, they are offered the next time it starts.",
+                        "Changes are copied in the background a moment after each edit. If Jilo Studio quits unexpectedly, they are offered the next time it starts.",
                     ),
                     Row::Custom("autoSaveStatus"),
                 ],
@@ -1129,7 +1129,7 @@ static CATEGORIES: &[Category] = &[
                 ],
             ),
             Row::Note("For color management parameters, go to the Settings tab in the Lumetri Color panel."),
-            Row::Note("Extended Dynamic Range Monitoring shows HDR above SDR white on EDR displays (macOS); it takes effect after FilmCraft restarts."),
+            Row::Note("Extended Dynamic Range Monitoring shows HDR above SDR white on EDR displays (macOS); it takes effect after Jilo Studio restarts."),
         ],
     },
     Category {
@@ -1243,7 +1243,7 @@ static CATEGORIES: &[Category] = &[
                 ],
             ),
             Row::Note(
-                "The media cache holds render previews of unsaved projects and other files FilmCraft can recreate. Deleting them is always safe; FilmCraft rebuilds them as needed.",
+                "The media cache holds render previews of unsaved projects and other files Jilo Studio can recreate. Deleting them is always safe; Jilo Studio rebuilds them as needed.",
             ),
         ],
     },
@@ -1269,7 +1269,7 @@ static CATEGORIES: &[Category] = &[
             b("playback.draftDecode", "Draft decoding at reduced playback resolution (H.264: faster, some frames less filtered)", true),
             f("playback.hardwareDecoding", "Hardware decoding", Kind::Choice(HW_DECODE), true),
             Row::Note(
-                "Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API or NVDEC for H.264 and HEVC on Linux) for the streams it supports, and FilmCraft's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.",
+                "Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API or NVDEC for H.264 and HEVC on Linux) for the streams it supports, and Jilo Studio's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.",
             ),
         ],
     },
@@ -1278,7 +1278,7 @@ static CATEGORIES: &[Category] = &[
         title: "Plugins",
         rows: &[
             Row::Group("Plugins", &[b("plugins.developerMode", "Enable developer mode", false)]),
-            Row::Note("No plugins are installed. Changes will take effect the next time you start FilmCraft."),
+            Row::Note("No plugins are installed. Changes will take effect the next time you start Jilo Studio."),
         ],
     },
     Category {
@@ -1456,7 +1456,7 @@ impl crate::autosave::Preferences {
     /// Settings ▸ Playback ▸ Hardware decoding as the process-wide switch the hardware decoder
     /// factories consult (new decoders only).
     pub fn apply_hardware_decoding(&self) {
-        filmcraft_codecs::hw::set_hardware_decoding(self.playback.hardware_decoding != "off");
+        jilo_codecs::hw::set_hardware_decoding(self.playback.hardware_decoding != "off");
     }
 
     /// Values of one category as a JSON object.
@@ -1540,9 +1540,9 @@ pub fn map_output(left: &[f32], right: &[f32], out: &mut [f32], ch: usize, map: 
 
 /// Settings ▸ Media ▸ Default Media Scaling for a clip placed in a `frame`-sized sequence. `src`
 /// is the clip's size at its display aspect in sequence pixels
-/// ([`filmcraft_project::conformed_size`]): `scaleToFrameSize` turns on Scale to Frame Size
+/// ([`jilo_project::conformed_size`]): `scaleToFrameSize` turns on Scale to Frame Size
 /// (rasterised at frame size), `setToFrameSize` sets Motion ▸ Scale so the picture fits the frame.
-pub fn apply_media_scaling(ti: &mut filmcraft_project::TrackItem, scaling: &str, frame: (u32, u32), src: (f64, f64)) {
+pub fn apply_media_scaling(ti: &mut jilo_project::TrackItem, scaling: &str, frame: (u32, u32), src: (f64, f64)) {
     if !(src.0 >= 1e-9 && src.1 >= 1e-9 && src.0.is_finite() && src.1.is_finite()) {
         return;
     }
@@ -1551,7 +1551,7 @@ pub fn apply_media_scaling(ti: &mut filmcraft_project::TrackItem, scaling: &str,
         "setToFrameSize" => {
             let fit = (frame.0 as f64 / src.0).min(frame.1 as f64 / src.1);
             if let Some(m) = ti.effects.iter_mut().find(|e| e.effect == "motion") {
-                m.params.insert("scale".into(), filmcraft_project::Param::new(filmcraft_project::ParamValue::Float((fit * 1000.0).round() / 10.0)));
+                m.params.insert("scale".into(), jilo_project::Param::new(jilo_project::ParamValue::Float((fit * 1000.0).round() / 10.0)));
             }
         }
         _ => {}

@@ -4,10 +4,10 @@
 use egui::{Align2, Color32, Rect, Sense, pos2, vec2};
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::theme::Tokens;
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     ui.painter().rect_filled(rect, t.radius, t.panel_bg);
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect).id_salt("import-home"));
@@ -32,7 +32,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     });
 }
 
-fn sources(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, width: f32, columns: usize) {
+fn sources(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, width: f32, columns: usize) {
     let t = app.tokens;
     ui.painter().text(rect.min + vec2(24.0, 30.0), Align2::LEFT_CENTER, tl!("Import"), Tokens::semibold(22.0), t.text);
     ui.painter().text(
@@ -73,7 +73,7 @@ fn sources(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, width: f32, co
     }
 }
 
-fn recent_projects(app: &mut FilmcraftApp, ui: &mut egui::Ui, origin: egui::Pos2, width: f32, paths: &[String]) {
+fn recent_projects(app: &mut JiloApp, ui: &mut egui::Ui, origin: egui::Pos2, width: f32, paths: &[String]) {
     let t = app.tokens;
     ui.painter().text(origin, Align2::LEFT_CENTER, tl!("Recent Projects"), Tokens::semibold(18.0), t.text);
     ui.painter().text(origin + vec2(0.0, 26.0), Align2::LEFT_CENTER, tl!("Pick up where you left off."), Tokens::ui(13.0), t.text_dim);
@@ -109,7 +109,7 @@ fn recent_projects(app: &mut FilmcraftApp, ui: &mut egui::Ui, origin: egui::Pos2
 }
 
 /// The UI asks before replacing an edited project; opening a missing/corrupt file keeps it intact.
-fn open_recent(app: &mut FilmcraftApp, ctx: &egui::Context, path: &str) {
+fn open_recent(app: &mut JiloApp, ctx: &egui::Context, path: &str) {
     if app.session.is_dirty() {
         app.ui.clip_dialog =
             Some(crate::state::ClipDialogDraft { command: "file.open".into(), params: json!({"path": path}), info: json!({}), error: String::new() });
@@ -119,7 +119,7 @@ fn open_recent(app: &mut FilmcraftApp, ctx: &egui::Context, path: &str) {
     }
 }
 
-fn community(app: &mut FilmcraftApp, ui: &mut egui::Ui, origin: egui::Pos2) {
+fn community(app: &mut JiloApp, ui: &mut egui::Ui, origin: egui::Pos2) {
     let t = app.tokens;
     let ctx = ui.ctx().clone();
     // Jilo Studio wordmark (the owner's marks, assets/brand/jilo/), then the project links: the
@@ -155,7 +155,7 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use egui_kittest::Harness;
-    use filmcraft_engine::Session;
+    use jilo_engine::Session;
 
     use super::*;
     use crate::state::Mode;
@@ -165,8 +165,7 @@ mod tests {
     impl ProjectFile {
         fn new() -> Self {
             static NEXT: AtomicUsize = AtomicUsize::new(0);
-            let path =
-                filmcraft_engine::temp_dir().join(format!("filmcraft-recent-{}-{}-中文工程.fcproj", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+            let path = jilo_engine::temp_dir().join(format!("jilo-recent-{}-{}-中文工程.fcproj", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
             let file = Self(path.to_string_lossy().into_owned());
             let mut session = Session::default();
             session.execute("file.newProject", json!({"name": "中文工程"})).unwrap();
@@ -181,8 +180,8 @@ mod tests {
         }
     }
 
-    fn harness(session: Session) -> Harness<'static, FilmcraftApp> {
-        let mut app = FilmcraftApp::new(session);
+    fn harness(session: Session) -> Harness<'static, JiloApp> {
+        let mut app = JiloApp::new(session);
         app.ui.mode = Mode::Import;
         let mut h = Harness::builder().with_size(vec2(1200.0, 850.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         for _ in 0..4 {
@@ -191,7 +190,7 @@ mod tests {
         h
     }
 
-    fn click(h: &mut Harness<'static, FilmcraftApp>, id: &str) {
+    fn click(h: &mut Harness<'static, JiloApp>, id: &str) {
         let r = h.state().auto.find(id).unwrap_or_else(|| panic!("missing element {id}"));
         let p = pos2(r.rect[0] + r.rect[2] * 0.5, r.rect[1] + r.rect[3] * 0.5);
         for pressed in [true, false] {

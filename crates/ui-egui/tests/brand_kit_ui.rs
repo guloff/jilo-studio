@@ -2,7 +2,7 @@
 //! Sequence puts the kit's logo and caption style on the open sequence as one undo step, and a
 //! lower third in the kit's colours goes in at the playhead.
 //!
-//! Set `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` to write `brand-kit-*.png` there (`FILMCRAFT_UI_LANG=ru`
+//! Set `JILO_UI_SNAPSHOT_DIR=<dir>` to write `brand-kit-*.png` there (`JILO_UI_LANG=ru`
 //! for the Russian interface).
 
 #![allow(dead_code)]
@@ -10,19 +10,19 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_engine::brand_kit::{BrandKit, LOGO_TRACK};
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_engine::brand_kit::{BrandKit, LOGO_TRACK};
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 fn snapshot(d: &mut Driver, name: &str) {
-    let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
+    let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
     d.frames(2);
     match d.harness.render() {
         Ok(img) => {
@@ -36,7 +36,7 @@ fn snapshot(d: &mut Driver, name: &str) {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -78,7 +78,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -93,7 +93,7 @@ fn a_brand_kit_goes_on_the_sequence_in_one_step() {
     s.execute("file.openDemoProject", json!({})).unwrap();
     s.execute("captions.add", json!({"seconds": 4.0, "durationSeconds": 3.0, "text": "Brand kit"})).unwrap();
     let mut d = Driver::new(s);
-    if std::env::var("FILMCRAFT_UI_LANG").as_deref() == Ok("ru") {
+    if std::env::var("JILO_UI_LANG").as_deref() == Ok("ru") {
         d.ok("ui.menu.invoke", json!({"id": "app.language.russian"}));
     }
     d.ok("ui.menu.invoke", json!({"command": "graphics.brandKit"}));
@@ -116,7 +116,7 @@ fn a_brand_kit_goes_on_the_sequence_in_one_step() {
     let q = app.session.active_sequence().unwrap();
     let logo_track = q.video_tracks.iter().find(|t| t.name == LOGO_TRACK).expect("the logo track");
     assert_eq!(logo_track.items.len(), 1);
-    let preset = filmcraft_engine::caption_presets::find("karaoke-yellow").unwrap();
+    let preset = jilo_engine::caption_presets::find("karaoke-yellow").unwrap();
     assert_eq!(q.caption_tracks[0].style.highlight, preset.style.highlight, "the caption style is the kit's");
     snapshot(&mut d, "brand-kit-applied");
     // a lower third at the playhead, in the kit's main colour

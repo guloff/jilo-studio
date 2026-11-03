@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use filmcraft_media::MediaKind;
-use filmcraft_project::{BinId, ItemId, SequenceSettings, TrackKind, Transition, TransitionAlign, TransitionId, find_effect};
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND, Tick};
+use jilo_media::MediaKind;
+use jilo_project::{BinId, ItemId, SequenceSettings, TrackKind, Transition, TransitionAlign, TransitionId, find_effect};
+use jilo_time::{FrameRate, TICKS_PER_SECOND, Tick};
 use roxmltree::Node;
 
 use super::effects;
@@ -320,7 +320,7 @@ impl<'a, 'i> Importer<'a, 'i, '_, '_> {
             }
         }
         if at(node, &["Node", "Properties"]).is_some_and(|p| elements(p).any(|n| n.tag_name().name().contains("Color") && n.text().is_some())) {
-            self.report.info("Premiere sequence colour-management settings use the FilmCraft sequence defaults");
+            self.report.info("Premiere sequence colour-management settings use the Jilo Studio sequence defaults");
         }
         self.builder.put_sequence(id, sequence);
         Ok(())
@@ -329,8 +329,8 @@ impl<'a, 'i> Importer<'a, 'i, '_, '_> {
     fn transition(
         &mut self,
         node: Node<'a, 'i>,
-        clip_ends: &HashMap<i64, filmcraft_project::ClipId>,
-        clip_starts: &HashMap<i64, filmcraft_project::ClipId>,
+        clip_ends: &HashMap<i64, jilo_project::ClipId>,
+        clip_starts: &HashMap<i64, jilo_project::ClipId>,
     ) -> Result<Option<Transition>> {
         let name = text_at(node, &["TransitionTrackItem", "MatchName"]).unwrap_or("");
         let effect = match name {
@@ -411,7 +411,7 @@ fn frame_size(node: Node<'_, '_>, default: (u32, u32)) -> Result<(u32, u32)> {
     let [left, top, right, bottom] = values.as_slice() else { return Err(error(PROJECT, "invalid frame rectangle")) };
     let width = right.checked_sub(*left).and_then(|v| u32::try_from(v).ok()).ok_or_else(|| error(PROJECT, "invalid frame width"))?;
     let height = bottom.checked_sub(*top).and_then(|v| u32::try_from(v).ok()).ok_or_else(|| error(PROJECT, "invalid frame height"))?;
-    filmcraft_project::validate_frame_size(width, height).map_err(|e| error(PROJECT, e))?;
+    jilo_project::validate_frame_size(width, height).map_err(|e| error(PROJECT, e))?;
     Ok((width, height))
 }
 

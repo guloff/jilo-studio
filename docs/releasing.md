@@ -7,8 +7,7 @@ from.
 
 User-facing names say **Jilo Studio**. Release files are lowercase:
 `jilo-studio-<version>-macos-aarch64.dmg` (the app) and `jilo-studio-cli-<version>-macos-aarch64.zip`
-(the headless CLI). The crates and binaries inside keep FilmCraft's names (`filmcraft`,
-`filmcraft-cli`), so changes can flow between the two projects.
+(the headless CLI). The binaries inside are `jilo-studio` (the app) and `jilo-cli` (the CLI).
 
 ## Cutting a release
 
@@ -20,9 +19,8 @@ User-facing names say **Jilo Studio**. Release files are lowercase:
 
    Version numbers are Jilo Studio's own and grow from the latest tag of guloff/jilo-studio
    (`gh release list --repo guloff/jilo-studio`): a patch for fixes, a minor version for new
-   features. They do not follow FilmCraft's. A clone that has fetched FilmCraft also holds its
-   tags (v0.1.0 to v0.5.0, v0.7.2, later v0.8.0…), so check `git tag -l v<version>` first and skip a
-   number that is already taken.
+   features. The `upstream` remote (FilmCraft, for the occasional fix) is fetched without tags
+   (`git config remote.upstream.tagopt --no-tags`), so `git tag` lists only Jilo Studio's releases.
 
 2. Run the quality gates: `cargo fmt --all -- --check`, `cargo xtask ci`, and the tests of the whole
    workspace.
@@ -85,7 +83,7 @@ of its own, as the Developer ID signature is what is checked.
 
 ## What gets built
 
-`packaging/macos/package.sh` builds `filmcraft` and `filmcraft-cli` in release mode for
+`packaging/macos/package.sh` builds `jilo-studio` and `jilo-cli` in release mode for
 `aarch64-apple-darwin` with `MACOSX_DEPLOYMENT_TARGET=15.0`, then:
 
 - assembles `Jilo Studio.app` (`packaging/macos/Info.plist.in`, the Jilo icon, the licences in
@@ -94,5 +92,3 @@ of its own, as the Developer ID signature is what is checked.
 - puts it on a drag-to-Applications DMG with the window layout of `packaging/macos/dmg/`;
 - zips the CLI with its README and licences.
 
-The packaging scripts for Windows, Linux and FreeBSD under `packaging/` come from FilmCraft; this
-fork does not build or test them.

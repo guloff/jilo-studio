@@ -1,6 +1,6 @@
-use filmcraft_geom::Vec2;
-use filmcraft_project::{EffectInstance, Interpolation, Keyframe, Param, ParamValue, find_effect};
-use filmcraft_time::Tick;
+use jilo_geom::Vec2;
+use jilo_project::{EffectInstance, Interpolation, Keyframe, Param, ParamValue, find_effect};
+use jilo_time::Tick;
 use roxmltree::Node;
 
 use super::graph::{Graph, error, static_text, text_at};
@@ -101,7 +101,7 @@ pub(super) fn component(
                     || (id == "transform" && number == 12 && static_text(native) == Some("0"))
                     || (id == "opacity" && ((number == 2 && static_text(native) == Some("18")) || (number == 3 && static_text(native) == Some("0")))));
             if !neutral {
-                report.warn(format!("Premiere effect {match_name} parameter {number} is not supported; the FilmCraft default was used"));
+                report.warn(format!("Premiere effect {match_name} parameter {number} is not supported; the Jilo Studio default was used"));
             }
         }
     }
@@ -212,7 +212,7 @@ fn parameter(
         return Err(error(graph.format, "duplicate parameter keyframe time"));
     }
     if approximated {
-        report.warn(format!("Premiere effect {match_name} temporal velocities or spatial tangents were approximated by FilmCraft keyframe interpolation"));
+        report.warn(format!("Premiere effect {match_name} temporal velocities or spatial tangents were approximated by Jilo Studio keyframe interpolation"));
     }
     Ok(p)
 }

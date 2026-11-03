@@ -8,20 +8,20 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -63,7 +63,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -147,8 +147,8 @@ fn quick_actions_follow_the_selection() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn the_assistant_plans_from_the_palette_and_runs_the_plan_as_one_undo_step() {
-    use filmcraft_ai::Response;
-    use filmcraft_ai::transport::FakeTransport;
+    use jilo_ai::Response;
+    use jilo_ai::transport::FakeTransport;
     let dir = std::env::temp_dir().join(format!("jilo-assistant-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -186,7 +186,7 @@ fn the_assistant_plans_from_the_palette_and_runs_the_plan_as_one_undo_step() {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert!(d.has("assistant.plan.1.step.0"), "the plan is shown before anything changes");
-    assert_ne!(d.app().session.active_sequence().unwrap().caption_tracks[0].style, filmcraft_engine::caption_presets::find("karaoke-yellow").unwrap().style);
+    assert_ne!(d.app().session.active_sequence().unwrap().caption_tracks[0].style, jilo_engine::caption_presets::find("karaoke-yellow").unwrap().style);
     let undo = d.app().session.history.undo.len();
     d.click("assistant.plan.1.run");
     for _ in 0..200 {
@@ -196,7 +196,7 @@ fn the_assistant_plans_from_the_palette_and_runs_the_plan_as_one_undo_step() {
         }
     }
     let app = d.app();
-    assert_eq!(app.session.active_sequence().unwrap().caption_tracks[0].style, filmcraft_engine::caption_presets::find("karaoke-yellow").unwrap().style);
+    assert_eq!(app.session.active_sequence().unwrap().caption_tracks[0].style, jilo_engine::caption_presets::find("karaoke-yellow").unwrap().style);
     assert_eq!(app.session.history.undo.len(), undo + 1);
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -215,7 +215,7 @@ fn tips_are_shown_one_at_a_time() {
     assert_eq!(d.app().ui.tips.index, 1);
     d.click("tips.previous");
     d.click("tips.previous");
-    assert_eq!(d.app().ui.tips.index, filmcraft_ui_egui::panels::tips::TIPS.len() - 1, "wraps around");
+    assert_eq!(d.app().ui.tips.index, jilo_ui_egui::panels::tips::TIPS.len() - 1, "wraps around");
     assert!(d.app().session.prefs.general.show_tips);
     d.click("tips.atStart");
     assert!(!d.app().session.prefs.general.show_tips, "turned off");

@@ -127,7 +127,7 @@ pub struct RenderState {
     /// The target texture format used for presenting to the window.
     pub target_format: wgpu::TextureFormat,
 
-    /// FilmCraft patch: the colour space the surface is configured with.
+    /// Jilo Studio patch: the colour space the surface is configured with.
     pub target_color_space: wgpu::SurfaceColorSpace,
 
     /// Egui renderer responsible for drawing the UI.
@@ -278,7 +278,7 @@ impl RenderState {
         let surface_formats = capabilities
             .as_ref()
             .map_or_else(|| vec![wgpu::TextureFormat::Rgba8Unorm], |c| c.formats.clone());
-        // FilmCraft patch: the requested HDR surface, when the surface offers it
+        // Jilo Studio patch: the requested HDR surface, when the surface offers it
         let hdr = config.hdr_surface.filter(|(format, space)| {
             capabilities.as_ref().is_some_and(|c| {
                 c.formats.contains(format)
@@ -370,7 +370,7 @@ pub struct WgpuConfiguration {
     pub on_surface_status:
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
 
-    /// FilmCraft patch: a surface format and colour space to use instead of the default 8-bit
+    /// Jilo Studio patch: a surface format and colour space to use instead of the default 8-bit
     /// sRGB one (e.g. `Rgba16Float` + `ExtendedSrgb` for EDR on macOS), when the surface supports
     /// both. egui keeps drawing gamma-encoded values, so the UI looks the same.
     pub hdr_surface: Option<(wgpu::TextureFormat, wgpu::SurfaceColorSpace)>,

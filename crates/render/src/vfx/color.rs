@@ -1,7 +1,7 @@
 //! Colour, keying and matte effects.
 
-use filmcraft_project::EffectInstance;
-use filmcraft_project::effect::LIGHT_IDS;
+use jilo_project::EffectInstance;
+use jilo_project::effect::LIGHT_IDS;
 use rayon::prelude::*;
 
 use super::*;

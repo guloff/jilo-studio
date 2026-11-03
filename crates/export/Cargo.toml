@@ -1,5 +1,5 @@
 [package]
-name = "filmcraft-export"
+name = "jilo-export"
 description = "Export pipeline: parallel render → encode → mux, presets, progress/cancel"
 version.workspace = true
 edition.workspace = true
@@ -10,24 +10,24 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-filmcraft-time = { workspace = true }
-filmcraft-frame = { workspace = true }
-filmcraft-color = { workspace = true }
-filmcraft-media = { workspace = true }
-filmcraft-codecs = { workspace = true }
-filmcraft-project = { workspace = true }
-filmcraft-render = { workspace = true }
-filmcraft-audio-dsp = { workspace = true }
-filmcraft-geom = { workspace = true }
-filmcraft-text = { workspace = true }
-filmcraft-isobmff = { workspace = true }
-filmcraft-prores = { workspace = true }
-filmcraft-dnx = { workspace = true }
-filmcraft-apv = { workspace = true }
-filmcraft-mxf = { workspace = true }
-filmcraft-aac = { workspace = true }
-filmcraft-flac = { workspace = true }
-filmcraft-h264enc = { workspace = true }
+jilo-time = { workspace = true }
+jilo-frame = { workspace = true }
+jilo-color = { workspace = true }
+jilo-media = { workspace = true }
+jilo-codecs = { workspace = true }
+jilo-project = { workspace = true }
+jilo-render = { workspace = true }
+jilo-audio-dsp = { workspace = true }
+jilo-geom = { workspace = true }
+jilo-text = { workspace = true }
+jilo-isobmff = { workspace = true }
+jilo-prores = { workspace = true }
+jilo-dnx = { workspace = true }
+jilo-apv = { workspace = true }
+jilo-mxf = { workspace = true }
+jilo-aac = { workspace = true }
+jilo-flac = { workspace = true }
+jilo-h264enc = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -36,4 +36,4 @@ web-time = "1"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "tiff", "bmp"] }
 
 [dev-dependencies]
-filmcraft-testkit = { workspace = true }
+jilo-testkit = { workspace = true }

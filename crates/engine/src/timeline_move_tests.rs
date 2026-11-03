@@ -1,8 +1,8 @@
 //! `timeline.move`: linked partners follow, locked partners stay, the group stops together at the
 //! sequence start, and hostile times are refused.
 
-use filmcraft_project::{ClipId, TrackId, TrackItem};
-use filmcraft_time::Tick;
+use jilo_project::{ClipId, TrackId, TrackItem};
+use jilo_time::Tick;
 use serde_json::json;
 
 use crate::{EngineError, Session};
@@ -209,7 +209,7 @@ fn hostile_times_are_refused_or_clamped_never_a_panic() {
 fn a_move_that_lands_on_another_clip_reports_what_it_cut() {
     let mut s = demo();
     let (_, _, a_track, a1) = pair_in_an_empty_sequence(&mut s, 0.0);
-    let later = a1.end().0 as f64 / filmcraft_time::TICKS_PER_SECOND as f64 + 2.0;
+    let later = a1.end().0 as f64 / jilo_time::TICKS_PER_SECOND as f64 + 2.0;
     let item = a1.item.0;
     s.execute("timeline.place", json!({"item": item, "seconds": later})).unwrap();
     let a2 = s.active_sequence().unwrap().track(a_track).unwrap().items[1].clone();

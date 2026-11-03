@@ -7,14 +7,14 @@
 //! Automation id: `program.caption.<id>.box`.
 
 use egui::{Rect, Sense, Stroke, pos2};
-use filmcraft_geom::Vec2;
-use filmcraft_project::{Caption, CaptionStyle};
+use jilo_geom::Vec2;
+use jilo_project::{Caption, CaptionStyle};
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The selected caption under the playhead: its track, the caption and the style it draws in.
-fn target(app: &FilmcraftApp) -> Option<(u64, Caption, CaptionStyle)> {
+fn target(app: &JiloApp) -> Option<(u64, Caption, CaptionStyle)> {
     let q = app.session.active_sequence()?;
     let t = app.session.playhead();
     let sel = &app.session.state.caption_selection;
@@ -35,7 +35,7 @@ fn block(ctx: &egui::Context, c: &Caption, style: &CaptionStyle, frame: (u32, u3
     {
         return r;
     }
-    let r = filmcraft_captions::burn::render_caption(c, style, frame.0 as usize, frame.1 as usize)
+    let r = jilo_captions::burn::render_caption(c, style, frame.0 as usize, frame.1 as usize)
         .map(|o| Rect::from_min_size(pos2(o.x as f32, o.y as f32), egui::vec2(o.w as f32, o.h as f32)));
     ctx.data_mut(|d| d.insert_temp::<Kept>(key, (c.text.clone(), style.clone(), frame, r)));
     r
@@ -48,7 +48,7 @@ struct Drag {
     centre: [f32; 2],
 }
 
-pub fn monitor_overlay(app: &mut FilmcraftApp, ui: &mut egui::Ui, pic: Rect, frame: (u32, u32)) {
+pub fn monitor_overlay(app: &mut JiloApp, ui: &mut egui::Ui, pic: Rect, frame: (u32, u32)) {
     if app.ui.tool != crate::state::Tool::Selection || frame.0 == 0 || frame.1 == 0 {
         return;
     }

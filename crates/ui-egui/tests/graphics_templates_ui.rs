@@ -1,18 +1,18 @@
 //! Essential Graphics ▸ Browse (Graphics Templates), the template properties in the Edit tab and
 //! the Export As Motion Graphics Template / Replace Fonts dialogs, driven headless through the
-//! control channel (like `graphics_ui.rs`). With `FILMCRAFT_UI_SHOTS=<dir>` it also renders the
+//! control channel (like `graphics_ui.rs`). With `JILO_UI_SHOTS=<dir>` it also renders the
 //! UI with wgpu and writes PNGs there for review.
 
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
     shots: Option<std::path::PathBuf>,
 }
@@ -21,12 +21,12 @@ impl Driver {
     fn demo(data: &str) -> Self {
         let mut session = Session::default();
         session.execute("file.openDemoProject", json!({})).expect("demo project");
-        let dir = std::env::temp_dir().join(format!("filmcraft-gfx-ui-{data}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("jilo-gfx-ui-{data}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         session.prefs_path = Some(dir.join("prefs.json"));
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
-        let shots = std::env::var_os("FILMCRAFT_UI_SHOTS").map(std::path::PathBuf::from);
+        let app = JiloApp::new(session).with_control(rx);
+        let shots = std::env::var_os("JILO_UI_SHOTS").map(std::path::PathBuf::from);
         let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
         if shots.is_some() {
             b = b.wgpu().with_pixels_per_point(1.0);

@@ -3,20 +3,20 @@
 //! playhead and steps between keyframes, as Premiere's does, and the Effect Controls time ruler
 //! moves the playhead (click, or drag the playhead's handle).
 //!
-//! With `FILMCRAFT_UI_SHOTS=<dir>` the tests also render the UI with wgpu and write PNGs there.
+//! With `JILO_UI_SHOTS=<dir>` the tests also render the UI with wgpu and write PNGs there.
 
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_project::ClipId;
-use filmcraft_time::Tick;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_project::ClipId;
+use jilo_time::Tick;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
     shots: Option<std::path::PathBuf>,
 }
@@ -27,8 +27,8 @@ impl Driver {
         let mut session = Session::default();
         session.execute("file.openDemoProject", json!({})).expect("demo project");
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
-        let shots = std::env::var_os("FILMCRAFT_UI_SHOTS").map(std::path::PathBuf::from);
+        let app = JiloApp::new(session).with_control(rx);
+        let shots = std::env::var_os("JILO_UI_SHOTS").map(std::path::PathBuf::from);
         let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
         if shots.is_some() {
             b = b.wgpu().with_pixels_per_point(1.0);

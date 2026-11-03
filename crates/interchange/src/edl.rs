@@ -13,11 +13,11 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use filmcraft_media::Generator;
-use filmcraft_project::{
+use jilo_media::Generator;
+use jilo_project::{
     ItemId, ItemKind, Label, Marker, MarkerId, MarkerKind, ParamValue, Project, Sequence, TrackKind, Transition, TransitionAlign, TransitionId, find_effect,
 };
-use filmcraft_time::{FrameRate, Tick, fields_to_frames, format_timecode_frames};
+use jilo_time::{FrameRate, Tick, fields_to_frames, format_timecode_frames};
 
 use crate::common::{
     Builder, MediaSpec, empty_sequence, file_name, file_stem, frames_round, generator_of, item_path, on_frame, overwrite, relative_path, resolve_path,
@@ -376,7 +376,7 @@ impl Ctx<'_> {
         src_in: Tick,
         m2: Option<f64>,
         video_base: usize,
-    ) -> Vec<(TrackKind, usize, filmcraft_project::ClipId)> {
+    ) -> Vec<(TrackKind, usize, jilo_project::ClipId)> {
         let mut out = Vec::new();
         let link = if line.chans.len() > 1 { Some(self.b.link_id()) } else { None };
         let base = self.rate.timecode_base() as f64;
@@ -439,7 +439,7 @@ pub(crate) fn import(text: &str, opts: &ImportOptions, report: &mut Report) -> R
         let c = &ctx;
         parsed.events.iter().flat_map(|e| e.lines.iter().map(move |l| c.frames(l.tcs[2], e.df))).min().unwrap_or(0)
     };
-    let (_, h, _, _, _) = filmcraft_time::frames_to_fields(first_rec, rate, ctx.seq.settings.drop_frame);
+    let (_, h, _, _, _) = jilo_time::frames_to_fields(first_rec, rate, ctx.seq.settings.drop_frame);
     ctx.start_tc = fields_to_frames(h, 0, 0, 0, rate, ctx.seq.settings.drop_frame).min(first_rec);
     ctx.seq.start_timecode = ctx.start_tc;
     if source_tc_warning(&parsed) {
@@ -552,7 +552,7 @@ fn import_event(ctx: &mut Ctx, ev: &Event, report: &mut Report) {
                 }
                 let audio = kind == TrackKind::Audio;
                 let mut eff = effect.clone();
-                if audio && eff.def().is_some_and(|d| d.kind != filmcraft_project::EffectKind::AudioTransition) {
+                if audio && eff.def().is_some_and(|d| d.kind != jilo_project::EffectKind::AudioTransition) {
                     eff = find_effect("constant_power").map(|d| d.instance()).unwrap_or(eff);
                 }
                 let id = TransitionId(ctx.b.alloc());
@@ -610,7 +610,7 @@ fn lay_cut(ctx: &mut Ctx, ev: &Event, l: &Line, video_base: usize, df: bool, m2:
     ctx.lay(l, item, &name, t0, t1 - t0, src, *m2, video_base);
 }
 
-fn transition_for(t: Trans, effect_name: Option<&str>, report: &mut Report) -> filmcraft_project::EffectInstance {
+fn transition_for(t: Trans, effect_name: Option<&str>, report: &mut Report) -> jilo_project::EffectInstance {
     if let Some(n) = effect_name {
         return transition_effect(n, false, report);
     }
@@ -620,7 +620,7 @@ fn transition_for(t: Trans, effect_name: Option<&str>, report: &mut Report) -> f
             match code {
                 1 => {}
                 2 => {
-                    e.params.insert("direction".into(), filmcraft_project::Param::new(ParamValue::Choice(0)));
+                    e.params.insert("direction".into(), jilo_project::Param::new(ParamValue::Choice(0)));
                 }
                 c => report.warn(format!("SMPTE wipe code {c:03} imported as a plain Wipe")),
             }
@@ -1032,7 +1032,7 @@ fn src_tc(x: &Exp, l: &OutLine, t: Tick) -> i64 {
 }
 
 /// EDL transition code and effect name.
-fn edl_transition(e: &filmcraft_project::EffectInstance, report: &mut Report) -> (String, String) {
+fn edl_transition(e: &jilo_project::EffectInstance, report: &mut Report) -> (String, String) {
     let name = transition_name(e).to_ascii_uppercase();
     match e.effect.as_str() {
         "cross_dissolve" | "constant_power" | "constant_gain" | "exponential_fade" | "film_dissolve" | "additive_dissolve" | "non_additive_dissolve" => {

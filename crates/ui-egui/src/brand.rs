@@ -1,14 +1,9 @@
 //! The Jilo Studio brand: the product name, the icon mark and the wordmark (the owner's marks; see
 //! `assets/brand/jilo/LICENSE-brand.txt`).
 //!
-//! Jilo Studio is based on FilmCraft by the ArtCraft team. The ArtCraft marks are not in this build:
-//! their licence (`docs/brand/LICENSE-brand.txt`) keeps them out of modified versions. The interface
-//! strings still say "FilmCraft" where the upstream code and catalogs do; [`rebrand`] shows them
-//! with this product's name (strings that name the ArtCraft team speak about the original project
-//! and keep it), so upstream strings and translations merge unchanged.
-
-use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock, PoisonError};
+//! Jilo Studio is based on FilmCraft by the ArtCraft team, credited in Help ▸ About and the
+//! Help menu ([`UPSTREAM_NAME`]). The ArtCraft marks are not in this build: their licence keeps them
+//! out of modified versions.
 
 /// The product name shown to people.
 pub const APP_NAME: &str = "Jilo Studio";
@@ -17,28 +12,6 @@ pub const APP_NAME: &str = "Jilo Studio";
 pub const UPSTREAM_NAME: &str = "FilmCraft";
 
 const MARK: &[u8] = include_bytes!("../../../assets/brand/jilo/jilo-studio-mark-256.png");
-
-/// `s` with the upstream product name replaced by [`APP_NAME`]. Strings that mention the ArtCraft
-/// team (credits for the original project) are left as written. Each distinct rebranded string is
-/// made once and kept for the life of the process (the interface has a fixed set of them).
-pub fn rebrand(s: &str) -> &str {
-    if !s.contains(UPSTREAM_NAME) || s.contains("ArtCraft") {
-        return s;
-    }
-    static CACHE: OnceLock<Mutex<HashMap<String, &'static str>>> = OnceLock::new();
-    let mut cache = CACHE.get_or_init(Default::default).lock().unwrap_or_else(PoisonError::into_inner);
-    if let Some(v) = cache.get(s) {
-        return v;
-    }
-    let v: &'static str = Box::leak(s.replace(UPSTREAM_NAME, APP_NAME).into_boxed_str());
-    cache.insert(s.to_string(), v);
-    v
-}
-
-/// The catalog wording of a string [`rebrand`] produced (the product name back to upstream's).
-pub fn unbrand(s: &str) -> std::borrow::Cow<'_, str> {
-    if s.contains(APP_NAME) { std::borrow::Cow::Owned(s.replace(APP_NAME, UPSTREAM_NAME)) } else { std::borrow::Cow::Borrowed(s) }
-}
 
 /// The icon mark, decoded once and kept as a texture.
 pub fn mark(ctx: &egui::Context) -> Option<egui::TextureHandle> {
@@ -68,20 +41,4 @@ pub fn paint_wordmark(ui: &egui::Ui, left_center: egui::Pos2, height: f32, dark:
     let right = pos.x + g.size().x;
     ui.painter().galley(pos, g, ink);
     Some(egui::Rect::from_min_max(egui::pos2(left_center.x, left_center.y - height / 2.0), egui::pos2(right, left_center.y + height / 2.0)))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn upstream_name_is_shown_as_jilo_studio_except_in_credits() {
-        assert_eq!(rebrand("About FilmCraft"), "About Jilo Studio");
-        assert_eq!(rebrand("FilmCraft Project"), "Jilo Studio Project");
-        // each distinct string is made once
-        assert!(std::ptr::eq(rebrand("Quit FilmCraft"), rebrand("Quit FilmCraft")));
-        assert_eq!(rebrand("Based on FilmCraft by the ArtCraft team"), "Based on FilmCraft by the ArtCraft team");
-        assert_eq!(rebrand("filmcraft-cli and FILMCRAFT_DATA_DIR"), "filmcraft-cli and FILMCRAFT_DATA_DIR");
-        assert_eq!(unbrand(rebrand("Selection as FilmCraft Project…")), "Selection as FilmCraft Project…");
-    }
 }

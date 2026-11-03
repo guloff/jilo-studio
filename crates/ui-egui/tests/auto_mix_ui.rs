@@ -1,25 +1,25 @@
 //! Headless UI test of AI ▸ Voice and Sound ▸ Auto Mix…: one click types the music, sets the mix
 //! to the platform's loudness on the Mix fader and reports it; one undo step.
 //!
-//! `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` writes `auto-mix.png` (`FILMCRAFT_UI_LANG=ru`: Russian).
+//! `JILO_UI_SNAPSHOT_DIR=<dir>` writes `auto-mix.png` (`JILO_UI_LANG=ru`: Russian).
 
 #![allow(dead_code)]
 
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 fn snapshot(d: &mut Driver, name: &str) {
-    let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
+    let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
     d.frames(2);
     match d.harness.render() {
         Ok(img) => {
@@ -33,7 +33,7 @@ fn snapshot(d: &mut Driver, name: &str) {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -75,7 +75,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -85,7 +85,7 @@ fn auto_mix_in_one_click() {
     let mut s = Session::default();
     s.execute("file.openDemoProject", json!({})).unwrap();
     let mut d = Driver::new(s);
-    if std::env::var("FILMCRAFT_UI_LANG").as_deref() == Ok("ru") {
+    if std::env::var("JILO_UI_LANG").as_deref() == Ok("ru") {
         d.ok("ui.menu.invoke", json!({"id": "app.language.russian"}));
     }
     d.ok("ui.menu.invoke", json!({"command": "audio.autoMix"}));

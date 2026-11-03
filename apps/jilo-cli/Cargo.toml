@@ -1,0 +1,34 @@
+[package]
+name = "jilo-cli"
+description = "Jilo Studio headless CLI and MCP server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Speech-to-text (Text panel ▸ Transcribe) with Whisper on the CPU, and model downloads.
+whisper = ["jilo-engine/whisper", "jilo-engine/speech-download"]
+
+[dependencies]
+jilo-engine = { workspace = true }
+jilo-export = { workspace = true }
+jilo-project = { workspace = true }
+jilo-render = { workspace = true }
+jilo-time = { workspace = true }
+jilo-gpu = { workspace = true }
+jilo-media = { workspace = true }
+jilo-codecs = { workspace = true }
+jilo-platform = { workspace = true }
+jilo-mxf = { workspace = true }
+jilo-mpegts = { workspace = true }
+jilo-ogg = { workspace = true }
+jilo-automation = { workspace = true }
+serde_json = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+# Only for its backends: jilo-gpu links wgpu without any (the desktop app gets them through
+# eframe), so without these the CLI had no GPU export renderer and exported on the CPU.
+wgpu = { version = "30", default-features = false, features = ["wgsl", "metal", "vulkan", "dx12", "gles"] }

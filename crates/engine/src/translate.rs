@@ -7,8 +7,8 @@
 //! schema). The new track takes the source's timing, speakers and style; a caption the engine
 //! skipped keeps its original text. One undo step adds the track.
 
-use filmcraft_ai::speech::language_name;
-use filmcraft_project::{CaptionTrack, ClipId, TrackId};
+use jilo_ai::speech::language_name;
+use jilo_project::{CaptionTrack, ClipId, TrackId};
 use serde_json::{Value, json};
 
 use crate::ai_tasks::{Outcome, TaskWork, other, run, started};
@@ -68,7 +68,7 @@ fn translate(s: &mut Session, p: &Value) -> Result<Value> {
         let prompt = translation_prompt(Some(&from2), &to2);
         for (i, b) in batches.iter().enumerate() {
             if !progress(i as f32 / batches.len() as f32, &format!("Translating {} of {}", i + 1, batches.len())) {
-                return Err(filmcraft_ai::AiError::Cancelled);
+                return Err(jilo_ai::AiError::Cancelled);
             }
             let v = engine.json(ctx, &prompt, &json!({"items": b}).to_string(), Some(&schema), 0.2)?;
             for it in v.get("items").and_then(Value::as_array).into_iter().flatten() {

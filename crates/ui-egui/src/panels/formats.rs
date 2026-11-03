@@ -5,7 +5,7 @@
 use egui::RichText;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The aspects offered, in order: (id, name, what it is for).
 pub const ASPECTS: [(&str, &str, &str); 4] = [
@@ -38,19 +38,19 @@ impl Default for FormatsUi {
 }
 
 /// Open the dialog (refused, with the reason, without an open sequence).
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("export.allFormats").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("export.allFormats").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
     app.ui.formats.dialog = true;
     Ok(json!({"dialog": "allFormats"}))
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if app.ui.formats.dialog {
         dialog(app, ctx);
     }
 }
 
-fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn dialog(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let (mut go, mut cancel) = (false, false);
     let w = 440.0;
@@ -60,7 +60,7 @@ fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
         .ok()
         .and_then(|v| v["presets"].as_array().map(|a| a.iter().filter_map(|p| p["name"].as_str().map(str::to_string)).collect()))
         .unwrap_or_default();
-    let own = app.session.active_sequence().map(|q| filmcraft_engine::formats::aspect_of(q.settings.width, q.settings.height)).unwrap_or("16:9");
+    let own = app.session.active_sequence().map(|q| jilo_engine::formats::aspect_of(q.settings.width, q.settings.height)).unwrap_or("16:9");
     let faces = app.session.face_detector.is_some();
     let browse_ok = app.hooks.pick_folder.is_some();
     let mut browse = false;

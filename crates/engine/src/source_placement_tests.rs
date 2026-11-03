@@ -1,6 +1,6 @@
 use super::*;
-use filmcraft_project::ItemId;
-use filmcraft_time::{Tick, TimeRange};
+use jilo_project::ItemId;
+use jilo_time::{Tick, TimeRange};
 use serde_json::json;
 
 fn setup() -> Session {

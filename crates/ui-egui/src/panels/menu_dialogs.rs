@@ -17,11 +17,11 @@
 //! scratch rows `projectSettings.scratch.<key>` / `.browse` / `.same`.
 
 use egui::{Align2, RichText};
-use filmcraft_project::{FindOp, find::COLUMNS};
+use jilo_project::{FindOp, find::COLUMNS};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::dock::PanelKind;
 use crate::state::ClipDialogDraft;
 
@@ -96,12 +96,12 @@ fn dialog_command(id: &str) -> Option<&'static str> {
     })
 }
 
-fn enabled(app: &FilmcraftApp, id: &str) -> Result<(), String> {
-    filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))
+fn enabled(app: &JiloApp, id: &str) -> Result<(), String> {
+    jilo_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))
 }
 
 /// Checkmark state of this module's toggles in the menus.
-pub fn checked(app: &FilmcraftApp, id: &str) -> Option<bool> {
+pub fn checked(app: &JiloApp, id: &str) -> Option<bool> {
     match id {
         "view.dynamicAudioWaveforms" => Some(app.ui.extras.dynamic_waveforms),
         "view.quickActions" => Some(app.ui.quick_actions),
@@ -112,14 +112,14 @@ pub fn checked(app: &FilmcraftApp, id: &str) -> Option<bool> {
 
 /// Project Settings ▸ General ▸ Renderer is "Software Only": the Program monitor composites on
 /// the CPU.
-pub fn software_renderer(app: &FilmcraftApp) -> bool {
-    app.session.project.settings.renderer == filmcraft_engine::project_tools::RENDERER_SOFTWARE
+pub fn software_renderer(app: &JiloApp) -> bool {
+    app.session.project.settings.renderer == jilo_engine::project_tools::RENDERER_SOFTWARE
 }
 
 /// Hand a path to the operating system (open it in its default application, or reveal it in the
 /// file manager). The host hook does it on the desktop; otherwise the path is opened as a
 /// `file://` URL.
-pub fn open_path(app: &mut FilmcraftApp, ctx: &egui::Context, path: &str, reveal: bool) -> Result<(), String> {
+pub fn open_path(app: &mut JiloApp, ctx: &egui::Context, path: &str, reveal: bool) -> Result<(), String> {
     app.ui.extras.opened.push(path.to_string());
     if app.ui.extras.opened.len() > 50 {
         app.ui.extras.opened.remove(0);
@@ -135,12 +135,12 @@ pub fn open_path(app: &mut FilmcraftApp, ctx: &egui::Context, path: &str, reveal
 }
 
 /// Where Reveal Log Files points: `<data dir>/Logs` (the temp folder without a data directory).
-pub fn logs_dir(app: &FilmcraftApp) -> std::path::PathBuf {
-    app.session.prefs_path.as_ref().and_then(|p| p.parent()).map(|d| d.join("Logs")).unwrap_or_else(|| filmcraft_engine::temp_dir().join("FilmCraft Logs"))
+pub fn logs_dir(app: &JiloApp) -> std::path::PathBuf {
+    app.session.prefs_path.as_ref().and_then(|p| p.parent()).map(|d| d.join("Logs")).unwrap_or_else(|| jilo_engine::temp_dir().join("Jilo Studio Logs"))
 }
 
 /// Write this session's log (system report and the command journal) into [`logs_dir`].
-fn write_session_log(app: &FilmcraftApp) -> Result<std::path::PathBuf, String> {
+fn write_session_log(app: &JiloApp) -> Result<std::path::PathBuf, String> {
     let dir = logs_dir(app);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let path = dir.join(format!("session-{}.log", std::process::id()));
@@ -153,8 +153,8 @@ fn write_session_log(app: &FilmcraftApp) -> Result<std::path::PathBuf, String> {
 }
 
 /// The engine's report plus the GPU adapter (wgpu) when the GPU compositor is on.
-pub fn system_report(app: &FilmcraftApp) -> Value {
-    let mut r = filmcraft_engine::project_tools::system_report();
+pub fn system_report(app: &JiloApp) -> Value {
+    let mut r = jilo_engine::project_tools::system_report();
     let gpu = app.gpu.as_ref().map(|g| {
         let i = g.render_state.adapter.get_info();
         json!({"name": i.name, "backend": format!("{:?}", i.backend), "type": format!("{:?}", i.device_type), "driver": i.driver, "driverInfo": i.driver_info})
@@ -170,7 +170,7 @@ pub fn system_report(app: &FilmcraftApp) -> Value {
 }
 
 /// Menu / shortcut entry points. Returns None for ids this module doesn't handle.
-pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn route(app: &mut JiloApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
     let empty = params.as_object().is_none_or(|m| m.is_empty());
     // UI commands
     match id {
@@ -214,7 +214,7 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
                 let mut peaks = app.tl.peaks.lock().unwrap_or_else(|e| e.into_inner());
                 let mut streams = app.tl.stream_peaks.lock().unwrap_or_else(|e| e.into_inner());
                 for i in v["items"].as_array().cloned().unwrap_or_default() {
-                    let item = filmcraft_engine::project::ItemId(i.as_u64().unwrap_or_default());
+                    let item = jilo_engine::project::ItemId(i.as_u64().unwrap_or_default());
                     peaks.remove(&item);
                     streams.retain(|(it, _), _| *it != item);
                 }
@@ -228,7 +228,7 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
             let (filter, ext, name) = if id == "file.exportAle" {
                 (tl!("Avid Log Exchange"), "ale", format!("{}.ale", app.session.project.name))
             } else {
-                (tl!("FilmCraft Project"), "fcproj", tlf!("{name} Selection.fcproj", name = app.session.project.name))
+                (tl!("Jilo Studio Project"), jilo_engine::project_file::PROJECT_EXTENSION, tlf!("{name} Selection.jsproj", name = app.session.project.name))
             };
             let Some(path) = app.hooks.pick_save_as.as_mut().and_then(|f| f(filter, &[ext], &name)) else {
                 return Some(Ok(Value::Null));
@@ -242,7 +242,7 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
         }
         "file.mediaPropertiesFile" if params.get("path").is_none() => {
             let exts: Vec<&str> =
-                filmcraft_media::VIDEO_EXTENSIONS.iter().chain(filmcraft_media::AUDIO_EXTENSIONS).chain(filmcraft_media::STILL_EXTENSIONS).copied().collect();
+                jilo_media::VIDEO_EXTENSIONS.iter().chain(jilo_media::AUDIO_EXTENSIONS).chain(jilo_media::STILL_EXTENSIONS).copied().collect();
             let Some(path) = app.hooks.pick_open_file.as_mut().and_then(|f| f(tl!("Media"), &exts)) else { return Some(Ok(Value::Null)) };
             let r = app.session.execute(id, json!({"path": path})).map_err(|e| e.to_string());
             if let Ok(v) = &r {
@@ -270,7 +270,7 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
 }
 
 /// Initial parameters (and display info) of a dialog.
-fn defaults(app: &mut FilmcraftApp, cmd: &str, id: &str) -> Result<(Value, Value), String> {
+fn defaults(app: &mut JiloApp, cmd: &str, id: &str) -> Result<(Value, Value), String> {
     let s = &mut app.session;
     Ok(match cmd {
         "edit.find" => {
@@ -300,7 +300,7 @@ fn defaults(app: &mut FilmcraftApp, cmd: &str, id: &str) -> Result<(Value, Value
             };
             let st = s.project.settings.clone();
             let general = s.execute("file.projectSettings.general", json!({})).map_err(|e| e.to_string())?;
-            let scratch = filmcraft_engine::project_tools::scratch_paths(s);
+            let scratch = jilo_engine::project_tools::scratch_paths(s);
             let ingest = serde_json::to_value(&st.ingest).unwrap_or_default();
             let sc = &st.scratch;
             (
@@ -324,7 +324,7 @@ fn defaults(app: &mut FilmcraftApp, cmd: &str, id: &str) -> Result<(Value, Value
             if let Some(it) = item {
                 p["item"] = json!(it.id.0);
                 p["mediaName"] = json!(it.name);
-                for (k, key) in filmcraft_engine::project_tools::OFFLINE_FIELDS {
+                for (k, key) in jilo_engine::project_tools::OFFLINE_FIELDS {
                     p[k] = json!(it.metadata.get(key).cloned().unwrap_or_default());
                 }
             }
@@ -361,8 +361,8 @@ fn defaults(app: &mut FilmcraftApp, cmd: &str, id: &str) -> Result<(Value, Value
         "project.matteColor" => {
             let matte = match s.state.project_selection.as_slice() {
                 [id] => s.project.item(*id).and_then(|it| match &it.kind {
-                    filmcraft_engine::project::ItemKind::Media(m) => match &m.media {
-                        filmcraft_engine::project::MediaRef::Generator(filmcraft_media::Generator::ColorMatte { color }) => Some((it.id, *color)),
+                    jilo_engine::project::ItemKind::Media(m) => match &m.media {
+                        jilo_engine::project::MediaRef::Generator(jilo_media::Generator::ColorMatte { color }) => Some((it.id, *color)),
                         _ => None,
                     },
                     _ => None,
@@ -370,7 +370,7 @@ fn defaults(app: &mut FilmcraftApp, cmd: &str, id: &str) -> Result<(Value, Value
                 _ => None,
             };
             let (id, color) = matte.ok_or("select one Color Matte")?;
-            (json!({"item": id.0, "color": filmcraft_color::to_hex(color)}), Value::Null)
+            (json!({"item": id.0, "color": jilo_color::to_hex(color)}), Value::Null)
         }
         _ => (json!({}), Value::Null),
     })
@@ -444,7 +444,7 @@ fn combo(ui: &mut egui::Ui, elems: &mut Elems, id: &str, label: &str, value: &mu
 fn color(ui: &mut egui::Ui, elems: &mut Elems, pre: &str, p: &mut Value, key: &str, label: &str) {
     ui.horizontal(|ui| {
         ui.label(label);
-        let c = p.get(key).and_then(Value::as_str).and_then(filmcraft_color::parse_hex).unwrap_or([0.0, 0.0, 0.0, 1.0]);
+        let c = p.get(key).and_then(Value::as_str).and_then(jilo_color::parse_hex).unwrap_or([0.0, 0.0, 0.0, 1.0]);
         let mut rgb = [c[0], c[1], c[2]].map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
         let r = egui::color_picker::color_edit_button_srgb(ui, &mut rgb);
         push(elems, format!("{pre}.{key}"), &r, label);
@@ -460,7 +460,7 @@ fn pairs(v: &[&str]) -> Vec<(String, String)> {
 }
 
 /// Draw the open dialog, if any.
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     let Some(mut d) = app.ui.extras.dialog.clone() else { return };
     crate::widgets::revert_drag_on_escape(ctx, egui::Id::new("menu-dialog-before-drag"), &mut d);
     let Some((title, pre, ok_text)) = meta(&d.command) else {
@@ -606,16 +606,13 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                         _ => {
                             ui.label(RichText::new(tl!("Video Rendering and Playback")).strong());
                             let rs = vec![
-                                (filmcraft_engine::project_tools::RENDERER_GPU.to_string(), filmcraft_engine::project_tools::RENDERER_GPU.to_string()),
-                                (
-                                    filmcraft_engine::project_tools::RENDERER_SOFTWARE.to_string(),
-                                    filmcraft_engine::project_tools::RENDERER_SOFTWARE.to_string(),
-                                ),
+                                (jilo_engine::project_tools::RENDERER_GPU.to_string(), jilo_engine::project_tools::RENDERER_GPU.to_string()),
+                                (jilo_engine::project_tools::RENDERER_SOFTWARE.to_string(), jilo_engine::project_tools::RENDERER_SOFTWARE.to_string()),
                             ];
                             combo(ui, &mut elems, "projectSettings.renderer", tl!("Renderer:"), &mut p["renderer"], &rs);
                             ui.label(RichText::new(tl!("Video")).strong());
                             let vd: Vec<(String, String)> =
-                                filmcraft_time::TimeDisplay::ALL.iter().map(|t| (t.label().to_string(), t.label().to_string())).collect();
+                                jilo_time::TimeDisplay::ALL.iter().map(|t| (t.label().to_string(), t.label().to_string())).collect();
                             combo(ui, &mut elems, "projectSettings.videoDisplay", tl!("Display Format:"), &mut p["videoDisplay"], &vd);
                             ui.label(RichText::new(tl!("Audio")).strong());
                             combo(
@@ -876,7 +873,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
 }
 
 /// Run the dialog's command(s). `Ok(Some(text))` keeps the dialog open with a message (Find).
-fn run(app: &mut FilmcraftApp, d: &ClipDialogDraft) -> Result<Option<String>, String> {
+fn run(app: &mut JiloApp, d: &ClipDialogDraft) -> Result<Option<String>, String> {
     let s = &mut app.session;
     let p = &d.params;
     match d.command.as_str() {
@@ -932,11 +929,11 @@ fn run(app: &mut FilmcraftApp, d: &ClipDialogDraft) -> Result<Option<String>, St
 /// Search bins in the Project panel's list view: one row per search bin (`project.searchBin.<id>`),
 /// expanded to its live matches. Right-click: Delete.
 pub fn search_bin_rows(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     row: &mut usize,
     actions: &mut Vec<(String, Value)>,
-    draw_items: &mut dyn FnMut(&mut FilmcraftApp, &mut egui::Ui, &filmcraft_project::Bin, &mut usize, &mut Vec<(String, Value)>),
+    draw_items: &mut dyn FnMut(&mut JiloApp, &mut egui::Ui, &jilo_project::Bin, &mut usize, &mut Vec<(String, Value)>),
 ) {
     let t = app.tokens;
     for sb in app.session.project.search_bins.clone() {
@@ -982,8 +979,7 @@ pub fn search_bin_rows(
             }
         });
         if open {
-            let bin =
-                filmcraft_project::Bin { id: sb.id, name: sb.name.clone(), children: matches.into_iter().map(filmcraft_project::BinEntry::Item).collect() };
+            let bin = jilo_project::Bin { id: sb.id, name: sb.name.clone(), children: matches.into_iter().map(jilo_project::BinEntry::Item).collect() };
             draw_items(app, ui, &bin, row, actions);
         }
     }

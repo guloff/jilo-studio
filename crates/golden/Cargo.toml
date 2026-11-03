@@ -1,5 +1,5 @@
 [package]
-name = "filmcraft-golden"
+name = "jilo-golden"
 description = "Golden-image tests for the CPU renderer/compositor and GPU-vs-CPU parity (test-only crate)"
 version.workspace = true
 edition.workspace = true
@@ -15,14 +15,14 @@ workspace = true
 [dependencies]
 
 [dev-dependencies]
-filmcraft-testkit = { workspace = true }
-filmcraft-color = { workspace = true }
-filmcraft-frame = { workspace = true }
-filmcraft-time = { workspace = true }
-filmcraft-geom = { workspace = true }
-filmcraft-media = { workspace = true }
-filmcraft-project = { workspace = true }
-filmcraft-render = { workspace = true }
-filmcraft-gpu = { workspace = true }
+jilo-testkit = { workspace = true }
+jilo-color = { workspace = true }
+jilo-frame = { workspace = true }
+jilo-time = { workspace = true }
+jilo-geom = { workspace = true }
+jilo-media = { workspace = true }
+jilo-project = { workspace = true }
+jilo-render = { workspace = true }
+jilo-gpu = { workspace = true }
 pollster = "0.4"
 wgpu = { version = "30", features = ["wgsl", "metal", "vulkan", "dx12", "gles"] }

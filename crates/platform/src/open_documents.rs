@@ -1,4 +1,4 @@
-//! Files the OS asks FilmCraft to open: on macOS a double-click on a `.fcproj` in Finder, Open With,
+//! Files the OS asks Jilo Studio to open: on macOS a double-click on a `.fcproj` in Finder, Open With,
 //! or files dropped on the Dock icon arrive as an "open documents" Apple Event, not as command-line
 //! arguments, and winit (0.30) handles no such event. [`install`] registers a handler for it; the
 //! paths queue up until the UI [`take`]s them, and a [`set_waker`] callback repaints the UI so it
@@ -67,7 +67,7 @@ mod mac {
     define_class!(
         // SAFETY: NSObject has no subclassing requirements and the class implements no Drop.
         #[unsafe(super(NSObject))]
-        #[name = "FilmCraftOpenDocumentsHandler"]
+        #[name = "JiloOpenDocumentsHandler"]
         struct Handler;
 
         impl Handler {
@@ -105,7 +105,7 @@ mod mac {
     /// Handle "open documents" events. Call it before the event loop starts: AppKit installs its
     /// own handler while it finishes launching (it would hand the events to winit's delegate, which
     /// ignores them), so the handler is installed again on `NSApplicationWillFinishLaunching`, in
-    /// time for the event that launched FilmCraft. Calling it again later is harmless.
+    /// time for the event that launched Jilo Studio. Calling it again later is harmless.
     pub fn install() {
         let h = handler();
         register(h);

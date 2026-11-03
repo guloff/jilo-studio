@@ -148,7 +148,7 @@ fn plan(s: &mut Session, p: &Value) -> Result<Value> {
     let inputs = json!({"user": user});
     let work: TaskWork = Box::new(move |engine, ctx, progress| {
         if !progress(0.1, "Planning") {
-            return Err(filmcraft_ai::AiError::Cancelled);
+            return Err(jilo_ai::AiError::Cancelled);
         }
         let v = engine.json(ctx, &system, &user, Some(&schema()), 0.2)?;
         let _ = progress(1.0, "Plan ready");
@@ -208,7 +208,7 @@ mod tests {
         assert_eq!(r["rejected"], json!(["file.save", "no.such"]));
         assert_eq!(r["steps"][0]["params"]["preset"], "karaoke-yellow");
         // nothing changed yet; the plan runs as a recipe
-        assert_ne!(s.active_sequence().unwrap().caption_tracks[0].style.highlight, filmcraft_project::CaptionHighlight::Color);
+        assert_ne!(s.active_sequence().unwrap().caption_tracks[0].style.highlight, jilo_project::CaptionHighlight::Color);
         let undo = s.history.undo.len();
         s.execute("recipes.run", json!({"name": "Assistant", "steps": r["steps"], "wait": true})).unwrap();
         assert_eq!(s.active_sequence().unwrap().caption_tracks[0].style, crate::caption_presets::find("karaoke-yellow").unwrap().style);

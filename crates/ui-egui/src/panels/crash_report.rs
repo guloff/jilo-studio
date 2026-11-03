@@ -4,9 +4,9 @@
 
 use egui::RichText;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.crash_report_taken {
         app.ui.crash_report_taken = true;
         app.ui.crash_report = crate::crash::take_previous();

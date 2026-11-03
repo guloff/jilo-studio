@@ -12,10 +12,10 @@
 
 use serde_json::{Value, json};
 
-use filmcraft_audio_dsp::LoudnessMeter;
-use filmcraft_project::essential::AudioType;
-use filmcraft_project::{ClipId, TrackItem};
-use filmcraft_time::Tick;
+use jilo_audio_dsp::LoudnessMeter;
+use jilo_project::essential::AudioType;
+use jilo_project::{ClipId, TrackItem};
+use jilo_time::Tick;
 
 use crate::commands::{CommandSpec, bad, bool_p, has_seq, str_p, u64_p};
 use crate::{EngineError, Result, Session};
@@ -67,7 +67,7 @@ pub fn mix_loudness(s: &Session) -> Result<(f64, f64)> {
     let mut pos = 0i64;
     while pos < total {
         let n = (total - pos).min(sr as i64) as usize;
-        let b = filmcraft_render::audio::mix_sequence(&s.project, q, pos, n, &provider);
+        let b = jilo_render::audio::mix_sequence(&s.project, q, pos, n, &provider);
         peak = b.peaks().into_iter().fold(peak, f32::max);
         if b.channels.len() >= 2 {
             meter.process(&[&b.channels[0], &b.channels[1]]);
@@ -133,7 +133,7 @@ fn auto_mix(s: &mut Session, p: &Value) -> Result<Value> {
         if step("normalize") {
             let (lufs, peak) = mix_loudness(s)?;
             if lufs.is_finite() {
-                let gain = filmcraft_audio_dsp::loudness::normalize_gain_db_peak_limited(lufs, target, peak, max_peak).clamp(-30.0, 30.0);
+                let gain = jilo_audio_dsp::loudness::normalize_gain_db_peak_limited(lufs, target, peak, max_peak).clamp(-30.0, 30.0);
                 s.edit_sequence("Mix Loudness", |q, _, _| {
                     q.master_volume_db = (q.master_volume_db + gain).clamp(-96.0, 48.0);
                     Ok(())
@@ -183,9 +183,9 @@ fn beats_of(s: &Session, it: &TrackItem) -> Result<(Vec<Tick>, f64)> {
     }
     let provider = s.media.full_res_provider(s.project.clone(), s.services.clone());
     let (a0, a1) = (it.start.to_units_floor(i64::from(BEAT_RATE)), it.end().to_units_floor(i64::from(BEAT_RATE)));
-    let [l, r] = filmcraft_render::audio::clip_signal(it, a0, (a1 - a0).max(0) as usize, BEAT_RATE, &provider)
+    let [l, r] = jilo_render::audio::clip_signal(it, a0, (a1 - a0).max(0) as usize, BEAT_RATE, &provider)
         .ok_or_else(|| EngineError::Other("the music clip has no sound".into()))?;
-    let a = filmcraft_audio_dsp::remix::analyze(&[&l, &r], BEAT_RATE).map_err(|e| EngineError::Other(format!("no beat found: {e:?}")))?;
+    let a = jilo_audio_dsp::remix::analyze(&[&l, &r], BEAT_RATE).map_err(|e| EngineError::Other(format!("no beat found: {e:?}")))?;
     let beats = a.beats.iter().map(|b| it.start + Tick::from_seconds_f64(*b as f64 / f64::from(BEAT_RATE))).filter(|t| *t < it.end()).collect();
     Ok((beats, a.bpm))
 }
@@ -210,14 +210,14 @@ fn beat_markers(s: &mut Session, p: &Value) -> Result<Value> {
             if q.markers.iter().any(|m| m.start == t) {
                 continue;
             }
-            q.markers.push(filmcraft_project::Marker {
-                id: filmcraft_project::MarkerId(ctx.alloc()),
+            q.markers.push(jilo_project::Marker {
+                id: jilo_project::MarkerId(ctx.alloc()),
                 start: t,
                 duration: Tick::ZERO,
                 name: "Beat".into(),
                 comment: String::new(),
-                kind: filmcraft_project::MarkerKind::Comment,
-                color: filmcraft_project::Label::Cerulean,
+                kind: jilo_project::MarkerKind::Comment,
+                color: jilo_project::Label::Cerulean,
             });
         }
         q.markers.sort_by_key(|m| m.start);
@@ -335,7 +335,7 @@ mod tests {
     /// 120 BPM music on its own track: a beat every 0.5 s from its start.
     fn with_music(s: &mut Session, at: f64) -> u64 {
         let sr = 48_000;
-        let (ch, _) = filmcraft_audio_dsp::remix::test_music(sr, 120.0, 12, 7);
+        let (ch, _) = jilo_audio_dsp::remix::test_music(sr, 120.0, 12, 7);
         let pcm: Vec<f32> = ch[0].iter().zip(&ch[1]).flat_map(|(l, r)| [*l, *r]).collect();
         let item = crate::commands::import_bytes(s, "/beat.wav", crate::previews::write_wav_f32(&pcm, sr).into(), None).unwrap();
         s.execute("sequence.addTracks", json!({"video": 0, "audio": 1})).unwrap();

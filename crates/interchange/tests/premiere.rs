@@ -2,10 +2,10 @@
 
 use std::io::Write;
 
-use filmcraft_geom::Vec2;
-use filmcraft_interchange::{ExportOptions, Format, ImportOptions, detect, export, import_with, premiere};
-use filmcraft_project::{Interpolation, ItemKind};
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND as TPS, Tick};
+use jilo_geom::Vec2;
+use jilo_interchange::{ExportOptions, Format, ImportOptions, detect, export, import_with, premiere};
+use jilo_project::{Interpolation, ItemKind};
+use jilo_time::{FrameRate, TICKS_PER_SECOND as TPS, Tick};
 
 fn project_xml() -> String {
     format!(
@@ -109,7 +109,7 @@ fn premiere_native_project_keeps_cuts_links_bins_and_motion() {
     assert_eq!(video.link, audio.link);
     let media = imported.project.item(video.item).unwrap().as_media().unwrap();
     assert!(media.offline);
-    assert!(matches!(&media.media,filmcraft_project::MediaRef::File{path} if path=="/media/example.mov"));
+    assert!(matches!(&media.media,jilo_project::MediaRef::File{path} if path=="/media/example.mov"));
     assert!(imported.project.root.parent_of(video.item).is_some());
     let motion = video.effect("motion").unwrap();
     assert_eq!(motion.vec2_at("position", Tick(5 * TPS)), Vec2::new(480.0, 810.0));

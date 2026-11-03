@@ -3,8 +3,8 @@
 //! `file.templates` lists them first (`builtin:<id>`), `file.newProjectFromTemplate` makes them;
 //! templates saved with File ▸ Save as Template… come after.
 
-use filmcraft_project::{CaptionFormat, CaptionTrack, ItemId, Project, SequenceSettings, TrackId};
-use filmcraft_time::FrameRate;
+use jilo_project::{CaptionFormat, CaptionTrack, ItemId, Project, SequenceSettings, TrackId};
+use jilo_time::FrameRate;
 
 /// A built-in template.
 pub struct Builtin {

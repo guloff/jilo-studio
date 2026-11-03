@@ -1,4 +1,4 @@
-//! Matroska/WebM media source (`filmcraft-matroska` demux, GOP-aware video via [`crate::gop`]).
+//! Matroska/WebM media source (`jilo-matroska` demux, GOP-aware video via [`crate::gop`]).
 //!
 //! Video codecs are mapped onto ISO-BMFF sample entries so the same decoder factories serve both
 //! containers (H.264, HEVC, VP9, AV1, ProRes, MJPEG). Audio: AAC and Opus
@@ -15,12 +15,12 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use filmcraft_color::{ColorInfo, Matrix, Transfer};
-use filmcraft_frame::{AudioBuffer, VideoFrame};
-use filmcraft_isobmff::{AvcConfig, CodecConfig, FourCc, HevcConfig, PcmConfig, SampleEntry, VpcConfig};
-use filmcraft_matroska::{Codec, MkvFile, TrackKind};
-use filmcraft_media::{AudioStreamInfo, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, SharedSource, VideoStreamInfo};
-use filmcraft_time::{FrameRate, Tick};
+use jilo_color::{ColorInfo, Matrix, Transfer};
+use jilo_frame::{AudioBuffer, VideoFrame};
+use jilo_isobmff::{AvcConfig, CodecConfig, FourCc, HevcConfig, PcmConfig, SampleEntry, VpcConfig};
+use jilo_matroska::{Codec, MkvFile, TrackKind};
+use jilo_media::{AudioStreamInfo, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, SharedSource, VideoStreamInfo};
+use jilo_time::{FrameRate, Tick};
 
 use crate::audio::{PacketDecoder, decode_pcm};
 use crate::gop::{GopCache, VideoSamples};
@@ -99,7 +99,7 @@ fn audio_starts(file: &MkvFile, bytes: &crate::Src, ti: usize, rate: i64) -> Vec
 /// from each packet's TOC duration, resynchronising to the timestamp only across real gaps (more
 /// than two ticks off). Pre-skip is the exact `CodecDelay` (or the header's pre-skip when it is
 /// absent).
-fn opus_starts(file: &MkvFile, bytes: &crate::Src, ti: usize, head: &filmcraft_opus::OpusHead, rate: i64) -> Vec<i64> {
+fn opus_starts(file: &MkvFile, bytes: &crate::Src, ti: usize, head: &jilo_opus::OpusHead, rate: i64) -> Vec<i64> {
     let Some(t) = file.tracks.get(ti) else { return Vec::new() };
     let (n, d) = tb(t);
     let scale_ns = (n as i128 * 1_000_000_000 / d as i128).max(1);
@@ -118,31 +118,31 @@ fn opus_starts(file: &MkvFile, bytes: &crate::Src, ti: usize, head: &filmcraft_o
 
 /// Two timestamp ticks in sample frames at `rate`, plus one: how far a packet's Matroska timestamp
 /// can be from its exact start.
-fn stamp_tolerance(t: &filmcraft_matroska::Track, rate: i64) -> i64 {
+fn stamp_tolerance(t: &jilo_matroska::Track, rate: i64) -> i64 {
     let (n, d) = tb(t);
     i64::try_from(2 * n as i128 * rate as i128 / d as i128).unwrap_or(i64::MAX).saturating_add(1)
 }
 
 /// Whether a sample's timestamp is its own: frames after the first in a laced block without a
 /// duration repeat the block's timestamp.
-fn own_stamp(s: &filmcraft_matroska::Sample) -> bool {
+fn own_stamp(s: &jilo_matroska::Sample) -> bool {
     s.lace == 0 || s.duration > 0
 }
 
 /// The parsed `OpusHead` of an `A_OPUS` track.
-fn opus_head(c: &Codec) -> Option<filmcraft_opus::OpusHead> {
+fn opus_head(c: &Codec) -> Option<jilo_opus::OpusHead> {
     match c {
-        Codec::Opus { head } => filmcraft_opus::OpusHead::parse(head).ok(),
+        Codec::Opus { head } => jilo_opus::OpusHead::parse(head).ok(),
         _ => None,
     }
 }
 
 /// Seconds per track timestamp unit as a rational.
-fn tb(t: &filmcraft_matroska::Track) -> (i64, i64) {
+fn tb(t: &jilo_matroska::Track) -> (i64, i64) {
     (t.timebase.0.max(1) as i64, t.timebase.1.max(1) as i64)
 }
 
-fn to_tick(t: &filmcraft_matroska::Track, pts: i64) -> Tick {
+fn to_tick(t: &jilo_matroska::Track, pts: i64) -> Tick {
     let (n, d) = tb(t);
     Tick::from_rational(pts * n, 1, d)
 }
@@ -150,14 +150,14 @@ fn to_tick(t: &filmcraft_matroska::Track, pts: i64) -> Tick {
 /// A time as the track timestamp to look a frame up by: rounded to the nearest tick, as muxers
 /// round frame times to `TimestampScale` (usually 1 ms). Flooring skipped every frame whose
 /// timestamp was rounded up (every third frame at 30 fps).
-fn from_tick(t: &filmcraft_matroska::Track, time: Tick) -> i64 {
+fn from_tick(t: &jilo_matroska::Track, time: Tick) -> i64 {
     let (n, d) = tb(t);
     time.to_rational_round(n, d)
 }
 
 /// VP9 configuration from the Matroska `CodecPrivate` feature list (ID / length / value triples:
 /// 1 profile, 2 level, 3 bit depth, 4 chroma subsampling) and the track's `Colour`.
-fn vp9_config(private: &[u8], v: Option<&filmcraft_matroska::VideoInfo>) -> VpcConfig {
+fn vp9_config(private: &[u8], v: Option<&jilo_matroska::VideoInfo>) -> VpcConfig {
     let mut c = VpcConfig { bit_depth: 8, colour_primaries: 2, transfer_characteristics: 2, matrix_coefficients: 2, ..Default::default() };
     let mut p = 0;
     while p + 2 <= private.len() {
@@ -188,11 +188,11 @@ fn vp9_config(private: &[u8], v: Option<&filmcraft_matroska::VideoInfo>) -> VpcC
     c
 }
 
-fn sample_entry(c: &Codec, private: &[u8], v: Option<&filmcraft_matroska::VideoInfo>, w: u16, h: u16) -> Option<SampleEntry> {
+fn sample_entry(c: &Codec, private: &[u8], v: Option<&jilo_matroska::VideoInfo>, w: u16, h: u16) -> Option<SampleEntry> {
     Some(match c {
         Codec::Vp9 { private } => SampleEntry::video(FourCc(*b"vp09"), CodecConfig::Vp9(vp9_config(private, v)), w, h),
-        Codec::Av1 { av1c } => SampleEntry::video(FourCc(*b"av01"), CodecConfig::Av1(filmcraft_isobmff::Av1Config::parse(av1c).unwrap_or_default()), w, h),
-        Codec::Apv { apvc } => SampleEntry::apv(filmcraft_isobmff::ApvConfig::parse(apvc).unwrap_or_default(), w, h),
+        Codec::Av1 { av1c } => SampleEntry::video(FourCc(*b"av01"), CodecConfig::Av1(jilo_isobmff::Av1Config::parse(av1c).unwrap_or_default()), w, h),
+        Codec::Apv { apvc } => SampleEntry::apv(jilo_isobmff::ApvConfig::parse(apvc).unwrap_or_default(), w, h),
         Codec::Avc { avcc } => SampleEntry::avc(AvcConfig::parse(avcc).ok()?, w, h),
         Codec::Hevc { hvcc } => SampleEntry::hevc(HevcConfig::parse(hvcc).ok()?, w, h),
         Codec::ProRes { fourcc } => SampleEntry::prores(FourCc(fourcc.unwrap_or(*b"apcn")), w, h),
@@ -206,12 +206,12 @@ fn sample_entry(c: &Codec, private: &[u8], v: Option<&filmcraft_matroska::VideoI
 }
 
 /// HDR static metadata from the Matroska `Colour` element.
-fn hdr_metadata(c: &filmcraft_matroska::Colour) -> Option<filmcraft_color::HdrMetadata> {
+fn hdr_metadata(c: &jilo_matroska::Colour) -> Option<jilo_color::HdrMetadata> {
     if c.mastering.is_none() && c.max_cll.is_none() && c.max_fall.is_none() {
         return None;
     }
     let nz = |v: f64| (v > 0.0).then_some(v as f32);
-    Some(filmcraft_color::HdrMetadata {
+    Some(jilo_color::HdrMetadata {
         mastering_max_nits: c.mastering.as_ref().and_then(|m| nz(m.luminance_max)),
         mastering_min_nits: c.mastering.as_ref().map(|m| m.luminance_min as f32),
         max_cll: c.max_cll.and_then(|v| nz(v as f64)),
@@ -223,7 +223,7 @@ fn hdr_metadata(c: &filmcraft_matroska::Colour) -> Option<filmcraft_color::HdrMe
 /// when there is none, comes from the stream's own description (the SPS VUI in an `avcC` /
 /// `hvcC`, the sequence header in an `av1C`); the rest defaults by frame size. The flag says
 /// whether `Colour` signals anything that overrides the decoder.
-fn color_of(v: &filmcraft_matroska::VideoInfo, w: u32, h: u32, stream: Option<ColorCodes>) -> (ColorInfo, bool) {
+fn color_of(v: &jilo_matroska::VideoInfo, w: u32, h: u32, stream: Option<ColorCodes>) -> (ColorInfo, bool) {
     // H.273 code points; `Range`: 1 broadcast (limited), 2 full, 0 / 3 not signalled here
     let code = |c: Option<u64>| c.unwrap_or(2);
     let container = v.colour.as_ref().map(|col| {
@@ -240,8 +240,8 @@ fn color_of(v: &filmcraft_matroska::VideoInfo, w: u32, h: u32, stream: Option<Co
 }
 
 /// The stream description of an audio track, `None` when its advertised sample rate or channel
-/// count is out of range (see [`filmcraft_media::bounded_audio_dimensions`]).
-fn audio_info(t: &filmcraft_matroska::Track) -> Option<AudioStreamInfo> {
+/// count is out of range (see [`jilo_media::bounded_audio_dimensions`]).
+fn audio_info(t: &jilo_matroska::Track) -> Option<AudioStreamInfo> {
     let a = t.audio.clone().unwrap_or_default();
     let mut rate = a.output_sampling_frequency.unwrap_or(a.sampling_frequency).round().max(1.0) as u32;
     let mut channels = (a.channels as u32).max(1);
@@ -249,7 +249,7 @@ fn audio_info(t: &filmcraft_matroska::Track) -> Option<AudioStreamInfo> {
         rate = crate::audio::OPUS_RATE;
         channels = h.channels as u32;
     }
-    let (rate, channels) = filmcraft_media::bounded_audio_dimensions(rate, channels).ok()?;
+    let (rate, channels) = jilo_media::bounded_audio_dimensions(rate, channels).ok()?;
     Some(AudioStreamInfo { sample_rate: rate, channels, codec: codec_label(&t.codec), bits_per_sample: a.bit_depth.map(|b| b as u32) })
 }
 
@@ -260,7 +260,7 @@ fn codec_label(c: &Codec) -> String {
         Codec::Vp8 => "VP8".into(),
         Codec::Vp9 { .. } => "VP9".into(),
         Codec::Av1 { .. } => "AV1".into(),
-        Codec::Apv { apvc } => match filmcraft_isobmff::ApvConfig::parse(apvc).ok().and_then(|a| filmcraft_apv::Profile::from_idc(a.profile_idc)) {
+        Codec::Apv { apvc } => match jilo_isobmff::ApvConfig::parse(apvc).ok().and_then(|a| jilo_apv::Profile::from_idc(a.profile_idc)) {
             Some(p) => p.name().into(),
             None => "APV".into(),
         },
@@ -281,13 +281,13 @@ fn codec_label(c: &Codec) -> String {
 
 impl MkvSource {
     pub fn open(name: &str, bytes: Arc<[u8]>) -> crate::Result<Self> {
-        Self::open_reader(name, Arc::new(filmcraft_media::reader::MemReader(bytes)))
+        Self::open_reader(name, Arc::new(jilo_media::reader::MemReader(bytes)))
     }
 
     /// Open from a random-access reader: only the index is read now, samples on demand.
-    pub fn open_reader(name: &str, reader: filmcraft_media::SharedReader) -> crate::Result<Self> {
+    pub fn open_reader(name: &str, reader: jilo_media::SharedReader) -> crate::Result<Self> {
         let bytes = crate::Src(reader);
-        let file = filmcraft_matroska::open(&bytes).map_err(|e| CodecError::Container(e.to_string()))?;
+        let file = jilo_matroska::open(&bytes).map_err(|e| CodecError::Container(e.to_string()))?;
         let vtrack = file.tracks.iter().position(|t| t.kind == TrackKind::Video && !t.samples.is_empty());
         // every audio track is a stream (the track count comes from the file: capped)
         let atracks: Vec<usize> = file
@@ -298,7 +298,7 @@ impl MkvSource {
             // `info.audio_streams[k]` stay the same track.
             .filter(|(_, t)| t.kind == TrackKind::Audio && !t.samples.is_empty() && audio_info(t).is_some())
             .map(|(i, _)| i)
-            .take(filmcraft_media::MAX_AUDIO_STREAMS)
+            .take(jilo_media::MAX_AUDIO_STREAMS)
             .collect();
         if vtrack.is_none() && atracks.is_empty() {
             return Err(CodecError::Unsupported("no playable tracks".into()));
@@ -394,7 +394,7 @@ impl MkvSource {
         use symphonia::core::codecs::{CODEC_TYPE_FLAC, CODEC_TYPE_MP3, CODEC_TYPE_VORBIS};
         match c {
             Codec::Aac { asc } => PacketDecoder::aac(asc, rate),
-            Codec::Opus { head } => PacketDecoder::opus(filmcraft_opus::OpusHead::parse(head).map_err(|e| CodecError::Unsupported(format!("Opus: {e}")))?),
+            Codec::Opus { head } => PacketDecoder::opus(jilo_opus::OpusHead::parse(head).map_err(|e| CodecError::Unsupported(format!("Opus: {e}")))?),
             Codec::Mp3 => PacketDecoder::new(CODEC_TYPE_MP3, rate, None),
             Codec::Mp2 => PacketDecoder::mpeg_audio(2, rate),
             Codec::Ac3 => PacketDecoder::ac3(),
@@ -505,7 +505,7 @@ impl MediaSource for MkvSource {
         let ti = self.vtrack.ok_or(MediaError::NoStream("video"))?;
         let t = req.time.max(Tick::ZERO);
         let target = from_tick(&self.file.tracks[ti], t);
-        let late = filmcraft_media::cancel::catch_up().map(|m| from_tick(&self.file.tracks[ti], t - m));
+        let late = jilo_media::cancel::catch_up().map(|m| from_tick(&self.file.tracks[ti], t - m));
         Ok(self.video.frame_late(&MkvVideo { src: self, track: ti }, target, late)?)
     }
 
@@ -566,8 +566,8 @@ pub fn opener(name: &str, bytes: Arc<[u8]>) -> Option<Result<SharedSource, Media
     Some(MkvSource::open(name, bytes).map(|s| Arc::new(s) as SharedSource).map_err(Into::into))
 }
 
-/// [`filmcraft_media::ReaderOpener`] for Matroska/WebM.
-pub fn reader_opener(name: &str, head: &[u8], reader: &filmcraft_media::SharedReader) -> Option<Result<SharedSource, MediaError>> {
+/// [`jilo_media::ReaderOpener`] for Matroska/WebM.
+pub fn reader_opener(name: &str, head: &[u8], reader: &jilo_media::SharedReader) -> Option<Result<SharedSource, MediaError>> {
     if !sniff(head) {
         return None;
     }
@@ -576,8 +576,8 @@ pub fn reader_opener(name: &str, head: &[u8], reader: &filmcraft_media::SharedRe
 
 #[cfg(test)]
 mod multi_audio_tests {
-    use filmcraft_matroska::{MkvWriter, MuxOptions, TrackKind, TrackSpec};
-    use filmcraft_media::MediaSource;
+    use jilo_matroska::{MkvWriter, MuxOptions, TrackKind, TrackSpec};
+    use jilo_media::MediaSource;
 
     #[test]
     fn every_audio_track_is_inspected_and_decoded_independently() {

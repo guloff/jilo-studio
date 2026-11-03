@@ -23,8 +23,8 @@ const PREFERRED: &[&str] = &[
     "Microsoft JhengHei",
 ];
 
-pub(crate) fn craft_fonts() -> impl Iterator<Item = &'static filmcraft_text::fonts::CraftFont> {
-    filmcraft_text::fonts::CRAFT_FONTS.iter().filter(|f| f.scripts.iter().any(|s| matches!(*s, "Hans" | "Hant")))
+pub(crate) fn craft_fonts() -> impl Iterator<Item = &'static jilo_text::fonts::CraftFont> {
+    jilo_text::fonts::CRAFT_FONTS.iter().filter(|f| f.scripts.iter().any(|s| matches!(*s, "Hans" | "Hant")))
 }
 
 /// A font collection's face index matters: Windows Chinese UI fonts commonly live in TTC files.
@@ -35,11 +35,11 @@ fn system_font() -> Option<Arc<FontData>> {
         if cfg!(target_arch = "wasm32") {
             return None;
         }
-        filmcraft_text::fonts::scan_system();
-        let faces: Vec<_> = filmcraft_text::fonts::all_faces().into_iter().filter(|f| f.info.origin == "system" && !f.info.italic).collect();
+        jilo_text::fonts::scan_system();
+        let faces: Vec<_> = jilo_text::fonts::all_faces().into_iter().filter(|f| f.info.origin == "system" && !f.info.italic).collect();
         // without keeping the files read: the fallback below may look through every installed font
-        let covers = |f: &filmcraft_text::fonts::Face| f.covers_transient(SAMPLE);
-        let by_weight = |f: &&Arc<filmcraft_text::fonts::Face>| f.info.weight.abs_diff(400);
+        let covers = |f: &jilo_text::fonts::Face| f.covers_transient(SAMPLE);
+        let by_weight = |f: &&Arc<jilo_text::fonts::Face>| f.info.weight.abs_diff(400);
         let preferred = PREFERRED.iter().find_map(|name| faces.iter().filter(|f| f.info.family.eq_ignore_ascii_case(name) && covers(f)).min_by_key(by_weight));
         let face = preferred.or_else(|| faces.iter().filter(|f| covers(f)).min_by_key(by_weight))?;
         Some(Arc::new(FontData { font: std::borrow::Cow::Owned(face.data()?), index: face.info.index, tweak: Default::default() }))
@@ -67,7 +67,7 @@ pub(crate) fn install(fonts: &mut FontDefinitions) {
         }
         return;
     }
-    let name = |f: &filmcraft_text::fonts::CraftFont| format!("craft:{} {}", f.family, f.style);
+    let name = |f: &jilo_text::fonts::CraftFont| format!("craft:{} {}", f.family, f.style);
     for f in &chinese {
         fonts.font_data.insert(name(f), Arc::new(FontData::from_static(f.bytes)));
     }

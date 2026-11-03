@@ -4,8 +4,8 @@
 //! size and colour as the software decoder reports them (read from the bitstream the same way),
 //! random-access samples, and in-band changes of the stream's parameters.
 
-use filmcraft_color::{ColorInfo, Primaries, Transfer};
-use filmcraft_isobmff::{CodecConfig, SampleEntry};
+use jilo_color::{ColorInfo, Primaries, Transfer};
+use jilo_isobmff::{CodecConfig, SampleEntry};
 
 use crate::video::primaries_from_code;
 use crate::{CodecError, Result};
@@ -85,8 +85,8 @@ pub(crate) fn obus(data: &[u8]) -> Vec<(u8, &[u8])> {
 /// VP9 colour as our decoder reports it: `color_space` and range from the bitstream, transfer and
 /// primaries from the container when it says. (Shared with `Vp9Decoder`.)
 pub(crate) fn vp9_color(width: u32, height: u32, color_space: u8, full_range: bool, transfer: Option<Transfer>, primaries: Option<Primaries>) -> ColorInfo {
-    use filmcraft_color::{Matrix, Range};
-    let mut color = ColorInfo { matrix: filmcraft_frame::default_matrix(width, height), ..ColorInfo::REC709 };
+    use jilo_color::{Matrix, Range};
+    let mut color = ColorInfo { matrix: jilo_frame::default_matrix(width, height), ..ColorInfo::REC709 };
     // color_space (7.2.2): 1 BT.601, 2 BT.709, 3 SMPTE-170, 4 SMPTE-240, 5 BT.2020, 7 sRGB.
     match color_space {
         1 | 3 => color.matrix = Matrix::Bt601,
@@ -112,7 +112,7 @@ pub(crate) fn vp9_color(width: u32, height: u32, color_space: u8, full_range: bo
 /// AV1 colour as our decoder reports it. (Shared with `Av1Decoder`.)
 pub(crate) fn av1_color(width: u32, height: u32, matrix_coefficients: u8, transfer: u8, primaries: u8, full_range: bool) -> ColorInfo {
     let mut color = ColorInfo::REC709;
-    color.matrix = filmcraft_color::Matrix::from_code(matrix_coefficients).unwrap_or_else(|| filmcraft_frame::default_matrix(width, height));
+    color.matrix = jilo_color::Matrix::from_code(matrix_coefficients).unwrap_or_else(|| jilo_frame::default_matrix(width, height));
     if let Some(t) = Transfer::from_code(transfer) {
         color.transfer = t;
     }
@@ -124,7 +124,7 @@ pub(crate) fn av1_color(width: u32, height: u32, matrix_coefficients: u8, transf
         _ => Primaries::Bt709,
     };
     if full_range {
-        color.range = filmcraft_color::Range::Full;
+        color.range = jilo_color::Range::Full;
     }
     color
 }
@@ -160,10 +160,10 @@ impl FrameStreamInfo {
         }
     }
 
-    fn from_av1(c: &filmcraft_isobmff::Av1Config, entry_size: (u32, u32)) -> Result<Self> {
+    fn from_av1(c: &jilo_isobmff::Av1Config, entry_size: (u32, u32)) -> Result<Self> {
         let seq =
             obus(&c.config_obus).into_iter().find(|(t, _)| *t == 1).map(|(_, p)| p).ok_or_else(|| CodecError::Decode("av1C has no sequence header".into()))?;
-        let h = filmcraft_av1::SequenceHeader::parse(seq).map_err(|e| CodecError::Decode(e.to_string()))?;
+        let h = jilo_av1::SequenceHeader::parse(seq).map_err(|e| CodecError::Decode(e.to_string()))?;
         let size = (h.max_frame_width, h.max_frame_height);
         if entry_size != (0, 0) && entry_size != size {
             // the sample entry and the sequence header disagree: leave the stream to our decoder
@@ -212,8 +212,8 @@ impl FrameStreamInfo {
     /// frame is a shown key frame): the software decoders' own test.
     pub fn is_random_access(&self, sample: &[u8]) -> bool {
         match self.codec {
-            FrameCodec::Vp9 => filmcraft_vp9::is_keyframe(sample),
-            FrameCodec::Av1 => filmcraft_av1::is_key_frame_unit(sample),
+            FrameCodec::Vp9 => jilo_vp9::is_keyframe(sample),
+            FrameCodec::Av1 => jilo_av1::is_key_frame_unit(sample),
         }
     }
 
@@ -222,7 +222,7 @@ impl FrameStreamInfo {
     pub fn picture_params(&self, sample: &[u8]) -> Option<PictureParams> {
         match self.codec {
             FrameCodec::Vp9 => {
-                let k = filmcraft_vp9::keyframe_info(sample)?;
+                let k = jilo_vp9::keyframe_info(sample)?;
                 let color = vp9_color(k.width, k.height, k.color.color_space, k.color.full_range, self.transfer, self.primaries);
                 Some(PictureParams {
                     size: (k.width, k.height),
@@ -233,7 +233,7 @@ impl FrameStreamInfo {
             }
             FrameCodec::Av1 => {
                 let seq = obus(sample).into_iter().find(|(t, _)| *t == 1).map(|(_, p)| p)?;
-                let h = filmcraft_av1::SequenceHeader::parse(seq).ok()?;
+                let h = jilo_av1::SequenceHeader::parse(seq).ok()?;
                 let cc = &h.color;
                 let size = (h.max_frame_width, h.max_frame_height);
                 let color = av1_color(size.0, size.1, cc.matrix_coefficients, cc.transfer_characteristics, cc.color_primaries, cc.color_range);

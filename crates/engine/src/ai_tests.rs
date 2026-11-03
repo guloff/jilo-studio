@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use filmcraft_ai::transport::FakeTransport;
-use filmcraft_ai::{Provider, Response};
+use jilo_ai::transport::FakeTransport;
+use jilo_ai::{Provider, Response};
 use serde_json::json;
 
 use super::*;
@@ -95,8 +95,8 @@ fn a_stopped_check_ends_cancelled() {
     let (mut s, fake, dir) = session("cancel");
     s.execute("ai.setKey", json!({"provider": "gemini", "key": KEY})).unwrap();
     fake.push_error("connection reset");
-    // the user presses Stop while FilmCraft waits to retry: the wait raises the job's flag
-    let jobs = Arc::new(std::sync::Mutex::new(Vec::<Arc<filmcraft_export::Progress>>::new()));
+    // the user presses Stop while Jilo Studio waits to retry: the wait raises the job's flag
+    let jobs = Arc::new(std::sync::Mutex::new(Vec::<Arc<jilo_export::Progress>>::new()));
     let seen = jobs.clone();
     s.ai_sleep = Some(Arc::new(move |_, _| {
         for p in seen.lock().unwrap().iter() {
@@ -108,7 +108,7 @@ fn a_stopped_check_ends_cancelled() {
     jobs.lock().unwrap().push(job.progress.clone());
     let c = ctx(&s, job.progress.clone()).unwrap();
     let (k, _) = key(&s, Provider::Gemini).unwrap();
-    assert_eq!(filmcraft_ai::test_key(&c, Provider::Gemini, &k).unwrap_err(), filmcraft_ai::AiError::Cancelled);
+    assert_eq!(jilo_ai::test_key(&c, Provider::Gemini, &k).unwrap_err(), jilo_ai::AiError::Cancelled);
     assert_eq!(fake.sent().len(), 1, "no second attempt after Stop");
     let _ = std::fs::remove_dir_all(&dir);
 }

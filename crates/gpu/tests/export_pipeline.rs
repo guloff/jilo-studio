@@ -1,48 +1,48 @@
-//! End-to-end GPU export parity: the registered `filmcraft-gpu` frame renderer drives the full
-//! export pipeline (`filmcraft_export::export` → PNG sequence) and its frames must match the
+//! End-to-end GPU export parity: the registered `jilo-gpu` frame renderer drives the full
+//! export pipeline (`jilo_export::export` → PNG sequence) and its frames must match the
 //! `GpuRendering::Off` (CPU reference) frames within the GPU-vs-CPU parity tolerance — p99 of the
 //! per-pixel max RGB difference over black ≤ 6 and mean < 1.5 (the golden-test criterion).
 
-use filmcraft_export::{ExportSettings, Format, FrameRenderer, GpuRenderStats, GpuRendering, Progress, export, register_frame_renderer};
-use filmcraft_media::generators::GeneratorSource;
-use filmcraft_media::{Generator, MediaSource};
-use filmcraft_project::{ItemKind, Label, MediaClip, MediaRef, SequenceSettings, TrackKind};
-use filmcraft_render::SourceMap;
-use filmcraft_time::{TICKS_PER_SECOND, TimeRange};
+use jilo_export::{ExportSettings, Format, FrameRenderer, GpuRenderStats, GpuRendering, Progress, export, register_frame_renderer};
+use jilo_media::generators::GeneratorSource;
+use jilo_media::{Generator, MediaSource};
+use jilo_project::{ItemKind, Label, MediaClip, MediaRef, SequenceSettings, TrackKind};
+use jilo_render::SourceMap;
+use jilo_time::{TICKS_PER_SECOND, TimeRange};
 use std::sync::Arc;
 
-/// The same wrapper the app and CLI register: `filmcraft-gpu`'s renderer behind
-/// `filmcraft_export`'s trait.
-struct GpuFrameRenderer(filmcraft_gpu::ExportRenderer);
+/// The same wrapper the app and CLI register: `jilo-gpu`'s renderer behind
+/// `jilo_export`'s trait.
+struct GpuFrameRenderer(jilo_gpu::ExportRenderer);
 
 impl FrameRenderer for GpuFrameRenderer {
     fn render(
         &mut self,
-        project: &filmcraft_project::Project,
-        seq: filmcraft_project::ItemId,
-        t: filmcraft_time::Tick,
-        opts: filmcraft_render::RenderOptions,
-        sources: &dyn filmcraft_render::SourceProvider,
-    ) -> Option<filmcraft_render::Image> {
+        project: &jilo_project::Project,
+        seq: jilo_project::ItemId,
+        t: jilo_time::Tick,
+        opts: jilo_render::RenderOptions,
+        sources: &dyn jilo_render::SourceProvider,
+    ) -> Option<jilo_render::Image> {
         self.0.render(project, seq, t, opts, sources)
     }
     fn draws_plans(&self) -> bool {
         true
     }
-    fn render_plan(&mut self, plan: &filmcraft_render::plan::FramePlan) -> Option<filmcraft_render::Image> {
+    fn render_plan(&mut self, plan: &jilo_render::plan::FramePlan) -> Option<jilo_render::Image> {
         self.0.render_plan(plan)
     }
 }
 
 /// A colour matte on V1; with `fx`, under a GPU effect (Proc Amp), so the export draws it on the GPU.
-fn project(width: u32, height: u32, fx: bool) -> (Arc<filmcraft_project::Project>, filmcraft_project::ItemId, SourceMap) {
-    let mut p = filmcraft_project::Project::new("x");
+fn project(width: u32, height: u32, fx: bool) -> (Arc<jilo_project::Project>, jilo_project::ItemId, SourceMap) {
+    let mut p = jilo_project::Project::new("x");
     let g = GeneratorSource::new(
         Generator::ColorMatte { color: [0.2, 0.5, 0.9, 1.0] },
         320,
         180,
-        filmcraft_time::FrameRate::FPS_24,
-        filmcraft_time::Tick(2 * TICKS_PER_SECOND),
+        jilo_time::FrameRate::FPS_24,
+        jilo_time::Tick(2 * TICKS_PER_SECOND),
     );
     let info = g.info().clone();
     let red = p.add_item(
@@ -61,18 +61,18 @@ fn project(width: u32, height: u32, fx: bool) -> (Arc<filmcraft_project::Project
         }),
         None,
     );
-    let seq = p.new_sequence("s", SequenceSettings { width, height, frame_rate: filmcraft_time::FrameRate::FPS_24, ..Default::default() }, 1, 1, None);
+    let seq = p.new_sequence("s", SequenceSettings { width, height, frame_rate: jilo_time::FrameRate::FPS_24, ..Default::default() }, 1, 1, None);
     let mut v = p
         .make_track_item(
             red,
             TrackKind::Video,
-            filmcraft_time::Tick::ZERO,
-            TimeRange::new(filmcraft_time::Tick::ZERO, filmcraft_time::FrameRate::FPS_24.tick_of(2)),
-            filmcraft_time::FrameRate::FPS_24,
+            jilo_time::Tick::ZERO,
+            TimeRange::new(jilo_time::Tick::ZERO, jilo_time::FrameRate::FPS_24.tick_of(2)),
+            jilo_time::FrameRate::FPS_24,
         )
         .unwrap();
     if fx {
-        v.effects.push(filmcraft_project::effect::find_effect("proc_amp").unwrap().instance());
+        v.effects.push(jilo_project::effect::find_effect("proc_amp").unwrap().instance());
     }
     p.sequence_mut(seq).unwrap().video_tracks[0].items.push(v);
     let mut m = SourceMap::default();
@@ -93,7 +93,7 @@ fn export_png(dir: &str, gpu: GpuRendering, (w, h): (u32, u32), fx: bool) {
         path: std::env::temp_dir().join(format!("fc-gpu-export-{dir}")).to_string_lossy().into_owned(),
         ..Default::default()
     };
-    s.range = Some(TimeRange::new(filmcraft_time::Tick::ZERO, filmcraft_time::FrameRate::FPS_24.tick_of(2)));
+    s.range = Some(TimeRange::new(jilo_time::Tick::ZERO, jilo_time::FrameRate::FPS_24.tick_of(2)));
     s.gpu_rendering = gpu;
     export(&p, seq, &s, &m, &Progress::default()).unwrap();
 }
@@ -120,7 +120,7 @@ fn assert_parity(cpu_png: &[u8], gpu_png: &[u8], what: &str) {
 
 #[test]
 fn gpu_export_matches_cpu_and_counts() {
-    let Some(_) = filmcraft_gpu::ExportRenderer::new() else {
+    let Some(_) = jilo_gpu::ExportRenderer::new() else {
         eprintln!("SKIPPED (gpu export pipeline): no adapter");
         return;
     };
@@ -129,7 +129,7 @@ fn gpu_export_matches_cpu_and_counts() {
     export_png("off-auto", GpuRendering::Auto, (320, 180), true);
     assert_eq!(png("off-cpu", "img000.png"), png("off-auto", "img000.png"), "Auto with no registered renderer must be byte-equal to Off");
 
-    register_frame_renderer(|| Some(Box::new(GpuFrameRenderer(filmcraft_gpu::ExportRenderer::new().expect("adapter present")))));
+    register_frame_renderer(|| Some(Box::new(GpuFrameRenderer(jilo_gpu::ExportRenderer::new().expect("adapter present")))));
     let sizes = [(320u32, 180u32), (17, 13), (1, 1), (257, 129)];
     for size in sizes {
         export_png("cpu", GpuRendering::Off, size, true);
@@ -138,18 +138,18 @@ fn gpu_export_matches_cpu_and_counts() {
             assert_parity(&png("cpu", &format!("img{f}.png")), &png("gpu", &format!("img{f}.png")), &format!("{:?} frame {f}", size));
         }
     }
-    let GpuRenderStats { frames, .. } = filmcraft_export::gpu_render_stats();
+    let GpuRenderStats { frames, .. } = jilo_export::gpu_render_stats();
     assert!(frames >= 8, "gpu frames counted across the parity exports: {frames}");
 
     // A plain edit (no effects, masks or transitions) gains nothing on the GPU: the CPU reference
     // renderer draws it, so Auto writes the same file as Off.
-    let before = filmcraft_export::gpu_render_stats();
+    let before = jilo_export::gpu_render_stats();
     export_png("plain-cpu", GpuRendering::Off, (320, 180), false);
     export_png("plain-auto", GpuRendering::Auto, (320, 180), false);
     for f in ["000", "001"] {
         assert_eq!(png("plain-cpu", &format!("img{f}.png")), png("plain-auto", &format!("img{f}.png")), "plain frame {f}: Auto must be byte-equal to Off");
     }
-    let after = filmcraft_export::gpu_render_stats();
+    let after = jilo_export::gpu_render_stats();
     assert!(after.cpu_frames >= before.cpu_frames + 2, "plain frames drawn on the CPU by choice: {before:?} -> {after:?}");
     assert_eq!(after.fallbacks, before.fallbacks, "a frame drawn on the CPU by choice is no fallback");
 }

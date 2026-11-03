@@ -4,19 +4,19 @@
 //! Columns…, Import / Open In Source Monitor and dragging files to the Project panel or Timeline.
 //!
 //! Listing, navigation, Favorites, settings and import are engine commands
-//! (`filmcraft_engine::media_browser`, `mediaBrowser.*`); this module draws them and keeps only view
+//! (`jilo_engine::media_browser`, `mediaBrowser.*`); this module draws them and keeps only view
 //! state ([`MediaBrowserUi`], `ui.set {"mediaBrowser": …}`).
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use egui::{Align2, Color32, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_engine::media_browser::{self as mb, Entry};
-use filmcraft_project::{ItemId, ItemKind, Label, MediaClip, MediaRef, Project, ProjectItem};
+use jilo_engine::media_browser::{self as mb, Entry};
+use jilo_project::{ItemId, ItemKind, Label, MediaClip, MediaRef, Project, ProjectItem};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::frames::{FrameKey, Target};
 use crate::icons::{self, Icon};
 use crate::theme::Tokens;
@@ -69,7 +69,7 @@ pub fn refresh(ctx: &egui::Context) {
     with_cache(ctx, |c| c.lists.clear());
 }
 
-fn listing(app: &FilmcraftApp, ctx: &egui::Context, dir: &str, filter: &str) -> Result<Arc<Vec<Entry>>, String> {
+fn listing(app: &JiloApp, ctx: &egui::Context, dir: &str, filter: &str) -> Result<Arc<Vec<Entry>>, String> {
     let now = ctx.input(|i| i.time);
     let key = (dir.to_string(), filter.to_string());
     if let Some(v) = with_cache(ctx, |c| c.lists.get(&key).filter(|(t, _)| now - *t < CACHE_SECS).map(|(_, v)| v.clone())) {
@@ -80,7 +80,7 @@ fn listing(app: &FilmcraftApp, ctx: &egui::Context, dir: &str, filter: &str) -> 
     Ok(v)
 }
 
-fn exec(app: &mut FilmcraftApp, ctx: &egui::Context, cmd: &str, p: Value) -> Option<Value> {
+fn exec(app: &mut JiloApp, ctx: &egui::Context, cmd: &str, p: Value) -> Option<Value> {
     match crate::menus::invoke(app, ctx, cmd, p) {
         Ok(v) => Some(v),
         Err(e) => {
@@ -90,7 +90,7 @@ fn exec(app: &mut FilmcraftApp, ctx: &egui::Context, cmd: &str, p: Value) -> Opt
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let ctx = ui.ctx().clone();
     finish_drag(app, ui);
@@ -261,7 +261,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 
 // ------------------------------------------------------------------------------------ tree
 
-fn tree(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, dir: &str) {
+fn tree(app: &mut JiloApp, ui: &mut egui::Ui, r: Rect, dir: &str) {
     let ctx = ui.ctx().clone();
     let roots = app.session.execute("mediaBrowser.roots", json!({})).unwrap_or_default();
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r.shrink2(vec2(4.0, 0.0))).id_salt("mb-tree"));
@@ -299,7 +299,7 @@ fn tree(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, dir: &str) {
 
 #[allow(clippy::too_many_arguments)]
 fn node(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     ctx: &egui::Context,
     name: &str,
@@ -370,7 +370,7 @@ fn node(
     }
 }
 
-fn toggle(app: &mut FilmcraftApp, path: &str, open: bool) {
+fn toggle(app: &mut JiloApp, path: &str, open: bool) {
     let e = &mut app.ui.media_browser.expanded;
     if open {
         e.retain(|p| p != path);
@@ -382,7 +382,7 @@ fn toggle(app: &mut FilmcraftApp, path: &str, open: bool) {
 // ------------------------------------------------------------------------------------ entries
 
 /// Click / double-click / drag / context menu of an entry.
-fn entry_interactions(app: &mut FilmcraftApp, ui: &egui::Ui, resp: &egui::Response, e: &Entry, entries: &[Entry]) {
+fn entry_interactions(app: &mut JiloApp, ui: &egui::Ui, resp: &egui::Response, e: &Entry, entries: &[Entry]) {
     let ctx = ui.ctx().clone();
     if resp.clicked() {
         let mods = crate::panels::project_views::click_modifiers(ui);
@@ -455,7 +455,7 @@ fn entry_interactions(app: &mut FilmcraftApp, ui: &egui::Ui, resp: &egui::Respon
 
 /// Dragging a file imports it (the selection when the file is in it) and carries the new item, so
 /// the Project panel, Timeline and monitors accept it; a drop elsewhere undoes the import.
-fn start_file_drag(app: &mut FilmcraftApp, ui: &egui::Ui, e: &Entry) {
+fn start_file_drag(app: &mut JiloApp, ui: &egui::Ui, e: &Entry) {
     let paths: Vec<String> = if app.session.browser.selection.contains(&e.path) { app.session.browser.selection.clone() } else { vec![e.path.clone()] };
     // files already in the project are dragged as they are
     if let Some(i) = mb::item_for_path(&app.session, &e.path) {
@@ -477,7 +477,7 @@ fn start_file_drag(app: &mut FilmcraftApp, ui: &egui::Ui, e: &Entry) {
 }
 
 /// After a file drag ends: keep the import when it landed on a panel that takes items.
-fn finish_drag(app: &mut FilmcraftApp, ui: &egui::Ui) {
+fn finish_drag(app: &mut JiloApp, ui: &egui::Ui) {
     let Some((items, hist, _)) = with_cache(ui.ctx(), |c| c.drag.clone()) else { return };
     if crate::panels::dragged_project_item(ui).is_some() {
         if let Some(p) = ui.ctx().pointer_latest_pos() {
@@ -501,7 +501,7 @@ fn finish_drag(app: &mut FilmcraftApp, ui: &egui::Ui) {
     }
 }
 
-fn list(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, entries: &[Entry], columns: &[String]) {
+fn list(app: &mut JiloApp, ui: &mut egui::Ui, r: Rect, entries: &[Entry], columns: &[String]) {
     let t = app.tokens;
     let ctx = ui.ctx().clone();
     let widths: Vec<f32> = columns.iter().map(|c| if c == "Name" { 220.0 } else { 110.0 }).collect();
@@ -589,11 +589,7 @@ fn list(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, entries: &[Entry], c
 }
 
 /// A preview item for a file's thumbnail (files not in the project), or the project item.
-fn preview_item(
-    app: &mut FilmcraftApp,
-    ctx: &egui::Context,
-    e: &Entry,
-) -> Option<(Arc<Project>, ItemId, filmcraft_time::Tick, filmcraft_time::FrameRate, u32)> {
+fn preview_item(app: &mut JiloApp, ctx: &egui::Context, e: &Entry) -> Option<(Arc<Project>, ItemId, jilo_time::Tick, jilo_time::FrameRate, u32)> {
     if let Some(i) = mb::item_for_path(&app.session, &e.path) {
         let it = app.session.project.item(i)?;
         let w = it.as_media()?.info.video.as_ref()?.width;
@@ -636,7 +632,7 @@ fn preview_item(
     Some((proj, id, dur, rate, w))
 }
 
-fn thumbnails(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, entries: &[Entry]) {
+fn thumbnails(app: &mut JiloApp, ui: &mut egui::Ui, r: Rect, entries: &[Entry]) {
     let t = app.tokens;
     let ctx = ui.ctx().clone();
     let size = app.session.prefs.media_browser.thumbnail_size;
@@ -711,9 +707,9 @@ fn thumbnails(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, entries: &[Ent
     });
 }
 
-fn draw_preview(app: &mut FilmcraftApp, ui: &egui::Ui, ctx: &egui::Context, e: &Entry, r: Rect, frac: f32) -> bool {
+fn draw_preview(app: &mut JiloApp, ui: &egui::Ui, ctx: &egui::Context, e: &Entry, r: Rect, frac: f32) -> bool {
     let Some((proj, id, dur, rate, src_w)) = preview_item(app, ctx, e) else { return false };
-    let t = filmcraft_time::Tick((dur.0 as f64 * frac as f64) as i64);
+    let t = jilo_time::Tick((dur.0 as f64 * frac as f64) as i64);
     let frame = rate.frame_at(crate::panels::project::quantize(t));
     let width = (r.width() as u32).clamp(96, 320);
     let rev = if proj.item(id).is_some() && id.0 < PREVIEW_BASE { app.item_revision(id) } else { 0 };
@@ -738,13 +734,13 @@ fn draw_preview(app: &mut FilmcraftApp, ui: &egui::Ui, ctx: &egui::Context, e: &
 // ------------------------------------------------------------------------------------ menu, dialog
 
 /// The Media Browser's ≡ menu. Returns true to close it.
-pub fn panel_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui) -> bool {
+pub fn panel_menu(app: &mut JiloApp, ui: &mut egui::Ui) -> bool {
     let ctx = ui.ctx().clone();
     let prefs = app.session.prefs.media_browser.clone();
     let dir = mb::current_dir(&app.session);
     let has_sel = !app.session.browser.selection.is_empty();
     let mut close = false;
-    let item = |app: &mut FilmcraftApp, ui: &mut egui::Ui, id: &str, label: &str, enabled: bool, checked: Option<bool>, shortcut: &str| -> bool {
+    let item = |app: &mut JiloApp, ui: &mut egui::Ui, id: &str, label: &str, enabled: bool, checked: Option<bool>, shortcut: &str| -> bool {
         let b = match checked {
             Some(c) => egui::Button::selectable(c, label),
             None => egui::Button::new(label),
@@ -807,7 +803,7 @@ pub fn panel_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui) -> bool {
 }
 
 /// Edit Columns… dialog.
-pub fn dialogs(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn dialogs(app: &mut JiloApp, ctx: &egui::Context) {
     let Some(mut cols) = app.ui.media_browser.edit_columns.clone() else { return };
     let mut close = false;
     let mut ok = false;

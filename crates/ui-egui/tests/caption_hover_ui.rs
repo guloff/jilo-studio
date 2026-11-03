@@ -1,24 +1,24 @@
 //! Headless UI test of the caption style preview: hovering a preset tile in the Caption Style panel
 //! shows its look in the paused Program monitor without changing the project; moving away ends it.
-//! `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` writes `caption-hover.png` (`FILMCRAFT_UI_LANG=ru`: Russian).
+//! `JILO_UI_SNAPSHOT_DIR=<dir>` writes `caption-hover.png` (`JILO_UI_LANG=ru`: Russian).
 
 #![allow(dead_code)]
 
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 fn snapshot(d: &mut Driver, name: &str) {
-    let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
+    let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
     d.frames(2);
     match d.harness.render() {
         Ok(img) => {
@@ -32,7 +32,7 @@ fn snapshot(d: &mut Driver, name: &str) {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -74,7 +74,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -86,7 +86,7 @@ fn hovering_a_style_previews_it_in_the_program_monitor() {
     let at = s.playhead().seconds();
     s.execute("captions.add", json!({"seconds": at - 0.5, "durationSeconds": 3.0, "text": "Preview me"})).unwrap();
     let mut d = Driver::new(s);
-    if std::env::var("FILMCRAFT_UI_LANG").as_deref() == Ok("ru") {
+    if std::env::var("JILO_UI_LANG").as_deref() == Ok("ru") {
         d.ok("ui.menu.invoke", json!({"id": "app.language.russian"}));
     }
     d.ok("ui.menu.invoke", json!({"id": "graphics.captionStyles"}));
@@ -98,7 +98,7 @@ fn hovering_a_style_previews_it_in_the_program_monitor() {
     let app = d.app();
     let (_, preview) = app.ui.caption_hover_project.clone().expect("the monitor renders a preview");
     let seq = app.session.state.active_sequence.unwrap();
-    let want = filmcraft_engine::caption_presets::find("yellow-pop").unwrap().style;
+    let want = jilo_engine::caption_presets::find("yellow-pop").unwrap().style;
     assert_eq!(preview.sequence(seq).unwrap().caption_tracks[0].style, want);
     assert!(std::sync::Arc::ptr_eq(&app.session.project, &before), "the project itself is unchanged");
     // away from the tiles: the preview ends

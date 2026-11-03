@@ -12,8 +12,8 @@
 //! chapters of the current chapter markers, as YouTube wants them: at least 3, the first at 0:00,
 //! each at least 10 s long.
 
-use filmcraft_project::{ItemId, Label, Marker, MarkerId, MarkerKind};
-use filmcraft_time::Tick;
+use jilo_project::{ItemId, Label, Marker, MarkerId, MarkerKind};
+use jilo_time::Tick;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -337,7 +337,7 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let spoken = words.first().and_then(|w| s.project.transcripts.get(&w.item)).map(|t| t.language.clone()).filter(|l| !l.is_empty());
     let language = str_p(p, "language").map(str::to_string).or(spoken).unwrap_or_else(|| "en".into());
-    let language_name = filmcraft_ai::speech::language_name(&language);
+    let language_name = jilo_ai::speech::language_name(&language);
     let language_name = language_name.split(" (").next().unwrap_or(&language).to_string();
     let total = s.active_sequence().map_or(0.0, |q| q.duration().seconds());
     let transcript = blocks(&cues).iter().map(|(t, x)| format!("[{}] {x}", t.floor())).collect::<Vec<_>>().join("\n");
@@ -345,7 +345,7 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
     let system = prompt(total, &language_name);
     let work: TaskWork = Box::new(move |engine, ctx, progress| {
         if !progress(0.1, "Reading the transcript") {
-            return Err(filmcraft_ai::AiError::Cancelled);
+            return Err(jilo_ai::AiError::Cancelled);
         }
         let v = engine.json(ctx, &system, &transcript, Some(&schema()), 0.4)?;
         let _ = progress(1.0, "Texts written");

@@ -8,7 +8,7 @@
 use egui::{RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 #[derive(Clone, Default)]
 pub struct ThumbUi {
@@ -25,11 +25,11 @@ impl std::fmt::Debug for ThumbUi {
     }
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     let seq = app.session.state.active_sequence.ok_or("no sequence is open")?;
     let u = &mut app.ui.thumbnail;
     if u.title.is_empty() {
-        u.title = filmcraft_engine::youtube::texts_of(&app.session, seq)
+        u.title = jilo_engine::youtube::texts_of(&app.session, seq)
             .and_then(|t| t.titles.first().cloned())
             .or_else(|| app.session.project.item(seq).map(|i| i.name.clone()))
             .unwrap_or_default();
@@ -42,7 +42,7 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
     Ok(json!({"window": "thumbnail"}))
 }
 
-fn draw(app: &mut FilmcraftApp, ctx: &egui::Context, path: &str) -> Result<(), String> {
+fn draw(app: &mut JiloApp, ctx: &egui::Context, path: &str) -> Result<(), String> {
     let u = &app.ui.thumbnail;
     app.session.execute("youtube.thumbnail", json!({"title": u.title, "look": u.look, "path": path})).map_err(|e| e.to_string())?;
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
@@ -56,7 +56,7 @@ fn draw(app: &mut FilmcraftApp, ctx: &egui::Context, path: &str) -> Result<(), S
     Ok(())
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.thumbnail.open {
         return;
     }
@@ -92,7 +92,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                 again |= r.lost_focus();
             });
             ui.horizontal(|ui| {
-                for (id, name) in filmcraft_engine::thumbnail::LOOKS {
+                for (id, name) in jilo_engine::thumbnail::LOOKS {
                     let r = ui.selectable_label(app.ui.thumbnail.look == id, crate::i18n::t(name));
                     app.auto.add(&format!("thumb.look.{id}"), r.rect, name);
                     if r.clicked() {
@@ -121,7 +121,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
         );
         let dest = match app.hooks.pick_save_as.as_mut() {
             Some(f) => f("PNG", &["png"], &name),
-            None => Some(filmcraft_engine::export_tools::default_export_dir(&app.session).join(&name).to_string_lossy().to_string()),
+            None => Some(jilo_engine::export_tools::default_export_dir(&app.session).join(&name).to_string_lossy().to_string()),
         };
         if let Some(d) = dest {
             app.ui.status = match draw(app, ctx, &d) {

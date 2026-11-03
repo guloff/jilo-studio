@@ -12,7 +12,7 @@
 
 use serde_json::{Value, json};
 
-use filmcraft_project::ItemId;
+use jilo_project::ItemId;
 
 use crate::commands::{CommandSpec, bad, has_seq, str_p};
 use crate::{EngineError, Result, Session};
@@ -70,7 +70,7 @@ fn make(s: &mut Session, aspect: &str, follow: &str, name: Option<&str>) -> Resu
                     .iter()
                     .filter(|t| t.name != crate::brand_kit::LOGO_TRACK)
                     .flat_map(|t| t.items.iter())
-                    .filter(|it| !matches!(s.project.item(it.item).map(|i| &i.kind), Some(filmcraft_project::ItemKind::Graphic { .. })))
+                    .filter(|it| !matches!(s.project.item(it.item).map(|i| &i.kind), Some(jilo_project::ItemKind::Graphic { .. })))
                     .map(|it| it.id.0)
                     .collect()
             })
@@ -106,7 +106,7 @@ fn make(s: &mut Session, aspect: &str, follow: &str, name: Option<&str>) -> Resu
 /// frame (`from` → `to`, in pixels) instead of filling it.
 fn refit_logo(s: &mut Session, from: (u32, u32), to: (u32, u32)) -> Result<()> {
     let Some(q) = s.active_sequence() else { return Ok(()) };
-    let logos: Vec<(u64, f64, filmcraft_geom::Vec2)> = q
+    let logos: Vec<(u64, f64, jilo_geom::Vec2)> = q
         .video_tracks
         .iter()
         .filter(|t| t.name == crate::brand_kit::LOGO_TRACK)
@@ -232,7 +232,7 @@ mod tests {
         let it = q.video_tracks[0]
             .items
             .iter()
-            .find(|it| !matches!(s.project.item(it.item).map(|i| &i.kind), Some(filmcraft_project::ItemKind::Graphic { .. })))
+            .find(|it| !matches!(s.project.item(it.item).map(|i| &i.kind), Some(jilo_project::ItemKind::Graphic { .. })))
             .unwrap();
         let scale = it.effect("motion").unwrap().f64_at("scale", it.effect_time_at(it.start));
         assert!(scale > 150.0, "fills the vertical frame: {scale}");

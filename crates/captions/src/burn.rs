@@ -7,11 +7,11 @@
 //! and rasterises it into a small premultiplied linear-light RGBA [`Overlay`] positioned in the
 //! frame. Renderers composite overlays over the finished picture.
 
-use filmcraft_color::srgb_to_linear;
-use filmcraft_project::{Caption, CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle, CaptionTrack, Sequence};
-use filmcraft_time::Tick;
+use jilo_color::srgb_to_linear;
+use jilo_project::{Caption, CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle, CaptionTrack, Sequence};
+use jilo_time::Tick;
 
-use filmcraft_text::{Caps, ParagraphStyle, TextStyle, layout, render};
+use jilo_text::{Caps, ParagraphStyle, TextStyle, layout, render};
 
 /// Caption overlays are transient render resources, not source images. Keep one cue from
 /// materialising an unbounded mask or RGBA buffer.
@@ -71,7 +71,7 @@ fn caption_style(style: &CaptionStyle, px: f32) -> TextStyle {
 }
 
 fn measure(text: &str, ts: &TextStyle) -> f32 {
-    filmcraft_text::measure(text, ts)
+    jilo_text::measure(text, ts)
 }
 
 fn lin(c: [u8; 4]) -> [f32; 4] {
@@ -148,7 +148,7 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
         _ => 0..times.len(),
     };
     // entrance: from the caption's (or the chunk's) start
-    let since = at.map(|t| (t.0 - times.get(shown.start).map_or(0, |s| s.0.0)).max(0) as f64 / filmcraft_time::TICKS_PER_SECOND as f64);
+    let since = at.map(|t| (t.0 - times.get(shown.start).map_or(0, |s| s.0.0)).max(0) as f64 / jilo_time::TICKS_PER_SECOND as f64);
     let e = since.map_or(1.0, |s| (s as f32 / ENTRANCE).clamp(0.0, 1.0));
     let ease = 1.0 - (1.0 - e).powi(3);
     let (grow_k, alpha, rise) = match style.animation {
@@ -188,7 +188,7 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
         return None;
     }
     let texts: Vec<String> = lines.iter().map(|l| l.iter().map(|x| x.1.as_str()).collect::<Vec<_>>().join(" ")).collect();
-    let vm = filmcraft_text::fonts::face(filmcraft_text::resolve(&ts.family, &ts.style).face).metrics(px);
+    let vm = jilo_text::fonts::face(jilo_text::resolve(&ts.family, &ts.style).face).metrics(px);
     let (asc, desc) = (vm.ascent, vm.descent);
     let lh = px * style.line_spacing.clamp(0.8, 4.0);
     let pad_x = (px * 0.3).round();
@@ -297,7 +297,7 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
         }
         if !word_mode {
             let l = layout(line, &ts, &ParagraphStyle::default());
-            let mut m = filmcraft_text::Mask { w: ow, h: oh, a: std::mem::take(&mut cover) };
+            let mut m = jilo_text::Mask { w: ow, h: oh, a: std::mem::take(&mut cover) };
             render::draw(&l, &render::at(xs[i], baseline(i)), &mut m, (ox, oy));
             cover = m.a;
         }
@@ -324,7 +324,7 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
             (&mut cover, ts.clone(), x)
         };
         let l = layout(&lw.text, &wts, &ParagraphStyle::default());
-        let mut m = filmcraft_text::Mask { w: ow, h: oh, a: std::mem::take(target) };
+        let mut m = jilo_text::Mask { w: ow, h: oh, a: std::mem::take(target) };
         render::draw(&l, &render::at(wx, b), &mut m, (ox, oy));
         *target = m.a;
     }
@@ -502,7 +502,7 @@ pub fn sequence_overlays(seq: &Sequence, t: Tick, w: usize, h: usize) -> Vec<Ove
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_project::{CaptionFormat, ClipId, TrackId};
+    use jilo_project::{CaptionFormat, ClipId, TrackId};
 
     fn cap(text: &str) -> Caption {
         Caption {
@@ -628,8 +628,8 @@ mod tests {
 
     #[test]
     fn karaoke_highlight_chunks_typewriter_and_entrance() {
-        // four words, one second each (ticks per second from filmcraft_time)
-        let sec = filmcraft_time::TICKS_PER_SECOND;
+        // four words, one second each (ticks per second from jilo_time)
+        let sec = jilo_time::TICKS_PER_SECOND;
         let mut c = cap("one two three four");
         c.duration = Tick(4 * sec);
         c.words = (0..4).map(|i| Tick(i * sec)).collect();

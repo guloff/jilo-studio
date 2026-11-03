@@ -7,15 +7,15 @@
 
 use std::sync::Arc;
 
-use filmcraft_export::{EncodedPacket, EncoderFrame, ExportSettings, Format, HardwareEncoding, Progress, VideoEncoder, export};
-use filmcraft_frame::PixelData;
-use filmcraft_media::generators::GeneratorSource;
-use filmcraft_media::{DemoScene, MediaSource};
-use filmcraft_platform::hardware_encode::videotoolbox_encoder_factory;
-use filmcraft_platform::videotoolbox_prores_encode::{ProResConfig, ProResSignal, VtProResEncoder, prores_encoder_available};
-use filmcraft_project::{ItemKind, Label, MediaClip, MediaRef, Project, SequenceSettings, TrackKind};
-use filmcraft_render::SourceMap;
-use filmcraft_time::{FrameRate, Tick, TimeRange};
+use jilo_export::{EncodedPacket, EncoderFrame, ExportSettings, Format, HardwareEncoding, Progress, VideoEncoder, export};
+use jilo_frame::PixelData;
+use jilo_media::generators::GeneratorSource;
+use jilo_media::{DemoScene, MediaSource};
+use jilo_platform::hardware_encode::videotoolbox_encoder_factory;
+use jilo_platform::videotoolbox_prores_encode::{ProResConfig, ProResSignal, VtProResEncoder, prores_encoder_available};
+use jilo_project::{ItemKind, Label, MediaClip, MediaRef, Project, SequenceSettings, TrackKind};
+use jilo_render::SourceMap;
+use jilo_time::{FrameRate, Tick, TimeRange};
 
 const W: u32 = 640;
 const H: u32 = 360;
@@ -65,7 +65,7 @@ fn encode_all(enc: &mut dyn VideoEncoder) -> Vec<EncodedPacket> {
 fn built_in(s: &ExportSettings) -> Box<dyn VideoEncoder> {
     let mut s = s.clone();
     s.hardware_encoding = HardwareEncoding::Off;
-    filmcraft_export::software_video_encoder(&s, W, H, FPS).expect("a built-in ProRes encoder").expect("built-in ProRes encoder")
+    jilo_export::software_video_encoder(&s, W, H, FPS).expect("a built-in ProRes encoder").expect("built-in ProRes encoder")
 }
 
 /// The source planes the encoders start from: (Y, Cb, Cr, alpha) code values.
@@ -74,12 +74,12 @@ fn source_planes(i: u64, four: bool, alpha: bool) -> [Vec<u16>; 4] {
     let rgba = picture(i);
     if four {
         let (mut y, mut u, mut v, mut a) = (vec![0; w * h], vec![0; w * h], vec![0; w * h], vec![0; if alpha { w * h } else { 0 }]);
-        filmcraft_export::rgba_to_yuv444_12(&rgba, w, h, &mut y, &mut u, &mut v, alpha.then_some(a.as_mut_slice()));
+        jilo_export::rgba_to_yuv444_12(&rgba, w, h, &mut y, &mut u, &mut v, alpha.then_some(a.as_mut_slice()));
         [y, u, v, a]
     } else {
         let cw = w.div_ceil(2);
         let (mut y, mut u, mut v) = (vec![0; w * h], vec![0; cw * h], vec![0; cw * h]);
-        filmcraft_export::rgba_to_yuv422_10(&rgba, w, h, &mut y, &mut u, &mut v);
+        jilo_export::rgba_to_yuv422_10(&rgba, w, h, &mut y, &mut u, &mut v);
         [y, u, v, Vec::new()]
     }
 }
@@ -99,7 +99,7 @@ fn psnr(decoded: &[&[u16]], source: &[Vec<u16>], bits: u32) -> f64 {
 /// Decode `packets` with our decoder and measure them against the source: (mean PSNR, alpha exact).
 fn measure(enc: &dyn VideoEncoder, packets: &[EncodedPacket], four: bool, alpha: bool) -> (f64, bool) {
     let entry = enc.sample_entry();
-    let mut dec = filmcraft_codecs::software_video_decoder(&entry).expect("our ProRes decoder");
+    let mut dec = jilo_codecs::software_video_decoder(&entry).expect("our ProRes decoder");
     let (mut sum, mut alpha_exact) = (0.0, true);
     for (i, p) in packets.iter().enumerate() {
         assert!(p.key, "every ProRes frame is a sync sample");
@@ -175,7 +175,7 @@ fn pictures_of_another_size_are_refused() {
     assert!(hw.encode(&EncoderFrame { width: W, height: H, rgba: &short, hdr: None, index: 0 }).is_err());
 }
 
-fn project(frames: i64) -> (Arc<Project>, filmcraft_project::ItemId, SourceMap) {
+fn project(frames: i64) -> (Arc<Project>, jilo_project::ItemId, SourceMap) {
     let mut p = Project::new("prores-hw");
     let g = GeneratorSource::demo(DemoScene::Plasma);
     let info = g.info().clone();
@@ -210,7 +210,7 @@ fn export_through_the_pipeline_with_hardware_prores() {
         eprintln!("SKIPPED: no hardware ProRes encoder");
         return;
     }
-    filmcraft_platform::register();
+    jilo_platform::register();
     let dir = std::env::temp_dir().join(format!("fc-prores-hw-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let frames = 30;
@@ -218,17 +218,17 @@ fn export_through_the_pipeline_with_hardware_prores() {
     for profile in ["hq", "4444"] {
         let path = dir.join(format!("{profile}.mov")).to_string_lossy().to_string();
         let s = ExportSettings { path: path.clone(), include_audio: false, ..settings(profile, false, true) };
-        let before = filmcraft_export::hw_encode_stats().frames;
+        let before = jilo_export::hw_encode_stats().frames;
         let report = export(&p, seq, &s, &m, &Progress::default()).expect("export");
         assert_eq!(report.frames, frames as u64);
         // (process-wide counters: other tests of this binary may encode meanwhile)
-        assert!(filmcraft_export::hw_encode_stats().frames - before >= frames as u64, "{profile}: every frame on the hardware encoder");
+        assert!(jilo_export::hw_encode_stats().frames - before >= frames as u64, "{profile}: every frame on the hardware encoder");
         let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-        let src = filmcraft_codecs::open_bytes("hw.mov", bytes).unwrap();
+        let src = jilo_codecs::open_bytes("hw.mov", bytes).unwrap();
         let info = src.info().video.clone().unwrap();
         assert!(info.codec.contains("ProRes"), "{profile}: {}", info.codec);
-        assert!(src.video_frame(filmcraft_media::FrameRequest::full(FPS.tick_of(15))).is_ok(), "{profile}: decodes");
-        if let Some(ffprobe) = filmcraft_testkit::ffprobe_or_skip("hardware ProRes export") {
+        assert!(src.video_frame(jilo_media::FrameRequest::full(FPS.tick_of(15))).is_ok(), "{profile}: decodes");
+        if let Some(ffprobe) = jilo_testkit::ffprobe_or_skip("hardware ProRes export") {
             let out = std::process::Command::new(ffprobe)
                 .args([
                     "-v",

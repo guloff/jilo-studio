@@ -103,13 +103,7 @@ fn mb(bytes: u64) -> String {
 
 /// Download `asset` into `dir` (a part file, renamed once its size and SHA-256 match). A file
 /// already there with the right checksum is used as it is.
-pub fn fetch(
-    t: &dyn filmcraft_ai::Transport,
-    asset: &Asset,
-    dir: &Path,
-    prog: &filmcraft_export::Progress,
-    user_agent: &str,
-) -> std::result::Result<PathBuf, String> {
+pub fn fetch(t: &dyn jilo_ai::Transport, asset: &Asset, dir: &Path, prog: &jilo_export::Progress, user_agent: &str) -> std::result::Result<PathBuf, String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let dest = dir.join(&asset.name);
     if std::fs::metadata(&dest).is_ok_and(|m| m.len() == asset.size) && sha256_of(&dest).as_deref() == Some(asset.sha256.as_str()) {
@@ -119,7 +113,7 @@ pub fn fetch(
     let part = dir.join(format!("{}.part", asset.name));
     let file = std::fs::File::create(&part).map_err(|e| format!("{}: {e}", part.display()))?;
     let mut out = Hashing { inner: std::io::BufWriter::new(file), hash: Default::default(), bytes: 0 };
-    let req = filmcraft_ai::transport::Request::get(&asset.url).header("User-Agent", user_agent).header("Accept", "application/octet-stream");
+    let req = jilo_ai::transport::Request::get(&asset.url).header("User-Agent", user_agent).header("Accept", "application/octet-stream");
     let mut progress = |done: u64, total: Option<u64>| {
         let total = total.unwrap_or(asset.size).max(1);
         prog.done.store(done, Ordering::Relaxed);
@@ -140,7 +134,7 @@ pub fn fetch(
         Err(e)
     };
     match r {
-        Err(_) if prog.cancel.load(Ordering::Relaxed) => return fail(filmcraft_ai::transport::CANCELLED.into()),
+        Err(_) if prog.cancel.load(Ordering::Relaxed) => return fail(jilo_ai::transport::CANCELLED.into()),
         Err(e) => return fail(format!("the download stopped: {e}")),
         Ok(status) if !(200..300).contains(&status) => return fail(format!("GitHub answered {status}")),
         Ok(_) => {}
@@ -357,7 +351,7 @@ fn download_update(s: &mut Session, p: &Value) -> Result<Value> {
     *lock(&state) = Some(UpdateDownload { version: version.clone(), phase: "downloading".into(), job: Some(job.id), ..Default::default() });
     let current = running_bundle();
     let agent = format!("JiloStudio/{}", env!("CARGO_PKG_VERSION"));
-    let id = crate::narration::spawn(s, job, wait, "filmcraft-update", move || {
+    let id = crate::narration::spawn(s, job, wait, "jilo-update", move || {
         let t0 = web_time::Instant::now();
         let set = |f: &dyn Fn(&mut UpdateDownload)| {
             if let Some(d) = lock(&state).as_mut() {
@@ -390,7 +384,7 @@ fn download_update(s: &mut Session, p: &Value) -> Result<Value> {
                 Ok(format!("{app_name} {version} is downloaded"))
             }
             Err(e) => {
-                let cancelled = e == filmcraft_ai::transport::CANCELLED;
+                let cancelled = e == jilo_ai::transport::CANCELLED;
                 set(&|d| {
                     d.phase = if cancelled { "cancelled" } else { "failed" }.into();
                     d.reason = Some(e.clone());
@@ -545,11 +539,11 @@ mod mac {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_ai::Response;
-    use filmcraft_ai::transport::FakeTransport;
+    use jilo_ai::Response;
+    use jilo_ai::transport::FakeTransport;
 
     fn temp(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("filmcraft-updater-{}-{name}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("jilo-updater-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d

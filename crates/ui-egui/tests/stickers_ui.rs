@@ -1,7 +1,7 @@
 //! Headless UI test of stickers: the Library's Stickers tab puts an emoji at the playhead with a
 //! click (a right-click keeps it among the favourites), and the sticker's box in the Program
-//! monitor moves and scales it. `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` writes `stickers.png`
-//! (`FILMCRAFT_UI_LANG=ru`: Russian).
+//! monitor moves and scales it. `JILO_UI_SNAPSHOT_DIR=<dir>` writes `stickers.png`
+//! (`JILO_UI_LANG=ru`: Russian).
 
 #![allow(dead_code)]
 
@@ -9,19 +9,19 @@ use std::sync::Arc;
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_project::ClipId;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_project::ClipId;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 fn snapshot(d: &mut Driver, name: &str) {
-    let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
+    let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
     d.frames(2);
     match d.harness.render() {
         Ok(img) => {
@@ -35,7 +35,7 @@ fn snapshot(d: &mut Driver, name: &str) {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -77,7 +77,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -91,7 +91,7 @@ fn a_sticker_from_the_library_is_placed_moved_and_scaled() {
     s.emoji_renderer = Some(Arc::new(|_: &str, size: u32| Ok((size, size, [255u8, 140, 0, 255].repeat((size * size) as usize)))));
     let _ = dir;
     let mut d = Driver::new(s);
-    if std::env::var("FILMCRAFT_UI_LANG").as_deref() == Ok("ru") {
+    if std::env::var("JILO_UI_LANG").as_deref() == Ok("ru") {
         d.ok("ui.menu.invoke", json!({"id": "app.language.russian"}));
     }
     d.ok("ui.menu.invoke", json!({"id": "window.panel.Libraries"}));
@@ -111,7 +111,7 @@ fn a_sticker_from_the_library_is_placed_moved_and_scaled() {
     assert!(d.app().session.prefs.stickers.favorites.contains(&"emoji:🔥".to_string()));
     // move it: past the pop-in, drag its box in the Program monitor
     let at = d.app().session.playhead();
-    let later = at + filmcraft_time::Tick::from_seconds_f64(1.0);
+    let later = at + jilo_time::Tick::from_seconds_f64(1.0);
     d.app().session.set_playhead(later);
     d.frames(3);
     snapshot(&mut d, "stickers");
@@ -152,7 +152,7 @@ fn the_selected_clip_is_cut_out_into_my_stickers() {
     let clip = s.active_sequence().unwrap().video_tracks.iter().flat_map(|tr| tr.items.iter()).find(|i| i.range().contains(t)).unwrap().id;
     s.state.selection = vec![clip];
     let mut d = Driver::new(s);
-    if std::env::var("FILMCRAFT_UI_LANG").as_deref() == Ok("ru") {
+    if std::env::var("JILO_UI_LANG").as_deref() == Ok("ru") {
         d.ok("ui.menu.invoke", json!({"id": "app.language.russian"}));
     }
     d.ok("ui.menu.invoke", json!({"id": "window.panel.Libraries"}));
@@ -183,7 +183,7 @@ fn the_selected_sticker_is_attached_to_a_face() {
     let n = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     s.face_detector = Some(Arc::new(move |_: &[u8], _, _| {
         let k = n.fetch_add(1, std::sync::atomic::Ordering::Relaxed) as f64;
-        Ok(vec![filmcraft_engine::reframe::FaceBox { x: (0.3 + k * 0.02).min(0.8), y: 0.3, w: 0.1, h: 0.15, confidence: 0.9 }])
+        Ok(vec![jilo_engine::reframe::FaceBox { x: (0.3 + k * 0.02).min(0.8), y: 0.3, w: 0.1, h: 0.15, confidence: 0.9 }])
     }));
     let r = s.execute("stickers.add", json!({"id": "emoji:🔥", "animation": "none"})).unwrap();
     let clip = r["clip"].as_u64().unwrap();

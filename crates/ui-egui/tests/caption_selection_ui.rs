@@ -5,15 +5,15 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_project::ClipId;
-use filmcraft_time::Tick;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_project::ClipId;
+use jilo_time::Tick;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
@@ -31,10 +31,10 @@ impl Driver {
         s.set_playhead(Tick::from_seconds_f64(20.0));
         let caps: Vec<ClipId> = s.active_sequence().unwrap().caption_tracks[0].captions.iter().map(|c| c.id).collect();
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(s).with_control(rx);
+        let app = JiloApp::new(s).with_control(rx);
         let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
-        // `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>`: render offscreen with wgpu and write snapshots there
-        if std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").is_some() {
+        // `JILO_UI_SNAPSHOT_DIR=<dir>`: render offscreen with wgpu and write snapshots there
+        if std::env::var_os("JILO_UI_SNAPSHOT_DIR").is_some() {
             b = b.wgpu();
         }
         let harness = b.build_eframe(move |_cc| app);
@@ -111,7 +111,7 @@ impl Driver {
     }
 
     fn snapshot(&mut self, name: &str) {
-        let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
+        let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
         self.frames(2);
         if let Ok(img) = self.harness.render() {
             std::fs::create_dir_all(&dir).unwrap();
@@ -119,7 +119,7 @@ impl Driver {
         }
     }
 
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 

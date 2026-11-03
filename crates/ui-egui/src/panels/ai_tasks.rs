@@ -4,17 +4,17 @@
 //!
 //! A feature starts with [`start`]: its command runs with `background: true`; when the job
 //! finishes, the same command runs again without it and applies the fetched answer (see
-//! `filmcraft_engine::ai_tasks`).
+//! `jilo_engine::ai_tasks`).
 
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::state::AiTaskUi;
 
 /// Start `cmd` with `params` in the background; `what` names what goes to the cloud (for the
 /// consent) and `label` the work (for the progress window).
-pub fn start(app: &mut FilmcraftApp, cmd: &str, params: Value, label: &str, what: &str) {
-    let provider = params["engine"].as_str().and_then(filmcraft_ai::Provider::from_id).unwrap_or_else(|| app.session.prefs.ai.text_provider());
+pub fn start(app: &mut JiloApp, cmd: &str, params: Value, label: &str, what: &str) {
+    let provider = params["engine"].as_str().and_then(jilo_ai::Provider::from_id).unwrap_or_else(|| app.session.prefs.ai.text_provider());
     let task = AiTaskUi { command: cmd.to_string(), params, label: label.to_string(), what: what.to_string(), ..Default::default() };
     if app.session.prefs.ai.confirmed(provider) {
         launch(app, task);
@@ -23,7 +23,7 @@ pub fn start(app: &mut FilmcraftApp, cmd: &str, params: Value, label: &str, what
     }
 }
 
-fn launch(app: &mut FilmcraftApp, mut task: AiTaskUi) {
+fn launch(app: &mut JiloApp, mut task: AiTaskUi) {
     let mut p = task.params.clone();
     p["background"] = json!(true);
     if task.confirmed {
@@ -55,11 +55,11 @@ fn done_message(label: &str) -> String {
 }
 
 /// Draw the consent or the progress of the running task; apply its answer when the job is done.
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     let Some(mut task) = app.ui.ai_task.take() else { return };
     let t = app.tokens;
     if task.confirm {
-        let provider = task.params["engine"].as_str().and_then(filmcraft_ai::Provider::from_id).unwrap_or_else(|| app.session.prefs.ai.text_provider());
+        let provider = task.params["engine"].as_str().and_then(jilo_ai::Provider::from_id).unwrap_or_else(|| app.session.prefs.ai.text_provider());
         let (mut ok, mut cancel) = (false, false);
         let w = 440.0;
         egui::Modal::new(egui::Id::new("ai-task-consent")).frame(crate::dialog_style::frame(&t)).show(ctx, |ui| {

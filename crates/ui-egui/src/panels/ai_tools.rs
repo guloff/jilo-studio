@@ -13,7 +13,7 @@
 use egui::{RichText, Sense, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The dot of a feature that can run now, and of one that needs something first.
 const READY: egui::Color32 = egui::Color32::from_rgb(72, 187, 120);
@@ -135,16 +135,16 @@ const GROUPS: [(&str, &[Card]); 5] = [
 ];
 
 /// What `need` is missing, if anything.
-fn missing(app: &FilmcraftApp, need: Need) -> Option<String> {
+fn missing(app: &JiloApp, need: Need) -> Option<String> {
     let s = &app.session;
-    let has_key = |p: filmcraft_ai::Provider| filmcraft_engine::ai::key(s, p).is_some();
+    let has_key = |p: jilo_ai::Provider| jilo_engine::ai::key(s, p).is_some();
     match need {
         Sequence => s.active_sequence().is_none().then(|| tl!("Open a sequence").to_string()),
-        Transcript => filmcraft_engine::transcript::sequence_words(s).is_empty().then(|| tl!("Transcribe first").to_string()),
+        Transcript => jilo_engine::transcript::sequence_words(s).is_empty().then(|| tl!("Transcribe first").to_string()),
         Speech => match s.prefs.ai.speech_provider() {
             Some(p) if s.prefs.ai.local_only => Some(tlf!("{provider} is off: only on this computer", provider = p.name())),
             Some(p) => (!has_key(p)).then(|| tlf!("Needs a {provider} key", provider = p.name())),
-            None => (!filmcraft_engine::transcript::speech_available()).then(|| tl!("Not in this build").to_string()),
+            None => (!jilo_engine::transcript::speech_available()).then(|| tl!("Not in this build").to_string()),
         },
         TextKey => {
             let p = s.prefs.ai.text_provider();
@@ -158,9 +158,9 @@ fn missing(app: &FilmcraftApp, need: Need) -> Option<String> {
             let p = s.prefs.ai.image_provider();
             if s.prefs.ai.local_only {
                 Some(tl!("Cloud only: turned off").to_string())
-            } else if p == filmcraft_ai::Provider::Custom {
+            } else if p == jilo_ai::Provider::Custom {
                 // a server on this computer may need no key; it does need its address
-                filmcraft_ai::images::custom_base(&s.prefs.ai.custom_image_url).is_err().then(|| tl!("Set the custom service's address").to_string())
+                jilo_ai::images::custom_base(&s.prefs.ai.custom_image_url).is_err().then(|| tl!("Set the custom service's address").to_string())
             } else {
                 (!has_key(p)).then(|| tlf!("Needs a {provider} key", provider = p.name()))
             }
@@ -179,11 +179,11 @@ fn naming_id() -> egui::Id {
     egui::Id::new("aiTools.naming")
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: egui::Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: egui::Rect) {
     let t = app.tokens;
     let mut run: Option<(&'static str, Option<Value>)> = None;
     // read directly, not through a command: this runs every frame
-    let all = filmcraft_engine::ai_presets::all(&app.session);
+    let all = jilo_engine::ai_presets::all(&app.session);
     let last: std::collections::HashSet<String> = app.session.ai_last_params.keys().cloned().collect();
     let mut naming: Option<(String, String)> = ui.data(|d| d.get_temp(naming_id()));
     let mut save: Option<(String, String)> = None;
@@ -229,7 +229,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: egui::Rect) {
                         }
                     });
                     // presets: one click runs the feature with them; right-click deletes one of yours
-                    let mine: Vec<&filmcraft_engine::ai_presets::AiPreset> = all.iter().filter(|p| p.command == c.command).collect();
+                    let mine: Vec<&jilo_engine::ai_presets::AiPreset> = all.iter().filter(|p| p.command == c.command).collect();
                     let last = last.contains(c.command);
                     if !mine.is_empty() || last {
                         ui.horizontal_wrapped(|ui| {

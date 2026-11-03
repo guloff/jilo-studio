@@ -1,5 +1,5 @@
 [package]
-name = "filmcraft-render"
+name = "jilo-render"
 description = "Sequence evaluation and CPU reference compositor (linear-light premultiplied f32)"
 version.workspace = true
 edition.workspace = true
@@ -10,15 +10,15 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-filmcraft-time = { workspace = true }
-filmcraft-geom = { workspace = true }
-filmcraft-color = { workspace = true }
-filmcraft-frame = { workspace = true }
-filmcraft-media = { workspace = true }
-filmcraft-project = { workspace = true }
-filmcraft-audio-dsp = { workspace = true }
-filmcraft-captions = { workspace = true }
-filmcraft-text = { workspace = true }
+jilo-time = { workspace = true }
+jilo-geom = { workspace = true }
+jilo-color = { workspace = true }
+jilo-frame = { workspace = true }
+jilo-media = { workspace = true }
+jilo-project = { workspace = true }
+jilo-audio-dsp = { workspace = true }
+jilo-captions = { workspace = true }
+jilo-text = { workspace = true }
 rayon = { workspace = true }
 # EDR monitor frames are half-float RGBA (`colorman::to_edr`).
 half = { version = "2", default-features = false }

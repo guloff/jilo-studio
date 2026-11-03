@@ -1,7 +1,7 @@
 //! The Settings dialog (app menu ▸ Settings ▸ <category>; Edit ▸ Preferences in the in-window
 //! menu bar; General is Cmd+,). One window titled "Preferences": the category list on the left,
 //! the category's fields on the right, Help / Reset… / Cancel / OK at the bottom. The page layout
-//! comes from the engine's field schema ([`filmcraft_engine::settings::categories`]); edits go to a
+//! comes from the engine's field schema ([`jilo_engine::settings::categories`]); edits go to a
 //! draft (`UiState::settings`, serde so `ui.inspect` / `ui.set` reach it) and are applied with
 //! `prefs.set` on OK.
 //!
@@ -12,13 +12,13 @@
 //! `settings.help`, `settings.reset`, `settings.cancel`, `settings.ok`.
 
 use egui::{Align, Align2, Color32, CornerRadius, Frame, Layout, Margin, Rect, RichText, Sense, Stroke, Ui, vec2};
-use filmcraft_engine::settings::{self, DeviceList, Field, Kind, Row};
-use filmcraft_project::Label;
+use jilo_engine::settings::{self, DeviceList, Field, Kind, Row};
+use jilo_project::Label;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 use crate::theme::Tokens;
-use crate::{AudioDevices, Dialog, FilmcraftApp};
+use crate::{AudioDevices, Dialog, JiloApp};
 
 /// Window size (Premiere's is 927 × 724 pt).
 const W: f32 = 900.0;
@@ -51,7 +51,7 @@ pub struct SettingsDraft {
 }
 
 /// Open the dialog on a category page.
-pub fn open(app: &mut FilmcraftApp, page: &str) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp, page: &str) -> Result<Value, String> {
     let cat = settings::category(page).ok_or_else(|| format!("unknown settings category `{page}`"))?;
     app.ui.settings = Some(SettingsDraft { page: cat.id.into(), values: app.session.prefs.to_value(), ..Default::default() });
     app.dialog = Some(Dialog::Preferences);
@@ -59,7 +59,7 @@ pub fn open(app: &mut FilmcraftApp, page: &str) -> Result<Value, String> {
 }
 
 /// `app.settings.<category>` (and the older `app.preferences[.autoSave]` ids).
-pub fn route(app: &mut FilmcraftApp, id: &str) -> Option<Result<Value, String>> {
+pub fn route(app: &mut JiloApp, id: &str) -> Option<Result<Value, String>> {
     if let Some(page) = id.strip_prefix("app.settings.") {
         return Some(open(app, page));
     }
@@ -71,13 +71,13 @@ pub fn route(app: &mut FilmcraftApp, id: &str) -> Option<Result<Value, String>> 
 }
 
 /// The colour of a label (Settings ▸ Labels).
-pub fn label_color(app: &FilmcraftApp, l: Label) -> Color32 {
+pub fn label_color(app: &JiloApp, l: Label) -> Color32 {
     let c = app.session.prefs.labels.rgb(l);
     Color32::from_rgb(c[0], c[1], c[2])
 }
 
 /// Choose a theme from View ▸ Appearance or `ui.set`: stored as Settings ▸ Appearance ▸ Color Theme.
-pub fn set_theme(app: &mut FilmcraftApp, ctx: &egui::Context, k: crate::theme::ThemeKind) {
+pub fn set_theme(app: &mut JiloApp, ctx: &egui::Context, k: crate::theme::ThemeKind) {
     if let Err(e) = app.session.execute("prefs.set", json!({"key": "appearance.colorTheme", "value": k.pref_name()})) {
         app.ui.status = e.to_string();
     }
@@ -87,7 +87,7 @@ pub fn set_theme(app: &mut FilmcraftApp, ctx: &egui::Context, k: crate::theme::T
 
 /// The header's appearance button and View ▸ Appearance ▸ Next Appearance Mode: Auto, Light, Dark,
 /// then Auto again. The light and dark theme choices are kept.
-pub fn cycle_appearance(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn cycle_appearance(app: &mut JiloApp, ctx: &egui::Context) {
     let next = app.session.prefs.appearance.next_mode();
     if let Err(e) = app.session.execute("prefs.set", json!({"key": "appearance.appearanceMode", "value": next})) {
         app.ui.status = e.to_string();
@@ -98,7 +98,7 @@ pub fn cycle_appearance(app: &mut FilmcraftApp, ctx: &egui::Context) {
 /// Keys the Appearance page draws as the mode selector and theme cards instead of plain fields.
 const APPEARANCE_KEYS: &[&str] = &["appearance.appearanceMode", "appearance.lightTheme", "appearance.darkTheme", "appearance.colorTheme"];
 
-/// A small FilmCraft editor painted with `t`'s colours: the header with the Import / Edit / Export
+/// A small Jilo Studio editor painted with `t`'s colours: the header with the Import / Edit / Export
 /// tabs, the Source and Program monitors, the Project panel, the tools, the Timeline with video and
 /// audio clips and the playhead, and the audio meters (the Editing workspace).
 fn theme_preview(ui: &mut Ui, t: &Tokens, width: f32) {
@@ -213,7 +213,7 @@ fn theme_preview(ui: &mut Ui, t: &Tokens, width: f32) {
 /// One theme card of the Appearance page: title, "Active" while the mode shows it, the preview and
 /// a radio button per theme (automation ids `settings.<key>.<value>`).
 #[allow(clippy::too_many_arguments)]
-fn theme_card(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, key: &str, title: &str, opts: &[(&str, &str)], active: bool, width: f32) {
+fn theme_card(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft, key: &str, title: &str, opts: &[(&str, &str)], active: bool, width: f32) {
     let t = app.tokens;
     let current = choice_text(get(&d.values, key));
     let shown = opts.iter().find(|(v, _)| *v == current).or(opts.first()).map_or("darkest", |(v, _)| v);
@@ -250,7 +250,7 @@ fn theme_card(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, key: &
 }
 
 /// Settings ▸ Appearance: the Appearance Mode selector above the light and dark theme cards.
-fn appearance_modes(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
+fn appearance_modes(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft) {
     let key = "appearance.appearanceMode";
     let mode = choice_text(get(&d.values, key));
     ui.horizontal(|ui| {
@@ -272,7 +272,7 @@ fn appearance_modes(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) 
 }
 
 /// Patch the open dialog's draft (`ui.set {"settings": {"page": "trim", "values": {key: value}}}`).
-pub fn patch(app: &mut FilmcraftApp, p: &Value) -> Result<(), String> {
+pub fn patch(app: &mut JiloApp, p: &Value) -> Result<(), String> {
     let d = app.ui.settings.as_mut().ok_or("the Settings dialog is not open")?;
     if let Some(page) = p.get("page").and_then(Value::as_str) {
         d.page = settings::category(page).ok_or_else(|| format!("unknown settings category `{page}`"))?.id.into();
@@ -320,7 +320,7 @@ fn modal_frame(t: &Tokens) -> Frame {
     crate::dialog_style::frame(t)
 }
 
-fn button(app: &mut FilmcraftApp, ui: &mut Ui, id: &str, label: &str, primary: bool) -> bool {
+fn button(app: &mut JiloApp, ui: &mut Ui, id: &str, label: &str, primary: bool) -> bool {
     let widget = if primary { crate::dialog_style::primary(label) } else { crate::dialog_style::secondary(label) };
     let r = ui.add(widget);
     app.auto.add(id, r.rect, label);
@@ -373,7 +373,7 @@ fn choice_text(v: &Value) -> String {
 }
 
 /// A dropdown of (value, label) options; returns the chosen value.
-fn combo(app: &mut FilmcraftApp, ui: &mut Ui, key: &str, current: &str, opts: &[(String, String)], width: f32) -> Option<String> {
+fn combo(app: &mut JiloApp, ui: &mut Ui, key: &str, current: &str, opts: &[(String, String)], width: f32) -> Option<String> {
     let shown = opts.iter().find(|o| o.0 == current).map(|o| o.1.clone()).unwrap_or_else(|| current.to_string());
     let mut chosen = None;
     let mut items: Vec<(String, Rect, String)> = Vec::new();
@@ -400,7 +400,7 @@ fn static_opts(o: &[(&str, &str)]) -> Vec<(String, String)> {
     o.iter().map(|(v, l)| (v.to_string(), l.to_string())).collect()
 }
 
-fn device_opts(app: &mut FilmcraftApp, d: &mut SettingsDraft, list: DeviceList) -> Vec<(String, String)> {
+fn device_opts(app: &mut JiloApp, d: &mut SettingsDraft, list: DeviceList) -> Vec<(String, String)> {
     if d.devices.is_none() {
         d.devices = Some(app.audio.as_ref().map(|a| a.devices()).unwrap_or_default());
     }
@@ -415,7 +415,7 @@ fn device_opts(app: &mut FilmcraftApp, d: &mut SettingsDraft, list: DeviceList) 
     v
 }
 
-fn number(app: &mut FilmcraftApp, ui: &mut Ui, key: &str, value: f64, range: (f64, f64), decimals: usize, label: &str) -> Option<f64> {
+fn number(app: &mut JiloApp, ui: &mut Ui, key: &str, value: f64, range: (f64, f64), decimals: usize, label: &str) -> Option<f64> {
     let mut x = value;
     let speed = ((range.1 - range.0) / 2000.0).clamp(0.05, 1.0);
     let dv = egui::DragValue::new(&mut x).range(range.0..=range.1).speed(speed).fixed_decimals(decimals);
@@ -424,7 +424,7 @@ fn number(app: &mut FilmcraftApp, ui: &mut Ui, key: &str, value: f64, range: (f6
     (r.changed() && x != value).then_some(x)
 }
 
-fn draw_field(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, f: &Field) {
+fn draw_field(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft, f: &Field) {
     let enabled = f.enabled_by.is_none_or(|k| get(&d.values, k).as_bool().unwrap_or(true));
     let cur = get(&d.values, f.key).clone();
     ui.add_enabled_ui(enabled, |ui| {
@@ -526,7 +526,7 @@ fn draw_field(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, f: &Fi
 }
 
 /// A colour swatch (opens a picker) and its `#rrggbb` text.
-fn color_field(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, key: &str, label: &str) {
+fn color_field(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft, key: &str, label: &str) {
     let hex = choice_text(get(&d.values, key));
     let mut rgb = settings::parse_hex(&hex).unwrap_or([128, 128, 128]);
     let r = egui::color_picker::color_edit_button_srgb(ui, &mut rgb);
@@ -550,7 +550,7 @@ fn mb(bytes: u64) -> String {
     if bytes >= 1 << 30 { format!("{:.1} GB", bytes as f64 / (1u64 << 30) as f64) } else { format!("{:.1} MB", bytes as f64 / (1u64 << 20) as f64) }
 }
 
-fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str) {
+fn custom(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str) {
     let t = app.tokens;
     match name {
         "labelColors" => {
@@ -581,7 +581,7 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
         "memoryInfo" => {
             let (used, budget) = app.frames.cache_usage();
             note(ui, &t, &tlf!("Decoded frames held for the monitors and thumbnails: {used} of {budget}.", used = mb(used as u64), budget = mb(budget as u64)));
-            note(ui, &t, tl!("FilmCraft keeps the rest of the RAM free for other applications."));
+            note(ui, &t, tl!("Jilo Studio keeps the rest of the RAM free for other applications."));
         }
         "mediaCacheInfo" => {
             if d.cache_info.is_null() {
@@ -638,16 +638,16 @@ fn custom(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, name: &str
 /// itself (`--mcp`) as an MCP server with Claude Desktop or Claude Code (`ai.assistants.status`,
 /// `ai.assistants.connect`). A Connect button turns Allow AI assistants on in the draft too, so OK
 /// does not turn it back off.
-fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
+fn ai_assistants(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft) {
     let t = app.tokens;
     if d.assistants.is_null() {
         d.assistants = app.session.execute("ai.assistants.status", json!({})).unwrap_or(json!({}));
     }
     let st = d.assistants.clone();
     let allowed_in_draft = d.values["ai"]["allowAssistants"] == true;
-    let port = st["port"].as_u64().unwrap_or(u64::from(filmcraft_engine::assistants::ASSISTANT_PORT));
+    let port = st["port"].as_u64().unwrap_or(u64::from(jilo_engine::assistants::ASSISTANT_PORT));
     let state = match (&app.assistant_channel, app.session.prefs.ai.allow_assistants, allowed_in_draft) {
-        (_, _, false) => tl!("Off: no assistant can reach FilmCraft.").to_string(),
+        (_, _, false) => tl!("Off: no assistant can reach Jilo Studio.").to_string(),
         (_, false, true) => tl!("Turns on when you press OK.").to_string(),
         (crate::AssistantChannel::Open | crate::AssistantChannel::ServedByControl, true, true) => {
             tlf!("On: assistants connect on this computer (port {port}).", port)
@@ -670,7 +670,7 @@ fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
             let label = if connected { tl!("Connect Again") } else { tl!("Connect to Claude Desktop") };
             if button(app, ui, "settings.aiAssistants.claudeDesktop", label, false) {
                 d.message = match app.session.execute("ai.assistants.connect", json!({"client": "claudeDesktop"})) {
-                    Ok(_) => tl!("Added to Claude Desktop. Quit and reopen Claude to use FilmCraft there.").to_string(),
+                    Ok(_) => tl!("Added to Claude Desktop. Quit and reopen Claude to use Jilo Studio there.").to_string(),
                     Err(e) => e.to_string(),
                 };
                 refresh = true;
@@ -680,7 +680,7 @@ fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
             field_label(ui, "Claude Code");
             if button(app, ui, "settings.aiAssistants.claudeCode", tl!("Connect to Claude Code"), false) {
                 d.message = match app.session.execute("ai.assistants.connect", json!({"client": "claudeCode"})) {
-                    Ok(_) => tl!("Added to Claude Code. Start a new Claude Code session to use FilmCraft there.").to_string(),
+                    Ok(_) => tl!("Added to Claude Code. Start a new Claude Code session to use Jilo Studio there.").to_string(),
                     Err(e) => e.to_string(),
                 };
                 refresh = true;
@@ -692,7 +692,7 @@ fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
                 d.message = tl!("The command is copied: paste it in Terminal.").to_string();
             }
         });
-        note(ui, &t, tl!("Other MCP clients: run FilmCraft itself as the server, with this command:"));
+        note(ui, &t, tl!("Other MCP clients: run Jilo Studio itself as the server, with this command:"));
         if let Some(cmd) = st["command"].as_str() {
             let args: Vec<&str> = st["args"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
             note(ui, &t, &format!("{cmd} {}", args.join(" ")));
@@ -711,7 +711,7 @@ fn ai_assistants(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
 /// Settings ▸ AI ▸ On this computer: the local models with their size, downloaded in the
 /// background or deleted to free the disk (`ai.localModels`, `ai.downloadModel`, `ai.deleteModel`),
 /// and the cloud consents given so far, forgotten (`ai.resetConsents`).
-fn ai_local(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
+fn ai_local(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft) {
     let t = app.tokens;
     let list = app.session.execute("ai.localModels", json!({})).unwrap_or_default();
     let mb = |b: u64| format!("{:.0} MB", b as f64 / 1_000_000.0);
@@ -760,7 +760,7 @@ fn ai_local(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
     });
     let given = app.session.prefs.ai.confirmed_providers.clone();
     group(ui, &t, tl!("Cloud consents"), |ui| {
-        let names: Vec<String> = given.iter().filter_map(|p| filmcraft_ai::Provider::from_id(p).map(|x| x.name().to_string())).collect();
+        let names: Vec<String> = given.iter().filter_map(|p| jilo_ai::Provider::from_id(p).map(|x| x.name().to_string())).collect();
         ui.horizontal(|ui| {
             field_label(ui, "");
             let text = if names.is_empty() {
@@ -788,7 +788,7 @@ fn ai_local(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
 /// Settings ▸ AI ▸ API keys: save, remove and check each provider's key, and pick a model from what
 /// the check found. A typed key stays in this widget's memory only until Save Key: it never goes
 /// into the draft (which OK applies to preferences) and is never shown again.
-fn ai_keys(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
+fn ai_keys(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft) {
     let t = app.tokens;
     if d.ai_status.is_null() {
         d.ai_status = app.session.execute("ai.status", json!({})).unwrap_or(json!({}));
@@ -896,7 +896,7 @@ fn ai_keys(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft) {
     }
 }
 
-fn rows(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, list: &[Row]) {
+fn rows(app: &mut JiloApp, ui: &mut Ui, d: &mut SettingsDraft, list: &[Row]) {
     let t = app.tokens;
     let mut skip = false;
     for (i, r) in list.iter().enumerate() {
@@ -944,7 +944,7 @@ fn rows(app: &mut FilmcraftApp, ui: &mut Ui, d: &mut SettingsDraft, list: &[Row]
 }
 
 /// Draw the dialog; returns whether it stays open.
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) -> bool {
     let Some(mut d) = app.ui.settings.take() else { return false };
     crate::widgets::revert_drag_on_escape(ctx, egui::Id::new("settings-dialog-before-drag"), &mut d);
     let t = app.tokens;
@@ -1006,7 +1006,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
             }
             if button(app, ui, "settings.reset", tl!("Reset…"), false) {
                 // this category back to its defaults (OK applies it)
-                let defaults = filmcraft_engine::autosave::Preferences::default().to_value();
+                let defaults = jilo_engine::autosave::Preferences::default().to_value();
                 let keep = get(&d.values, "general.recentProjects").clone();
                 d.values[d.page.as_str()] = defaults[d.page.as_str()].clone();
                 put(&mut d.values, "general.recentProjects", keep);
@@ -1053,7 +1053,7 @@ mod tests {
     #[test]
     fn appearance_button_cycles_modes_without_losing_theme_choices() {
         let ctx = egui::Context::default();
-        let mut app = FilmcraftApp::new(filmcraft_engine::Session::default());
+        let mut app = JiloApp::new(jilo_engine::Session::default());
         app.apply_prefs(&ctx);
         assert_eq!((app.session.prefs.appearance.appearance_mode.as_str(), app.tokens.kind), ("dark", ThemeKind::Dark), "new users keep Darkest");
         app.session.execute("prefs.set", json!({"values": {"appearance.darkTheme": "dark"}})).unwrap();
@@ -1079,7 +1079,7 @@ mod tests {
         use std::sync::Arc;
         use std::sync::atomic::{AtomicU8, Ordering};
         let ctx = egui::Context::default();
-        let mut app = FilmcraftApp::new(filmcraft_engine::Session::default());
+        let mut app = JiloApp::new(jilo_engine::Session::default());
         let system = Arc::new(AtomicU8::new(2));
         let read = system.clone();
         app.hooks.system_theme = Some(Box::new(move |_| match read.load(Ordering::Relaxed) {
@@ -1091,7 +1091,7 @@ mod tests {
         app.apply_prefs(&ctx);
         assert_eq!(app.tokens.kind, ThemeKind::Light);
         assert!(!app.ui.dark);
-        assert_eq!(ctx.theme(), egui::Theme::Light, "egui's style follows FilmCraft's choice");
+        assert_eq!(ctx.theme(), egui::Theme::Light, "egui's style follows Jilo Studio's choice");
         system.store(1, Ordering::Relaxed);
         app.apply_prefs(&ctx);
         assert_eq!(app.tokens.kind, ThemeKind::Dark);

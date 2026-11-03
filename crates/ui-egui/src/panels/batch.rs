@@ -9,7 +9,7 @@
 use egui::{RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The steps as the dialog lists them: (engine step, name, whether it uses the text engine).
 const STEPS: [(&str, &str, bool); 11] = [
@@ -35,7 +35,7 @@ const SPEECH: [(&str, &str); 4] = [
 const LANGS: [(&str, &str); 4] = [("auto", "Auto-detect"), ("ru", "Russian"), ("tg", "Tajik"), ("en", "English")];
 
 /// Open the dialog for the Project panel's selection (sequences and clips).
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     let p = &app.session.project;
     let items: Vec<u64> = app
         .session
@@ -45,7 +45,7 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
         .filter(|i| {
             matches!(
                 p.item(**i).map(|x| &x.kind),
-                Some(filmcraft_project::ItemKind::Sequence(_) | filmcraft_project::ItemKind::Media(_) | filmcraft_project::ItemKind::Subclip { .. })
+                Some(jilo_project::ItemKind::Sequence(_) | jilo_project::ItemKind::Media(_) | jilo_project::ItemKind::Subclip { .. })
             )
         })
         .map(|i| i.0)
@@ -62,7 +62,7 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
     Ok(json!({"dialog": "batch"}))
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     // the summary when the watched batch ends
     if let Some(id) = app.ui.batch.job
         && app.session.jobs.iter().find(|j| j.id == id).is_some_and(|j| j.to_json()["finished"] == true)
@@ -102,7 +102,7 @@ fn params(b: &crate::state::BatchUi) -> Value {
 }
 
 /// A step's own choice, as a combo box under it.
-fn choice(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: &str, value: &mut String, options: &[(String, String)], none: Option<&str>) {
+fn choice(app: &mut JiloApp, ui: &mut egui::Ui, id: &str, value: &mut String, options: &[(String, String)], none: Option<&str>) {
     ui.horizontal(|ui| {
         ui.add_space(24.0);
         let cur = options
@@ -123,26 +123,21 @@ fn choice(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: &str, value: &mut Strin
     });
 }
 
-fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn dialog(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let (mut go, mut cancel, mut keep, mut browse, mut finder) = (false, false, false, false, false);
     let w = 500.0;
-    let names: Vec<String> =
-        app.ui.batch.items.iter().filter_map(|i| app.session.project.item(filmcraft_project::ItemId(*i)).map(|x| x.name.clone())).collect();
+    let names: Vec<String> = app.ui.batch.items.iter().filter_map(|i| app.session.project.item(jilo_project::ItemId(*i)).map(|x| x.name.clone())).collect();
     let presets: Vec<String> = app
         .session
         .execute("export.presets.list", json!({}))
         .ok()
         .and_then(|v| v["presets"].as_array().map(|a| a.iter().filter_map(|p| p["name"].as_str().map(str::to_string)).collect()))
         .unwrap_or_default();
-    let caption_presets: Vec<(String, String)> = filmcraft_engine::caption_presets::builtin().iter().map(|p| (p.id.to_string(), p.name.to_string())).collect();
-    let recipes: Vec<(String, String)> = filmcraft_engine::recipes::all().into_iter().map(|r| (r.name.clone(), r.name)).collect();
-    let kits: Vec<(String, String)> = filmcraft_engine::brand_kit::dir()
-        .map(|d| filmcraft_engine::brand_kit::list_in(&d))
-        .unwrap_or_default()
-        .into_iter()
-        .map(|k| (k.name.clone(), k.name))
-        .collect();
+    let caption_presets: Vec<(String, String)> = jilo_engine::caption_presets::builtin().iter().map(|p| (p.id.to_string(), p.name.to_string())).collect();
+    let recipes: Vec<(String, String)> = jilo_engine::recipes::all().into_iter().map(|r| (r.name.clone(), r.name)).collect();
+    let kits: Vec<(String, String)> =
+        jilo_engine::brand_kit::dir().map(|d| jilo_engine::brand_kit::list_in(&d)).unwrap_or_default().into_iter().map(|k| (k.name.clone(), k.name)).collect();
     let text_provider = app.session.prefs.ai.text_provider();
     egui::Modal::new(egui::Id::new("batch-dialog")).frame(crate::dialog_style::frame(&t)).show(ctx, |ui| {
         ui.set_width(w);
@@ -250,7 +245,7 @@ fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
             let text_cloud = STEPS.iter().enumerate().any(|(k, s)| s.2 && b.steps[k]);
             let mut notes: Vec<String> = Vec::new();
             if speech_cloud {
-                let name = filmcraft_ai::Provider::from_id(&b.speech).map_or("", |p| p.name());
+                let name = jilo_ai::Provider::from_id(&b.speech).map_or("", |p| p.name());
                 notes.push(tlf!("the clips' audio goes to {provider}", provider = name));
             }
             if text_cloud {
@@ -358,7 +353,7 @@ fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
     }
 }
 
-fn summary(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn summary(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let Some(v) = app.ui.batch.summary.clone() else { return };
     let mut open = true;

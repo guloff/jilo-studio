@@ -5,7 +5,7 @@
 //! threshold lasting at least `min_seconds`; speech is everything between silences. Measuring frames
 //! instead of single samples keeps a zero crossing inside a word from counting as quiet.
 //!
-//! Defaults used by FilmCraft: pauses −35 dB / 0.6 s; checking that recognised text covers all the
+//! Defaults used by Jilo Studio: pauses −35 dB / 0.6 s; checking that recognised text covers all the
 //! speech −45 dB / 0.6 s (quiet speech averages about −38 dBFS, real pauses are below −85 dBFS).
 
 /// A stretch of time in seconds, `start < end`.

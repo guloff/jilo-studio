@@ -1,5 +1,5 @@
 //! Inspect native project/preset import fidelity without decoding or modifying source media.
-use filmcraft_interchange::{ImportOptions, premiere};
+use jilo_interchange::{ImportOptions, premiere};
 use serde_json::json;
 use std::io::Read;
 

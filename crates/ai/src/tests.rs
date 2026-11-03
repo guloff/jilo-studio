@@ -103,7 +103,7 @@ fn cancel_stops_before_the_next_attempt() {
     fake.push_error("down").push(gemini_answer("{}", "STOP"));
     let cancel = Arc::new(AtomicBool::new(false));
     let (flag, seen) = (cancel.clone(), cancel.clone());
-    // the user presses Stop while FilmCraft waits to retry
+    // the user presses Stop while Jilo Studio waits to retry
     let c = Ctx::new(fake.clone()).with_cancel(move || seen.load(Ordering::Relaxed)).with_sleep(Arc::new(move |_, _| flag.store(true, Ordering::Relaxed)));
     assert_eq!(generate_json(&c, Provider::Gemini, &key(), "m", &req(None)).unwrap_err(), AiError::Cancelled);
     assert_eq!(fake.sent().len(), 1);

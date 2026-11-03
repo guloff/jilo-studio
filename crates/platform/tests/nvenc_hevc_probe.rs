@@ -5,8 +5,8 @@
 
 use std::time::{Duration, Instant};
 
-use filmcraft_export::Format;
-use filmcraft_platform::nvenc::hevc_available;
+use jilo_export::Format;
+use jilo_platform::nvenc::hevc_available;
 
 #[test]
 fn the_probe_runs_once_and_registers_the_format() {
@@ -21,9 +21,9 @@ fn the_probe_runs_once_and_registers_the_format() {
     assert!(warm < Duration::from_millis(50), "the answer is cached: {warm:?}");
 
     // `register` makes `available(Hevc)` follow the probe; registering again changes nothing
-    assert!(!filmcraft_export::available(Format::Hevc) || first);
-    filmcraft_platform::register();
-    filmcraft_platform::register();
-    assert_eq!(filmcraft_export::available(Format::Hevc), first);
-    assert!(filmcraft_export::available(Format::H264));
+    assert!(!jilo_export::available(Format::Hevc) || first);
+    jilo_platform::register();
+    jilo_platform::register();
+    assert_eq!(jilo_export::available(Format::Hevc), first);
+    assert!(jilo_export::available(Format::H264));
 }

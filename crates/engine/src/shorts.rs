@@ -8,7 +8,7 @@
 //! | `shorts.fromHighlights` | `{markers, aspect="9:16", follow="face"\|"center", captions=preset\|null, export=false, preset?, path?}` |
 //! | `sequence.makeVertical` | the open sequence as 9:16, following the face where Apple Vision finds one (AI ▸ Make Vertical) |
 
-use filmcraft_project::ItemId;
+use jilo_project::ItemId;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, bool_p, has_seq, str_p};
@@ -128,7 +128,7 @@ pub fn commands() -> Vec<CommandSpec> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_time::Tick;
+    use jilo_time::Tick;
 
     #[test]
     fn highlights_become_vertical_shorts_with_captions() {

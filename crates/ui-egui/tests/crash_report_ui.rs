@@ -5,13 +5,13 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
     snapshots: Option<std::path::PathBuf>,
 }
@@ -19,20 +19,20 @@ struct Driver {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
-        // FILMCRAFT_UI_SNAPSHOT_DIR=<dir>: also render the window with wgpu and write ai-*.png there
-        let snapshots = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
+        let app = JiloApp::new(session).with_control(rx);
+        // JILO_UI_SNAPSHOT_DIR=<dir>: also render the window with wgpu and write ai-*.png there
+        let snapshots = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
         let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
         if snapshots.is_some() {
             b = b.wgpu();
         }
         let harness = b.build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx, snapshots };
-        if let Ok(lang) = std::env::var("FILMCRAFT_UI_SNAPSHOT_LANG") {
+        if let Ok(lang) = std::env::var("JILO_UI_SNAPSHOT_LANG") {
             d.ok("engine.execute", json!({"command": "prefs.set", "params": {"key": "general.interfaceLanguage", "value": lang}}));
         }
-        // FILMCRAFT_UI_SNAPSHOT_THEME=light|dark: the appearance the snapshots are taken in
-        if let Ok(mode) = std::env::var("FILMCRAFT_UI_SNAPSHOT_THEME") {
+        // JILO_UI_SNAPSHOT_THEME=light|dark: the appearance the snapshots are taken in
+        if let Ok(mode) = std::env::var("JILO_UI_SNAPSHOT_THEME") {
             d.ok("engine.execute", json!({"command": "prefs.set", "params": {"key": "appearance.appearanceMode", "value": mode}}));
         }
         d.frames(4);
@@ -95,8 +95,8 @@ impl Driver {
 fn a_previous_crash_is_reported_in_a_window() {
     let mut s = Session::default();
     s.execute("file.openDemoProject", json!({})).unwrap();
-    filmcraft_ui_egui::crash::set_previous(Some(
-        "Jilo Studio 0.6.0 (started at unix 1791000000) quit unexpectedly.\nThis run: Jilo Studio 0.6.0 on macOS.\n\n=== filmcraft FilmCraft 0.6.0 (unix 1791000420)\nindex out of bounds: the len is 3 but the index is 7 (at crates/render/src/lib.rs:812, thread filmcraft-frame-2)\n   0: std::backtrace::Backtrace::force_capture\n   1: filmcraft_ui_egui::crash::install::{{closure}}\n\nmacOS crash report: ~/Library/Logs/DiagnosticReports/Jilo Studio-2026-10-11-101502.ips".into(),
+    jilo_ui_egui::crash::set_previous(Some(
+        "Jilo Studio 0.6.0 (started at unix 1791000000) quit unexpectedly.\nThis run: Jilo Studio 0.6.0 on macOS.\n\n=== jilo-studio Jilo Studio 0.6.0 (unix 1791000420)\nindex out of bounds: the len is 3 but the index is 7 (at crates/render/src/lib.rs:812, thread jilo-frame-2)\n   0: std::backtrace::Backtrace::force_capture\n   1: jilo_ui_egui::crash::install::{{closure}}\n\nmacOS crash report: ~/Library/Logs/DiagnosticReports/Jilo Studio-2026-10-11-101502.ips".into(),
     ));
     let mut d = Driver::new(s);
     d.frames(3);
@@ -105,5 +105,5 @@ fn a_previous_crash_is_reported_in_a_window() {
     d.click("crash.copy");
     d.click("crash.close");
     assert!(d.ids("crash.").is_empty());
-    assert!(filmcraft_ui_egui::crash::take_previous().is_none(), "shown once");
+    assert!(jilo_ui_egui::crash::take_previous().is_none(), "shown once");
 }

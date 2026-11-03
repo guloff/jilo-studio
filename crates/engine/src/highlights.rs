@@ -10,10 +10,10 @@
 //! `highlights.assemble` turns chosen highlight markers into material: a subsequence per
 //! highlight, one sequence of all of them in time order, or one export queue item per highlight.
 
-use filmcraft_edit as edit;
-use filmcraft_edit::transcript::SeqWord;
-use filmcraft_project::{Label, Marker, MarkerId, MarkerKind, TrackItem, TrackKind};
-use filmcraft_time::{Tick, TimeRange};
+use jilo_edit as edit;
+use jilo_edit::transcript::SeqWord;
+use jilo_project::{Label, Marker, MarkerId, MarkerKind, TrackItem, TrackKind};
+use jilo_time::{Tick, TimeRange};
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -258,7 +258,7 @@ fn find(s: &mut Session, p: &Value) -> Result<Value> {
     // titles in the language spoken (else the one asked for)
     let spoken = words.first().and_then(|w| s.project.transcripts.get(&w.item)).map(|t| t.language.clone()).filter(|l| !l.is_empty());
     let language = str_p(p, "language").map(str::to_string).or(spoken).unwrap_or_else(|| "en".into());
-    let language_name = filmcraft_ai::speech::language_name(&language);
+    let language_name = jilo_ai::speech::language_name(&language);
     let language_name = language_name.split(" (").next().unwrap_or(&language).to_string();
     let transcript = transcript_text(&cues);
     let inputs =
@@ -266,7 +266,7 @@ fn find(s: &mut Session, p: &Value) -> Result<Value> {
     let system = prompt(mode, limits, &language_name);
     let work: TaskWork = Box::new(move |engine, ctx, progress| {
         if !progress(0.1, "Reading the transcript") {
-            return Err(filmcraft_ai::AiError::Cancelled);
+            return Err(jilo_ai::AiError::Cancelled);
         }
         let v = engine.json(ctx, &system, &transcript, Some(&schema()), mode.temperature())?;
         let _ = progress(1.0, "Highlights found");
@@ -320,7 +320,7 @@ enum Assemble {
 
 /// The track items of `q` within `ranges`, laid end to end from time zero in the given order
 /// (each range keeps its own links).
-fn clips_in_ranges(q: &filmcraft_project::Sequence, ranges: &[TimeRange], mut alloc: impl FnMut() -> u64) -> Vec<(TrackKind, usize, TrackItem)> {
+fn clips_in_ranges(q: &jilo_project::Sequence, ranges: &[TimeRange], mut alloc: impl FnMut() -> u64) -> Vec<(TrackKind, usize, TrackItem)> {
     let mut out = Vec::new();
     let mut at = Tick::ZERO;
     for r in ranges {
@@ -329,7 +329,7 @@ fn clips_in_ranges(q: &filmcraft_project::Sequence, ranges: &[TimeRange], mut al
             for (ti, tr) in tracks.iter().enumerate() {
                 for it in &tr.items {
                     if let Some(mut c) = edit::through::clip_item_to(it, *r) {
-                        c.id = filmcraft_project::ClipId(alloc());
+                        c.id = jilo_project::ClipId(alloc());
                         c.start = c.start - r.start + at;
                         if let Some(l) = c.link {
                             c.link = Some(*links.entry(l).or_insert_with(&mut alloc));

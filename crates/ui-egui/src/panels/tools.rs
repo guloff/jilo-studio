@@ -3,11 +3,11 @@
 
 use egui::{Rect, Sense, pos2, vec2};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::icons;
 use crate::state::Tool;
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let mut y = rect.min.y + 4.0;
     let size = 32.0;
@@ -84,7 +84,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 mod tests {
     use super::*;
 
-    fn frame(app: &mut FilmcraftApp, ctx: &egui::Context, time: f64, events: Vec<egui::Event>) {
+    fn frame(app: &mut JiloApp, ctx: &egui::Context, time: f64, events: Vec<egui::Event>) {
         app.auto.begin_frame();
         let mut out = ctx.run_ui(
             egui::RawInput { time: Some(time), events, screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, vec2(1000.0, 800.0))), ..Default::default() },
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn long_press_type_selects_vertical_without_selecting_on_release() {
-        let mut app = FilmcraftApp::new(filmcraft_engine::Session::default());
+        let mut app = JiloApp::new(jilo_engine::Session::default());
         let ctx = egui::Context::default();
         crate::theme::install(&ctx, &app.tokens);
         frame(&mut app, &ctx, 0.0, vec![]);
@@ -135,10 +135,10 @@ mod tests {
         }
         let edit = app.ui.gfx_edit.as_ref().unwrap();
         let sequence = app.session.active_sequence().unwrap();
-        let (_, item) = sequence.find_item(filmcraft_project::ClipId(edit.clip)).unwrap();
-        let effect_index = filmcraft_project::graphic::layer_indices(&item.effects)[edit.layer];
-        let layer = filmcraft_project::graphic::eval_layer(&item.effects[effect_index], filmcraft_time::Tick::ZERO, (1920, 1080)).unwrap();
-        let filmcraft_project::graphic::LayerContent::Text(text) = layer.content else { panic!("text layer expected") };
+        let (_, item) = sequence.find_item(jilo_project::ClipId(edit.clip)).unwrap();
+        let effect_index = jilo_project::graphic::layer_indices(&item.effects)[edit.layer];
+        let layer = jilo_project::graphic::eval_layer(&item.effects[effect_index], jilo_time::Tick::ZERO, (1920, 1080)).unwrap();
+        let jilo_project::graphic::LayerContent::Text(text) = layer.content else { panic!("text layer expected") };
         assert!(text.vertical, "the actual monitor click dispatches the existing vertical text command");
     }
 }

@@ -38,7 +38,7 @@ struct Scratch(PathBuf);
 
 impl Scratch {
     fn new(name: &str) -> Self {
-        let d = filmcraft_testkit::workspace_root().join("target").join("export-tests").join(format!("engine-{name}-{}", std::process::id()));
+        let d = jilo_testkit::workspace_root().join("target").join("export-tests").join(format!("engine-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         Scratch(d)
@@ -88,7 +88,7 @@ fn nested_camel_case_settings_are_honoured() {
 }
 
 fn probe(path: &str) -> Option<Value> {
-    let ffprobe = filmcraft_testkit::ffprobe_or_skip("export presets")?;
+    let ffprobe = jilo_testkit::ffprobe_or_skip("export presets")?;
     let out = std::process::Command::new(ffprobe).args(["-v", "error", "-of", "json", "-show_format", "-show_streams", path]).output().unwrap();
     assert!(out.status.success(), "{path}: {}", String::from_utf8_lossy(&out.stderr));
     Some(serde_json::from_slice(&out.stdout).unwrap())
@@ -119,7 +119,7 @@ fn every_builtin_preset_exports_and_ffprobe_confirms() {
     let dir = Scratch::new("presets");
     for pr in &presets {
         let name = pr["name"].as_str().unwrap();
-        let sub = dir.0.join(format!("p{}", filmcraft_export::presets::preset_key(name)));
+        let sub = dir.0.join(format!("p{}", jilo_export::presets::preset_key(name)));
         std::fs::create_dir_all(&sub).unwrap();
         let path = sub.join("Demo").to_string_lossy().to_string();
         let params = json!({"preset": name, "path": path, "range": "custom", "startSeconds": 1.0, "endSeconds": 1.25, "wait": true});
@@ -278,7 +278,7 @@ fn h264_presets_hit_their_bitrates() {
         ("YouTube 1080p Full HD", 16_000.0, 20.0 / 16.0),
         ("Vimeo 1080p Full HD", 18_000.0, 24.0 / 18.0),
     ] {
-        let path = dir.path(&format!("{}.mp4", filmcraft_export::presets::preset_key(preset)));
+        let path = dir.path(&format!("{}.mp4", jilo_export::presets::preset_key(preset)));
         s.execute(
             "file.exportMedia",
             json!({"preset": preset, "path": path, "range": "custom", "startSeconds": 0.0, "endSeconds": 3.0, "audio": false, "wait": true}),
@@ -476,7 +476,7 @@ fn jobs_and_queue_items_report_the_time_they_have_left() {
 
 #[test]
 fn hardware_encoding_is_auto_unless_turned_off() {
-    use filmcraft_export::HardwareEncoding::{Auto, Off};
+    use jilo_export::HardwareEncoding::{Auto, Off};
     let s = demo();
     let setting = |p: Value| crate::export_tools::settings_from_params(&s, &p, "file.exportMedia").map(|(_, st)| st.hardware_encoding);
     assert_eq!(setting(json!({"path": "x.mp4"})).unwrap(), Auto);
@@ -492,16 +492,16 @@ fn hardware_encoding_is_auto_unless_turned_off() {
     assert!(e.contains("off | auto"), "{e}");
     // and it travels in the settings object, with the default filling in when it is missing
     assert_eq!(setting(json!({"path": "x.mp4", "settings": {"hardwareEncoding": "off"}})).unwrap(), Off);
-    let old: filmcraft_export::ExportSettings = serde_json::from_value(json!({"format": "h264"})).unwrap();
+    let old: jilo_export::ExportSettings = serde_json::from_value(json!({"format": "h264"})).unwrap();
     assert_eq!(old.hardware_encoding, Auto);
     // a preset saved with it off keeps it off
-    let saved: filmcraft_export::ExportSettings = serde_json::from_value(json!({"format": "h264", "hardwareEncoding": "off"})).unwrap();
+    let saved: jilo_export::ExportSettings = serde_json::from_value(json!({"format": "h264", "hardwareEncoding": "off"})).unwrap();
     assert_eq!(saved.hardware_encoding, Off);
 }
 
 #[test]
 fn crf_param_picks_constant_quality() {
-    use filmcraft_export::BitrateMode::{Cbr, Crf, Vbr1Pass};
+    use jilo_export::BitrateMode::{Cbr, Crf, Vbr1Pass};
     let s = demo();
     let setting = |p: Value| crate::export_tools::settings_from_params(&s, &p, "file.exportMedia").map(|(_, st)| (st.bitrate_mode, st.crf));
     assert_eq!(setting(json!({"path": "x.mp4"})).unwrap(), (Vbr1Pass, 23.0));
@@ -567,7 +567,7 @@ fn quick_export_uses_and_remembers_a_preset() {
     let mut s = demo();
     let dir = Scratch::new("quick");
     let r = s.execute("export.quick", json!({"path": dir.path("quick"), "range": "custom", "startSeconds": 0, "endSeconds": 0.25, "wait": true})).unwrap();
-    assert_eq!(r["preset"], filmcraft_export::presets::DEFAULT_PRESET);
+    assert_eq!(r["preset"], jilo_export::presets::DEFAULT_PRESET);
     assert_eq!(r["path"], dir.path("quick.mp4"));
     assert!(Path::new(&dir.path("quick.mp4")).exists());
     s.execute(
@@ -627,7 +627,7 @@ fn default_export_dir_never_needs_a_real_filesystem() {
     // the shared temp-dir helper is what every former `std::env::temp_dir()` call goes through
     assert!(!crate::temp_dir().as_os_str().is_empty());
     // a saved project exports next to itself
-    let s = Session { path: Some("/projects/show/edit.fcproj".into()), ..Default::default() };
+    let s = Session { path: Some("/projects/show/edit.jsproj".into()), ..Default::default() };
     assert_eq!(crate::export_tools::default_export_dir(&s), std::path::PathBuf::from("/projects/show"));
 }
 
@@ -637,14 +637,14 @@ fn default_export_dir_never_needs_a_real_filesystem() {
 fn chapter_markers_become_chapters_of_an_mp4() {
     let mut s = demo();
     for (t, name) in [(0.5, "Before"), (1.5, "Middle"), (2.5, "")] {
-        s.execute("markers.addChapter", json!({"time": filmcraft_time::Tick::from_seconds_f64(t).0, "name": name})).unwrap();
+        s.execute("markers.addChapter", json!({"time": jilo_time::Tick::from_seconds_f64(t).0, "name": name})).unwrap();
     }
     let dir = Scratch::new("chapters");
     let path = dir.0.join("Chapters").to_string_lossy().to_string();
     let r = s
         .execute("file.exportMedia", json!({"format": "h264", "path": path, "range": "custom", "startSeconds": 1.0, "endSeconds": 3.5, "wait": true}))
         .unwrap();
-    let Some(ffprobe) = filmcraft_testkit::ffprobe_or_skip("export chapters") else { return };
+    let Some(ffprobe) = jilo_testkit::ffprobe_or_skip("export chapters") else { return };
     let chapters = |path: &str| -> Vec<(f64, String)> {
         let o = std::process::Command::new(&ffprobe).args(["-v", "error", "-of", "json", "-show_chapters", path]).output().unwrap();
         let v: Value = serde_json::from_slice(&o.stdout).unwrap();

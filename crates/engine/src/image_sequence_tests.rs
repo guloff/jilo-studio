@@ -3,9 +3,9 @@
 
 use std::path::Path;
 
-use filmcraft_media::{FrameRequest, MediaKind};
-use filmcraft_project::{ClipId, ItemId};
-use filmcraft_time::FrameRate;
+use jilo_media::{FrameRequest, MediaKind};
+use jilo_project::{ClipId, ItemId};
+use jilo_time::FrameRate;
 use serde_json::{Value, json};
 
 use crate::Session;
@@ -34,7 +34,7 @@ fn red_at(s: &Session, item: ItemId, frame: i64) -> u8 {
     let rate = src.info().frame_rate();
     let f = src.video_frame(FrameRequest::full(rate.tick_of(frame))).unwrap();
     match &f.data {
-        filmcraft_frame::PixelData::Rgba8(p) => p[0],
+        jilo_frame::PixelData::Rgba8(p) => p[0],
         _ => panic!("rgba frames"),
     }
 }
@@ -115,7 +115,7 @@ fn image_sequence_survives_save_and_reopen() {
     let mut s = demo();
     let paths = write_frames(&dir, "f", &[0, 1, 2, 3], "png");
     let id = item_of(&s.execute("file.importFromMediaBrowser", json!({"paths": [paths[0]], "imageSequence": true})).unwrap());
-    let proj = dir.join("seq.fcproj");
+    let proj = dir.join("seq.jsproj");
     s.execute("file.saveAs", json!({"path": proj.to_string_lossy()})).unwrap();
     let mut t = Session::default();
     t.execute("file.open", json!({"path": proj.to_string_lossy()})).unwrap();

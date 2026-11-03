@@ -130,7 +130,7 @@ pub fn scan(s: &mut Session, settle: bool) -> Result<Value> {
 fn inbox_bin(s: &mut Session) -> Option<u64> {
     let find = |s: &Session| {
         s.project.root.children.iter().find_map(|e| match e {
-            filmcraft_project::BinEntry::Bin(b) if b.name == BIN => Some(b.id.0),
+            jilo_project::BinEntry::Bin(b) if b.name == BIN => Some(b.id.0),
             _ => None,
         })
     };
@@ -277,8 +277,8 @@ mod tests {
         let r = s.execute("inbox.scan", json!({})).unwrap();
         assert_eq!(r["imported"].as_array().map(Vec::len), Some(1), "{r}");
         assert_eq!(r["batch"], 1, "{r}");
-        let item = filmcraft_project::ItemId(r["imported"][0].as_u64().unwrap());
-        assert!(s.project.root.children.iter().any(|e| matches!(e, filmcraft_project::BinEntry::Bin(b) if b.name == BIN)), "the Inbox bin");
+        let item = jilo_project::ItemId(r["imported"][0].as_u64().unwrap());
+        assert!(s.project.root.children.iter().any(|e| matches!(e, jilo_project::BinEntry::Bin(b) if b.name == BIN)), "the Inbox bin");
         assert!(s.project.item(item).is_some());
         // the batch is running on it; once taken, a file is never taken again
         assert!(s.batch.is_some());

@@ -1,10 +1,10 @@
 # Ukrainian (uk) catalog. Columns separated by TAB: context <TAB> source <TAB> translation
 # Empty context is a plain UI string. Escapes: \n, \t, \\; preserve placeholders and trailing ….
-# Original clean-room translations from the meaning of FilmCraft's English menu labels,
+# Original clean-room translations from the meaning of Jilo Studio's English menu labels,
 # using Ukrainian video-editing vocabulary. No proprietary localization resources were used.
 # Core menu coverage; other interface strings fall back to English.
 
-	About FilmCraft	Про FilmCraft
+	About Jilo Studio	Про Jilo Studio
 	Add Audio Submix Track	Додати доріжку підміксу аудіо
 	Add Caption at Playhead	Додати субтитр у позиції курсора відтворення
 	Add Chapter Marker…	Додати маркер розділу…
@@ -134,8 +134,8 @@
 	File	Файл
 	File…	Файл…
 	Fill frame	Заповнити кадр
-	FilmCraft Help…	Довідка FilmCraft…
-	FilmCraft on GitHub	FilmCraft на GitHub
+	Jilo Studio Help…	Довідка Jilo Studio…
+	Jilo Studio on GitHub	Jilo Studio на GitHub
 	Find Next	Знайти далі
 	Find…	Знайти…
 	Fit	Умістити
@@ -303,7 +303,7 @@
 	Select Previous Graphic	Вибрати попередній графічний елемент
 	Select Previous Layer	Вибрати попередній шар
 	Selection Follows Playhead	Виділення слідує за курсором відтворення
-	Selection as FilmCraft Project…	Виділення як проєкт FilmCraft…
+	Selection as Jilo Studio Project…	Виділення як проєкт Jilo Studio…
 	Selection…	Виділення…
 	Send Backward	Перемістити назад
 	Send to Back	На задній план
@@ -369,7 +369,7 @@
 	Export Markers as CSV…	Експортувати маркери як CSV…
 	Text to Speech	Озвучення тексту
 # Jilo Studio: the website and the credit to FilmCraft (ArtCraft links are not in this build)
-	FilmCraft Website	Вебсайт FilmCraft
+	Jilo Studio Website	Вебсайт Jilo Studio
 	Based on FilmCraft by the ArtCraft Team	На основі FilmCraft від команди ArtCraft
 # Sequence ▸ Remove Silent Pauses
 	Remove Silent Pauses	Видалити паузи за звуком

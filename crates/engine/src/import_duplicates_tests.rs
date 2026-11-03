@@ -8,8 +8,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use filmcraft_media::MediaKind;
-use filmcraft_project::{BinId, ItemId, MediaRef, Project};
+use jilo_media::MediaKind;
+use jilo_project::{BinId, ItemId, MediaRef, Project};
 use serde_json::{Value, json};
 
 use crate::media_test_util::tmp_dir;
@@ -18,7 +18,7 @@ use crate::{Event, FileIdentity, FsServices, Services, Session};
 /// A stereo 16-bit WAV with `frames` sample frames at `level`: another `frames` is another size,
 /// another `level` other content of the same size.
 fn wav_at(frames: usize, level: f32) -> Vec<u8> {
-    filmcraft_media::wav::write_wav16(&vec![level; frames * 2], 2, 48_000)
+    jilo_media::wav::write_wav16(&vec![level; frames * 2], 2, 48_000)
 }
 
 fn wav(frames: usize) -> Vec<u8> {

@@ -7,14 +7,14 @@
 //! Automation ids: `program.clip.<id>.box`, `program.clip.<id>.corner.<0-3>`.
 
 use egui::{Pos2, Rect, Sense, Stroke, pos2, vec2};
-use filmcraft_geom::{Affine, Vec2};
-use filmcraft_project::{ItemKind, TrackItem};
+use jilo_geom::{Affine, Vec2};
+use jilo_project::{ItemKind, TrackItem};
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The selected clip to manipulate: one picture clip (not a graphic), under the playhead.
-fn target(app: &FilmcraftApp) -> Option<(TrackItem, (u32, u32))> {
+fn target(app: &JiloApp) -> Option<(TrackItem, (u32, u32))> {
     let q = app.session.active_sequence()?;
     let sel = &app.session.state.selection;
     let t = app.session.playhead();
@@ -48,7 +48,7 @@ struct Drag {
     centre: (f64, f64),
 }
 
-pub fn monitor_overlay(app: &mut FilmcraftApp, ui: &mut egui::Ui, pic: Rect, frame: (u32, u32)) {
+pub fn monitor_overlay(app: &mut JiloApp, ui: &mut egui::Ui, pic: Rect, frame: (u32, u32)) {
     if app.ui.tool != crate::state::Tool::Selection {
         return;
     }
@@ -57,7 +57,7 @@ pub fn monitor_overlay(app: &mut FilmcraftApp, ui: &mut egui::Ui, pic: Rect, fra
     let t = app.session.playhead();
     let mt = it.effect_time_at(t);
     let screen = crate::panels::graphics::frame_to_screen(pic, frame);
-    let motion = filmcraft_render::motion_matrix(seq, &it, size, None, it.source_time_at(t));
+    let motion = jilo_render::motion_matrix(seq, &it, size, None, it.source_time_at(t));
     let to_screen = screen.then_apply(&motion);
     let (w, h) = (f64::from(size.0), f64::from(size.1));
     let quad = [sp(&to_screen, 0.0, 0.0), sp(&to_screen, w, 0.0), sp(&to_screen, w, h), sp(&to_screen, 0.0, h)];

@@ -1,4 +1,4 @@
-//! GPU-vs-CPU parity of the effect stage (`filmcraft_render::gpufx::FxOp::apply` is the
+//! GPU-vs-CPU parity of the effect stage (`jilo_render::gpufx::FxOp::apply` is the
 //! reference).
 //!
 //! Tolerances:
@@ -13,18 +13,18 @@
 
 use super::blend_tests::{device, interior, ramp_layer, stats8, yuv_frame};
 use super::*;
-use filmcraft_geom::{Affine, Vec2};
-use filmcraft_project::{EffectInstance, ParamValue, find_effect};
-use filmcraft_render::effects::FxCtx;
-use filmcraft_render::gpufx::FxOp;
-use filmcraft_render::plan::{LayerFx, execute_cpu};
-use filmcraft_time::Tick;
+use jilo_geom::{Affine, Vec2};
+use jilo_project::{EffectInstance, ParamValue, find_effect};
+use jilo_render::effects::FxCtx;
+use jilo_render::gpufx::FxOp;
+use jilo_render::plan::{LayerFx, execute_cpu};
+use jilo_time::Tick;
 
 const EXACT: f32 = 1e-4;
 const FLIPS: f64 = 0.01;
 
 fn cx(t: Tick, px_scale: f32) -> FxCtx<'static> {
-    FxCtx { t, px_scale, seconds: 0.0, timecode: "", clip_name: "", project: None, env: None, working: filmcraft_color::WorkingSpace::Rec709 }
+    FxCtx { t, px_scale, seconds: 0.0, timecode: "", clip_name: "", project: None, env: None, working: jilo_color::WorkingSpace::Rec709 }
 }
 
 fn effect(id: &str, params: &[(&str, ParamValue)]) -> EffectInstance {
@@ -67,8 +67,8 @@ fn picture(w: u32, h: u32) -> Vec<f32> {
                 2 => [fy, fy, fy],
                 3 => [1.6 * fy, 1.2 * fy, 0.3],
                 _ => {
-                    let rgb = filmcraft_color::hsl_to_rgb(fx, 0.25 + 0.75 * ((y % 5) as f32 / 4.0), 0.1 + 0.8 * fy);
-                    rgb.map(filmcraft_color::srgb_to_linear)
+                    let rgb = jilo_color::hsl_to_rgb(fx, 0.25 + 0.75 * ((y % 5) as f32 / 4.0), 0.1 + 0.8 * fy);
+                    rgb.map(jilo_color::srgb_to_linear)
                 }
             };
             let a = match y % 7 {
@@ -348,7 +348,7 @@ fn gpu_effects_match_cpu_exactly() {
         let e = effect(id, &params);
         let op = FxOp::eval(&e, &cx(Tick::ZERO, 1.0), w as usize, h as usize).unwrap_or_else(|| panic!("{id} has no GPU op"));
         assert!(op.gpu_ok(), "{id} {params:?}: not GPU-capable");
-        let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
+        let mut cpu = jilo_render::Image { w: w as usize, h: h as usize, px: px.clone() };
         op.apply(&mut cpu);
         let fx = LayerFx { size: (w, h), decimation: 1, ops: vec![op] };
         let (_, _, gpu) = c.effect_image(&frame, &fx).expect("effect image");
@@ -363,8 +363,8 @@ fn gpu_effects_match_cpu_exactly() {
 
 /// Masks in the test picture's working pixels: a feathered, expanded ellipse (Add), a hard
 /// triangle (Subtract, 70 %), an inverted feathered rectangle (Difference).
-fn masks(w: f64, h: f64) -> Vec<filmcraft_render::mask::FlatMask> {
-    use filmcraft_project::{Mask, MaskMode, MaskPath};
+fn masks(w: f64, h: f64) -> Vec<jilo_render::mask::FlatMask> {
+    use jilo_project::{Mask, MaskMode, MaskPath};
     let mut a = Mask::new("a", MaskPath::ellipse(Vec2::new(w * 0.45, h * 0.5), Vec2::new(w * 0.3, h * 0.3)));
     a.feather.value = fl(6.0);
     a.expansion.value = fl(2.0);
@@ -376,7 +376,7 @@ fn masks(w: f64, h: f64) -> Vec<filmcraft_render::mask::FlatMask> {
     c.mode = MaskMode::Difference;
     c.inverted = true;
     c.feather.value = fl(1.5);
-    filmcraft_render::mask::prepare(&[a, b, c], Tick::ZERO, 1.0)
+    jilo_render::mask::prepare(&[a, b, c], Tick::ZERO, 1.0)
 }
 
 /// Effects limited to masks and opacity masks (#30): the GPU's coverage (the polygon distance of
@@ -394,14 +394,14 @@ fn gpu_masks_match_cpu() {
     let frame = VideoFrame::rgba_f32(w, h, px.clone());
     let ms = masks(w as f64, h as f64);
     let hard = {
-        let m = filmcraft_project::Mask::new("r", filmcraft_project::MaskPath::rect(20.0, 10.0, 70.5, 40.0));
-        filmcraft_render::mask::prepare(&[m], Tick::ZERO, 1.0)
+        let m = jilo_project::Mask::new("r", jilo_project::MaskPath::rect(20.0, 10.0, 70.5, 40.0));
+        jilo_render::mask::prepare(&[m], Tick::ZERO, 1.0)
     };
     // the masks cover some pixels fully, some partly and some not at all
-    let cov = filmcraft_render::mask::coverage(&ms, w as usize, h as usize).expect("coverage");
+    let cov = jilo_render::mask::coverage(&ms, w as usize, h as usize).expect("coverage");
     assert!(cov.iter().any(|v| *v > 0.99) && cov.iter().any(|v| *v < 0.01) && cov.iter().any(|v| *v > 0.2 && *v < 0.8));
     let op = |id: &str, params: &[(&str, ParamValue)]| FxOp::eval(&effect(id, params), &cx(Tick::ZERO, 1.0), w as usize, h as usize).expect("op");
-    let masked = |o: FxOp, m: &[filmcraft_render::mask::FlatMask]| FxOp::Masked { op: Box::new(o), masks: m.to_vec() };
+    let masked = |o: FxOp, m: &[jilo_render::mask::FlatMask]| FxOp::Masked { op: Box::new(o), masks: m.to_vec() };
     let cases: Vec<(&str, Vec<FxOp>, bool)> = vec![
         ("masked blur", vec![masked(op("gaussian_blur", &[("blurriness", fl(8.0))]), &ms)], false),
         ("masked brightness, hard rect", vec![masked(op("brightness_contrast", &[("brightness", fl(40.0))]), &hard)], false),
@@ -428,7 +428,7 @@ fn gpu_masks_match_cpu() {
     let mut failures = Vec::new();
     for (name, ops, steps) in cases {
         assert!(ops.iter().all(FxOp::gpu_ok), "{name}: not GPU-capable");
-        let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
+        let mut cpu = jilo_render::Image { w: w as usize, h: h as usize, px: px.clone() };
         for o in &ops {
             o.apply(&mut cpu);
         }
@@ -458,7 +458,7 @@ fn gpu_track_matte_matches_cpu() {
     let frame = VideoFrame::rgba_f32(w, h, px.clone());
     // the matte "track" at output size: a soft disc of colour over transparency
     let (mw, mh) = (123usize, 71usize);
-    let mut matte = filmcraft_render::Image::new(mw, mh);
+    let mut matte = jilo_render::Image::new(mw, mh);
     for y in 0..mh {
         for x in 0..mw {
             let d = ((x as f32 - 60.0).powi(2) + (y as f32 - 35.0).powi(2)).sqrt();
@@ -468,7 +468,7 @@ fn gpu_track_matte_matches_cpu() {
         }
     }
     let m = Affine::motion(Vec2::new(62.0, 36.0), Vec2::new(1.2, 1.2), 14.0, Vec2::new(48.0, 27.0));
-    let tm = |luma: bool, reverse: bool| FxOp::TrackMatte(filmcraft_render::gpufx::TrackMatte::new(&matte, m, luma, reverse));
+    let tm = |luma: bool, reverse: bool| FxOp::TrackMatte(jilo_render::gpufx::TrackMatte::new(&matte, m, luma, reverse));
     let op = |id: &str, params: &[(&str, ParamValue)]| FxOp::eval(&effect(id, params), &cx(Tick::ZERO, 1.0), w as usize, h as usize).expect("op");
     let cases: Vec<(&str, Vec<FxOp>)> = vec![
         ("alpha", vec![tm(false, false)]),
@@ -480,7 +480,7 @@ fn gpu_track_matte_matches_cpu() {
     let mut failures = Vec::new();
     for (name, ops) in cases {
         assert!(ops.iter().all(FxOp::gpu_ok), "{name}: not GPU-capable");
-        let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
+        let mut cpu = jilo_render::Image { w: w as usize, h: h as usize, px: px.clone() };
         for o in &ops {
             o.apply(&mut cpu);
         }
@@ -532,7 +532,7 @@ fn gpu_effect_chains_match_cpu() {
     for chain in chains {
         let ops: Vec<FxOp> = chain.iter().filter_map(|e| FxOp::eval(e, &cx(Tick::ZERO, 1.0), w as usize, h as usize)).collect();
         assert!(ops.iter().all(FxOp::gpu_ok));
-        let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
+        let mut cpu = jilo_render::Image { w: w as usize, h: h as usize, px: px.clone() };
         for op in &ops {
             op.apply(&mut cpu);
         }
@@ -567,7 +567,7 @@ fn keyframed_effects_follow_time() {
     for s in [0.0, 0.3, 0.75, 1.0] {
         let cx = cx(Tick::from_seconds_f64(s), 1.0);
         let ops: Vec<FxOp> = [&bc, &blur].iter().filter_map(|e| FxOp::eval(e, &cx, w as usize, h as usize)).collect();
-        let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
+        let mut cpu = jilo_render::Image { w: w as usize, h: h as usize, px: px.clone() };
         for op in &ops {
             op.apply(&mut cpu);
         }
@@ -627,7 +627,7 @@ fn hostile_parameters_are_bounded() {
         }
         assert!(op.as_ref().is_some_and(|o| !o.gpu_ok()), "{}: {op:?}", e.effect);
         // and the CPU reference copes
-        let mut img = filmcraft_render::Image::filled(w, h, [0.3, 0.2, 0.1, 1.0]);
+        let mut img = jilo_render::Image::filled(w, h, [0.3, 0.2, 0.1, 1.0]);
         if let Some(op) = op {
             op.apply(&mut img);
         }
@@ -711,7 +711,7 @@ fn lumetri_unsupported_sections_fall_back() {
     // HDR working space
     let e = effect("lumetri", &[]);
     let mut cx_hdr = cx(Tick::ZERO, 1.0);
-    cx_hdr.working = filmcraft_color::WorkingSpace::Rec2100Pq;
+    cx_hdr.working = jilo_color::WorkingSpace::Rec2100Pq;
     let op = FxOp::eval(&e, &cx_hdr, w, h);
     assert!(op.as_ref().is_some_and(|o| !o.gpu_ok()));
 }
@@ -885,7 +885,7 @@ fn alpha_invert_does_not_amplify_invented_opacity_at_odd_source_pixels() {
     let px = picture(w, h);
     let frame = VideoFrame::rgba_f32(w, h, px.clone());
     let op = FxOp::Invert { channel: 4, blend: 0.2 };
-    let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
+    let mut cpu = jilo_render::Image { w: w as usize, h: h as usize, px: px.clone() };
     op.apply(&mut cpu);
     let (_, _, gpu) = c.effect_image(&frame, &LayerFx { size: (w, h), decimation: 1, ops: vec![op] }).expect("alpha invert image");
     assert_eq!(gpu.len(), px.len());

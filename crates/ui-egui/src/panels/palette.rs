@@ -10,7 +10,7 @@
 use egui::{Align2, Color32, Key, RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::theme::Tokens;
 
 /// The palette's state.
@@ -39,7 +39,7 @@ pub struct Entry {
 
 const MAX_SHOWN: usize = 12;
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     app.ui.palette.open = true;
     app.ui.palette.query.clear();
     app.ui.palette.selected = 0;
@@ -47,7 +47,7 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
 }
 
 /// Everything the palette offers: the menu commands and the recipes.
-pub fn entries(app: &FilmcraftApp) -> Vec<Entry> {
+pub fn entries(app: &JiloApp) -> Vec<Entry> {
     let english = crate::menus::menu_items_for(&app.session);
     let mut v: Vec<Entry> = crate::menus::menu_items(app)
         .into_iter()
@@ -65,7 +65,7 @@ pub fn entries(app: &FilmcraftApp) -> Vec<Entry> {
             }
         })
         .collect();
-    for r in filmcraft_engine::recipes::all() {
+    for r in jilo_engine::recipes::all() {
         v.push(Entry {
             id: format!("recipe:{}", r.name),
             label: tlf!("Run Recipe: {name}", name = crate::i18n::t(&r.name)),
@@ -130,7 +130,7 @@ pub fn search(entries: &[Entry], query: &str, recent: &[String]) -> Vec<usize> {
     hits.into_iter().map(|(_, i)| i).collect()
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.palette.open {
         return;
     }

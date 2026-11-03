@@ -7,13 +7,13 @@
 use egui::RichText;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 const ENGINES: [(&str, &str); 3] = [("openai", "OpenAI (cloud)"), ("gemini", "Google Gemini (cloud)"), ("custom", "Custom service (OpenAI-compatible)")];
 const SHAPES: [(&str, &str); 3] = [("landscape", "Landscape"), ("portrait", "Portrait"), ("square", "Square")];
 
 /// Open the dialog.
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     let g = &mut app.ui.imagegen;
     if g.engine.is_empty() {
         g.engine = app.session.prefs.ai.image_provider().id().to_string();
@@ -22,10 +22,10 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
     g.shape = app
         .session
         .active_sequence()
-        .map(|q| match filmcraft_ai::images::Shape::for_frame(q.settings.width, q.settings.height) {
-            filmcraft_ai::images::Shape::Landscape => "landscape",
-            filmcraft_ai::images::Shape::Portrait => "portrait",
-            filmcraft_ai::images::Shape::Square => "square",
+        .map(|q| match jilo_ai::images::Shape::for_frame(q.settings.width, q.settings.height) {
+            jilo_ai::images::Shape::Landscape => "landscape",
+            jilo_ai::images::Shape::Portrait => "portrait",
+            jilo_ai::images::Shape::Square => "square",
         })
         .unwrap_or("landscape")
         .to_string();
@@ -35,7 +35,7 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
 }
 
 /// The dialog, and the message when a picture has been added.
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if app.ui.ai_task_result.as_ref().is_some_and(|(cmd, _)| cmd == "ai.generateImage")
         && let Some((_, r)) = app.ui.ai_task_result.take()
     {
@@ -47,7 +47,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     }
 }
 
-fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn dialog(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let (mut go, mut cancel) = (false, false);
     let w = 480.0;
@@ -90,7 +90,7 @@ fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
                 let r = ui.checkbox(&mut g.place, tl!("Put it on the timeline at the playhead"));
                 app.auto.add("imagegen.place", r.rect, "Put it on the timeline at the playhead");
             }
-            let provider = filmcraft_ai::Provider::from_id(&g.engine).map_or("", |p| p.name());
+            let provider = jilo_ai::Provider::from_id(&g.engine).map_or("", |p| p.name());
             ui.add(
                 egui::Label::new(
                     RichText::new(tlf!(

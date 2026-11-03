@@ -1,7 +1,7 @@
 # Captions
 
-FilmCraft keeps captions on **caption tracks** in the sequence, shown in their own area above the
-video tracks (as Premiere does). Caption tracks are saved in the `.fcproj` (project format
+Jilo Studio keeps captions on **caption tracks** in the sequence, shown in their own area above the
+video tracks (as Premiere does). Caption tracks are saved in the `.jsproj` (project format
 version 2; version 1 projects open with no caption tracks).
 
 ## Model
@@ -102,7 +102,7 @@ also splits captions.
   Google Fonts' repository at a pinned commit, each file checked against its SHA-256 and kept with its
   SIL OFL licence in `<data dir>/fonts/captions/`; they are not in the repository or the app bundle.
   Variable fonts list their named instances (Montserrat Black, Oswald SemiBold…) as styles
-  (`filmcraft_text::fonts`). Presets in the pack draw in Inter until it is installed.
+  (`jilo_text::fonts`). Presets in the pack draw in Inter until it is installed.
 - **Caption Style panel** (Graphics and Titles ▸ Caption Styles…, Window ▸ Caption Style): the track
   (or All caption tracks), a gallery of 36 presets — each tile a frame drawn by the burn-in renderer,
   so it looks as playback and export will — and every style field (font, style, size, ALL CAPS,
@@ -129,5 +129,5 @@ named "<language> (translated from <language>)", with the source's timing, speak
 caption the engine skipped keeps its text. Nothing is sent before the user's one-time consent for
 the provider. The interface fetches the translation in the background (the status bar and the
 Progress panel show it, with Cancel) and adds the track in one undo step (`background: true`, then
-the same command again; see `filmcraft_engine::ai_tasks`).
+the same command again; see `jilo_engine::ai_tasks`).
 

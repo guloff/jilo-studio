@@ -1,12 +1,12 @@
 //! Smaller panels: History, Markers, Info (the Media Browser is `panels::media_browser`).
 
 use egui::{Align2, Color32, Rect, Sense, pos2, vec2};
-use filmcraft_time::{TimeDisplay, format_time};
+use jilo_time::{TimeDisplay, format_time};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::theme::Tokens;
 
-pub fn history(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn history(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink(6.0)));
     let undo: Vec<String> = app.session.history.undo.iter().map(|h| h.0.clone()).collect();
@@ -52,14 +52,14 @@ pub fn history(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 
 /// The marker colours of the Markers panel filter (each chip stands for the labels that share its
 /// marker colour).
-pub const MARKER_FILTER: [filmcraft_project::Label; 7] = {
-    use filmcraft_project::Label::*;
+pub const MARKER_FILTER: [jilo_project::Label; 7] = {
+    use jilo_project::Label::*;
     [Green, Rose, Purple, Mango, Yellow, Blue, Teal]
 };
 
 /// Markers panel: a colour filter row (click a chip to show/hide that colour; automation ids
 /// `markers.filter.<label>`), then the sequence markers (`markers.row.<id>`; click = go to it).
-pub fn markers(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn markers(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let Some(seq) = app.session.active_sequence().cloned() else {
         crate::dock::placeholder(ui, rect, &t, tl!("(no sequence)"));
@@ -101,11 +101,11 @@ pub fn markers(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             let name = if m.name.is_empty() { tl!("Marker") } else { &m.name };
             ui.painter().text(pos2(r.min.x + 16.0, r.min.y + 12.0), Align2::LEFT_CENTER, name, Tokens::ui(12.0), t.text);
             let mut tc = format_time(m.start, seq.settings.frame_rate, seq.settings.drop_frame, TimeDisplay::Timecode, 48000);
-            if m.duration > filmcraft_time::Tick::ZERO {
+            if m.duration > jilo_time::Tick::ZERO {
                 let d = format_time(m.duration, seq.settings.frame_rate, seq.settings.drop_frame, TimeDisplay::Timecode, 48000);
                 tc = format!("{tc}  ({d})");
             }
-            if m.kind == filmcraft_project::MarkerKind::Chapter {
+            if m.kind == jilo_project::MarkerKind::Chapter {
                 tc = tlf!("{tc}  Chapter", tc);
             }
             ui.painter().text(pos2(r.min.x + 16.0, r.min.y + 27.0), Align2::LEFT_CENTER, tc, Tokens::mono(11.0), t.hot_text);
@@ -133,7 +133,7 @@ pub fn markers(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     }
 }
 
-pub fn info(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn info(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink(8.0)));
     let ui = &mut child;

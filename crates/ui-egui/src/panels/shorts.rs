@@ -11,7 +11,7 @@
 use egui::{RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The looks offered for the shorts' captions (preset ids; none: no captions).
 const LOOKS: [&str; 6] = ["karaoke-yellow", "yellow-pop", "bold-outline", "clean-shadow", "dark-pill", ""];
@@ -47,14 +47,14 @@ impl Default for ShortsUi {
 }
 
 /// Open the dialog (refused, with the reason, when the sequence has no transcript).
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("highlights.find").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("highlights.find").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
     app.ui.shorts.dialog = true;
     Ok(json!({"dialog": "shorts"}))
 }
 
 /// The shorts for highlights found: `found` are `highlights.find` result items.
-pub fn make(app: &mut FilmcraftApp, found: &[Value]) {
+pub fn make(app: &mut JiloApp, found: &[Value]) {
     let markers: Vec<u64> = found.iter().filter_map(|f| f["marker"].as_u64()).collect();
     if markers.is_empty() {
         app.ui.status = tl!("No highlights were found: nothing to cut.").to_string();
@@ -69,7 +69,7 @@ pub fn make(app: &mut FilmcraftApp, found: &[Value]) {
     };
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     // the highlights of our search: the shorts, instead of the results window
     if app.ui.shorts.waiting {
         if app.ui.ai_task_result.as_ref().is_some_and(|(cmd, _)| cmd == "highlights.find")
@@ -127,7 +127,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                 });
                 ui.end_row();
                 ui.label(tl!("Captions"));
-                let presets = filmcraft_engine::caption_presets::builtin();
+                let presets = jilo_engine::caption_presets::builtin();
                 let name = |id: &str| {
                     if id.is_empty() {
                         tl!("No captions").to_string()

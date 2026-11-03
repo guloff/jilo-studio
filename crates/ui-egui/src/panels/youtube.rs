@@ -7,14 +7,14 @@
 use egui::{RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// Languages offered for the texts ("" = the transcript's).
 const LANGUAGES: [(&str, &str); 7] =
     [("", "Same as the transcript"), ("ru", "Russian"), ("tg", "Tajik"), ("en", "English"), ("uz", "Uzbek"), ("fa", "Persian"), ("es", "Spanish")];
 
 /// Open the window: the kept texts, or the form (refused, with the reason, without a sequence).
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     if app.session.active_sequence().is_none() {
         return Err("no sequence is open".into());
     }
@@ -37,7 +37,7 @@ fn load(y: &mut crate::state::YouTubeUi, data: Option<Value>) {
 }
 
 /// The window, and taking over the texts a finished cloud task wrote.
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if app.ui.ai_task_result.as_ref().is_some_and(|(cmd, _)| cmd == "youtube.generate")
         && let Some((_, r)) = app.ui.ai_task_result.take()
     {
@@ -73,7 +73,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
 }
 
 /// Save the edited fields when they differ from the kept texts.
-fn save(app: &mut FilmcraftApp) {
+fn save(app: &mut JiloApp) {
     let y = &app.ui.youtube;
     let Some(d) = &y.data else { return };
     let hashtags = d["hashtags"].as_array().map(|a| a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(" ")).unwrap_or_default();
@@ -87,10 +87,10 @@ fn save(app: &mut FilmcraftApp) {
     }
 }
 
-fn form(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
+fn form(app: &mut JiloApp, ui: &mut egui::Ui) {
     let t = app.tokens;
     let provider = app.session.prefs.ai.text_provider();
-    let chapters = app.session.active_sequence().map_or(0, |q| q.markers.iter().filter(|m| m.kind == filmcraft_project::MarkerKind::Chapter).count());
+    let chapters = app.session.active_sequence().map_or(0, |q| q.markers.iter().filter(|m| m.kind == jilo_project::MarkerKind::Chapter).count());
     ui.spacing_mut().item_spacing.y = 8.0;
     ui.label(RichText::new(tl!("Three title options, a description, chapters, tags and hashtags, written from the transcript.")).color(t.text_dim));
     let y = &mut app.ui.youtube;
@@ -150,7 +150,7 @@ fn form(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
 }
 
 /// A field heading with a Copy button on the right.
-fn heading(app: &mut FilmcraftApp, ui: &mut egui::Ui, label: &str, id: &str, copy: &str) {
+fn heading(app: &mut JiloApp, ui: &mut egui::Ui, label: &str, id: &str, copy: &str) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(label).strong());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -164,7 +164,7 @@ fn heading(app: &mut FilmcraftApp, ui: &mut egui::Ui, label: &str, id: &str, cop
     });
 }
 
-fn texts(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
+fn texts(app: &mut JiloApp, ui: &mut egui::Ui) {
     let t = app.tokens;
     let Some(d) = app.ui.youtube.data.clone() else { return };
     let titles: Vec<String> = d["titles"].as_array().map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();

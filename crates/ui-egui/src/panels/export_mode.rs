@@ -20,16 +20,16 @@
 //! `quickExport.preset.<name>`, `quickExport.go`, `quickExport.close`.
 
 use egui::{Align2, Color32, Rect, Sense, pos2, vec2};
-use filmcraft_engine::export::presets::{DEFAULT_PRESET, preset_key};
-use filmcraft_engine::export::{
+use jilo_engine::export::presets::{DEFAULT_PRESET, preset_key};
+use jilo_engine::export::{
     AudioCodec, BitrateMode, ExportSettings, FieldOrder, Format, GpuRendering, H264Profile, HardwareEncoding, Multiplexer, MxfVideoCodec, Placement, Scaling,
     TextOverlay, builtin_presets, format_bytes,
 };
-use filmcraft_engine::time::{FrameRate, Tick};
+use jilo_engine::time::{FrameRate, Tick};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::frames::{FrameKey, Target};
 use crate::theme::Tokens;
 
@@ -61,7 +61,7 @@ pub struct ExportUi {
 
 impl Default for ExportUi {
     fn default() -> Self {
-        let preset = filmcraft_engine::export::presets::find_builtin(DEFAULT_PRESET).map(|p| p.settings).unwrap_or_default();
+        let preset = jilo_engine::export::presets::find_builtin(DEFAULT_PRESET).map(|p| p.settings).unwrap_or_default();
         ExportUi {
             preset: DEFAULT_PRESET.into(),
             settings: preset,
@@ -100,7 +100,7 @@ impl Reg {
     fn add(&mut self, id: impl Into<String>, r: Rect, label: impl Into<String>) {
         self.0.push((id.into(), r, label.into()));
     }
-    fn flush(self, app: &mut FilmcraftApp) {
+    fn flush(self, app: &mut JiloApp) {
         for (id, r, l) in self.0 {
             app.auto.add(&id, r, &l);
         }
@@ -112,7 +112,7 @@ fn settings_json(s: &ExportSettings) -> Value {
 }
 
 /// Apply a preset by name (from the engine's library).
-pub fn apply_preset(app: &mut FilmcraftApp, name: &str) -> bool {
+pub fn apply_preset(app: &mut JiloApp, name: &str) -> bool {
     match app.session.export_presets.find(name) {
         Some(p) => {
             app.ui.export.settings = p.settings;
@@ -129,13 +129,13 @@ pub fn apply_preset(app: &mut FilmcraftApp, name: &str) -> bool {
 /// Full output path of the current settings.
 pub fn output_path(ex: &ExportUi) -> String {
     let name = if ex.file_name.trim().is_empty() { "Export" } else { ex.file_name.trim() };
-    let dir = filmcraft_engine::export_tools::expand_home(ex.location.trim());
+    let dir = jilo_engine::export_tools::expand_home(ex.location.trim());
     let file = format!("{name}.{}", ex.settings.extension());
     if dir.is_empty() { file } else { std::path::Path::new(&dir).join(file).to_string_lossy().to_string() }
 }
 
 /// Engine params for the current settings (`file.exportMedia` / `export.queue.add`).
-pub fn export_params(app: &FilmcraftApp) -> Value {
+pub fn export_params(app: &JiloApp) -> Value {
     let ex = &app.ui.export;
     let mut p = json!({"path": output_path(ex), "settings": settings_json(&ex.settings), "range": ex.range});
     if ex.range == "custom" {
@@ -145,18 +145,18 @@ pub fn export_params(app: &FilmcraftApp) -> Value {
     p
 }
 
-fn sync_sequence(app: &mut FilmcraftApp) {
+fn sync_sequence(app: &mut JiloApp) {
     let Some(seq) = app.session.state.active_sequence else { return };
     if app.ui.export.for_sequence != Some(seq.0) || app.ui.export.file_name.is_empty() {
         app.ui.export.file_name = app.session.project.item(seq).map(|i| i.name.clone()).unwrap_or_else(|| "Sequence".into());
         app.ui.export.for_sequence = Some(seq.0);
     }
     if app.ui.export.location.is_empty() {
-        app.ui.export.location = filmcraft_engine::export_tools::default_export_dir(&app.session).to_string_lossy().to_string();
+        app.ui.export.location = jilo_engine::export_tools::default_export_dir(&app.session).to_string_lossy().to_string();
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let left = Rect::from_min_size(rect.min, vec2(300.0, rect.height()));
     let right = Rect::from_min_max(pos2(rect.max.x - (rect.width() * 0.4).clamp(360.0, 640.0), rect.min.y), rect.max);
@@ -191,7 +191,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 // left: destinations + queue
 // ---------------------------------------------------------------------------------------------
 
-fn queue_column(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+fn queue_column(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let mut reg = Reg::default();
     let p = ui.painter();
@@ -312,7 +312,7 @@ fn combo(ui: &mut egui::Ui, reg: &mut Reg, id: &str, selected: &str, options: &[
     let r = egui::ComboBox::from_id_salt(id).selected_text(crate::i18n::t(selected)).width(width).show_ui(ui, |ui| {
         for (i, (label, enabled)) in options.iter().enumerate() {
             let resp = ui.add_enabled(*enabled, egui::Button::selectable(label == selected, crate::i18n::t(label)));
-            let resp = if *enabled { resp } else { resp.on_disabled_hover_text(tl!("Not supported by FilmCraft's encoders yet")) };
+            let resp = if *enabled { resp } else { resp.on_disabled_hover_text(tl!("Not supported by Jilo Studio's encoders yet")) };
             reg.add(format!("{id}.option.{i}"), resp.rect, label.clone());
             if resp.clicked() {
                 chosen = Some(i);
@@ -394,7 +394,7 @@ pub(crate) const PARS: [(&str, Option<(u32, u32)>); 6] = [
     ("Anamorphic 2:1 (2.0)", Some((2, 1))),
 ];
 
-fn settings_column(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+fn settings_column(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let mut reg = Reg::default();
     let mut open_manager = false;
@@ -462,7 +462,7 @@ fn settings_column(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             }
         });
         row(ui, &t, tl!("Format"), |ui| {
-            let labels: Vec<(String, bool)> = Format::ALL.iter().map(|f| (f.label().to_string(), filmcraft_engine::export::available(*f))).collect();
+            let labels: Vec<(String, bool)> = Format::ALL.iter().map(|f| (f.label().to_string(), jilo_engine::export::available(*f))).collect();
             if let Some(i) = combo(ui, &mut reg, "export.format", ex.settings.format.label(), &labels, ui.available_width() - 4.0) {
                 let f = Format::ALL[i];
                 if f != ex.settings.format {
@@ -619,7 +619,7 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
             }
         });
     }
-    if matches!(s.format, Format::PngSequence | Format::TiffSequence) || filmcraft_export::prores_4444(s) && !s.format.is_mxf() {
+    if matches!(s.format, Format::PngSequence | Format::TiffSequence) || jilo_export::prores_4444(s) && !s.format.is_mxf() {
         row(ui, t, tl!("Alpha"), |ui| {
             check(ui, reg, "export.video.alpha", &mut s.alpha, tl!("Include Alpha Channel"));
         });
@@ -629,7 +629,7 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
             let hevc = f == Format::Hevc;
             if hevc {
                 // the hardware encoder writes Main (8-bit 4:2:0), or Main 10 for HDR sequences where it can; level chosen by the encoder
-                let label = match (filmcraft_engine::export::hdr_available(Format::Hevc), seq_hdr && !s.sdr) {
+                let label = match (jilo_engine::export::hdr_available(Format::Hevc), seq_hdr && !s.sdr) {
                     (true, true) => tl!("Main 10 (10-bit, HDR)"),
                     (true, false) => tl!("Main (8-bit; Main 10 for HDR sequences)"),
                     (false, _) => tl!("Main (8-bit)"),
@@ -665,7 +665,7 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
             });
             if s.bitrate_mode == BitrateMode::Crf {
                 row(ui, t, tl!("Quality (CRF)"), |ui| {
-                    let mut crf = if s.crf.is_finite() { f64::from(s.crf) } else { f64::from(filmcraft_engine::export::DEFAULT_CRF) };
+                    let mut crf = if s.crf.is_finite() { f64::from(s.crf) } else { f64::from(jilo_engine::export::DEFAULT_CRF) };
                     if drag(ui, reg, "export.video.crf", &mut crf, 0.0..=51.0, 0.1, "", 0) {
                         s.crf = crf.round() as f32;
                     }
@@ -772,7 +772,7 @@ fn video_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: &T
         }
         _ => {}
     }
-    // Composite the picture on the GPU (filmcraft-gpu) instead of the CPU reference renderer;
+    // Composite the picture on the GPU (jilo-gpu) instead of the CPU reference renderer;
     // Auto falls back to the CPU wherever the GPU cannot render the frame.
     row(ui, t, tl!("GPU Rendering"), |ui| {
         let mut on = s.gpu_rendering == GpuRendering::Auto;
@@ -939,7 +939,7 @@ fn effects_section(ui: &mut egui::Ui, reg: &mut Reg, s: &mut ExportSettings, t: 
 
 pub(crate) const RANGES: [(&str, &str); 4] = [("entire", "Entire Source"), ("inOut", "Source In/Out"), ("workArea", "Work Area"), ("custom", "Custom")];
 
-fn preview_column(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, seq_id: filmcraft_engine::project::ItemId) {
+fn preview_column(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, seq_id: jilo_engine::project::ItemId) {
     let t = app.tokens;
     let mut reg = Reg::default();
     let Some(q) = app.session.active_sequence().cloned() else { return };
@@ -1084,7 +1084,7 @@ fn preview_column(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, seq_id:
 }
 
 /// The export range in sequence ticks (for the summary).
-fn range_ticks(ex: &ExportUi, q: &filmcraft_engine::project::Sequence) -> (Tick, Tick) {
+fn range_ticks(ex: &ExportUi, q: &jilo_engine::project::Sequence) -> (Tick, Tick) {
     let fd = q.settings.frame_rate.frame_duration();
     let end = q.duration().max(fd);
     match ex.range.as_str() {
@@ -1102,7 +1102,7 @@ fn range_ticks(ex: &ExportUi, q: &filmcraft_engine::project::Sequence) -> (Tick,
 // Preset Manager
 // ---------------------------------------------------------------------------------------------
 
-fn preset_manager(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn preset_manager(app: &mut JiloApp, ctx: &egui::Context) {
     let Some(mut m) = app.ui.export.manager.clone() else { return };
     let t = app.tokens;
     let mut reg = Reg::default();
@@ -1269,7 +1269,7 @@ fn paint_star(p: &egui::Painter, r: Rect, filled: bool, color: Color32) {
 // ---------------------------------------------------------------------------------------------
 
 /// Presets offered by Quick Export: favourites first, then the common delivery presets.
-fn quick_presets(app: &FilmcraftApp) -> Vec<String> {
+fn quick_presets(app: &JiloApp) -> Vec<String> {
     let mut v: Vec<String> =
         app.session.export_presets.all().iter().filter(|p| app.session.export_presets.is_favorite(&p.name)).map(|p| p.name.clone()).collect();
     for p in builtin_presets().into_iter().filter(|p| p.category == "Match Source" || p.category == "Web & Social").map(|p| p.name) {
@@ -1281,7 +1281,7 @@ fn quick_presets(app: &FilmcraftApp) -> Vec<String> {
 }
 
 /// The Quick Export popup under the header button at `anchor`.
-pub fn quick_export(app: &mut FilmcraftApp, ctx: &egui::Context, anchor: egui::Pos2) {
+pub fn quick_export(app: &mut JiloApp, ctx: &egui::Context, anchor: egui::Pos2) {
     if !app.ui.export.quick_open {
         return;
     }
@@ -1300,7 +1300,7 @@ pub fn quick_export(app: &mut FilmcraftApp, ctx: &egui::Context, anchor: egui::P
         let name = app.session.project.item(seq).map(|i| i.name.clone()).unwrap_or_else(|| "Sequence".into());
         let dir = match app.ui.export.quick_path.rsplit_once(['/', '\\']) {
             Some((d, _)) if !d.is_empty() => d.to_string(),
-            _ => filmcraft_engine::export_tools::default_export_dir(&app.session).to_string_lossy().to_string(),
+            _ => jilo_engine::export_tools::default_export_dir(&app.session).to_string_lossy().to_string(),
         };
         app.ui.export.quick_path = std::path::Path::new(&dir).join(format!("{name}.{ext}")).to_string_lossy().to_string();
     }

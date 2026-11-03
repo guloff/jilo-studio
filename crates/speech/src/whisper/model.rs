@@ -253,10 +253,10 @@ impl Decoder {
 }
 
 /// Where Whisper runs: Apple's GPU (Metal) in builds with the `metal` feature, unless
-/// `FILMCRAFT_SPEECH_DEVICE=cpu`; the CPU otherwise, and whenever no Metal device can be opened.
+/// `JILO_SPEECH_DEVICE=cpu`; the CPU otherwise, and whenever no Metal device can be opened.
 fn device() -> Device {
     #[cfg(feature = "metal")]
-    if std::env::var("FILMCRAFT_SPEECH_DEVICE").map_or(true, |v| v != "cpu")
+    if std::env::var("JILO_SPEECH_DEVICE").map_or(true, |v| v != "cpu")
         && let Ok(d) = Device::new_metal(0)
     {
         return d;

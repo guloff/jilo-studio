@@ -1,8 +1,8 @@
 //! A gap between clips selected in the Timeline (Premiere): Delete / Ripple Delete close it, the
 //! later clips on every sync-locked track move up by its length, and one undo puts them back.
 
-use filmcraft_project::ClipId;
-use filmcraft_time::Tick;
+use jilo_project::ClipId;
+use jilo_time::Tick;
 use serde_json::json;
 
 use crate::Session;

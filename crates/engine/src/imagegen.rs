@@ -1,5 +1,5 @@
 //! Generated images (`ai.generateImage`): a picture drawn from a description by the image engine of
-//! Settings ▸ AI (OpenAI GPT Image or Google Gemini), saved where FilmCraft writes the media it
+//! Settings ▸ AI (OpenAI GPT Image or Google Gemini), saved where Jilo Studio writes the media it
 //! makes (Scratch Disks ▸ Captured, else next to the project), imported as a still and, with
 //! `place`, put on the timeline at the playhead on the first video track free there.
 //!
@@ -10,9 +10,9 @@
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
 
-use filmcraft_ai::images::{self, Shape};
-use filmcraft_ai::{AiError, Ctx, Provider};
-use filmcraft_time::Tick;
+use jilo_ai::images::{self, Shape};
+use jilo_ai::{AiError, Ctx, Provider};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, bool_p, str_p};
@@ -30,7 +30,7 @@ fn shape_for(s: &Session, p: &Value) -> Result<Shape> {
 }
 
 /// The first video track of the active sequence with nothing at `[at, at + dur)` and not locked.
-fn free_video_track(s: &Session, at: Tick, dur: Tick) -> Option<filmcraft_project::TrackId> {
+fn free_video_track(s: &Session, at: Tick, dur: Tick) -> Option<jilo_project::TrackId> {
     let q = s.active_sequence()?;
     q.video_tracks.iter().find(|t| !t.locked && !t.items.iter().any(|it| it.start < at + dur && at < it.end())).map(|t| t.id)
 }
@@ -52,8 +52,7 @@ fn apply(s: &mut Session, p: &Value, path: &str, provider: Provider, model: &str
         };
         let r = s.execute("timeline.place", json!({"item": item.0, "track": track.0, "time": at.0, "audio": false}))?;
         // the picture fills the frame whatever size the engine drew it
-        let clips: Vec<filmcraft_project::ClipId> =
-            r["clips"].as_array().into_iter().flatten().filter_map(Value::as_u64).map(filmcraft_project::ClipId).collect();
+        let clips: Vec<jilo_project::ClipId> = r["clips"].as_array().into_iter().flatten().filter_map(Value::as_u64).map(jilo_project::ClipId).collect();
         let fitted = s.active_sequence().is_some_and(|q| clips.iter().all(|c| q.find_item(*c).is_some_and(|(_, it)| it.scale_to_frame)));
         if !clips.is_empty() && !fitted {
             s.state.selection = clips.clone();
@@ -102,7 +101,7 @@ fn generate(s: &mut Session, p: &Value) -> Result<Value> {
     let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.ai_task_cache.clone());
     let sleep = s.ai_sleep.clone();
     let (prompt, model_c, key_c) = (prompt.to_string(), model.clone(), key.clone());
-    let id = crate::narration::spawn(s, job, !background, "filmcraft-image", move || {
+    let id = crate::narration::spawn(s, job, !background, "jilo-image", move || {
         let t0 = web_time::Instant::now();
         let stop = prog.clone();
         let mut ctx = Ctx::new(transport).with_cancel(move || stop.cancel.load(Ordering::Relaxed));

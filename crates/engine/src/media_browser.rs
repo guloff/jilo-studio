@@ -21,8 +21,8 @@
 
 use std::collections::BTreeMap;
 
-use filmcraft_media::MediaInfo;
-use filmcraft_project::ItemId;
+use jilo_media::MediaInfo;
+use jilo_project::ItemId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -73,7 +73,7 @@ pub const ALL_COLUMNS: [&str; 10] =
     ["Name", "Media Type", "Size", "Date Modified", "Frame Rate", "Media Duration", "Video Info", "Audio Info", "Video Codec", "Audio Codec"];
 pub const DEFAULT_COLUMNS: [&str; 5] = ["Name", "Frame Rate", "Media Duration", "Video Info", "Size"];
 
-const PROJECT_EXTENSIONS: [&str; 7] = ["fcproj", "edl", "xml", "fcpxml", "otio", "ale", "prproj"];
+const PROJECT_EXTENSIONS: [&str; 8] = ["jsproj", "fcproj", "edl", "xml", "fcpxml", "otio", "ale", "prproj"];
 const CAPTION_EXTENSIONS: [&str; 3] = ["srt", "vtt", "scc"];
 const RECENT_MAX: usize = 10;
 
@@ -148,11 +148,11 @@ fn ext_of(name: &str) -> String {
 /// The kind of file a name is, or None when the browser doesn't show it.
 pub fn kind_of(name: &str) -> Option<&'static str> {
     let e = ext_of(name);
-    if filmcraft_media::VIDEO_EXTENSIONS.contains(&e.as_str()) {
+    if jilo_media::VIDEO_EXTENSIONS.contains(&e.as_str()) {
         Some("video")
-    } else if filmcraft_media::AUDIO_EXTENSIONS.contains(&e.as_str()) {
+    } else if jilo_media::AUDIO_EXTENSIONS.contains(&e.as_str()) {
         Some("audio")
-    } else if filmcraft_media::STILL_EXTENSIONS.contains(&e.as_str()) {
+    } else if jilo_media::STILL_EXTENSIONS.contains(&e.as_str()) {
         Some("image")
     } else if PROJECT_EXTENSIONS.contains(&e.as_str()) {
         Some("project")
@@ -174,10 +174,10 @@ pub fn passes(filter: &str, kind: &str, name: &str) -> bool {
 
 /// Every extension the browser lists (for the file-type menu).
 pub fn extensions() -> Vec<&'static str> {
-    filmcraft_media::VIDEO_EXTENSIONS
+    jilo_media::VIDEO_EXTENSIONS
         .iter()
-        .chain(filmcraft_media::AUDIO_EXTENSIONS)
-        .chain(filmcraft_media::STILL_EXTENSIONS)
+        .chain(jilo_media::AUDIO_EXTENSIONS)
+        .chain(jilo_media::STILL_EXTENSIONS)
         .chain(&PROJECT_EXTENSIONS)
         .chain(&CAPTION_EXTENSIONS)
         .copied()
@@ -241,7 +241,7 @@ pub fn list(services: &dyn Services, dir: &str, filter: &str) -> std::io::Result
             if !passes(filter, kind, &e.name) {
                 return None;
             }
-            let numbered = kind == "image" && filmcraft_media::sequence::Numbered::parse(&path).is_some();
+            let numbered = kind == "image" && jilo_media::sequence::Numbered::parse(&path).is_some();
             Some(Entry { numbered, name: e.name, path, is_dir: false, kind, size: e.size, modified: e.modified })
         })
         .collect();
@@ -451,11 +451,7 @@ fn import(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// The project item that already references a file.
 pub fn item_for_path(s: &Session, path: &str) -> Option<ItemId> {
-    s.project
-        .items
-        .values()
-        .find(|i| i.as_media().is_some_and(|m| matches!(&m.media, filmcraft_project::MediaRef::File { path: p } if p == path)))
-        .map(|i| i.id)
+    s.project.items.values().find(|i| i.as_media().is_some_and(|m| matches!(&m.media, jilo_project::MediaRef::File { path: p } if p == path))).map(|i| i.id)
 }
 
 fn open_in_source(s: &mut Session, p: &Value) -> Result<Value> {
@@ -508,7 +504,7 @@ pub fn column_text(e: &Entry, column: &str, probe: Option<&MediaInfo>) -> String
             .filter(|_| e.kind != "image")
             .map(|i| {
                 let rate = i.video.as_ref().map(|v| v.frame_rate).unwrap_or_default();
-                filmcraft_time::format_time(i.duration, rate, false, filmcraft_time::TimeDisplay::Timecode, 48000)
+                jilo_time::format_time(i.duration, rate, false, jilo_time::TimeDisplay::Timecode, 48000)
             })
             .unwrap_or_default(),
         "Video Info" => probe.and_then(|i| i.video.as_ref()).map(|v| format!("{} x {}", v.width, v.height)).unwrap_or_default(),

@@ -2,11 +2,11 @@
 //!
 //! Golden fingerprints (`goldens.txt`): a 4×4 grid of mean 8-bit RGB values at p = 0.25 / 0.5 /
 //! 0.75 on two procedural test frames. Re-bless after an intended change with
-//! `FILMCRAFT_BLESS=1 cargo test -p filmcraft-render transitions::tests::golden_fingerprints`
+//! `JILO_BLESS=1 cargo test -p jilo-render transitions::tests::golden_fingerprints`
 //! and review the diff.
 
-use filmcraft_geom::Vec2;
-use filmcraft_project::{EffectDef, EffectKind, ParamKind, ParamValue, effect_defs};
+use jilo_geom::Vec2;
+use jilo_project::{EffectDef, EffectKind, ParamKind, ParamValue, effect_defs};
 
 use super::*;
 
@@ -111,7 +111,7 @@ fn no_nan_on_degenerate_inputs() {
 }
 
 /// A non-default value for a parameter (to check every parameter is wired).
-fn changed(def: &filmcraft_project::ParamDef) -> Option<ParamValue> {
+fn changed(def: &jilo_project::ParamDef) -> Option<ParamValue> {
     Some(match (&def.kind, &def.default) {
         (ParamKind::Float { min, max, .. }, ParamValue::Float(v)) => {
             let hi = if *max > 1e5 { v * 2.0 + 10.0 } else { *max };
@@ -193,7 +193,7 @@ fn directions_differ() {
 #[test]
 fn wipe_border_and_centre() {
     let (a, b) = (frame_a(), frame_b());
-    let def = filmcraft_project::find_effect("iris_round").unwrap();
+    let def = jilo_project::find_effect("iris_round").unwrap();
     let mut e = def.instance();
     e.params.get_mut("border_width").unwrap().value = ParamValue::Float(3.0);
     e.params.get_mut("border_color").unwrap().value = ParamValue::Color([0.0, 1.0, 0.0, 1.0]);
@@ -214,7 +214,7 @@ fn wipe_border_and_centre() {
 #[test]
 fn linear_wipe_reveals_from_the_trailing_side() {
     let (a, b) = (frame_a(), frame_b());
-    let e = filmcraft_project::find_effect("linear_wipe").unwrap().instance(); // 90° = left → right
+    let e = jilo_project::find_effect("linear_wipe").unwrap().instance(); // 90° = left → right
     let m = apply(&e, &a, &b, 0.5);
     assert_eq!(m.get(2, 10), b.get(2, 10));
     assert_eq!(m.get(W - 3, 10), a.get(W - 3, 10));
@@ -223,7 +223,7 @@ fn linear_wipe_reveals_from_the_trailing_side() {
 #[test]
 fn push_moves_frames_by_the_eased_distance() {
     let (a, b) = (frame_a(), frame_b());
-    let mut e = filmcraft_project::find_effect("push").unwrap().instance();
+    let mut e = jilo_project::find_effect("push").unwrap().instance();
     e.params.get_mut("motion_blur").unwrap().value = ParamValue::Float(0.0);
     let m = apply(&e, &a, &b, 0.5); // eased 0.5 → half a frame, from the west
     for x in [4usize, 20, 28] {
@@ -237,12 +237,12 @@ fn push_moves_frames_by_the_eased_distance() {
 fn modern_and_legacy_ids_are_distinct_renders() {
     let (a, b) = (frame_a(), frame_b());
     for (modern, legacy) in [("push", "push_legacy"), ("clock_wipe", "clock_wipe_legacy"), ("cross_zoom", "cross_zoom_legacy"), ("whip", "whip_legacy")] {
-        let m = apply(&filmcraft_project::find_effect(modern).unwrap().instance(), &a, &b, 0.4);
-        let l = apply(&filmcraft_project::find_effect(legacy).unwrap().instance(), &a, &b, 0.4);
+        let m = apply(&jilo_project::find_effect(modern).unwrap().instance(), &a, &b, 0.4);
+        let l = apply(&jilo_project::find_effect(legacy).unwrap().instance(), &a, &b, 0.4);
         assert!(mean_abs(&m, &l) > 1e-4, "{modern} vs {legacy}");
     }
     // the legacy dissolves keep their exact maths
-    let e = filmcraft_project::find_effect("cross_dissolve_legacy").unwrap().instance();
+    let e = jilo_project::find_effect("cross_dissolve_legacy").unwrap().instance();
     let m = apply(&e, &a, &b, 0.25);
     let want = a.clone().lerp(&b, 0.25);
     assert!(mean_abs(&m, &want) < 1e-6);
@@ -289,11 +289,11 @@ fn golden_fingerprints() {
         }
     }
     let path = golden_path();
-    if std::env::var_os("FILMCRAFT_BLESS").is_some() {
+    if std::env::var_os("JILO_BLESS").is_some() {
         std::fs::write(&path, lines.join("\n") + "\n").unwrap();
         return;
     }
-    let want = std::fs::read_to_string(&path).expect("goldens.txt (bless with FILMCRAFT_BLESS=1)");
+    let want = std::fs::read_to_string(&path).expect("goldens.txt (bless with JILO_BLESS=1)");
     let want: std::collections::HashMap<(String, String), String> = want
         .lines()
         .filter_map(|l| {
@@ -319,12 +319,12 @@ fn golden_fingerprints() {
     assert!(bad.is_empty(), "transition goldens differ: {bad:?}");
 }
 
-/// Contact sheets for eyeballing: `FILMCRAFT_TRANSITION_SHEETS=<dir> cargo test -p filmcraft-render
+/// Contact sheets for eyeballing: `JILO_TRANSITION_SHEETS=<dir> cargo test -p jilo-render
 /// contact_sheets -- --ignored` writes one PNG per folder (rows = transitions, columns = p).
 #[test]
 #[ignore]
 fn contact_sheets() {
-    let Some(dir) = std::env::var_os("FILMCRAFT_TRANSITION_SHEETS") else { return };
+    let Some(dir) = std::env::var_os("JILO_TRANSITION_SHEETS") else { return };
     let (cw, chh) = (192usize, 108usize);
     let a = paint(cw, chh, |x, y| {
         let u = x / cw as f32;

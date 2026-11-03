@@ -6,10 +6,10 @@
 //! (`highlights.assemble`).
 
 use egui::{RichText, vec2};
-use filmcraft_time::{Tick, TimeDisplay, format_time};
+use jilo_time::{Tick, TimeDisplay, format_time};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The search modes: id, name, what it finds.
 const MODES: [(&str, &str, &str); 3] = [
@@ -19,14 +19,14 @@ const MODES: [(&str, &str, &str); 3] = [
 ];
 
 /// Open the search dialog (refused, with the reason, when the sequence has no transcript).
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("highlights.find").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("highlights.find").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
     app.ui.highlights.dialog = true;
     Ok(json!({"dialog": "highlights"}))
 }
 
 /// The search dialog, the results window, and taking over a finished search's result.
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if app.ui.ai_task_result.as_ref().is_some_and(|(cmd, _)| cmd == "highlights.find")
         && let Some((_, r)) = app.ui.ai_task_result.take()
     {
@@ -42,11 +42,11 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     }
 }
 
-fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn dialog(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let (mut go, mut cancel) = (false, false);
     let w = 440.0;
-    let words = filmcraft_engine::transcript::sequence_words(&app.session).len();
+    let words = jilo_engine::transcript::sequence_words(&app.session).len();
     let seq_name = app.session.state.active_sequence.and_then(|id| app.session.project.item(id)).map(|i| i.name.clone()).unwrap_or_default();
     let provider = app.session.prefs.ai.text_provider();
     egui::Modal::new(egui::Id::new("highlights-dialog")).frame(crate::dialog_style::frame(&t)).show(ctx, |ui| {
@@ -120,7 +120,7 @@ enum Act {
     Close,
 }
 
-fn results(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn results(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let rate = app.session.sequence_rate();
     let df = app.session.active_sequence().is_some_and(|q| q.settings.drop_frame);

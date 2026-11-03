@@ -6,18 +6,18 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 fn snapshot(d: &mut Driver, name: &str) {
-    let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
+    let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
     d.frames(2);
     match d.harness.render() {
         Ok(img) => {
@@ -31,7 +31,7 @@ fn snapshot(d: &mut Driver, name: &str) {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -73,7 +73,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -87,7 +87,7 @@ fn a_batch_exports_each_sequence_with_its_vertical_copy() {
     let main = s.state.active_sequence.unwrap();
     s.execute("project.select", json!({"items": [main.0]})).unwrap();
     // exports go next to the project: the scratch folder, not the user's Movies
-    s.path = Some(dir.join("batch.fcproj").to_string_lossy().to_string());
+    s.path = Some(dir.join("batch.jsproj").to_string_lossy().to_string());
     let mut d = Driver::new(s);
     d.ok("ui.menu.invoke", json!({"id": "batch.start"}));
     d.frames(3);
@@ -109,7 +109,7 @@ fn a_batch_exports_each_sequence_with_its_vertical_copy() {
     let st = app.session.batch.as_ref().unwrap().to_json();
     assert_eq!(st["items"][0]["done"], json!(["formats", "export"]), "{st}");
     let copy = st["items"][0]["formats"][0].as_u64().expect("a copy");
-    let q = app.session.project.sequence(filmcraft_project::ItemId(copy)).unwrap();
+    let q = app.session.project.sequence(jilo_project::ItemId(copy)).unwrap();
     assert_eq!((q.settings.width, q.settings.height), (1080, 1920));
     let queued: Vec<u64> = app.session.export_queue.items.iter().map(|i| i.sequence.0).collect();
     assert_eq!(queued, [main.0, copy]);

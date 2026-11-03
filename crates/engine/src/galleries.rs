@@ -6,7 +6,7 @@
 //! | `sequence.transitionAllCuts` | `{effect?, frames?, track?: id\|"V1"\|"all"}`: centred on each cut between two clips that has none (default: the default video transition, the lowest video track with clips) |
 //! | `effects.applyToAll` | `{effect}` or `{preset}` (a Lumetri look): every picture clip on unlocked video tracks (not graphics) |
 
-use filmcraft_project::{ClipId, ItemKind, Transition, TransitionId};
+use jilo_project::{ClipId, ItemKind, Transition, TransitionId};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, has_seq, str_p};
@@ -16,7 +16,7 @@ fn all_cuts(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "sequence.transitionAllCuts";
     let q = s.active_sequence().ok_or(EngineError::NoSequence)?.clone();
     let eff = str_p(p, "effect").map(str::to_string).unwrap_or_else(|| s.state.default_video_transition.clone());
-    let def = filmcraft_project::vtransition::find_transition(&eff, filmcraft_project::EffectKind::VideoTransition)
+    let def = jilo_project::vtransition::find_transition(&eff, jilo_project::EffectKind::VideoTransition)
         .ok_or_else(|| bad(cmd, format!("unknown transition `{eff}`")))?;
     let rate = q.settings.frame_rate;
     let dur = p.get("frames").and_then(Value::as_i64).map_or_else(|| s.prefs.timeline.video_transition_duration(rate), |f| rate.tick_of(f.max(2)));
@@ -32,7 +32,7 @@ fn all_cuts(s: &mut Session, p: &Value) -> Result<Value> {
         }
         None => q.video_tracks.iter().position(|t| !t.items.is_empty()).into_iter().collect(),
     };
-    let mut plan: Vec<(filmcraft_project::TrackId, Transition)> = Vec::new();
+    let mut plan: Vec<(jilo_project::TrackId, Transition)> = Vec::new();
     for ti in tracks {
         let tr = &q.video_tracks[ti];
         if tr.locked {
@@ -70,7 +70,7 @@ fn all_cuts(s: &mut Session, p: &Value) -> Result<Value> {
     let n = plan.len();
     s.edit_sequence(&format!("Apply {} to All Cuts", def.name), |q, ctx, _| {
         for (track, t) in plan {
-            filmcraft_edit::add_transition(q, track, t, ctx)?;
+            jilo_edit::add_transition(q, track, t, ctx)?;
         }
         Ok(())
     })?;
@@ -159,7 +159,7 @@ mod tests {
         let q = s.active_sequence().unwrap();
         let blurred = q.video_tracks.iter().flat_map(|t| t.items.iter()).filter(|i| i.effects.iter().any(|e| e.effect == "gaussian_blur")).count();
         assert_eq!(blurred, n);
-        let look = filmcraft_render::lumetri_presets::presets()[0].name;
+        let look = jilo_render::lumetri_presets::presets()[0].name;
         s.execute("effects.applyToAll", json!({"preset": look})).unwrap();
         assert!(s.execute("effects.applyToAll", json!({})).is_err());
     }

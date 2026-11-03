@@ -1,24 +1,24 @@
 //! Headless UI test of the Library panel: its tabs list the project's media, text templates,
-//! effects and caption styles, and a double-click puts one in. `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>`
-//! writes `library-media.png` and `library-text.png` (`FILMCRAFT_UI_LANG=ru`: Russian).
+//! effects and caption styles, and a double-click puts one in. `JILO_UI_SNAPSHOT_DIR=<dir>`
+//! writes `library-media.png` and `library-text.png` (`JILO_UI_LANG=ru`: Russian).
 
 #![allow(dead_code)]
 
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 fn snapshot(d: &mut Driver, name: &str) {
-    let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
+    let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
     d.frames(2);
     match d.harness.render() {
         Ok(img) => {
@@ -32,7 +32,7 @@ fn snapshot(d: &mut Driver, name: &str) {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -74,7 +74,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -95,7 +95,7 @@ fn the_library_puts_media_text_effects_and_styles_in() {
     let aurora = s.project.items.iter().find(|(_, i)| i.name.starts_with("Aurora")).map(|(id, _)| id.0).unwrap();
     s.execute("captions.add", json!({"seconds": 1.0, "durationSeconds": 2.0, "text": "Hi"})).unwrap();
     let mut d = Driver::new(s);
-    if std::env::var("FILMCRAFT_UI_LANG").as_deref() == Ok("ru") {
+    if std::env::var("JILO_UI_LANG").as_deref() == Ok("ru") {
         d.ok("ui.menu.invoke", json!({"id": "app.language.russian"}));
     }
     d.ok("ui.menu.invoke", json!({"id": "window.panel.Libraries"}));
@@ -119,7 +119,7 @@ fn the_library_puts_media_text_effects_and_styles_in() {
     assert!(sel.iter().any(|c| q.find_item(*c).is_some_and(|(_, it)| it.effect("gaussian_blur").is_some())), "{}", app.ui.status);
     // a caption style on every caption (one at the top of the list)
     d.click("library.tab.captions");
-    let preset = &filmcraft_engine::caption_presets::builtin()[2];
+    let preset = &jilo_engine::caption_presets::builtin()[2];
     double(&mut d, &format!("library.item.captions.{}", preset.id));
     let style = d.app().session.active_sequence().unwrap().caption_tracks[0].style.clone();
     assert_eq!(

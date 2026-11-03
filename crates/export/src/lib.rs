@@ -34,10 +34,10 @@ pub use settings::*;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
-use filmcraft_isobmff::SampleEntry;
-use filmcraft_project::{ItemId, Project};
-use filmcraft_render::SourceProvider;
-use filmcraft_time::{FrameRate, Tick, TimeRange};
+use jilo_isobmff::SampleEntry;
+use jilo_project::{ItemId, Project};
+use jilo_render::SourceProvider;
+use jilo_time::{FrameRate, Tick, TimeRange};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -226,7 +226,7 @@ pub enum H264Pass {
     #[default]
     Single,
     First,
-    Second(filmcraft_h264enc::PassStats),
+    Second(jilo_h264enc::PassStats),
 }
 
 /// Every Export-mode setting. Serialized in camelCase; every field is optional on input.
@@ -306,7 +306,7 @@ pub struct ExportSettings {
     pub adaptive_bitrate: Option<f32>,
     /// Frames between keyframes (None = 2 seconds).
     pub keyframe_distance: Option<u32>,
-    /// Render at Maximum Depth. FilmCraft always composites in 32-bit float, so this changes
+    /// Render at Maximum Depth. Jilo Studio always composites in 32-bit float, so this changes
     /// nothing; it is kept so presets round-trip.
     pub render_at_max_depth: bool,
     /// Use Maximum Render Quality: render at full size and scale with an area filter.
@@ -342,7 +342,7 @@ impl std::fmt::Debug for OutputSink {
 /// How an audio-only export codes its samples.
 enum AudioWriter {
     Pcm(pcm::PcmContainer),
-    Flac(Box<filmcraft_flac::Encoder>),
+    Flac(Box<jilo_flac::Encoder>),
 }
 
 /// An export's output file: on disk, or in memory for an [`OutputSink`].
@@ -465,9 +465,9 @@ impl ColorSignal {
         if let Some(v) = e.video.as_mut() {
             let (p, t, m) = (self.primaries as u16, self.transfer as u16, self.matrix as u16);
             v.color = Some(if mov {
-                filmcraft_isobmff::ColorInfo::Nclc { primaries: p, transfer: t, matrix: m }
+                jilo_isobmff::ColorInfo::Nclc { primaries: p, transfer: t, matrix: m }
             } else {
-                filmcraft_isobmff::ColorInfo::Nclx { primaries: p, transfer: t, matrix: m, full_range: false }
+                jilo_isobmff::ColorInfo::Nclx { primaries: p, transfer: t, matrix: m, full_range: false }
             });
             if let Some((md, cll)) = self.static_metadata() {
                 v.mastering_display = Some(md);
@@ -478,8 +478,8 @@ impl ColorSignal {
     /// HDR10 static metadata of a PQ signal: the mastering display (BT.2020/D65, 1000 / 0.0001 cd/m²)
     /// and (MaxCLL, MaxFALL) = (0, 0), unknown. `None` for HLG and SDR. The one definition of these
     /// values: the `mdcv` / `clli` boxes and the SEI messages of every encoder come from here.
-    pub fn static_metadata(&self) -> Option<(filmcraft_isobmff::MasteringDisplay, (u16, u16))> {
-        (self.transfer == 16).then(|| (filmcraft_isobmff::MasteringDisplay::bt2020(1000.0, 0.0001), (0, 0)))
+    pub fn static_metadata(&self) -> Option<(jilo_isobmff::MasteringDisplay, (u16, u16))> {
+        (self.transfer == 16).then(|| (jilo_isobmff::MasteringDisplay::bt2020(1000.0, 0.0001), (0, 0)))
     }
 }
 
@@ -546,7 +546,7 @@ impl ExportSettings {
             return Err(ExportError::Unsupported("output scale must be finite and positive".into()));
         }
         if let Some((width, height)) = self.frame_size {
-            filmcraft_project::validate_frame_size(width, height).map_err(ExportError::Unsupported)?;
+            jilo_project::validate_frame_size(width, height).map_err(ExportError::Unsupported)?;
         }
         if let Some(rate) = self.frame_rate
             && (rate.num <= 0
@@ -554,7 +554,7 @@ impl ExportSettings {
                 || rate.as_f64() > 1000.0
                 || rate.num > i64::from(u32::MAX)
                 || rate.den > i64::from(u32::MAX)
-                || (i128::from(filmcraft_time::TICKS_PER_SECOND) * i128::from(rate.den) / i128::from(rate.num.max(1))) > i128::from(Tick::MAX.0))
+                || (i128::from(jilo_time::TICKS_PER_SECOND) * i128::from(rate.den) / i128::from(rate.num.max(1))) > i128::from(Tick::MAX.0))
         {
             return Err(ExportError::Unsupported("output frame rate must be positive and at most 1000 fps".into()));
         }
@@ -565,7 +565,7 @@ impl ExportSettings {
             return Err(ExportError::Unsupported("ProRes 4444 is exported in QuickTime (.mov); MXF here carries ProRes 422".into()));
         }
         if self.field_order != FieldOrder::Progressive && self.has_video() {
-            return Err(ExportError::Unsupported(format!("{} field order: FilmCraft's encoders write progressive frames", self.field_order.label())));
+            return Err(ExportError::Unsupported(format!("{} field order: Jilo Studio's encoders write progressive frames", self.field_order.label())));
         }
         if self.effects.image_overlay.enabled && self.effects.image_overlay.path.trim().is_empty() {
             return Err(ExportError::Unsupported("image overlay: no image file chosen".into()));
@@ -671,7 +671,7 @@ pub trait VideoEncoder: Send {
         None
     }
     /// First-pass statistics of a two-pass encode (H.264).
-    fn pass_stats(&self) -> Option<filmcraft_h264enc::PassStats> {
+    fn pass_stats(&self) -> Option<jilo_h264enc::PassStats> {
         None
     }
 }
@@ -701,7 +701,7 @@ pub trait AudioEncoder: Send {
 pub type EncoderFactory = fn(format: Format, width: u32, height: u32, rate: FrameRate, settings: &ExportSettings) -> Option<Result<Box<dyn VideoEncoder>>>;
 pub type AudioEncoderFactory = fn(format: Format, sample_rate: u32, channels: u32, settings: &ExportSettings) -> Option<Result<Box<dyn AudioEncoder>>>;
 
-/// FilmCraft's own video encoders (registered ones go in front of them).
+/// Jilo Studio's own video encoders (registered ones go in front of them).
 const BUILT_IN_VIDEO_ENCODERS: [EncoderFactory; 5] = [h264_factory, prores_factory, dnx_factory, apv_factory, mjpeg_factory];
 
 fn video_factories() -> &'static RwLock<Vec<EncoderFactory>> {
@@ -709,7 +709,7 @@ fn video_factories() -> &'static RwLock<Vec<EncoderFactory>> {
     F.get_or_init(|| RwLock::new(BUILT_IN_VIDEO_ENCODERS.to_vec()))
 }
 
-/// FilmCraft's own encoder for an export's video, skipping registered (hardware) ones: the
+/// Jilo Studio's own encoder for an export's video, skipping registered (hardware) ones: the
 /// reference a hardware encoder is compared with. `None` for a format without one (H.265).
 pub fn software_video_encoder(settings: &ExportSettings, w: u32, h: u32, rate: FrameRate) -> Option<Result<Box<dyn VideoEncoder>>> {
     BUILT_IN_VIDEO_ENCODERS.iter().find_map(|f| f(settings.video_format(), w, h, rate, settings))
@@ -842,21 +842,15 @@ pub fn encoder_registered(f: EncoderFactory) -> bool {
 }
 
 /// Renders one export frame on something other than the CPU reference renderer — today the GPU
-/// compositor (`filmcraft-gpu`), registered by the app or CLI at startup. `render` returns the
-/// frame exactly as [`filmcraft_render::render_sequence`] would (same size, premultiplied
+/// compositor (`jilo-gpu`), registered by the app or CLI at startup. `render` returns the
+/// frame exactly as [`jilo_render::render_sequence`] would (same size, premultiplied
 /// linear-light RGBA), or `None` to let the CPU render this frame (no adapter, a plan the GPU
 /// cannot draw, any internal error): the CPU renderer is the reference and the fallback.
 pub trait FrameRenderer: Send {
-    fn render(
-        &mut self,
-        project: &Project,
-        seq: ItemId,
-        t: Tick,
-        opts: filmcraft_render::RenderOptions,
-        sources: &dyn SourceProvider,
-    ) -> Option<filmcraft_render::Image>;
+    fn render(&mut self, project: &Project, seq: ItemId, t: Tick, opts: jilo_render::RenderOptions, sources: &dyn SourceProvider)
+    -> Option<jilo_render::Image>;
 
-    /// Whether this renderer draws a frame from its [`filmcraft_render::plan::plan_frame`] plan
+    /// Whether this renderer draws a frame from its [`jilo_render::plan::plan_frame`] plan
     /// ([`render_plan`](Self::render_plan)), so the export can plan the frame (decoding, CPU-drawn
     /// layers) before it takes a renderer from its pool and hold one only while the GPU draws.
     /// Holding one through the planning limited the export to as many frames at once as the pool
@@ -867,7 +861,7 @@ pub trait FrameRenderer: Send {
 
     /// The frame of `plan` as [`render`](Self::render) would return it for the same frame, which is
     /// `plan_frame` and then this. Only called when [`draws_plans`](Self::draws_plans).
-    fn render_plan(&mut self, _plan: &filmcraft_render::plan::FramePlan) -> Option<filmcraft_render::Image> {
+    fn render_plan(&mut self, _plan: &jilo_render::plan::FramePlan) -> Option<jilo_render::Image> {
         None
     }
 }
@@ -943,7 +937,7 @@ pub fn reset_export_lock_wait() {
 }
 
 /// A GPU-rendering export drew a frame on the CPU because the GPU would not pay off there
-/// ([`filmcraft_render::plan::gpu_pays_off`]).
+/// ([`jilo_render::plan::gpu_pays_off`]).
 pub(crate) fn note_gpu_cpu_frame() {
     GPU_CPU_FRAMES.fetch_add(1, Ordering::Relaxed);
 }
@@ -1069,7 +1063,7 @@ fn mjpeg_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSett
 
 /// AAC-LC (our encoder), 320 kbps stereo by default.
 struct AacEncoder {
-    enc: filmcraft_aac::Encoder,
+    enc: jilo_aac::Encoder,
     rate: u32,
     channels: u32,
 }
@@ -1100,7 +1094,7 @@ impl AudioEncoder for AacEncoder {
 
 /// FLAC (our encoder) in MP4 / QuickTime: one frame of 4096 samples per access unit.
 pub(crate) struct FlacAudio {
-    enc: filmcraft_flac::Encoder,
+    enc: jilo_flac::Encoder,
     bits: u16,
     /// Samples of the frame `flush` returns (shorter than a full block).
     tail: u32,
@@ -1110,9 +1104,9 @@ impl FlacAudio {
     pub(crate) fn new(sample_rate: u32, channels: u32, s: &ExportSettings) -> Result<Self> {
         let bits = if s.audio.bits >= 24 { 24 } else { 16 };
         let ch = u8::try_from(channels).map_err(|_| ExportError::Unsupported("FLAC: too many audio channels".into()))?;
-        let mut cfg = filmcraft_flac::EncoderConfig::new(sample_rate, ch, bits as u8);
+        let mut cfg = jilo_flac::EncoderConfig::new(sample_rate, ch, bits as u8);
         cfg.level = s.audio.flac_level.min(8);
-        let enc = filmcraft_flac::Encoder::new(cfg).map_err(|e| ExportError::Unsupported(format!("FLAC: {e}")))?;
+        let enc = jilo_flac::Encoder::new(cfg).map_err(|e| ExportError::Unsupported(format!("FLAC: {e}")))?;
         Ok(FlacAudio { enc, bits, tail: 0 })
     }
 }
@@ -1151,7 +1145,7 @@ fn aac_factory(_format: Format, sample_rate: u32, channels: u32, s: &ExportSetti
     let max = (6 * sample_rate as u64 * channels.max(1) as u64).min(u32::MAX as u64) as u32;
     let bps = (s.audio.bitrate_kbps.clamp(32, 512) * 1000).min(max);
     Some(
-        filmcraft_aac::Encoder::new(filmcraft_aac::EncoderConfig::cbr(sample_rate, channels as usize, bps))
+        jilo_aac::Encoder::new(jilo_aac::EncoderConfig::cbr(sample_rate, channels as usize, bps))
             .map(|enc| Box::new(AacEncoder { enc, rate: sample_rate, channels }) as Box<dyn AudioEncoder>)
             .map_err(|e| ExportError::Encode(e.to_string())),
     )
@@ -1159,8 +1153,8 @@ fn aac_factory(_format: Format, sample_rate: u32, channels: u32, s: &ExportSetti
 
 /// ProRes 422 encoder (HQ unless the settings pick another flavour): sRGB/709 RGBA8 → 10-bit limited-range BT.709 4:2:2.
 struct ProResEncoder {
-    enc: filmcraft_prores::Encoder,
-    profile: filmcraft_prores::Profile,
+    enc: jilo_prores::Encoder,
+    profile: jilo_prores::Profile,
     w: u32,
     h: u32,
     rate: FrameRate,
@@ -1171,7 +1165,7 @@ struct ProResEncoder {
 
 impl VideoEncoder for ProResEncoder {
     fn sample_entry(&self) -> SampleEntry {
-        let mut e = SampleEntry::prores(filmcraft_isobmff::FourCc(self.profile.fourcc()), self.w as u16, self.h as u16);
+        let mut e = SampleEntry::prores(jilo_isobmff::FourCc(self.profile.fourcc()), self.w as u16, self.h as u16);
         self.signal.apply_to(&mut e, true);
         e
     }
@@ -1179,9 +1173,9 @@ impl VideoEncoder for ProResEncoder {
         self.rate.num as u32
     }
     fn encode(&mut self, f: &EncoderFrame) -> Result<Vec<EncodedPacket>> {
-        if self.profile.chroma() == filmcraft_prores::ChromaFormat::Yuv444 {
+        if self.profile.chroma() == jilo_prores::ChromaFormat::Yuv444 {
             // 4444 / 4444 XQ: 12-bit 4:4:4, plus the alpha plane when the export keeps alpha
-            let mut fr = filmcraft_prores::Frame::new(f.width, f.height, filmcraft_prores::ChromaFormat::Yuv444, 12, self.alpha);
+            let mut fr = jilo_prores::Frame::new(f.width, f.height, jilo_prores::ChromaFormat::Yuv444, 12, self.alpha);
             timed(Stage::Convert, || {
                 let (w, h) = (f.width as usize, f.height as usize);
                 match f.hdr {
@@ -1195,7 +1189,7 @@ impl VideoEncoder for ProResEncoder {
             let data = self.enc.encode(&fr).map_err(|e| ExportError::Encode(e.to_string()))?;
             return Ok(vec![EncodedPacket { data, key: true, duration: self.rate.den as u32, composition_offset: 0 }]);
         }
-        let mut fr = filmcraft_prores::Frame::new(f.width, f.height, filmcraft_prores::ChromaFormat::Yuv422, 10, false);
+        let mut fr = jilo_prores::Frame::new(f.width, f.height, jilo_prores::ChromaFormat::Yuv422, 10, false);
         timed(Stage::Convert, || match f.hdr {
             Some(rgb) => {
                 let (kr, kb) = self.signal.kr_kb();
@@ -1238,8 +1232,8 @@ pub fn rgba_to_yuv422_10(rgba: &[u8], w: usize, h: usize, y: &mut [u16], cb: &mu
 }
 
 /// The ProRes profile named by [`ExportSettings::prores_profile`].
-pub fn prores_profile(name: &str) -> filmcraft_prores::Profile {
-    use filmcraft_prores::Profile;
+pub fn prores_profile(name: &str) -> jilo_prores::Profile {
+    use jilo_prores::Profile;
     match name.to_ascii_lowercase().as_str() {
         "proxy" => Profile::Proxy,
         "lt" => Profile::Lt,
@@ -1252,7 +1246,7 @@ pub fn prores_profile(name: &str) -> filmcraft_prores::Profile {
 
 /// Whether the export writes ProRes 4444 / 4444 XQ (4:4:4, with alpha when asked).
 pub fn prores_4444(s: &ExportSettings) -> bool {
-    s.video_format() == Format::ProRes && prores_profile(&s.prores_profile).chroma() == filmcraft_prores::ChromaFormat::Yuv444
+    s.video_format() == Format::ProRes && prores_profile(&s.prores_profile).chroma() == jilo_prores::ChromaFormat::Yuv444
 }
 
 /// BT.709 limited-range 12-bit 4:4:4 from straight RGBA8, and the alpha plane (full range) when
@@ -1328,20 +1322,20 @@ pub fn rgbf_to_yuv422_10(rgb: &[f32], w: usize, h: usize, kr: f32, kb: f32, y: &
 fn prores_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option<Result<Box<dyn VideoEncoder>>> {
     (format == Format::ProRes).then(|| {
         let profile = prores_profile(&s.prores_profile);
-        let mut cfg = filmcraft_prores::EncoderConfig::new(profile, w, h);
+        let mut cfg = jilo_prores::EncoderConfig::new(profile, w, h);
         if s.signal.is_hdr() {
-            cfg.color = filmcraft_prores::ColorInfo { primaries: s.signal.primaries, transfer: s.signal.transfer, matrix: s.signal.matrix };
+            cfg.color = jilo_prores::ColorInfo { primaries: s.signal.primaries, transfer: s.signal.transfer, matrix: s.signal.matrix };
         }
         // alpha only from straight RGBA (an HDR export carries no alpha)
         let alpha = s.alpha && prores_4444(s) && !s.signal.is_hdr();
         cfg.encode_alpha = alpha;
-        Ok(Box::new(ProResEncoder { enc: filmcraft_prores::Encoder::with_config(cfg), profile, w, h, rate, signal: s.signal, alpha }) as Box<dyn VideoEncoder>)
+        Ok(Box::new(ProResEncoder { enc: jilo_prores::Encoder::with_config(cfg), profile, w, h, rate, signal: s.signal, alpha }) as Box<dyn VideoEncoder>)
     })
 }
 
 /// The DNxHR profile named by [`ExportSettings::dnx_profile`].
-pub fn dnx_profile(name: &str) -> filmcraft_dnx::Profile {
-    use filmcraft_dnx::Profile;
+pub fn dnx_profile(name: &str) -> jilo_dnx::Profile {
+    use jilo_dnx::Profile;
     match name.to_ascii_lowercase().as_str() {
         "lb" => Profile::Lb,
         "sq" => Profile::Sq,
@@ -1353,7 +1347,7 @@ pub fn dnx_profile(name: &str) -> filmcraft_dnx::Profile {
 /// DNxHR encoder (RGBA8 or HDR floats → BT.709 / BT.2020 limited-range 4:2:2; 8-bit for
 /// LB/SQ/HQ, 10-bit for HQX).
 struct DnxEncoder {
-    enc: filmcraft_dnx::Encoder,
+    enc: jilo_dnx::Encoder,
     w: u32,
     h: u32,
     rate: FrameRate,
@@ -1362,7 +1356,7 @@ struct DnxEncoder {
 
 impl VideoEncoder for DnxEncoder {
     fn sample_entry(&self) -> SampleEntry {
-        let mut e = SampleEntry::dnx(filmcraft_isobmff::FourCc(*b"AVdh"), self.w as u16, self.h as u16);
+        let mut e = SampleEntry::dnx(jilo_isobmff::FourCc(*b"AVdh"), self.w as u16, self.h as u16);
         self.signal.apply_to(&mut e, true);
         e
     }
@@ -1370,7 +1364,7 @@ impl VideoEncoder for DnxEncoder {
         self.rate.num as u32
     }
     fn encode(&mut self, f: &EncoderFrame) -> Result<Vec<EncodedPacket>> {
-        let mut fr = filmcraft_dnx::Frame::new(f.width, f.height, filmcraft_dnx::ChromaFormat::Yuv422, 10, false);
+        let mut fr = jilo_dnx::Frame::new(f.width, f.height, jilo_dnx::ChromaFormat::Yuv422, 10, false);
         match f.hdr {
             Some(rgb) => {
                 let (kr, kb) = self.signal.kr_kb();
@@ -1389,18 +1383,18 @@ impl VideoEncoder for DnxEncoder {
 
 fn dnx_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option<Result<Box<dyn VideoEncoder>>> {
     (format == Format::DnxHr).then(|| {
-        let mut cfg = filmcraft_dnx::EncoderConfig::new(dnx_profile(&s.dnx_profile), w, h);
+        let mut cfg = jilo_dnx::EncoderConfig::new(dnx_profile(&s.dnx_profile), w, h);
         if s.signal.primaries == 9 {
-            cfg.color_volume = filmcraft_dnx::ColorVolume::Bt2020Ncl;
+            cfg.color_volume = jilo_dnx::ColorVolume::Bt2020Ncl;
         }
-        let enc = filmcraft_dnx::Encoder::with_config(cfg).map_err(|e| ExportError::Encode(e.to_string()))?;
+        let enc = jilo_dnx::Encoder::with_config(cfg).map_err(|e| ExportError::Encode(e.to_string()))?;
         Ok(Box::new(DnxEncoder { enc, w, h, rate, signal: s.signal }) as Box<dyn VideoEncoder>)
     })
 }
 
 /// The APV profile named by [`ExportSettings::apv_profile`].
-pub fn apv_profile(name: &str) -> filmcraft_apv::Profile {
-    use filmcraft_apv::Profile;
+pub fn apv_profile(name: &str) -> jilo_apv::Profile {
+    use jilo_apv::Profile;
     match name.to_ascii_lowercase().replace([' ', '_'], "-").trim_start_matches("apv-").trim_start_matches("apv") {
         "422-12" | "42212" => Profile::P422_12,
         "444-10" | "44410" => Profile::P444_10,
@@ -1414,8 +1408,8 @@ pub fn apv_profile(name: &str) -> filmcraft_apv::Profile {
 
 /// APV encoder (RFC 9924: 10/12-bit 4:2:2 or 4:4:4 intra).
 struct ApvEncoder {
-    enc: filmcraft_apv::Encoder,
-    chroma: filmcraft_apv::ChromaFormat,
+    enc: jilo_apv::Encoder,
+    chroma: jilo_apv::ChromaFormat,
     w: u32,
     h: u32,
     rate: FrameRate,
@@ -1424,7 +1418,7 @@ struct ApvEncoder {
 
 impl VideoEncoder for ApvEncoder {
     fn sample_entry(&self) -> SampleEntry {
-        let apvc = filmcraft_isobmff::ApvConfig::parse(&self.enc.decoder_config_record()).unwrap_or_default();
+        let apvc = jilo_isobmff::ApvConfig::parse(&self.enc.decoder_config_record()).unwrap_or_default();
         let mut e = SampleEntry::apv(apvc, self.w as u16, self.h as u16);
         self.signal.apply_to(&mut e, true);
         e
@@ -1434,7 +1428,7 @@ impl VideoEncoder for ApvEncoder {
     }
     fn encode(&mut self, f: &EncoderFrame) -> Result<Vec<EncodedPacket>> {
         let (w, h) = (f.width as usize, f.height as usize);
-        let mut fr = filmcraft_apv::Frame::new(f.width, f.height, self.chroma, 10, self.chroma == filmcraft_apv::ChromaFormat::Yuv4444);
+        let mut fr = jilo_apv::Frame::new(f.width, f.height, self.chroma, 10, self.chroma == jilo_apv::ChromaFormat::Yuv4444);
         let mut y422 = vec![0u16; w * h];
         let cw = w.div_ceil(2);
         let mut cb422 = vec![0u16; cw * h];
@@ -1448,15 +1442,15 @@ impl VideoEncoder for ApvEncoder {
         }
         fr.y = y422;
         match self.chroma {
-            filmcraft_apv::ChromaFormat::Monochrome => {
+            jilo_apv::ChromaFormat::Monochrome => {
                 fr.cb.clear();
                 fr.cr.clear();
             }
-            filmcraft_apv::ChromaFormat::Yuv422 => {
+            jilo_apv::ChromaFormat::Yuv422 => {
                 fr.cb = cb422;
                 fr.cr = cr422;
             }
-            filmcraft_apv::ChromaFormat::Yuv444 | filmcraft_apv::ChromaFormat::Yuv4444 => {
+            jilo_apv::ChromaFormat::Yuv444 | jilo_apv::ChromaFormat::Yuv4444 => {
                 for row in 0..h {
                     for x in 0..w {
                         fr.cb[row * w + x] = cb422[row * cw + x / 2];
@@ -1481,12 +1475,12 @@ impl VideoEncoder for ApvEncoder {
 fn apv_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option<Result<Box<dyn VideoEncoder>>> {
     (format == Format::Apv).then(|| {
         let profile = apv_profile(&s.apv_profile);
-        let mut cfg = filmcraft_apv::EncoderConfig::new(profile, w, h);
+        let mut cfg = jilo_apv::EncoderConfig::new(profile, w, h);
         if s.signal.is_hdr() {
-            cfg.color = filmcraft_apv::ColorInfo { primaries: s.signal.primaries, transfer: s.signal.transfer, matrix: s.signal.matrix, full_range: false };
+            cfg.color = jilo_apv::ColorInfo { primaries: s.signal.primaries, transfer: s.signal.transfer, matrix: s.signal.matrix, full_range: false };
         }
         let chroma = cfg.chroma;
-        let enc = filmcraft_apv::Encoder::with_config(cfg).map_err(|e| ExportError::Encode(e.to_string()))?;
+        let enc = jilo_apv::Encoder::with_config(cfg).map_err(|e| ExportError::Encode(e.to_string()))?;
         Ok(Box::new(ApvEncoder { enc, chroma, w, h, rate, signal: s.signal }) as Box<dyn VideoEncoder>)
     })
 }
@@ -1494,7 +1488,7 @@ fn apv_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSettin
 /// H.264 High (our encoder): sRGB/709 RGBA8 → 8-bit limited-range BT.709 4:2:0, VBR at the
 /// requested bitrate, length-prefixed samples with the `avcC` in the sample entry.
 struct H264Encoder {
-    enc: filmcraft_h264enc::Encoder,
+    enc: jilo_h264enc::Encoder,
     w: u32,
     h: u32,
     rate: FrameRate,
@@ -1505,7 +1499,7 @@ struct H264Encoder {
 }
 
 impl H264Encoder {
-    fn packets(&self, ps: Vec<filmcraft_h264enc::Packet>) -> Vec<EncodedPacket> {
+    fn packets(&self, ps: Vec<jilo_h264enc::Packet>) -> Vec<EncodedPacket> {
         ps.into_iter()
             .map(|p| EncodedPacket { data: p.data, key: p.keyframe, duration: self.rate.den as u32, composition_offset: (p.pts - p.dts) as i32 })
             .collect()
@@ -1514,9 +1508,9 @@ impl H264Encoder {
 
 impl VideoEncoder for H264Encoder {
     fn sample_entry(&self) -> SampleEntry {
-        let cfg = filmcraft_isobmff::AvcConfig::parse(&self.enc.avcc()).unwrap_or_else(|_| {
+        let cfg = jilo_isobmff::AvcConfig::parse(&self.enc.avcc()).unwrap_or_else(|_| {
             let (sps, pps) = self.enc.sps_pps();
-            filmcraft_isobmff::AvcConfig::new(vec![sps], vec![pps], 4)
+            jilo_isobmff::AvcConfig::new(vec![sps], vec![pps], 4)
         });
         let mut e = SampleEntry::avc(cfg, self.w as u16, self.h as u16);
         self.signal.apply_to(&mut e, false);
@@ -1534,7 +1528,7 @@ impl VideoEncoder for H264Encoder {
             None => rgba_to_yuv420_8(f.rgba, f.width as usize, f.height as usize, &mut self.y, &mut self.u, &mut self.v),
         });
         let cw = (f.width as usize).div_ceil(2);
-        let frame = filmcraft_h264enc::YuvFrame { y: &self.y, u: &self.u, v: &self.v, y_stride: f.width as usize, uv_stride: cw };
+        let frame = jilo_h264enc::YuvFrame { y: &self.y, u: &self.u, v: &self.v, y_stride: f.width as usize, uv_stride: cw };
         let ps = self.enc.try_encode(&frame, f.index as i64 * self.rate.den).map_err(|e| ExportError::Encode(e.to_string()))?;
         Ok(self.packets(ps))
     }
@@ -1546,7 +1540,7 @@ impl VideoEncoder for H264Encoder {
         // With B-frames the first DTS is one frame before the first PTS.
         (self.enc.delay() > 0).then_some(self.rate.den)
     }
-    fn pass_stats(&self) -> Option<filmcraft_h264enc::PassStats> {
+    fn pass_stats(&self) -> Option<jilo_h264enc::PassStats> {
         self.enc.pass_stats()
     }
 }
@@ -1722,36 +1716,36 @@ fn h264_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSetti
     if format != Format::H264 {
         return None;
     }
-    let mut cfg = filmcraft_h264enc::EncoderConfig::new(w, h, rate.num as u32, rate.den as u32);
+    let mut cfg = jilo_h264enc::EncoderConfig::new(w, h, rate.num as u32, rate.den as u32);
     // MXF carries the Annex B byte stream (ST 381-3) with in-band parameter sets
-    cfg.format = if s.format.is_mxf() { filmcraft_h264enc::PacketFormat::AnnexB } else { filmcraft_h264enc::PacketFormat::LengthPrefixed };
+    cfg.format = if s.format.is_mxf() { jilo_h264enc::PacketFormat::AnnexB } else { jilo_h264enc::PacketFormat::LengthPrefixed };
     cfg.aud = s.format.is_mxf();
     cfg.keyint = s.keyframe_distance.filter(|k| *k > 0).unwrap_or_else(|| (rate.num as f64 / rate.den as f64 * 2.0).round().max(1.0) as u32);
     cfg.slices = h264_slices(h);
     let kbps = s.bitrate_kbps.max(100);
     let max = s.max_bitrate_kbps.filter(|m| *m >= kbps).unwrap_or_else(|| (u64::from(kbps) * 3 / 2).min(u64::from(u32::MAX)) as u32);
     cfg.rate = match s.bitrate_mode {
-        BitrateMode::Cbr => filmcraft_h264enc::RateControl::Cbr { kbps },
+        BitrateMode::Cbr => jilo_h264enc::RateControl::Cbr { kbps },
         // the encoder clamps to 0..=51; a NaN from a hand-edited preset becomes the default
-        BitrateMode::Crf => filmcraft_h264enc::RateControl::Crf(if s.crf.is_finite() { s.crf } else { DEFAULT_CRF }),
-        _ => filmcraft_h264enc::RateControl::Vbr { target_kbps: kbps, max_kbps: max },
+        BitrateMode::Crf => jilo_h264enc::RateControl::Crf(if s.crf.is_finite() { s.crf } else { DEFAULT_CRF }),
+        _ => jilo_h264enc::RateControl::Vbr { target_kbps: kbps, max_kbps: max },
     };
     cfg.pass = match &s.h264_pass {
-        H264Pass::Single => filmcraft_h264enc::Pass::Single,
-        H264Pass::First => filmcraft_h264enc::Pass::First,
-        H264Pass::Second(st) => filmcraft_h264enc::Pass::Second(st.clone()),
+        H264Pass::Single => jilo_h264enc::Pass::Single,
+        H264Pass::First => jilo_h264enc::Pass::First,
+        H264Pass::Second(st) => jilo_h264enc::Pass::Second(st.clone()),
     };
     cfg.profile = match s.h264_profile {
-        H264Profile::Baseline => filmcraft_h264enc::Profile::Baseline,
-        H264Profile::Main => filmcraft_h264enc::Profile::Main,
-        H264Profile::High => filmcraft_h264enc::Profile::High,
+        H264Profile::Baseline => jilo_h264enc::Profile::Baseline,
+        H264Profile::Main => jilo_h264enc::Profile::Main,
+        H264Profile::High => jilo_h264enc::Profile::High,
     };
     cfg.level = s.h264_level;
     if let Some((n, d)) = s.pixel_aspect {
         cfg.sar = (n.clamp(1, 65535) as u16, d.clamp(1, 65535) as u16);
     }
     if s.signal.is_hdr() {
-        cfg.color = filmcraft_h264enc::ColorConfig { primaries: s.signal.primaries, transfer: s.signal.transfer, matrix: s.signal.matrix, full_range: false };
+        cfg.color = jilo_h264enc::ColorConfig { primaries: s.signal.primaries, transfer: s.signal.transfer, matrix: s.signal.matrix, full_range: false };
         if let Some((md, cll)) = s.signal.static_metadata() {
             let mut b = [0u8; 24];
             b.copy_from_slice(&md.to_bytes());
@@ -1760,7 +1754,7 @@ fn h264_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSetti
         }
     }
     Some(
-        filmcraft_h264enc::Encoder::new(cfg)
+        jilo_h264enc::Encoder::new(cfg)
             .map(|enc| Box::new(H264Encoder { enc, w, h, rate, y: Vec::new(), u: Vec::new(), v: Vec::new(), signal: s.signal }) as Box<dyn VideoEncoder>)
             .map_err(|e| ExportError::Encode(e.to_string())),
     )
@@ -1771,20 +1765,20 @@ fn h264_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSetti
 /// Marker), as Jilo Studio puts them in a file. A chapter that began before the range starts the
 /// file; one in the last half second of the range would not show and is left out; a marker
 /// without a name is "Chapter <n>". Fewer than two chapters divide nothing: the list is empty.
-pub fn file_chapters(q: &filmcraft_project::Sequence, range: TimeRange) -> Vec<filmcraft_isobmff::Chapter> {
+pub fn file_chapters(q: &jilo_project::Sequence, range: TimeRange) -> Vec<jilo_isobmff::Chapter> {
     let (from, to) = (range.start, range.end());
     let late = to - Tick::from_seconds_f64(0.5);
-    let mut markers: Vec<&filmcraft_project::Marker> = q.markers.iter().filter(|m| m.kind == filmcraft_project::MarkerKind::Chapter).collect();
+    let mut markers: Vec<&jilo_project::Marker> = q.markers.iter().filter(|m| m.kind == jilo_project::MarkerKind::Chapter).collect();
     markers.sort_by_key(|m| m.start);
-    let mut out: Vec<filmcraft_isobmff::Chapter> = Vec::new();
+    let mut out: Vec<jilo_isobmff::Chapter> = Vec::new();
     for (n, m) in markers.iter().enumerate() {
         let title = if m.name.trim().is_empty() { format!("Chapter {}", n + 1) } else { m.name.trim().to_string() };
         if m.start <= from {
             out.clear();
-            out.push(filmcraft_isobmff::Chapter { start_ms: 0, title });
+            out.push(jilo_isobmff::Chapter { start_ms: 0, title });
         } else if m.start < late {
             let ms = ((m.start - from).seconds() * 1000.0).round().max(0.0) as u64;
-            out.push(filmcraft_isobmff::Chapter { start_ms: ms, title });
+            out.push(jilo_isobmff::Chapter { start_ms: ms, title });
         }
     }
     if out.len() < 2 { Vec::new() } else { out }
@@ -1893,9 +1887,9 @@ pub fn export(project: &Arc<Project>, seq: ItemId, settings: &ExportSettings, so
             // the sizes are known up front: refuse an AIFF that cannot hold them before measuring
             let mut writer = match settings.format {
                 Format::Flac => {
-                    let mut cfg = filmcraft_flac::EncoderConfig::new(sr, ch as u8, if bits >= 24 { 24 } else { 16 });
+                    let mut cfg = jilo_flac::EncoderConfig::new(sr, ch as u8, if bits >= 24 { 24 } else { 16 });
                     cfg.level = settings.audio.flac_level.min(8);
-                    AudioWriter::Flac(Box::new(filmcraft_flac::Encoder::new(cfg).map_err(|e| ExportError::Unsupported(format!("FLAC: {e}")))?))
+                    AudioWriter::Flac(Box::new(jilo_flac::Encoder::new(cfg).map_err(|e| ExportError::Unsupported(format!("FLAC: {e}")))?))
                 }
                 Format::Wav => AudioWriter::Pcm(pcm::PcmContainer::Wav),
                 _ => AudioWriter::Pcm(pcm::PcmContainer::Aiff),
@@ -1940,7 +1934,7 @@ pub fn export(project: &Arc<Project>, seq: ItemId, settings: &ExportSettings, so
                     out.write_all(&enc.finish()).map_err(io)?;
                     // the frame sizes and MD5 are known now: fill them into STREAMINFO
                     use std::io::{Seek, SeekFrom};
-                    out.seek(SeekFrom::Start(filmcraft_flac::STREAMINFO_OFFSET)).map_err(io)?;
+                    out.seek(SeekFrom::Start(jilo_flac::STREAMINFO_OFFSET)).map_err(io)?;
                     out.write_all(&enc.streaminfo()).map_err(io)?;
                     out.seek(SeekFrom::End(0)).map_err(io)?;
                 }

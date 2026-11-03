@@ -1,7 +1,7 @@
 //! MPEG-2 transport streams (`.ts`, `.m2ts`, `.mts`), program streams (`.mpg`, `.vob`, `.mod`)
 //! and MPEG-1/2 video elementary streams (`.m2v`, `.m1v`).
 //!
-//! - Demux and the access-unit index come from `filmcraft-mpegts` (built when the file opens).
+//! - Demux and the access-unit index come from `jilo-mpegts` (built when the file opens).
 //! - Video: MPEG-1/2 (our decoder), H.264 and HEVC (Annex B byte streams, our decoders) with
 //!   GOP-aware random access ([`crate::gop`]). Frames are presented in display order, from the
 //!   first random-access picture; display order comes from the PTS (or, without timestamps, the
@@ -13,16 +13,16 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
-use filmcraft_frame::{AudioBuffer, VideoFrame};
-use filmcraft_media::{AudioStreamInfo, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, SharedSource, VideoStreamInfo};
-use filmcraft_mpegts::{Codec, File, Kind, Unit};
-use filmcraft_time::{FrameRate, Tick};
+use jilo_frame::{AudioBuffer, VideoFrame};
+use jilo_media::{AudioStreamInfo, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, SharedSource, VideoStreamInfo};
+use jilo_mpegts::{Codec, File, Kind, Unit};
+use jilo_time::{FrameRate, Tick};
 
 use crate::CodecError;
 use crate::gop::{GopCache, VideoSamples};
 use crate::video::{H264Decoder, HevcDecoder, Mpeg2Decoder, VideoDecoder};
 
-impl filmcraft_mpegts::ByteSource for crate::Src {
+impl jilo_mpegts::ByteSource for crate::Src {
     fn len(&self) -> u64 {
         self.0.len()
     }
@@ -37,7 +37,7 @@ fn is_video_es(head: &[u8]) -> bool {
 }
 
 pub fn sniff(head: &[u8]) -> bool {
-    filmcraft_mpegts::sniff(head).is_some() || is_video_es(head)
+    jilo_mpegts::sniff(head).is_some() || is_video_es(head)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,7 +63,7 @@ struct VideoTrack {
     header: Vec<u8>,
     /// H.264: an `avc1` sample entry from the stream's first parameter sets, so the registered
     /// decoders (VideoToolbox, …) can take the stream as they take an MP4's (#255).
-    avc: Option<filmcraft_isobmff::SampleEntry>,
+    avc: Option<jilo_isobmff::SampleEntry>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -73,7 +73,7 @@ enum ACodec {
     Latm,
     Ac3,
     LpcmBluray,
-    LpcmDvd(filmcraft_mpegts::LpcmFormat),
+    LpcmDvd(jilo_mpegts::LpcmFormat),
 }
 
 struct AudioState {
@@ -186,18 +186,18 @@ fn presentation(keys: &[i64]) -> (Vec<i64>, Vec<usize>) {
 
 impl MpegSource {
     pub fn open(name: &str, bytes: Arc<[u8]>) -> crate::Result<Self> {
-        Self::open_reader(name, Arc::new(filmcraft_media::reader::MemReader(bytes)))
+        Self::open_reader(name, Arc::new(jilo_media::reader::MemReader(bytes)))
     }
 
     /// Open from a random-access reader: the whole file is scanned once to index its access units.
-    pub fn open_reader(name: &str, reader: filmcraft_media::SharedReader) -> crate::Result<Self> {
+    pub fn open_reader(name: &str, reader: jilo_media::SharedReader) -> crate::Result<Self> {
         let bytes = crate::Src(reader);
-        let head = filmcraft_media::reader::read_range(&*bytes.0, 0, 4096).map_err(|e| CodecError::Container(e.to_string()))?;
+        let head = jilo_media::reader::read_range(&*bytes.0, 0, 4096).map_err(|e| CodecError::Container(e.to_string()))?;
         if is_video_es(&head) {
             return Self::open_es(name, bytes);
         }
-        let file = filmcraft_mpegts::open(&bytes).map_err(|e| match e {
-            filmcraft_mpegts::Error::NotMpeg => CodecError::Unsupported("not an MPEG stream".into()),
+        let file = jilo_mpegts::open(&bytes).map_err(|e| match e {
+            jilo_mpegts::Error::NotMpeg => CodecError::Unsupported("not an MPEG stream".into()),
             other => CodecError::Container(other.to_string()),
         })?;
         for w in &file.warnings {
@@ -264,7 +264,7 @@ impl MpegSource {
                     }
                 }
                 None => {
-                    src.unsupported_video = Some(format!("{} video in {} (FilmCraft has no decoder for it)", st.codec.name(), file.format.name()));
+                    src.unsupported_video = Some(format!("{} video in {} (Jilo Studio has no decoder for it)", st.codec.name(), file.format.name()));
                     src.info.video = Some(VideoStreamInfo {
                         width: 0,
                         height: 0,
@@ -272,7 +272,7 @@ impl MpegSource {
                         par: (1, 1),
                         codec: format!("{} (unsupported)", st.codec.name()),
                         pixel_format: String::new(),
-                        color: filmcraft_color::ColorInfo::REC709,
+                        color: jilo_color::ColorInfo::REC709,
                         has_alpha: false,
                         bitrate: None,
                         hdr: None,
@@ -289,11 +289,11 @@ impl MpegSource {
 
     /// A raw MPEG-1/2 video elementary stream (no timestamps: GOP / temporal reference order).
     fn open_es(name: &str, bytes: crate::Src) -> crate::Result<Self> {
-        let all: Arc<[u8]> = filmcraft_media::reader::read_range(&*bytes.0, 0, usize::try_from(bytes.0.len()).unwrap_or(usize::MAX))
+        let all: Arc<[u8]> = jilo_media::reader::read_range(&*bytes.0, 0, usize::try_from(bytes.0.len()).unwrap_or(usize::MAX))
             .map_err(|e| CodecError::Container(e.to_string()))?
             .into();
-        let aus = filmcraft_mpeg2v::access_units(&all);
-        let infos: Vec<filmcraft_mpeg2v::AccessUnitInfo> = aus.iter().map(|r| filmcraft_mpeg2v::scan_access_unit(&all[r.clone()])).collect();
+        let aus = jilo_mpeg2v::access_units(&all);
+        let infos: Vec<jilo_mpeg2v::AccessUnitInfo> = aus.iter().map(|r| jilo_mpeg2v::scan_access_unit(&all[r.clone()])).collect();
         let first_key = infos.iter().position(|a| a.is_intra()).ok_or_else(|| CodecError::Decode("no I picture in the stream".into()))?;
         // fake units carrying the picture info for display ordering
         let mut keys = Vec::new();
@@ -393,13 +393,13 @@ impl MpegSource {
         let n = v.order.len();
         let (width, height, par, codec, pixel_format, mut color);
         let rate;
-        color = filmcraft_color::ColorInfo::REC709;
+        color = jilo_color::ColorInfo::REC709;
         match v.kind {
             VKind::Mpeg2 => {
-                let info = filmcraft_mpeg2v::probe(&first).ok_or_else(|| CodecError::Decode("no MPEG video sequence header at the first I picture".into()))?;
+                let info = jilo_mpeg2v::probe(&first).ok_or_else(|| CodecError::Decode("no MPEG video sequence header at the first I picture".into()))?;
                 let header = crate::video::mpeg2_sequence_header(&first).unwrap_or_default();
                 // field order from the first frames' picture coding extensions
-                let mut d = filmcraft_mpeg2v::Decoder::new();
+                let mut d = jilo_mpeg2v::Decoder::new();
                 let mut fo = None;
                 for i in 0..v.units.len().min(4) {
                     if let Ok(pics) = d.decode(&self.read_unit(v, i)?, i as i64)
@@ -445,8 +445,8 @@ impl MpegSource {
                 codec = if v.kind == VKind::H264 { "H.264".into() } else { "HEVC".into() };
                 rate = None;
                 pixel_format = match &frame.data {
-                    filmcraft_frame::PixelData::Yuv8 { chroma, .. } => format!("YUV {} 8-bit", chroma_name(*chroma)),
-                    filmcraft_frame::PixelData::Yuv16 { chroma, bits, .. } => format!("YUV {} {bits}-bit", chroma_name(*chroma)),
+                    jilo_frame::PixelData::Yuv8 { chroma, .. } => format!("YUV {} 8-bit", chroma_name(*chroma)),
+                    jilo_frame::PixelData::Yuv16 { chroma, bits, .. } => format!("YUV {} {bits}-bit", chroma_name(*chroma)),
                     _ => String::new(),
                 };
             }
@@ -503,7 +503,7 @@ impl MpegSource {
         let st = &file.streams[ai];
         let codec_name = st.codec.name();
         if !audio_supported(&st.codec) || st.units.is_empty() {
-            let why = format!("{codec_name} audio in {} (FilmCraft has no decoder for it)", file.format.name());
+            let why = format!("{codec_name} audio in {} (Jilo Studio has no decoder for it)", file.format.name());
             return self.audio_unsupported(&codec_name, why);
         }
         let first = match file.read_unit(&self.bytes, ai, 0) {
@@ -515,7 +515,7 @@ impl MpegSource {
         let mut latm = None;
         let (codec, rate, channels, per_frame, bits) = match &st.codec {
             Codec::MpegAudio | Codec::AacAdts | Codec::Ac3 => {
-                let Some(fi) = filmcraft_mpegts::frame_info(&st.codec, &first) else {
+                let Some(fi) = jilo_mpegts::frame_info(&st.codec, &first) else {
                     return self.audio_unsupported(&codec_name, format!("{codec_name}: bad frame header"));
                 };
                 let c = match st.codec {
@@ -549,7 +549,7 @@ impl MpegSource {
             _ => return self.audio_unsupported(&codec_name, format!("{codec_name} audio")),
         };
         if codec_is_ac3_unsupported(codec) {
-            return self.audio_unsupported(&codec_name, format!("{codec_name} audio (FilmCraft has no AC-3 decoder yet)"));
+            return self.audio_unsupported(&codec_name, format!("{codec_name} audio (Jilo Studio has no AC-3 decoder yet)"));
         }
         // DVD LPCM packets split sample groups: units own the groups that start in them
         let mut byte_starts = Vec::new();
@@ -561,7 +561,7 @@ impl MpegSource {
             }
             byte_starts.push(acc);
         }
-        let group = |f: filmcraft_mpegts::LpcmFormat| crate::audio::dvd_lpcm_group_bytes(f.channels as usize, f.bits) as u64;
+        let group = |f: jilo_mpegts::LpcmFormat| crate::audio::dvd_lpcm_group_bytes(f.channels as usize, f.bits) as u64;
         // samples per unit
         let lens: Vec<u32> = st
             .units
@@ -696,11 +696,11 @@ fn interpolate_pts(raw: &[Option<i64>], dur: impl Fn(i64) -> i64) -> Vec<Option<
         .collect()
 }
 
-fn chroma_name(c: filmcraft_frame::Chroma) -> &'static str {
+fn chroma_name(c: jilo_frame::Chroma) -> &'static str {
     match c {
-        filmcraft_frame::Chroma::C420 => "4:2:0",
-        filmcraft_frame::Chroma::C422 => "4:2:2",
-        filmcraft_frame::Chroma::C444 => "4:4:4",
+        jilo_frame::Chroma::C420 => "4:2:0",
+        jilo_frame::Chroma::C422 => "4:2:2",
+        jilo_frame::Chroma::C444 => "4:4:4",
     }
 }
 
@@ -807,7 +807,7 @@ impl MediaSource for MpegSource {
         }
         let rate = self.info.frame_rate();
         let f = rate.frame_at(req.time.max(Tick::ZERO)).clamp(0, v.order.len() as i64 - 1);
-        let late = filmcraft_media::cancel::catch_up().map(|m| rate.frame_at(req.time - m));
+        let late = jilo_media::cancel::catch_up().map(|m| rate.frame_at(req.time - m));
         Ok(self.gop.frame_late(&MpegVideo { src: self, v }, f, late)?)
     }
 
@@ -870,8 +870,8 @@ pub fn opener(name: &str, bytes: Arc<[u8]>) -> Option<Result<SharedSource, Media
     Some(MpegSource::open(name, bytes).map(|s| Arc::new(s) as SharedSource).map_err(Into::into))
 }
 
-/// [`filmcraft_media::ReaderOpener`] for MPEG transport / program / video elementary streams.
-pub fn reader_opener(name: &str, head: &[u8], reader: &filmcraft_media::SharedReader) -> Option<Result<SharedSource, MediaError>> {
+/// [`jilo_media::ReaderOpener`] for MPEG transport / program / video elementary streams.
+pub fn reader_opener(name: &str, head: &[u8], reader: &jilo_media::SharedReader) -> Option<Result<SharedSource, MediaError>> {
     if !sniff(head) {
         return None;
     }
@@ -905,7 +905,7 @@ fn annexb_nals(au: &[u8]) -> Vec<&[u8]> {
 }
 
 /// An `avc1` sample entry from the first SPS and PPS of an H.264 Annex B stream.
-fn h264_entry(units: &[Vec<u8>]) -> Option<filmcraft_isobmff::SampleEntry> {
+fn h264_entry(units: &[Vec<u8>]) -> Option<jilo_isobmff::SampleEntry> {
     let mut sps = None;
     let mut pps = None;
     for nal in units.iter().flat_map(|u| annexb_nals(u)) {
@@ -919,16 +919,16 @@ fn h264_entry(units: &[Vec<u8>]) -> Option<filmcraft_isobmff::SampleEntry> {
         }
     }
     let (sps, pps) = (sps?, pps?);
-    let parsed = filmcraft_h264::params::Sps::parse(&filmcraft_bitstream::unescape_rbsp(sps.get(1..)?)).ok()?;
+    let parsed = jilo_h264::params::Sps::parse(&jilo_bitstream::unescape_rbsp(sps.get(1..)?)).ok()?;
     let (_, _, w, h) = parsed.crop_rect();
     let (profile, compatibility, level) = (*sps.get(1)?, *sps.get(2)?, *sps.get(3)?);
-    let cfg = filmcraft_isobmff::AvcConfig { profile, compatibility, level, length_size: 4, sps: vec![sps], pps: vec![pps], ext: Vec::new() };
-    Some(filmcraft_isobmff::SampleEntry::avc(cfg, u16::try_from(w).ok()?, u16::try_from(h).ok()?))
+    let cfg = jilo_isobmff::AvcConfig { profile, compatibility, level, length_size: 4, sps: vec![sps], pps: vec![pps], ext: Vec::new() };
+    Some(jilo_isobmff::SampleEntry::avc(cfg, u16::try_from(w).ok()?, u16::try_from(h).ok()?))
 }
 
 /// A decoder for an H.264 Annex B stream from the registered decoders (hardware first, then our
 /// own), fed length-prefixed samples as they expect.
-fn annexb_decoder(entry: &filmcraft_isobmff::SampleEntry) -> crate::Result<Box<dyn VideoDecoder>> {
+fn annexb_decoder(entry: &jilo_isobmff::SampleEntry) -> crate::Result<Box<dyn VideoDecoder>> {
     Ok(Box::new(AnnexBAsAvcc { inner: crate::make_video_decoder(entry)? }))
 }
 

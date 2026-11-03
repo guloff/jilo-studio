@@ -1,4 +1,4 @@
-//! MXF media source (`filmcraft-mxf` demux, GOP-aware video via [`crate::gop`]).
+//! MXF media source (`jilo-mxf` demux, GOP-aware video via [`crate::gop`]).
 //!
 //! - Video: H.264 / AVC-Intra (Annex B byte stream, our decoder), MPEG-2 (D-10 / IMX, XDCAM HD /
 //!   HD422; our decoder), VC-3 (DNxHD/DNxHR) and ProRes through the decoder factories. Other
@@ -12,17 +12,17 @@
 
 use std::sync::Arc;
 
-use filmcraft_frame::{AudioBuffer, VideoFrame};
-use filmcraft_isobmff::{FourCc, SampleEntry};
-use filmcraft_media::{AudioStreamInfo, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, SharedSource, VideoStreamInfo};
-use filmcraft_mxf::{Codec, MxfFile, Timecode, TrackKind};
-use filmcraft_time::{FrameRate, Tick};
+use jilo_frame::{AudioBuffer, VideoFrame};
+use jilo_isobmff::{FourCc, SampleEntry};
+use jilo_media::{AudioStreamInfo, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, SharedSource, VideoStreamInfo};
+use jilo_mxf::{Codec, MxfFile, Timecode, TrackKind};
+use jilo_time::{FrameRate, Tick};
 
 use crate::gop::{GopCache, VideoSamples};
 use crate::video::VideoDecoder;
 use crate::{CodecError, make_video_decoder};
 
-impl filmcraft_mxf::ByteSource for crate::Src {
+impl jilo_mxf::ByteSource for crate::Src {
     fn len(&self) -> u64 {
         self.0.len()
     }
@@ -32,7 +32,7 @@ impl filmcraft_mxf::ByteSource for crate::Src {
 }
 
 pub fn sniff(head: &[u8]) -> bool {
-    filmcraft_mxf::sniff(head)
+    jilo_mxf::sniff(head)
 }
 
 pub struct MxfSource {
@@ -63,9 +63,9 @@ pub struct MxfSource {
 /// positions: the rank of (IDR period, POC) (8.2.1.1, picture order count type 0; types 1 and 2
 /// never reorder for the streams written by AVC encoders we have seen, so they keep stored order).
 pub fn avc_presentation_order(heads: &[Vec<u8>]) -> Option<Vec<i64>> {
-    use filmcraft_bitstream::{annexb_nals, unescape_rbsp};
-    use filmcraft_h264::params::{Pps, Sps};
-    use filmcraft_h264::slice::{NalHeader, SliceHeader};
+    use jilo_bitstream::{annexb_nals, unescape_rbsp};
+    use jilo_h264::params::{Pps, Sps};
+    use jilo_h264::slice::{NalHeader, SliceHeader};
     let mut spss: Vec<Option<Sps>> = vec![None; 32];
     let mut ppss: Vec<Option<Pps>> = vec![None; 256];
     let (mut prev_msb, mut prev_lsb) = (0i64, 0i64);
@@ -90,8 +90,8 @@ pub fn avc_presentation_order(heads: &[Vec<u8>]) -> Option<Vec<i64>> {
                 1 | 5 => {
                     let mut sps_of = None;
                     let (sh, _, _) = SliceHeader::parse(&rbsp, hdr, |id| {
-                        let pps = ppss.get(id as usize).and_then(Option::as_ref).ok_or(filmcraft_h264::Error::MissingParameterSet("PPS".into()))?;
-                        let sps = spss.get(pps.sps_id as usize).and_then(Option::as_ref).ok_or(filmcraft_h264::Error::MissingParameterSet("SPS".into()))?;
+                        let pps = ppss.get(id as usize).and_then(Option::as_ref).ok_or(jilo_h264::Error::MissingParameterSet("PPS".into()))?;
+                        let sps = spss.get(pps.sps_id as usize).and_then(Option::as_ref).ok_or(jilo_h264::Error::MissingParameterSet("SPS".into()))?;
                         sps_of = Some(sps);
                         Ok((pps, sps))
                     })
@@ -193,14 +193,14 @@ fn start_frames(tc: &Timecode, rate: FrameRate) -> i64 {
 
 impl MxfSource {
     pub fn open(name: &str, bytes: Arc<[u8]>) -> crate::Result<Self> {
-        Self::open_reader(name, Arc::new(filmcraft_media::reader::MemReader(bytes)))
+        Self::open_reader(name, Arc::new(jilo_media::reader::MemReader(bytes)))
     }
 
     /// Open from a random-access reader: only the KLV headers, metadata and index are read now.
-    pub fn open_reader(name: &str, reader: filmcraft_media::SharedReader) -> crate::Result<Self> {
+    pub fn open_reader(name: &str, reader: jilo_media::SharedReader) -> crate::Result<Self> {
         let bytes = crate::Src(reader);
-        let file = filmcraft_mxf::open(&bytes).map_err(|e| match e {
-            filmcraft_mxf::Error::Unsupported(s) => CodecError::Unsupported(format!("MXF: {s}")),
+        let file = jilo_mxf::open(&bytes).map_err(|e| match e {
+            jilo_mxf::Error::Unsupported(s) => CodecError::Unsupported(format!("MXF: {s}")),
             other => CodecError::Container(other.to_string()),
         })?;
         for w in &file.warnings {
@@ -211,7 +211,7 @@ impl MxfSource {
             .tracks
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.kind == TrackKind::Sound && !t.chunks.is_empty() && t.sound_format != filmcraft_mxf::SoundFormat::Other)
+            .filter(|(_, t)| t.kind == TrackKind::Sound && !t.chunks.is_empty() && t.sound_format != jilo_mxf::SoundFormat::Other)
             .map(|(i, _)| i)
             .collect();
         if vtrack.is_none() && atracks.is_empty() {
@@ -232,7 +232,7 @@ impl MxfSource {
                 let heads: Vec<Vec<u8>> = (0..t.samples.len())
                     .map(|i| {
                         let s = t.samples[i];
-                        filmcraft_media::reader::read_range(&*bytes.0, s.offset, (s.size as usize).min(16 << 10)).unwrap_or_default()
+                        jilo_media::reader::read_range(&*bytes.0, s.offset, (s.size as usize).min(16 << 10)).unwrap_or_default()
                     })
                     .collect();
                 match avc_presentation_order(&heads) {
@@ -254,7 +254,7 @@ impl MxfSource {
             let mpeg = (t.codec == Codec::Mpeg2)
                 .then(|| file.read_sample(&bytes, vi, 0).ok())
                 .flatten()
-                .and_then(|s| Some((filmcraft_mpeg2v::probe(&s)?, filmcraft_mpeg2v::scan_access_unit(&s), crate::video::mpeg2_sequence_header(&s)?)));
+                .and_then(|s| Some((jilo_mpeg2v::probe(&s)?, jilo_mpeg2v::scan_access_unit(&s), crate::video::mpeg2_sequence_header(&s)?)));
             let (w, h) = match &mpeg {
                 Some((info, _, _)) => (info.width, info.height),
                 None => (p.frame_width(), p.frame_height()),
@@ -271,14 +271,14 @@ impl MxfSource {
                 Codec::Vc3 => file
                     .read_sample(&bytes, vi, 0)
                     .ok()
-                    .and_then(|f| filmcraft_dnx::probe(&f).ok())
-                    .map(|h| filmcraft_dnx::cid_name(h.cid))
+                    .and_then(|f| jilo_dnx::probe(&f).ok())
+                    .map(|h| jilo_dnx::cid_name(h.cid))
                     .unwrap_or_else(|| "DNxHD/DNxHR".into()),
                 Codec::ProRes { profile } => prores_name(profile).into(),
                 c @ Codec::Avc { .. } => c.name().into(),
                 Codec::Mpeg2 if mpeg.is_some() => mpeg.as_ref().map(|m| m.0.codec_name()).unwrap_or_default(),
                 other => {
-                    let why = format!("{} video in MXF (FilmCraft has no {} decoder)", other.name(), other.name());
+                    let why = format!("{} video in MXF (Jilo Studio has no {} decoder)", other.name(), other.name());
                     unsupported = Some(why);
                     format!("{} (unsupported)", other.name())
                 }
@@ -295,17 +295,17 @@ impl MxfSource {
                     let pce = pce.as_ref()?;
                     let _ = ph;
                     (!pce.progressive_frame).then_some(if pce.picture_structure == 2 || (pce.picture_structure == 3 && !pce.top_field_first) {
-                        filmcraft_mpeg2v::FieldOrder::BottomFirst
+                        jilo_mpeg2v::FieldOrder::BottomFirst
                     } else {
-                        filmcraft_mpeg2v::FieldOrder::TopFirst
+                        jilo_mpeg2v::FieldOrder::TopFirst
                     })
                 });
                 pixel_format = crate::video::mpeg2_pixel_format(info, fo);
                 mpeg2_header = header.clone();
             }
-            let mut color = filmcraft_color::ColorInfo { matrix: filmcraft_frame::default_matrix(w, h), ..filmcraft_color::ColorInfo::REC709 };
+            let mut color = jilo_color::ColorInfo { matrix: jilo_frame::default_matrix(w, h), ..jilo_color::ColorInfo::REC709 };
             if p.full_range() {
-                color.range = filmcraft_color::Range::Full;
+                color.range = jilo_color::Range::Full;
                 explicit_color = Some(color);
             }
             let secs = vcount as f64 / rate.as_f64().max(1e-9);
@@ -344,14 +344,14 @@ impl MxfSource {
                 aframes = aframes.min(presented);
                 let next =
                     channels.checked_add(si.channels.max(1)).ok_or_else(|| CodecError::Unsupported("MXF: combined audio channel count overflows".into()))?;
-                if next > filmcraft_media::MAX_AUDIO_CHANNELS {
-                    return Err(CodecError::Unsupported(format!("MXF: combined audio exceeds {} channels", filmcraft_media::MAX_AUDIO_CHANNELS)));
+                if next > jilo_media::MAX_AUDIO_CHANNELS {
+                    return Err(CodecError::Unsupported(format!("MXF: combined audio exceeds {} channels", jilo_media::MAX_AUDIO_CHANNELS)));
                 }
                 channels = next;
                 combined.push((ai, first));
             }
             let sr = if rate.is_valid() { (rate.num as f64 / rate.den as f64).round() as u32 } else { 48_000 };
-            if let Ok((sr, channels)) = filmcraft_media::bounded_audio_dimensions(sr, channels) {
+            if let Ok((sr, channels)) = jilo_media::bounded_audio_dimensions(sr, channels) {
                 audio = Some(AudioStreamInfo { sample_rate: sr, channels, codec: file.tracks[a0].codec.name().into(), bits_per_sample: Some(si0.bits) });
             }
         }
@@ -458,7 +458,7 @@ impl MediaSource for MxfSource {
         }
         let rate = self.info.frame_rate();
         let f = rate.frame_at(req.time.max(Tick::ZERO)).clamp(0, self.vcount - 1);
-        let late = filmcraft_media::cancel::catch_up().map(|m| self.vfirst + rate.frame_at(req.time - m));
+        let late = jilo_media::cancel::catch_up().map(|m| self.vfirst + rate.frame_at(req.time - m));
         let frame = self.video.frame_late(&MxfVideo { src: self, track: ti }, self.vfirst + f, late)?;
         Ok(frame)
     }
@@ -468,11 +468,11 @@ impl MediaSource for MxfSource {
         let src_rate = ainfo.sample_rate;
         let ch = ainfo.channels.max(1) as usize;
         let exact = src_rate == sample_rate;
-        let source_frames = if exact { frames } else { filmcraft_media::resample_source_frames(frames, src_rate, sample_rate)? };
+        let source_frames = if exact { frames } else { jilo_media::resample_source_frames(frames, src_rate, sample_rate)? };
         let need =
             if exact { source_frames } else { source_frames.checked_add(2).ok_or_else(|| MediaError::Decode("audio source window overflows".into()))? };
-        filmcraft_media::validate_audio_buffer_shape(ch, need)?;
-        filmcraft_media::validate_audio_buffer_shape(ch, frames)?;
+        jilo_media::validate_audio_buffer_shape(ch, need)?;
+        jilo_media::validate_audio_buffer_shape(ch, frames)?;
         let mut out = AudioBuffer::silence(sample_rate, ch, frames);
         let ratio = src_rate as f64 / sample_rate as f64;
         let s0 = if exact { start } else { (start as f64 * ratio).floor() as i64 };
@@ -520,8 +520,8 @@ pub fn opener(name: &str, bytes: Arc<[u8]>) -> Option<Result<SharedSource, Media
     Some(MxfSource::open(name, bytes).map(|s| Arc::new(s) as SharedSource).map_err(Into::into))
 }
 
-/// [`filmcraft_media::ReaderOpener`] for MXF.
-pub fn reader_opener(name: &str, head: &[u8], reader: &filmcraft_media::SharedReader) -> Option<Result<SharedSource, MediaError>> {
+/// [`jilo_media::ReaderOpener`] for MXF.
+pub fn reader_opener(name: &str, head: &[u8], reader: &jilo_media::SharedReader) -> Option<Result<SharedSource, MediaError>> {
     if !sniff(head) {
         return None;
     }

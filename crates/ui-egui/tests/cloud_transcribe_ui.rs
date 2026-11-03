@@ -6,15 +6,15 @@ use std::sync::Arc;
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_ai::Response;
-use filmcraft_ai::transport::FakeTransport;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_ai::Response;
+use jilo_ai::transport::FakeTransport;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
     snapshots: Option<std::path::PathBuf>,
 }
@@ -22,20 +22,20 @@ struct Driver {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
-        // FILMCRAFT_UI_SNAPSHOT_DIR=<dir>: also render the window with wgpu and write ai-*.png there
-        let snapshots = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
+        let app = JiloApp::new(session).with_control(rx);
+        // JILO_UI_SNAPSHOT_DIR=<dir>: also render the window with wgpu and write ai-*.png there
+        let snapshots = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
         let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
         if snapshots.is_some() {
             b = b.wgpu();
         }
         let harness = b.build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx, snapshots };
-        if let Ok(lang) = std::env::var("FILMCRAFT_UI_SNAPSHOT_LANG") {
+        if let Ok(lang) = std::env::var("JILO_UI_SNAPSHOT_LANG") {
             d.ok("engine.execute", json!({"command": "prefs.set", "params": {"key": "general.interfaceLanguage", "value": lang}}));
         }
-        // FILMCRAFT_UI_SNAPSHOT_THEME=light|dark: the appearance the snapshots are taken in
-        if let Ok(mode) = std::env::var("FILMCRAFT_UI_SNAPSHOT_THEME") {
+        // JILO_UI_SNAPSHOT_THEME=light|dark: the appearance the snapshots are taken in
+        if let Ok(mode) = std::env::var("JILO_UI_SNAPSHOT_THEME") {
             d.ok("engine.execute", json!({"command": "prefs.set", "params": {"key": "appearance.appearanceMode", "value": mode}}));
         }
         d.frames(4);
@@ -98,7 +98,7 @@ impl Driver {
 fn russian_transcript(d: &mut Driver) {
     // Russian transcripts for the media of the first two A1 clips: sentences of four words, a pause after each
     let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
-    let tick = filmcraft_time::TICKS_PER_SECOND / 10; // 0.1 s
+    let tick = jilo_time::TICKS_PER_SECOND / 10; // 0.1 s
     let text = [
         ["Сегодня", "мы", "монтируем", "интервью.", "Сначала", "убираем", "лишние", "паузы."],
         ["Потом", "ищем", "лучшие", "моменты.", "И", "собираем", "короткий", "ролик."],
@@ -152,7 +152,7 @@ fn fake_gemini() -> Arc<FakeTransport> {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn cloud_transcription_asks_once_runs_in_the_background_and_adds_the_transcript() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-cloud-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-cloud-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = fake_gemini();
@@ -222,7 +222,7 @@ fn filler_words_are_chosen_in_a_dialog() {
     let seq = d.ok("engine.execute", json!({"command": "sequence.inspect", "params": {}}));
     let item = seq["audio"][0]["items"][0]["item"].as_u64().unwrap();
     let start = seq["audio"][0]["items"][0]["sourceIn"].as_i64().unwrap_or(0);
-    let tick = filmcraft_time::TICKS_PER_SECOND / 10; // 0.1 s
+    let tick = jilo_time::TICKS_PER_SECOND / 10; // 0.1 s
     let words: Vec<Value> = ["Сегодня", "э", "мы", "ну", "монтируем"]
         .iter()
         .enumerate()
@@ -248,7 +248,7 @@ fn filler_words_are_chosen_in_a_dialog() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn captions_are_translated_from_the_captions_tab() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-translate-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-translate-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = Arc::new(FakeTransport::new());
@@ -303,7 +303,7 @@ fn captions_are_translated_from_the_captions_tab() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn captions_are_translated_and_dubbed() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-dub-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-dub-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = Arc::new(FakeTransport::new());
@@ -361,7 +361,7 @@ fn captions_are_translated_and_dubbed() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn highlights_are_found_listed_and_assembled() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-highlights-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-highlights-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = Arc::new(FakeTransport::new());
@@ -447,7 +447,7 @@ fn highlights_are_found_listed_and_assembled() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn a_recording_is_cut_into_vertical_shorts() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-shorts-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-shorts-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = Arc::new(FakeTransport::new());
@@ -513,7 +513,7 @@ fn a_recording_is_cut_into_vertical_shorts() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn auto_zoom_by_meaning_keys_the_scale_on_the_quoted_words() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-autozoom-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-autozoom-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = Arc::new(FakeTransport::new());
@@ -579,7 +579,7 @@ fn auto_zoom_by_meaning_keys_the_scale_on_the_quoted_words() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn youtube_texts_are_written_shown_and_edited() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-youtube-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-youtube-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = Arc::new(FakeTransport::new());
@@ -647,7 +647,7 @@ fn youtube_texts_are_written_shown_and_edited() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn a_batch_runs_from_the_dialog_and_ends_with_a_summary() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-batch-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-batch-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = Arc::new(FakeTransport::new());
@@ -664,7 +664,7 @@ fn a_batch_runs_from_the_dialog_and_ends_with_a_summary() {
     s.ai_sleep = Some(Arc::new(|_, _| {}));
     s.execute("file.openDemoProject", json!({})).unwrap();
     s.execute("ai.setKey", json!({"provider": "gemini", "key": "k"})).unwrap();
-    s.path = Some(dir.join("Demo.fcproj").to_string_lossy().into_owned());
+    s.path = Some(dir.join("Demo.jsproj").to_string_lossy().into_owned());
     let mut d = Driver::new(s);
     d.ok("ui.set", json!({"workspace": "Captions and Graphics"}));
     d.frames(2);
@@ -716,7 +716,7 @@ fn a_batch_runs_from_the_dialog_and_ends_with_a_summary() {
 /// framing it leaves in Motion.
 #[test]
 fn a_clip_is_reframed_on_a_face_picked_on_the_frame() {
-    use filmcraft_engine::reframe::FaceBox;
+    use jilo_engine::reframe::FaceBox;
     let mut s = Session::default();
     s.execute("file.openDemoProject", json!({})).unwrap();
     s.face_detector = Some(Arc::new(|_: &[u8], _, _| {
@@ -724,11 +724,10 @@ fn a_clip_is_reframed_on_a_face_picked_on_the_frame() {
     }));
     let item = s.project.items.values().find(|i| i.has_video() && i.as_media().is_some()).map(|i| i.id.0).unwrap();
     s.execute("file.newSequence", json!({"name": "Vertical", "width": 1080, "height": 1920, "video": 1, "audio": 1})).unwrap();
-    let r =
-        s.execute("timeline.place", json!({"item": item, "track": "V1", "seconds": 0.0, "duration": filmcraft_time::Tick::from_seconds_f64(6.0).0})).unwrap();
+    let r = s.execute("timeline.place", json!({"item": item, "track": "V1", "seconds": 0.0, "duration": jilo_time::Tick::from_seconds_f64(6.0).0})).unwrap();
     let clip = r["clips"][0].as_u64().unwrap();
-    s.state.selection = vec![filmcraft_project::ClipId(clip)];
-    s.set_playhead(filmcraft_time::Tick::from_seconds_f64(1.0));
+    s.state.selection = vec![jilo_project::ClipId(clip)];
+    s.set_playhead(jilo_time::Tick::from_seconds_f64(1.0));
     let mut d = Driver::new(s);
     d.frames(2);
     d.ok("ui.menu.invoke", json!({"id": "clip.reframeToFace"}));
@@ -753,9 +752,9 @@ fn a_clip_is_reframed_on_a_face_picked_on_the_frame() {
     }
     assert!(d.harness.state().ui.reframe.job.is_none(), "the framing is applied when the faces are found");
     let app = d.harness.state();
-    let (_, it) = app.session.active_sequence().unwrap().find_item(filmcraft_project::ClipId(clip)).unwrap();
+    let (_, it) = app.session.active_sequence().unwrap().find_item(jilo_project::ClipId(clip)).unwrap();
     let m = it.effect("motion").unwrap();
-    let pos = m.vec2_at("position", it.effect_time_at(filmcraft_time::Tick::from_seconds_f64(3.0)));
+    let pos = m.vec2_at("position", it.effect_time_at(jilo_time::Tick::from_seconds_f64(3.0)));
     // the second face (centre 0.665 of 1920) on the middle of the 1080 frame, the picture 1920/1080 up
     let want = 540.0 - 1920.0 / 1080.0 * (0.665 * 1920.0 - 960.0);
     assert!((pos.x - want).abs() < 0.2 && m.params["position"].keyframes.is_empty(), "{pos:?} vs {want}");
@@ -774,11 +773,11 @@ fn a_clip_is_reframed_on_a_face_picked_on_the_frame() {
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn updates_are_checked_on_request_and_shown_in_a_window() {
     let fake = Arc::new(FakeTransport::new());
-    let page = format!("{}/tag/v9.1.0", filmcraft_engine::updates::RELEASES_PAGE);
+    let page = format!("{}/tag/v9.1.0", jilo_engine::updates::RELEASES_PAGE);
     let tag = Arc::new(std::sync::Mutex::new("v9.1.0".to_string()));
     let t = tag.clone();
     fake.route(
-        |r| r.url == filmcraft_engine::updates::RELEASES_API,
+        |r| r.url == jilo_engine::updates::RELEASES_API,
         move |_| {
             let body = json!({
                 "tag_name": t.lock().unwrap().clone(),
@@ -826,15 +825,10 @@ fn updates_are_checked_on_request_and_shown_in_a_window() {
 fn the_daily_check_offers_a_newer_release_once() {
     let fake = Arc::new(FakeTransport::new());
     fake.route(
-        |r| r.url == filmcraft_engine::updates::RELEASES_API,
-        |_| {
-            Ok(Response::json(
-                200,
-                &json!({"tag_name": "v9.2.0", "html_url": format!("{}/tag/v9.2.0", filmcraft_engine::updates::RELEASES_PAGE), "body": "Notes"}),
-            ))
-        },
+        |r| r.url == jilo_engine::updates::RELEASES_API,
+        |_| Ok(Response::json(200, &json!({"tag_name": "v9.2.0", "html_url": format!("{}/tag/v9.2.0", jilo_engine::updates::RELEASES_PAGE), "body": "Notes"}))),
     );
-    assert!(filmcraft_engine::settings::GeneralPrefs::default().check_for_updates, "on by default");
+    assert!(jilo_engine::settings::GeneralPrefs::default().check_for_updates, "on by default");
     let mut s = Session::default();
     s.ai_transport = Some(fake.clone());
     s.prefs.general.check_for_updates = true;
@@ -870,12 +864,12 @@ fn the_daily_check_offers_a_newer_release_once() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn an_image_is_generated_from_a_description() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-imagegen-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-imagegen-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let mut png = std::io::Cursor::new(Vec::new());
     image::RgbaImage::from_fn(96, 54, |x, y| image::Rgba([(x * 2) as u8, 90, (y * 4) as u8, 255])).write_to(&mut png, image::ImageFormat::Png).unwrap();
-    let b64 = filmcraft_ai::base64::encode(png.get_ref());
+    let b64 = jilo_ai::base64::encode(png.get_ref());
     let fake = Arc::new(FakeTransport::new());
     fake.route(|r| r.url.ends_with("/images/generations"), move |_| Ok(Response::json(200, &json!({"data": [{"b64_json": b64}]}))));
     let mut s = Session::default();
@@ -884,7 +878,7 @@ fn an_image_is_generated_from_a_description() {
     s.ai_sleep = Some(Arc::new(|_, _| {}));
     s.execute("file.openDemoProject", json!({})).unwrap();
     s.execute("ai.setKey", json!({"provider": "openai", "key": "k"})).unwrap();
-    s.path = Some(dir.join("Demo.fcproj").to_string_lossy().into_owned());
+    s.path = Some(dir.join("Demo.jsproj").to_string_lossy().into_owned());
     let items_before = s.project.items.len();
     let mut d = Driver::new(s);
     d.ok("ui.menu.invoke", json!({"id": "ai.generateImage"}));
@@ -923,7 +917,7 @@ fn an_image_is_generated_from_a_description() {
 #[test]
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn an_elevenlabs_voice_is_chosen_allowed_and_speaks_the_narration() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-eleven-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-eleven-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let fake = Arc::new(FakeTransport::new());
@@ -1013,7 +1007,7 @@ fn an_elevenlabs_voice_is_chosen_allowed_and_speaks_the_narration() {
 #[allow(clippy::field_reassign_with_default)] // Session has private fields
 fn an_update_downloads_with_progress_and_says_what_comes_next() {
     use std::sync::atomic::{AtomicBool, Ordering};
-    let dir = std::env::temp_dir().join(format!("filmcraft-update-ui-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-update-ui-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let image: Vec<u8> = (0..3_000_000u32).map(|i| (i % 251) as u8).collect();
@@ -1022,12 +1016,12 @@ fn an_update_downloads_with_progress_and_says_what_comes_next() {
         sha2::Sha256::digest(&image).iter().map(|b| format!("{b:02x}")).collect()
     };
     let name = "jilo-studio-9.3.0-macos-aarch64.dmg";
-    let url = format!("https://github.com/{}/releases/download/v9.3.0/{name}", filmcraft_engine::updates::REPO);
-    let release = json!({"tag_name": "v9.3.0", "html_url": format!("{}/tag/v9.3.0", filmcraft_engine::updates::RELEASES_PAGE),
+    let url = format!("https://github.com/{}/releases/download/v9.3.0/{name}", jilo_engine::updates::REPO);
+    let release = json!({"tag_name": "v9.3.0", "html_url": format!("{}/tag/v9.3.0", jilo_engine::updates::RELEASES_PAGE),
         "body": include_str!("../../../docs/releases/0.6.3.md"),
         "assets": [{"name": name, "browser_download_url": url, "size": image.len(), "digest": format!("sha256:{digest}")}]});
     let fake = Arc::new(FakeTransport::new());
-    fake.route(|r| r.url == filmcraft_engine::updates::RELEASES_API, move |_| Ok(Response::json(200, &release)));
+    fake.route(|r| r.url == jilo_engine::updates::RELEASES_API, move |_| Ok(Response::json(200, &release)));
     // the download waits until the test lets it finish
     let gate = Arc::new(AtomicBool::new(false));
     let g = gate.clone();
@@ -1080,7 +1074,7 @@ fn an_update_downloads_with_progress_and_says_what_comes_next() {
     assert_eq!(std::fs::read(dir.join(name)).unwrap(), image);
     d.click("updates.close");
     // a checked update (as the app itself gets): Restart and Install or Install When I Quit
-    *d.harness.state().session.update_download.lock().unwrap() = Some(filmcraft_engine::updater::UpdateDownload {
+    *d.harness.state().session.update_download.lock().unwrap() = Some(jilo_engine::updater::UpdateDownload {
         version: "9.3.0".into(),
         phase: "ready".into(),
         staged: Some(dir.join("Staged/Jilo Studio.app").to_string_lossy().into_owned()),

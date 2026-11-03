@@ -1,22 +1,22 @@
 //! The desktop control channel's access token (#163).
 //!
-//! `filmcraft --control <port>` listens on loopback, which keeps other machines out but not other
+//! `jilo-studio --control <port>` listens on loopback, which keeps other machines out but not other
 //! programs on this one (a web page, another user's process). The app therefore requires a token
 //! on each connection's first line: `{"method": "auth", "params": {"token": "…"}}`.
 //!
-//! The token comes from `FILMCRAFT_CONTROL_TOKEN` when that is set (an agent harness that starts
+//! The token comes from `JILO_CONTROL_TOKEN` when that is set (an agent harness that starts
 //! both the app and the client), otherwise the app makes a random one and writes it to
 //! `<data dir>/control-<port>.token`, readable by the user only. Clients on the same account
-//! (`filmcraft-cli --bridge`, `filmcraft-cli mcp --bridge`) read it from there.
+//! (`jilo-cli --bridge`, `jilo-cli mcp --bridge`) read it from there.
 
 use std::path::{Path, PathBuf};
 
 pub use crate::assistants::ASSISTANT_PORT;
 
 /// Environment variable that sets the token for both the app and its clients.
-pub const TOKEN_ENV: &str = "FILMCRAFT_CONTROL_TOKEN";
+pub const TOKEN_ENV: &str = "JILO_CONTROL_TOKEN";
 /// Environment variable that turns authentication off (`1`), for old scripts on a trusted machine.
-pub const NO_AUTH_ENV: &str = "FILMCRAFT_CONTROL_NO_AUTH";
+pub const NO_AUTH_ENV: &str = "JILO_CONTROL_NO_AUTH";
 
 /// Where the app writes the token for a port.
 pub fn token_path(data_dir: &Path, port: u16) -> PathBuf {
@@ -25,12 +25,12 @@ pub fn token_path(data_dir: &Path, port: u16) -> PathBuf {
 
 /// The token from [`TOKEN_ENV`], if set and not empty.
 pub fn token_from_env() -> Option<String> {
-    std::env::var(TOKEN_ENV).ok().map(|t| t.trim().to_string()).filter(|t| !t.is_empty())
+    crate::env_var(TOKEN_ENV).map(|t| t.to_string_lossy().trim().to_string()).filter(|t| !t.is_empty())
 }
 
 /// Whether [`NO_AUTH_ENV`] asks for no authentication.
 pub fn auth_disabled() -> bool {
-    std::env::var(NO_AUTH_ENV).is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+    crate::env_var(NO_AUTH_ENV).is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
 }
 
 /// A new random token: 32 bytes from the OS generator, as 64 hex digits.

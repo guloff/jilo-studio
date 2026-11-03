@@ -1,6 +1,6 @@
 # Premiere FX & Projects
 
-FilmCraft can import native `.prproj` projects and `.prfpset` effect presets. This is a
+Jilo Studio can import native `.prproj` projects and `.prfpset` effect presets. This is a
 data-file compatibility layer, implemented in Rust from observed user-authored files and
 documented preset behaviour. It reads PremiereData version 3 object graphs; it does not
 load Adobe plug-in binaries. No Adobe code, preset assets or user projects are included.
@@ -18,7 +18,7 @@ the source span, linked audio/video clips, nested sequences, supported effect co
 Cross Dissolve/Constant Power/Constant Gain/Exponential Fade timeline transitions. Projects
 with bins and media but no sequence are accepted too.
 
-Native timing is already in FilmCraft's 254,016,000,000 ticks per second. Cut and source times
+Native timing is already in Jilo Studio's 254,016,000,000 ticks per second. Cut and source times
 remain integers. Rounded native media frame-duration metadata uses a bounded rational frame-rate
 approximation, which is reported; sequence timing is not reconstructed from those media rates.
 
@@ -27,13 +27,13 @@ approximation, which is reported; sequence timing is not reconstructed from thos
 Use **Effects → Presets → Import Presets…** and select `.prfpset`, or run
 `presets.import {"path":"/path/effects.prfpset"}`. Preset-tree references determine which
 items are imported. Custom folders become `Folder/Preset` names, so unreferenced objects
-are not accidentally added. Imported presets persist in the normal FilmCraft library and
-can be exported in FilmCraft's JSON preset format.
+are not accidentally added. Imported presets persist in the normal Jilo Studio library and
+can be exported in Jilo Studio's JSON preset format.
 Import reads through the editor's host services, including hosts without a native filesystem.
 
 Mapped native components:
 
-| Native match name | FilmCraft component |
+| Native match name | Jilo Studio component |
 | --- | --- |
 | `AE.ADBE Motion` | Motion |
 | `AE.ADBE Geometry2` | Transform |
@@ -47,7 +47,7 @@ Mapped native components:
 
 Static values, enabled state and supported keyframe values/times are imported using stable
 parameter IDs, rather than translated display names. Preset keyframes are normalised against
-their saved `AnchorInPoint`; `Type` 0/1/2 maps to Scale/Anchor to In/Anchor to Out. FilmCraft's
+their saved `AnchorInPoint`; `Type` 0/1/2 maps to Scale/Anchor to In/Anchor to Out. Jilo Studio's
 existing preset application then retimes them onto the selected clip. These modes follow
 [Adobe's documented preset behaviour](https://helpx.adobe.com/premiere/desktop/add-video-effects/apply-video-effects/create-effect-presets.html).
 
@@ -70,7 +70,7 @@ Malformed documents are parsed completely before project or preset-library chang
 Preset-library save failure restores the previous in-memory library.
 
 The current mapping is not a claim of pixel parity with Premiere. Temporal influence is read,
-but temporal velocities and spatial Bézier handles are approximated by FilmCraft interpolation
+but temporal velocities and spatial Bézier handles are approximated by Jilo Studio interpolation
 and reported. Composition shutter angle is approximated as 180° when requested by Transform.
 Masks, opaque effect data, Lumetri/Ultra Key/text components, most audio plug-ins, mixer
 automation, native routing between multiple audio streams, multicam/merged-clip semantics,
@@ -93,9 +93,9 @@ to the whole-document limit.
 ## Reproduce checks
 
 ```sh
-cargo test -p filmcraft-interchange --test premiere
-cargo test -p filmcraft-engine premiere
-cargo run -p filmcraft-interchange --example premiere_inspect -- project.prproj presets.prfpset
+cargo test -p jilo-interchange --test premiere
+cargo test -p jilo-engine premiere
+cargo run -p jilo-interchange --example premiere_inspect -- project.prproj presets.prfpset
 ```
 
 The synthetic tests cover gzip/UTF-16, exact cuts and source offsets, links, bins, nested

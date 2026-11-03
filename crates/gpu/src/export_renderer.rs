@@ -1,7 +1,7 @@
 //! Off-screen GPU export renderer: composite a frame with the same
-//! [`filmcraft_render::plan::plan_frame`] + [`GpuCompositor`] path the monitors use, then read
+//! [`jilo_render::plan::plan_frame`] + [`GpuCompositor`] path the monitors use, then read
 //! the **linear float accumulator** back (not the sRGB display texture), so the result matches
-//! `filmcraft_render::render_sequence`'s premultiplied linear-light RGBA and the export pipeline's
+//! `jilo_render::render_sequence`'s premultiplied linear-light RGBA and the export pipeline's
 //! placement, overlays and video limiter see exactly what the CPU renderer would have produced.
 //!
 //! Renderers share one off-screen wgpu device (no window), created by the first and kept for the
@@ -12,10 +12,10 @@
 //! CPU) is returned unchanged — it already is the CPU image.
 
 use crate::{GpuCompositor, prepare};
-use filmcraft_project::{ItemId, Project};
-use filmcraft_render::plan::{FramePlan, plan_frame};
-use filmcraft_render::{Image, RenderOptions, SourceProvider};
-use filmcraft_time::Tick;
+use jilo_project::{ItemId, Project};
+use jilo_render::plan::{FramePlan, plan_frame};
+use jilo_render::{Image, RenderOptions, SourceProvider};
+use jilo_time::Tick;
 
 /// Where export rendering spends its time (process-wide totals, for the bench).
 pub mod timing {
@@ -163,12 +163,12 @@ impl ExportRenderer {
 mod tests {
     use super::*;
     use crate::{f16_to_f32, f32_to_f16};
-    use filmcraft_export::FrameRenderer;
-    use filmcraft_media::generators::GeneratorSource;
-    use filmcraft_media::{Generator, MediaSource};
-    use filmcraft_project::{ItemKind, Label, MediaClip, MediaRef, Project, SequenceSettings, TrackKind};
-    use filmcraft_render::SourceMap;
-    use filmcraft_time::{TICKS_PER_SECOND, Tick, TimeRange};
+    use jilo_export::FrameRenderer;
+    use jilo_media::generators::GeneratorSource;
+    use jilo_media::{Generator, MediaSource};
+    use jilo_project::{ItemKind, Label, MediaClip, MediaRef, Project, SequenceSettings, TrackKind};
+    use jilo_render::SourceMap;
+    use jilo_time::{TICKS_PER_SECOND, Tick, TimeRange};
     use std::sync::Arc;
 
     const EPS: f32 = 1e-4;
@@ -177,14 +177,8 @@ mod tests {
     /// fixture-free project helper).
     fn project(transform: bool) -> (Arc<Project>, ItemId, SourceMap) {
         let mut p = Project::new("x");
-        let g = GeneratorSource::new(
-            Generator::ColorMatte { color: [0.2, 0.5, 0.9, 1.0] },
-            320,
-            180,
-            filmcraft_time::FrameRate::FPS_24,
-            Tick(2 * TICKS_PER_SECOND),
-        );
-        let tone = GeneratorSource::new(Generator::Tone { hz: 440.0, db: -6.0 }, 320, 180, filmcraft_time::FrameRate::FPS_24, Tick(2 * TICKS_PER_SECOND));
+        let g = GeneratorSource::new(Generator::ColorMatte { color: [0.2, 0.5, 0.9, 1.0] }, 320, 180, jilo_time::FrameRate::FPS_24, Tick(2 * TICKS_PER_SECOND));
+        let tone = GeneratorSource::new(Generator::Tone { hz: 440.0, db: -6.0 }, 320, 180, jilo_time::FrameRate::FPS_24, Tick(2 * TICKS_PER_SECOND));
         let add = |p: &mut Project, g: &GeneratorSource| {
             let info = g.info().clone();
             p.add_item(
@@ -206,9 +200,8 @@ mod tests {
         };
         let red = add(&mut p, &g);
         let t = add(&mut p, &tone);
-        let seq =
-            p.new_sequence("s", SequenceSettings { width: 320, height: 180, frame_rate: filmcraft_time::FrameRate::FPS_24, ..Default::default() }, 1, 1, None);
-        let r = filmcraft_time::FrameRate::FPS_24;
+        let seq = p.new_sequence("s", SequenceSettings { width: 320, height: 180, frame_rate: jilo_time::FrameRate::FPS_24, ..Default::default() }, 1, 1, None);
+        let r = jilo_time::FrameRate::FPS_24;
         let _v = p.make_track_item(red, TrackKind::Video, Tick::ZERO, TimeRange::new(Tick::ZERO, r.tick_of(24)), r).unwrap();
         let a = p.make_track_item(t, TrackKind::Audio, Tick::ZERO, TimeRange::new(Tick::ZERO, r.tick_of(24)), r).unwrap();
         if transform {
@@ -216,18 +209,18 @@ mod tests {
             if let Some(clip) = p.sequence_mut(seq).unwrap().video_tracks[0].items.last_mut() {
                 let m = clip.effect_mut("motion").unwrap();
                 if let Some(pm) = m.param_mut("scale") {
-                    pm.value = filmcraft_project::ParamValue::Float(45.0);
+                    pm.value = jilo_project::ParamValue::Float(45.0);
                 }
                 if let Some(pm) = m.param_mut("rotation") {
-                    pm.value = filmcraft_project::ParamValue::Float(20.0);
+                    pm.value = jilo_project::ParamValue::Float(20.0);
                 }
                 if let Some(pm) = m.param_mut("position") {
-                    pm.value = filmcraft_project::ParamValue::Vec2(filmcraft_geom::Vec2::new(215.0, 70.0));
+                    pm.value = jilo_project::ParamValue::Vec2(jilo_geom::Vec2::new(215.0, 70.0));
                 }
                 if let Some(o) = clip.effect_mut("opacity")
                     && let Some(pm) = o.param_mut("opacity")
                 {
-                    pm.value = filmcraft_project::ParamValue::Float(70.0);
+                    pm.value = jilo_project::ParamValue::Float(70.0);
                 }
             }
         }
@@ -266,7 +259,7 @@ mod tests {
         };
         let (p, seq, m) = project(false);
         let t = Tick::ZERO;
-        let cpu = filmcraft_render::render_sequence(&p, seq, t, RenderOptions::default(), &m);
+        let cpu = jilo_render::render_sequence(&p, seq, t, RenderOptions::default(), &m);
         let gpu = r.render(&p, seq, t, RenderOptions::default(), &m).expect("GPU rendered the frame");
         // The linear premultiplied accumulator should be very close to the CPU float image.
         assert_eq!((cpu.w, cpu.h), (gpu.w, gpu.h));
@@ -283,8 +276,8 @@ mod tests {
             return;
         };
         let (p, seq, m) = project(true);
-        let t = filmcraft_time::FrameRate::FPS_24.tick_of(10);
-        let cpu = filmcraft_render::render_sequence(&p, seq, t, RenderOptions::default(), &m);
+        let t = jilo_time::FrameRate::FPS_24.tick_of(10);
+        let cpu = jilo_render::render_sequence(&p, seq, t, RenderOptions::default(), &m);
         let gpu = r.render(&p, seq, t, RenderOptions::default(), &m).expect("GPU rendered the frame");
         assert_parity(&cpu, &gpu, "transformed");
     }
@@ -311,13 +304,13 @@ mod tests {
         let mut r = R(r);
         let (p, seq, m) = project(false);
         let gpu = r.render(&p, seq, Tick::ZERO, RenderOptions::default(), &m).expect("rendered");
-        let cpu = filmcraft_render::render_sequence(&p, seq, Tick::ZERO, RenderOptions::default(), &m);
+        let cpu = jilo_render::render_sequence(&p, seq, Tick::ZERO, RenderOptions::default(), &m);
         assert_parity(&cpu, &gpu, "frame renderer");
         // a frame planned beforehand (as the export does, with no renderer held) is the same frame
         assert!(r.draws_plans());
         for transform in [false, true] {
             let (p, seq, m) = project(transform);
-            let t = filmcraft_time::FrameRate::FPS_24.tick_of(10);
+            let t = jilo_time::FrameRate::FPS_24.tick_of(10);
             let whole = r.render(&p, seq, t, RenderOptions::default(), &m).expect("rendered");
             let planned = r.render_plan(&plan_frame(&p, seq, t, RenderOptions::default(), &m)).expect("rendered from the plan");
             assert_eq!((planned.w, planned.h), (whole.w, whole.h));

@@ -9,7 +9,7 @@
 use egui::{RichText, Sense, StrokeKind, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 #[derive(Clone, Debug, Default)]
 pub struct TemplatesUi {
@@ -19,7 +19,7 @@ pub struct TemplatesUi {
     pub name: String,
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     let u = &mut app.ui.templates;
     u.dialog = true;
     if u.chosen.is_empty() {
@@ -31,7 +31,7 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
     Ok(json!({"dialog": "templates"}))
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.templates.dialog {
         return;
     }

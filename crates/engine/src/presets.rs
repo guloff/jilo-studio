@@ -12,23 +12,25 @@
 //!   standard effects are added before the intrinsic ones (render order), like `effects.apply`.
 //! - **Library.** Built-in presets are authored in code ([`builtin_presets`]); user presets persist
 //!   in `<data dir>/effect-presets.json`. Preset files (export/import) are JSON:
-//!   `{"format": "filmcraft.effect-presets", "version": 1, "presets": [EffectPreset…]}`.
+//!   `{"format": "jilo.effect-presets", "version": 1, "presets": [EffectPreset…]}`.
 //!
 //! Commands: `presets.list`, `presets.save`, `presets.apply` (undoable), `presets.delete`,
 //! `presets.rename`, `presets.export`, `presets.import`.
 
 use std::path::{Path, PathBuf};
 
-use filmcraft_geom::{Affine, Vec2};
-use filmcraft_project::{ClipId, EffectInstance, Keyframe, Mask, MaskPath, Param, ParamValue, TrackItem, TrackKind};
-use filmcraft_time::{TICKS_PER_SECOND, Tick};
+use jilo_geom::{Affine, Vec2};
+use jilo_project::{ClipId, EffectInstance, Keyframe, Mask, MaskPath, Param, ParamValue, TrackItem, TrackKind};
+use jilo_time::{TICKS_PER_SECOND, Tick};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, always, bad, clip_p, has_seq, str_p};
 use crate::{EngineError, Result, Session};
 
-pub const FILE_FORMAT: &str = "filmcraft.effect-presets";
+pub const FILE_FORMAT: &str = "jilo.effect-presets";
+/// The format id of files saved before Jilo Studio named its own formats (still read).
+pub const LEGACY_FILE_FORMAT: &str = "filmcraft.effect-presets";
 const LIBRARY_FILE: &str = "effect-presets.json";
 
 /// How a preset's keyframes are placed on the target clip.
@@ -117,7 +119,7 @@ impl PresetLibrary {
         let Some(d) = &self.dir else { return Ok(()) };
         let _ = std::fs::create_dir_all(d);
         let bytes = file_bytes(&self.user);
-        filmcraft_format::atomic_write(&d.join(LIBRARY_FILE), &bytes).map_err(|e| e.to_string())
+        jilo_format::atomic_write(&d.join(LIBRARY_FILE), &bytes).map_err(|e| e.to_string())
     }
     /// Built-in and user presets (user presets shadow built-ins of the same name).
     pub fn all(&self) -> Vec<EffectPreset> {
@@ -137,7 +139,7 @@ fn file_bytes(presets: &[EffectPreset]) -> Vec<u8> {
 
 fn parse_file(bytes: &[u8]) -> std::result::Result<Vec<EffectPreset>, String> {
     let f: PresetFile = serde_json::from_slice(bytes).map_err(|e| format!("not an effect preset file: {e}"))?;
-    if f.format != FILE_FORMAT {
+    if f.format != FILE_FORMAT && f.format != LEGACY_FILE_FORMAT {
         return Err(format!("not an effect preset file (format `{}`)", f.format));
     }
     if f.version > 1 {
@@ -155,7 +157,7 @@ fn parse_file(bytes: &[u8]) -> std::result::Result<Vec<EffectPreset>, String> {
                     .effects
                     .first()
                     .and_then(|e| e.def())
-                    .is_some_and(|d| matches!(d.kind, filmcraft_project::EffectKind::VideoTransition | filmcraft_project::EffectKind::AudioTransition)))
+                    .is_some_and(|d| matches!(d.kind, jilo_project::EffectKind::VideoTransition | jilo_project::EffectKind::AudioTransition)))
         {
             return Err(format!("preset `{}` has invalid transition metadata", p.name));
         }
@@ -172,7 +174,7 @@ fn kf(t_secs: f64, v: ParamValue) -> Keyframe {
 /// A fresh instance of a built-in effect (a bare instance named `id` if the registry lacks it,
 /// which the preset tests rule out).
 pub(crate) fn effect_instance(id: &str) -> EffectInstance {
-    filmcraft_project::find_effect(id).map(|d| d.instance()).unwrap_or_else(|| EffectInstance {
+    jilo_project::find_effect(id).map(|d| d.instance()).unwrap_or_else(|| EffectInstance {
         effect: id.to_string(),
         enabled: true,
         params: Default::default(),
@@ -214,7 +216,7 @@ fn preset(name: &str, description: &str, keyframes: KeyframeMode, secs: f64, eff
     }
 }
 
-/// Presets that ship with FilmCraft (original work: parameter values chosen by us).
+/// Presets that ship with Jilo Studio (original work: parameter values chosen by us).
 pub fn builtin_presets() -> Vec<EffectPreset> {
     let f = ParamValue::Float;
     let mut blur_in = effect("gaussian_blur", &[]);
@@ -354,7 +356,7 @@ pub fn instantiate(p: &EffectPreset, target: &TrackItem, size: (u32, u32)) -> Ve
         // Point params scale only when they are positions (the def kind says so)
         let point_ids: Vec<String> = e
             .def()
-            .map(|d| d.params.iter().filter(|q| matches!(q.kind, filmcraft_project::ParamKind::Point)).map(|q| q.id.to_string()).collect())
+            .map(|d| d.params.iter().filter(|q| matches!(q.kind, jilo_project::ParamKind::Point)).map(|q| q.id.to_string()).collect())
             .unwrap_or_default();
         for (id, prm) in e.params.iter_mut() {
             for k in &mut prm.keyframes {
@@ -411,7 +413,7 @@ pub fn put_effects(it: &mut TrackItem, effects: Vec<EffectInstance>) {
             *slot = e;
             continue;
         }
-        let audio = e.def().is_some_and(|d| d.kind == filmcraft_project::EffectKind::Audio);
+        let audio = e.def().is_some_and(|d| d.kind == jilo_project::EffectKind::Audio);
         let pos = if audio { it.effects.len() } else { it.effects.iter().position(|x| x.def().is_some_and(|d| d.intrinsic)).unwrap_or(it.effects.len()) };
         it.effects.insert(pos, e);
     }
@@ -468,7 +470,7 @@ fn list(s: &mut Session, _: &Value) -> Result<Value> {
 }
 
 fn clip_size(s: &Session, it: &TrackItem) -> (u32, u32) {
-    filmcraft_render::source_size(&s.project, it.item).or_else(|| s.active_sequence().map(|q| (q.settings.width, q.settings.height))).unwrap_or(hd())
+    jilo_render::source_size(&s.project, it.item).or_else(|| s.active_sequence().map(|q| (q.settings.width, q.settings.height))).unwrap_or(hd())
 }
 
 fn save(s: &mut Session, p: &Value) -> Result<Value> {
@@ -485,7 +487,7 @@ fn save(s: &mut Session, p: &Value) -> Result<Value> {
         None => (0..it.effects.len())
             .filter(|i| {
                 let e = &it.effects[*i];
-                e.def().is_some_and(|d| !d.intrinsic) && !filmcraft_project::graphic::is_layer(e) && !e.essential
+                e.def().is_some_and(|d| !d.intrinsic) && !jilo_project::graphic::is_layer(e) && !e.essential
             })
             .collect(),
     };
@@ -538,7 +540,7 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
             if rate.tick_of(frames) == duration { Vec::new() } else { vec!["Transition preset duration was rounded to the target sequence frame rate".into()] };
         return Ok(json!({"applied":1,"transition":result.get("transition"),"report":report}));
     }
-    let audio = preset.effects.iter().all(|e| e.def().is_some_and(|d| d.kind == filmcraft_project::EffectKind::Audio));
+    let audio = preset.effects.iter().all(|e| e.def().is_some_and(|d| d.kind == jilo_project::EffectKind::Audio));
     if preset.normalised_points {
         let seq = s.active_sequence().ok_or(EngineError::NoSequence)?;
         for target in clips.iter().filter_map(|id| seq.find_item(*id).map(|(_, it)| it)) {
@@ -637,7 +639,7 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
 fn import(s: &mut Session, p: &Value) -> Result<Value> {
     let path = str_p(p, "path").ok_or_else(|| bad("presets.import", "need `path`"))?;
     let native_extension = Path::new(path).extension().is_some_and(|e| e.eq_ignore_ascii_case("prfpset"));
-    let limit = filmcraft_interchange::premiere::MAX_DOCUMENT_BYTES;
+    let limit = jilo_interchange::premiere::MAX_DOCUMENT_BYTES;
     let bytes = if native_extension && let Some(reader) = s.services.reader(path) {
         let reader = reader.map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
         let size =
@@ -654,19 +656,19 @@ fn import(s: &mut Session, p: &Value) -> Result<Value> {
     if native_extension && bytes.len() > limit {
         return Err(bad("presets.import", "preset exceeds the 64 MiB size limit"));
     }
-    // Existing host exports may use a .prfpset name for FilmCraft JSON presets.
+    // Existing host exports may use a .prfpset name for Jilo Studio JSON presets.
     let native = native_extension && bytes.iter().find(|byte| !byte.is_ascii_whitespace()).copied() != Some(b'{');
     let (presets, report) = if native {
-        let (imported, report) = filmcraft_interchange::premiere::import_presets(&bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+        let (imported, report) = jilo_interchange::premiere::import_presets(&bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
         let presets = imported
             .into_iter()
             .map(|p| EffectPreset {
                 name: p.name,
                 description: p.description,
                 keyframes: match p.timing {
-                    filmcraft_interchange::premiere::PresetTiming::Scale => KeyframeMode::Scale,
-                    filmcraft_interchange::premiere::PresetTiming::AnchorToIn => KeyframeMode::AnchorToIn,
-                    filmcraft_interchange::premiere::PresetTiming::AnchorToOut => KeyframeMode::AnchorToOut,
+                    jilo_interchange::premiere::PresetTiming::Scale => KeyframeMode::Scale,
+                    jilo_interchange::premiere::PresetTiming::AnchorToIn => KeyframeMode::AnchorToIn,
+                    jilo_interchange::premiere::PresetTiming::AnchorToOut => KeyframeMode::AnchorToOut,
                 },
                 source_duration: p.source_duration,
                 source_size: p.source_size,

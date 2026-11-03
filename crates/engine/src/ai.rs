@@ -6,7 +6,7 @@
 //! | `ai.setKey` | store (`key`) or remove (empty / null) a provider's key in `<data dir>/ai.json`; not journaled |
 //! | `ai.test` | check a key by listing the provider's models, in a background job (network) |
 //!
-//! Keys live in `<data dir>/ai.json` (owner-only, written atomically; see `filmcraft_ai::keys`), or
+//! Keys live in `<data dir>/ai.json` (owner-only, written atomically; see `jilo_ai::keys`), or
 //! come from `GEMINI_API_KEY` / `GOOGLE_API_KEY` / `OPENAI_API_KEY`. They are not kept in the
 //! keychain, never enter projects, preferences, the command journal or logs, and no command returns
 //! them. Requests go through [`Session::ai_transport`] when a host or test installed one, else over
@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use filmcraft_ai::{AiError, Ctx, ModelInfo, ModelUse, Provider, Secret, Transport};
+use jilo_ai::{AiError, Ctx, ModelInfo, ModelUse, Provider, Secret, Transport};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, always, bad, bool_p, str_p};
@@ -48,12 +48,12 @@ pub fn network_available() -> bool {
 
 /// The key file: [`Session::ai_keys_file`], else `<data dir>/ai.json`.
 pub fn keys_path(s: &Session) -> Option<PathBuf> {
-    s.ai_keys_file.clone().or_else(|| crate::autosave::default_data_dir().map(|d| filmcraft_ai::keys::path_in(&d)))
+    s.ai_keys_file.clone().or_else(|| crate::autosave::default_data_dir().map(|d| jilo_ai::keys::path_in(&d)))
 }
 
 /// The key for `p` and where it came from.
-pub fn key(s: &Session, p: Provider) -> Option<(Secret, filmcraft_ai::keys::KeySource)> {
-    filmcraft_ai::keys::key(keys_path(s).as_deref(), p)
+pub fn key(s: &Session, p: Provider) -> Option<(Secret, jilo_ai::keys::KeySource)> {
+    jilo_ai::keys::key(keys_path(s).as_deref(), p)
 }
 
 /// The transport requests go through: the installed one, else HTTPS (feature `ai-net`).
@@ -63,7 +63,7 @@ pub fn transport(s: &Session) -> std::result::Result<Arc<dyn Transport>, AiError
     }
     #[cfg(feature = "ai-net")]
     {
-        Ok(Arc::new(filmcraft_ai::transport::HttpTransport::new()))
+        Ok(Arc::new(jilo_ai::transport::HttpTransport::new()))
     }
     #[cfg(not(feature = "ai-net"))]
     {
@@ -72,7 +72,7 @@ pub fn transport(s: &Session) -> std::result::Result<Arc<dyn Transport>, AiError
 }
 
 /// A call context whose cancel check is a job's Stop flag.
-pub fn ctx(s: &Session, progress: Arc<filmcraft_export::Progress>) -> std::result::Result<Ctx, AiError> {
+pub fn ctx(s: &Session, progress: Arc<jilo_export::Progress>) -> std::result::Result<Ctx, AiError> {
     let mut c = Ctx::new(transport(s)?).with_cancel(move || progress.cancel.load(Ordering::Relaxed));
     if let Some(sleep) = &s.ai_sleep {
         c = c.with_sleep(sleep.clone());
@@ -135,7 +135,7 @@ fn set_key(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let path = keys_path(s).ok_or_else(|| bad(cmd, "no data directory for the key file"))?;
     // the error names the file, never the key
-    filmcraft_ai::keys::set_key(&path, provider, k).map_err(|e| EngineError::Other(format!("could not save the key file {}: {e}", path.display())))?;
+    jilo_ai::keys::set_key(&path, provider, k).map_err(|e| EngineError::Other(format!("could not save the key file {}: {e}", path.display())))?;
     s.ai_models.lock().unwrap_or_else(PoisonError::into_inner).remove(&provider);
     Ok(json!({"provider": provider.id(), "key": key(s, provider).map(|(_, src)| src.describe())}))
 }
@@ -148,7 +148,7 @@ fn test(s: &mut Session, p: &Value) -> Result<Value> {
     let c = ctx(s, job.progress.clone()).map_err(ai_err)?;
     let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.ai_models.clone());
     let wait = bool_p(p, "wait").unwrap_or(false);
-    let id = crate::narration::spawn(s, job, wait, "filmcraft-ai-test", move || {
+    let id = crate::narration::spawn(s, job, wait, "jilo-ai-test", move || {
         let t0 = web_time::Instant::now();
         *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("Contacting {}…", provider.name());
         let r = check(&c, provider, &k).map(|(msg, models)| {
@@ -166,10 +166,10 @@ fn check(c: &Ctx, provider: Provider, k: &Secret) -> std::result::Result<(String
         // such services seldom list models: the key is checked the first time the service draws
         return Ok(("Key saved; the custom image service checks it when it draws".into(), ProviderModels { speech: Vec::new(), text: Vec::new() }));
     }
-    let (msg, text) = filmcraft_ai::test_key(c, provider, k)?;
+    let (msg, text) = jilo_ai::test_key(c, provider, k)?;
     let speech = match provider {
         Provider::Gemini | Provider::ElevenLabs => text.clone(),
-        Provider::OpenAi => filmcraft_ai::list_models(c, provider, k, ModelUse::Speech)?,
+        Provider::OpenAi => jilo_ai::list_models(c, provider, k, ModelUse::Speech)?,
         Provider::Anthropic | Provider::Custom => Vec::new(),
     };
     Ok((msg, ProviderModels { speech, text }))

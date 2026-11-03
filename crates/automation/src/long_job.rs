@@ -14,7 +14,7 @@ use rmcp::model::{CallToolResult, ContentBlock as Content, ProgressNotificationP
 use rmcp::service::{Peer, RequestContext};
 use serde_json::{Value, json};
 
-use crate::server::FilmcraftMcp;
+use crate::server::JiloMcp;
 
 /// Commands whose work runs as a job with `background: true`, and which applies its result when
 /// called again with the same parameters (the answer is cached).
@@ -36,7 +36,7 @@ pub fn kind(id: &str, params: &Value) -> Option<Kind> {
     if BACKGROUND_COMMANDS.contains(&id) && params.get("background").is_none() {
         return Some(Kind::Background);
     }
-    let takes_wait = filmcraft_engine::find_command(id).is_some_and(|c| c.params.contains("\"wait\""));
+    let takes_wait = jilo_engine::find_command(id).is_some_and(|c| c.params.contains("\"wait\""));
     (takes_wait && params.get("wait").and_then(Value::as_bool) == Some(true)).then_some(Kind::Wait)
 }
 
@@ -82,7 +82,7 @@ impl Reporter {
     }
 }
 
-impl FilmcraftMcp {
+impl JiloMcp {
     /// Run `id` (a [`kind`] call) as a job, reporting progress and honouring cancellation.
     pub(crate) async fn run_long(&self, id: &str, params: Value, context: &RequestContext<RoleServer>) -> CallToolResult {
         let started = SystemTime::now();
@@ -215,7 +215,7 @@ fn is_export_output(name: &str, file: &str, stem: &str, ext: &str) -> bool {
 
 /// Whether an export to a file with extension `ext` writes an image sequence (one still per frame).
 fn is_sequence_extension(ext: &str) -> bool {
-    use filmcraft_engine::export::Format;
+    use jilo_engine::export::Format;
     Format::from_name(ext).is_some_and(|f| matches!(f, Format::PngSequence | Format::TiffSequence | Format::BmpSequence))
 }
 

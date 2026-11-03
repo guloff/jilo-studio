@@ -194,7 +194,7 @@ impl CaptureState {
         let format = self.texture.format();
         let tex_extent = self.texture.size();
         let padding = self.padding;
-        // FilmCraft patch: an Rgba16Float surface (EDR) is read back as half floats
+        // Jilo Studio patch: an Rgba16Float surface (EDR) is read back as half floats
         let half = format == wgpu::TextureFormat::Rgba16Float;
         let to_rgba = match format {
             wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba16Float => [0, 1, 2, 3],
@@ -279,7 +279,7 @@ impl BufferPadding {
     }
 }
 
-/// IEEE 754 half → f32 (FilmCraft patch: reading back an Rgba16Float surface).
+/// IEEE 754 half → f32 (Jilo Studio patch: reading back an Rgba16Float surface).
 fn f16_to_f32(h: u16) -> f32 {
     let sign = if h & 0x8000 != 0 { -1.0 } else { 1.0 };
     let exp = (h >> 10) & 0x1f;

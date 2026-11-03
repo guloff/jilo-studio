@@ -9,7 +9,7 @@
 use egui::{RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 #[derive(Clone, Debug)]
 pub struct AutoMulticamUi {
@@ -29,7 +29,7 @@ impl Default for AutoMulticamUi {
 }
 
 /// The camera names of the first multi-camera clip in the sequence.
-fn cameras(app: &FilmcraftApp) -> Vec<String> {
+fn cameras(app: &JiloApp) -> Vec<String> {
     let Some(q) = app.session.active_sequence() else { return Vec::new() };
     let Some(it) = q.video_tracks.iter().flat_map(|t| t.items.iter()).find(|i| i.multicam.is_some_and(|m| m.enabled)) else { return Vec::new() };
     let Some(src) = app.session.project.sequence(it.item) else { return Vec::new() };
@@ -37,8 +37,8 @@ fn cameras(app: &FilmcraftApp) -> Vec<String> {
     c.shown_angles().into_iter().map(|a| c.cameras[a].name.clone()).collect()
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("multicam.autoSwitch").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("multicam.autoSwitch").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
     if cameras(app).len() < 2 {
         return Err("put a multi-camera clip in the sequence first (Clip ▸ Create Multi-Camera Source Sequence…)".into());
     }
@@ -46,7 +46,7 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
     Ok(json!({"dialog": "autoMulticam"}))
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.auto_multicam.dialog {
         return;
     }

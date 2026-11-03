@@ -3,15 +3,15 @@
 
 use std::sync::OnceLock;
 
-use filmcraft_edit as edit;
-use filmcraft_edit::{Edge, TrimMode};
-use filmcraft_media::Generator;
-use filmcraft_media::generators::GeneratorSource;
-use filmcraft_project::{
+use jilo_edit as edit;
+use jilo_edit::{Edge, TrimMode};
+use jilo_media::Generator;
+use jilo_media::generators::GeneratorSource;
+use jilo_project::{
     ClipId, ItemId, ItemKind, Label, Marker, MarkerId, MarkerKind, MediaClip, MediaRef, ParamValue, Project, SequenceSettings, Track, TrackId, TrackKind,
     Transition, TransitionId, resolve_auto_points,
 };
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND, Tick, TimeRange, parse_timecode};
+use jilo_time::{FrameRate, TICKS_PER_SECOND, Tick, TimeRange, parse_timecode};
 use serde_json::{Value, json};
 
 use crate::{EngineError, Result, Session};
@@ -146,7 +146,7 @@ pub(crate) fn named_clips(s: &Session, spec: &CommandSpec, p: &Value) -> Option<
 pub(crate) fn named_items(s: &Session, spec: &CommandSpec, p: &Value) -> Option<Vec<ItemId>> {
     let root = s.project.root.id;
     let exists = |i: &ItemId| {
-        let b = filmcraft_project::BinId(i.0);
+        let b = jilo_project::BinId(i.0);
         s.project.item(*i).is_some() || (b != root && s.project.root.find_bin(b).is_some())
     };
     let items: Vec<ItemId> = named_ids(spec, p, "items", "item")?.into_iter().map(ItemId).filter(exists).collect();
@@ -218,20 +218,20 @@ pub(crate) fn clip_p(p: &Value, k: &str) -> Option<ClipId> {
 /// Effect by id or display name. Names shared by several definitions ("Invert", "Volume",
 /// "Channel Volume") resolve to an applicable (non-intrinsic) effect whose kind matches the
 /// target clips' tracks.
-fn resolve_effect_name(s: &Session, p: &Value, name: &str) -> Option<&'static filmcraft_project::EffectDef> {
-    if let Some(d) = filmcraft_project::find_effect(name) {
+fn resolve_effect_name(s: &Session, p: &Value, name: &str) -> Option<&'static jilo_project::EffectDef> {
+    if let Some(d) = jilo_project::find_effect(name) {
         return Some(d);
     }
     let n = name.to_ascii_lowercase();
-    let cands: Vec<_> = filmcraft_project::effect_defs().iter().filter(|e| e.name.to_ascii_lowercase() == n).collect();
+    let cands: Vec<_> = jilo_project::effect_defs().iter().filter(|e| e.name.to_ascii_lowercase() == n).collect();
     if cands.len() <= 1 {
-        return cands.first().copied().or_else(|| filmcraft_project::find_effect(&n));
+        return cands.first().copied().or_else(|| jilo_project::find_effect(&n));
     }
     let on_audio = s.active_sequence().is_some_and(|q| {
         let clips = clips_p(s, p);
         !clips.is_empty() && clips.iter().all(|c| q.find_item(*c).and_then(|(t, _)| q.track(t)).is_some_and(|t| t.kind == TrackKind::Audio))
     });
-    let want = if on_audio { filmcraft_project::EffectKind::Audio } else { filmcraft_project::EffectKind::Video };
+    let want = if on_audio { jilo_project::EffectKind::Audio } else { jilo_project::EffectKind::Video };
     cands.iter().find(|d| !d.intrinsic && d.kind == want).or_else(|| cands.iter().find(|d| !d.intrinsic)).or(cands.first()).copied()
 }
 
@@ -376,7 +376,7 @@ fn move_clips(s: &mut Session, p: &Value) -> Result<Value> {
 /// Adjacent roll pairs that follow `left`/`right` when linked selection is on: the given cut, plus
 /// through-edits between the same pieces' linked partners at that same time (Premiere linked
 /// selection). Split edits (audio cut at another time) and unlinked clips are not added.
-pub fn linked_roll_pairs(seq: &filmcraft_project::Sequence, left: ClipId, right: ClipId, follow_links: bool) -> Vec<(ClipId, ClipId)> {
+pub fn linked_roll_pairs(seq: &jilo_project::Sequence, left: ClipId, right: ClipId, follow_links: bool) -> Vec<(ClipId, ClipId)> {
     let mut pairs = vec![(left, right)];
     if !follow_links {
         return pairs;
@@ -433,7 +433,7 @@ pub fn with_links(s: &Session, clips: &[ClipId]) -> Vec<ClipId> {
 
 /// The delta a roll of every cut in `pairs` can apply together: `delta` clamped by each pair's
 /// media and the frame left in each clip, each tried on a copy of `q`.
-fn clamp_roll_linked(q: &filmcraft_project::Sequence, pairs: &[(ClipId, ClipId)], delta: Tick, ctx: &mut edit::EditCtx) -> Result<Tick> {
+fn clamp_roll_linked(q: &jilo_project::Sequence, pairs: &[(ClipId, ClipId)], delta: Tick, ctx: &mut edit::EditCtx) -> Result<Tick> {
     let mut d = delta;
     for &(pl, pr) in pairs {
         let mut probe = q.clone();
@@ -471,8 +471,8 @@ pub(crate) fn default_seq_settings_for(media: &MediaClip) -> SequenceSettings {
         st.preset = format!("{}x{} {}", v.width, v.height, v.frame_rate.label());
         // HDR media makes an HDR sequence, as Premiere does: HLG and PQ keep their highlights
         let working = match v.color.transfer {
-            filmcraft_color::Transfer::Hlg => Some(filmcraft_color::WorkingSpace::Rec2100Hlg),
-            filmcraft_color::Transfer::Pq => Some(filmcraft_color::WorkingSpace::Rec2100Pq),
+            jilo_color::Transfer::Hlg => Some(jilo_color::WorkingSpace::Rec2100Hlg),
+            jilo_color::Transfer::Pq => Some(jilo_color::WorkingSpace::Rec2100Pq),
             _ => None,
         };
         if let Some(w) = working {
@@ -487,7 +487,7 @@ pub(crate) fn default_seq_settings_for(media: &MediaClip) -> SequenceSettings {
 }
 
 /// Import bytes as a media item (engine-level; the UI reads files through services).
-pub fn import_bytes(s: &mut Session, path: &str, bytes: std::sync::Arc<[u8]>, bin: Option<filmcraft_project::BinId>) -> Result<ItemId> {
+pub fn import_bytes(s: &mut Session, path: &str, bytes: std::sync::Arc<[u8]>, bin: Option<jilo_project::BinId>) -> Result<ItemId> {
     let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string());
     let identity = crate::relink::identity_of_bytes(&bytes);
     let src = s.media.open_bytes(&name, bytes)?;
@@ -496,7 +496,7 @@ pub fn import_bytes(s: &mut Session, path: &str, bytes: std::sync::Arc<[u8]>, bi
 
 /// Import a media file through the host's random-access reader ([`crate::Services::reader`]):
 /// only the container index is read now (web `Blob`s are never copied whole for containers).
-pub fn import_streamed(s: &mut Session, path: &str, bin: Option<filmcraft_project::BinId>) -> Result<ItemId> {
+pub fn import_streamed(s: &mut Session, path: &str, bin: Option<jilo_project::BinId>) -> Result<ItemId> {
     let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string());
     let identity = crate::relink::identity_of(&*s.services, path).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
     let src = s.media.open_file(path, &*s.services)?;
@@ -506,7 +506,7 @@ pub fn import_streamed(s: &mut Session, path: &str, bin: Option<filmcraft_projec
 /// Import the image sequence that the numbered still `path` starts (File ▸ Import with Image
 /// Sequence): one movie item at Settings ▸ Media ▸ Indeterminate Media Timebase. Returns the item,
 /// the frame count and the missing frame numbers (relative to the first).
-pub fn import_image_sequence(s: &mut Session, path: &str, bin: Option<filmcraft_project::BinId>) -> Result<(ItemId, usize, Vec<usize>)> {
+pub fn import_image_sequence(s: &mut Session, path: &str, bin: Option<jilo_project::BinId>) -> Result<(ItemId, usize, Vec<usize>)> {
     import_image_sequence_at(s, path, bin, None)
 }
 
@@ -514,8 +514,8 @@ pub fn import_image_sequence(s: &mut Session, path: &str, bin: Option<filmcraft_
 pub(crate) fn import_image_sequence_at(
     s: &mut Session,
     path: &str,
-    bin: Option<filmcraft_project::BinId>,
-    rate: Option<filmcraft_time::FrameRate>,
+    bin: Option<jilo_project::BinId>,
+    rate: Option<jilo_time::FrameRate>,
 ) -> Result<(ItemId, usize, Vec<usize>)> {
     let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string());
     let rate = rate.unwrap_or_else(|| crate::settings::timebase_rate(&s.prefs.media.indeterminate_timebase));
@@ -529,7 +529,7 @@ pub(crate) fn import_image_sequence_at(
 
 /// Settings ▸ Media ▸ Import image sequences: a single numbered still with later frames beside it.
 fn detect_image_sequence(s: &Session, path: &str) -> bool {
-    filmcraft_media::sequence::Numbered::parse(path).is_some() && crate::media_pool::image_sequence_frames(path, &*s.services).is_ok_and(|f| f.len() > 1)
+    jilo_media::sequence::Numbered::parse(path).is_some() && crate::media_pool::image_sequence_frames(path, &*s.services).is_ok_and(|f| f.len() > 1)
 }
 
 /// The item a `file.import` result is about: the first it added, else the first it found already
@@ -543,15 +543,15 @@ fn import_source(
     s: &mut Session,
     path: &str,
     name: String,
-    src: filmcraft_media::SharedSource,
-    identity: filmcraft_project::MediaIdentity,
-    bin: Option<filmcraft_project::BinId>,
+    src: jilo_media::SharedSource,
+    identity: jilo_project::MediaIdentity,
+    bin: Option<jilo_project::BinId>,
 ) -> Result<ItemId> {
     let mut info = src.info().clone();
     // Settings ▸ Labels ▸ Label Defaults
     let label = s.prefs.labels.for_media(info.kind, info.has_video(), info.has_audio());
     // Settings ▸ Media ▸ Indeterminate Media Timebase: the frame rate stills report
-    if info.kind == filmcraft_media::MediaKind::Still
+    if info.kind == jilo_media::MediaKind::Still
         && let Some(v) = info.video.as_mut()
     {
         v.frame_rate = crate::settings::timebase_rate(&s.prefs.media.indeterminate_timebase);
@@ -587,7 +587,7 @@ fn new_generator(s: &mut Session, g: Generator, name: &str, label: Label, p: &Va
     let name = str_p(p, "name").unwrap_or(name).to_string();
     let src = GeneratorSource::new(g, w, h, st.frame_rate, Tick::from_seconds_f64(secs));
     let pool = s.media.clone();
-    let par = filmcraft_project::sane_par(st.par);
+    let par = jilo_project::sane_par(st.par);
     let id = s.edit(&format!("New {name}"), |pr, st| {
         let id = crate::demo::add_generator(pr, &pool, src, &name, label, None);
         // made for the sequence: its pixels have the sequence's aspect, as in Premiere
@@ -606,7 +606,7 @@ fn new_generator(s: &mut Session, g: Generator, name: &str, label: Label, p: &Va
 /// panel). Every clip of the matte follows; undo brings the old color back.
 fn set_matte_color(s: &mut Session, p: &Value) -> Result<Value> {
     const CMD: &str = "project.matteColor";
-    let color = str_p(p, "color").and_then(filmcraft_color::parse_hex).ok_or_else(|| bad(CMD, "`color` must be #rrggbb"))?;
+    let color = str_p(p, "color").and_then(jilo_color::parse_hex).ok_or_else(|| bad(CMD, "`color` must be #rrggbb"))?;
     let is_matte = |s: &Session, id: ItemId| {
         s.project.item(id).is_some_and(|it| matches!(&it.kind, ItemKind::Media(m) if matches!(m.media, MediaRef::Generator(Generator::ColorMatte { .. }))))
     };
@@ -628,7 +628,7 @@ fn set_matte_color(s: &mut Session, p: &Value) -> Result<Value> {
         }
         Ok(())
     })?;
-    Ok(json!({"item": item.0, "color": filmcraft_color::to_hex(color)}))
+    Ok(json!({"item": item.0, "color": jilo_color::to_hex(color)}))
 }
 
 /// One audio clip of a placement: how many tracks below the destination it goes, and the source
@@ -654,7 +654,7 @@ pub(crate) fn audio_placement_specs(clips: &[Vec<u16>], streams: usize) -> Vec<A
     }));
     // Interpret Footage's channel map describes stream 0; further container streams keep their
     // own channel layouts and get one clip each, after any channel-map clips.
-    for stream in 1..streams.min(filmcraft_media::MAX_AUDIO_STREAMS) {
+    for stream in 1..streams.min(jilo_media::MAX_AUDIO_STREAMS) {
         if specs.len() >= crate::sequence_tools::MAX_TRACKS {
             break;
         }
@@ -744,7 +744,7 @@ pub(crate) fn place_item(
                 resolve_auto_points(e, frame, src_size);
             }
             // the picture's size at its display aspect, in sequence pixels
-            let shown = filmcraft_project::conformed_size(src_size, src_par.unwrap_or(seq_par), seq_par);
+            let shown = jilo_project::conformed_size(src_size, src_par.unwrap_or(seq_par), seq_par);
             if is_media && shown != (f64::from(frame.0), f64::from(frame.1)) {
                 crate::settings::apply_media_scaling(&mut v, &scaling, frame, shown);
             }
@@ -808,11 +808,10 @@ pub(crate) fn place_item(
 
 /// How long an item runs on the Timeline without In/Out marks: its duration, or for a still (and a
 /// generator without a length) Settings ▸ Timeline ▸ Still Image Default Duration.
-pub(crate) fn full_duration(s: &Session, pi: &filmcraft_project::ProjectItem) -> Tick {
+pub(crate) fn full_duration(s: &Session, pi: &jilo_project::ProjectItem) -> Tick {
     match &pi.kind {
         ItemKind::Media(m)
-            if matches!(m.info.kind, filmcraft_media::MediaKind::Still)
-                || (matches!(m.info.kind, filmcraft_media::MediaKind::Synthetic) && m.info.duration.0 <= 0) =>
+            if matches!(m.info.kind, jilo_media::MediaKind::Still) || (matches!(m.info.kind, jilo_media::MediaKind::Synthetic) && m.info.duration.0 <= 0) =>
         {
             s.prefs.timeline.still_duration(s.sequence_rate())
         }
@@ -824,7 +823,7 @@ pub(crate) fn source_range(s: &Session) -> Option<(ItemId, TimeRange)> {
     let item = s.state.source_item?;
     let pi = s.project.item(item)?;
     let dur = match &pi.kind {
-        ItemKind::Media(m) if matches!(m.info.kind, filmcraft_media::MediaKind::Still) => s.prefs.timeline.still_duration(s.sequence_rate()),
+        ItemKind::Media(m) if matches!(m.info.kind, jilo_media::MediaKind::Still) => s.prefs.timeline.still_duration(s.sequence_rate()),
         _ => pi.duration(),
     };
     let (mi, mo) = match &pi.kind {
@@ -874,7 +873,7 @@ fn build() -> Vec<CommandSpec> {
         // ================= File =================
         cmd!("file.newProject", "Project…", ["File", "New"], Some("Cmd+Alt+N"), r#"{"name":str}"#, always, |s, p| {
             let name = str_p(p, "name").unwrap_or("Untitled").to_string();
-            s.project = std::sync::Arc::new(filmcraft_project::Project::new(&name));
+            s.project = std::sync::Arc::new(jilo_project::Project::new(&name));
             s.history = Default::default();
             s.history.limit = 200;
             s.state = crate::Session::default().state;
@@ -971,7 +970,7 @@ fn build() -> Vec<CommandSpec> {
         ),
         cmd!("file.newBin", "Bin", ["File", "New"], Some("Cmd+B"), r#"{"name":str,"parent":binId?}"#, always, |s, p| {
             let n = str_p(p, "name").unwrap_or("New Bin").to_string();
-            let parent = u64_p(p, "parent").map(filmcraft_project::BinId);
+            let parent = u64_p(p, "parent").map(jilo_project::BinId);
             let id = s.edit("New Bin", |pr, _| Ok(pr.add_bin(&n, parent)))?;
             Ok(json!({"bin": id.0}))
         }),
@@ -1005,7 +1004,7 @@ fn build() -> Vec<CommandSpec> {
             p
         )),
         cmd!("file.newColorMatte", "Color Matte…", ["File", "New"], None, r##"{"color":"#rrggbb","seconds":f64}"##, always, |s, p| {
-            let c = str_p(p, "color").and_then(filmcraft_color::parse_hex).unwrap_or([0.1, 0.1, 0.1, 1.0]);
+            let c = str_p(p, "color").and_then(jilo_color::parse_hex).unwrap_or([0.1, 0.1, 0.1, 1.0]);
             new_generator(s, Generator::ColorMatte { color: c }, "Color Matte", Label::Lavender, p)
         }),
         cmd!("project.matteColor", "Color Matte Color…", [], None, r##"{"item":id?,"color":"#rrggbb"}"##, always, set_matte_color),
@@ -1031,9 +1030,9 @@ fn build() -> Vec<CommandSpec> {
             r#"{"scene":"OceanSunset|Aurora|CityNight|Dunes|Plasma|Forest"}"#,
             always,
             |s, p| {
-                let scenes: Vec<filmcraft_media::DemoScene> = match str_p(p, "scene") {
-                    Some(n) => filmcraft_media::DemoScene::ALL.iter().copied().filter(|d| format!("{d:?}").eq_ignore_ascii_case(n)).collect(),
-                    None => filmcraft_media::DemoScene::ALL.to_vec(),
+                let scenes: Vec<jilo_media::DemoScene> = match str_p(p, "scene") {
+                    Some(n) => jilo_media::DemoScene::ALL.iter().copied().filter(|d| format!("{d:?}").eq_ignore_ascii_case(n)).collect(),
+                    None => jilo_media::DemoScene::ALL.to_vec(),
                 };
                 let pool = s.media.clone();
                 let ids = s.edit("Import Demo Footage", |pr, _| {
@@ -1053,7 +1052,7 @@ fn build() -> Vec<CommandSpec> {
         // file twice".
         cmd!("file.import", "Import…", ["File"], Some("Cmd+I"), r#"{"paths":[str],"bin":binId?,"imageSequence":bool?}"#, always, |s, p| {
             use crate::import_duplicates::Found;
-            let bin = u64_p(p, "bin").map(filmcraft_project::BinId);
+            let bin = u64_p(p, "bin").map(jilo_project::BinId);
             let paths: Vec<String> = match p.get("paths").and_then(Value::as_array) {
                 Some(a) => a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
                 None => str_p(p, "path").map(|x| vec![x.to_string()]).unwrap_or_default(),
@@ -1101,13 +1100,13 @@ fn build() -> Vec<CommandSpec> {
                     }
                 } else {
                     // Media files through the host's reader (no whole-file read) when it has one.
-                    let streamed = filmcraft_media::is_importable(std::path::Path::new(&path)) && s.services.reader(&path).is_some();
+                    let streamed = jilo_media::is_importable(std::path::Path::new(&path)) && s.services.reader(&path).is_some();
                     let native_project = std::path::Path::new(&path).extension().is_some_and(|e| e.eq_ignore_ascii_case("prproj"));
                     let read = if streamed {
                         Ok(Vec::new())
                     } else if native_project {
                         s.services.file_size(&path).and_then(|size| {
-                            if size > filmcraft_interchange::premiere::MAX_DOCUMENT_BYTES as u64 {
+                            if size > jilo_interchange::premiere::MAX_DOCUMENT_BYTES as u64 {
                                 Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Premiere project exceeds the 64 MiB size limit"))
                             } else {
                                 s.services.read_file(&path)
@@ -1333,7 +1332,7 @@ fn build() -> Vec<CommandSpec> {
         }),
         query!("file.listAutoSaves", "Browse Auto-Saves", "{}", |s, _| {
             let dir = auto_save_dir(s);
-            let files = filmcraft_format::autosave::list_auto_saves(&dir, &auto_save_name(s));
+            let files = jilo_format::autosave::list_auto_saves(&dir, &auto_save_name(s));
             Ok(json!({"dir": dir, "files": files.iter().rev().map(|p| p.to_string_lossy().into_owned()).collect::<Vec<_>>()}))
         }),
         query!("prefs.get", "Get Preferences", r#"{"key":str?}"#, |s, p| match str_p(p, "key") {
@@ -1535,14 +1534,14 @@ fn build() -> Vec<CommandSpec> {
                 let reverse = bool_p(p, "reverse").unwrap_or(false);
                 let ripple = bool_p(p, "ripple").unwrap_or(false);
                 let interp = match str_p(p, "interpolation") {
-                    Some(m) => Some(filmcraft_project::TimeInterpolation::from_name(m).ok_or_else(|| bad("clip.speedDuration", "unknown interpolation"))?),
+                    Some(m) => Some(jilo_project::TimeInterpolation::from_name(m).ok_or_else(|| bad("clip.speedDuration", "unknown interpolation"))?),
                     None => None,
                 };
                 let sel = with_links(s, &clips_p(s, p));
                 s.edit_sequence("Speed/Duration", |q, ctx, _| {
                     // a clip and its linked partners on other tracks change as one edit, so a ripple
                     // moves the later clips once
-                    let place = |q: &filmcraft_project::Sequence, c: ClipId| q.find_item(c).map(|(t, i)| (t, i.link));
+                    let place = |q: &jilo_project::Sequence, c: ClipId| q.find_item(c).map(|(t, i)| (t, i.link));
                     let mut groups: Vec<Vec<ClipId>> = Vec::new();
                     for c in &sel {
                         // a clip that is not there goes on alone, so the edit fails with "no such item"
@@ -1598,7 +1597,7 @@ fn build() -> Vec<CommandSpec> {
                     }
                 } else {
                     // each selected clip with its track kind, worked out once
-                    type Spec = (ClipId, filmcraft_project::ItemId, filmcraft_time::TimeRange);
+                    type Spec = (ClipId, jilo_project::ItemId, jilo_time::TimeRange);
                     let (mut v_clips, mut audio_specs): (Vec<Spec>, Vec<Spec>) = (Vec::new(), Vec::new());
                     for c in &sel {
                         if let Some((tid, i)) = q.find_item(*c) {
@@ -1911,7 +1910,7 @@ fn build() -> Vec<CommandSpec> {
                     None => None,
                 };
                 let working = match str_p(p, "workingSpace") {
-                    Some(w) => Some(filmcraft_color::WorkingSpace::parse(w).ok_or_else(|| bad(CMD, format!("unknown working space `{w}`")))?),
+                    Some(w) => Some(jilo_color::WorkingSpace::parse(w).ok_or_else(|| bad(CMD, format!("unknown working space `{w}`")))?),
                     None => None,
                 };
                 let drop_frame = bool_p(p, "dropFrame");
@@ -2400,7 +2399,7 @@ fn build() -> Vec<CommandSpec> {
                     .or_else(|| p.get("deltaFrames").and_then(Value::as_i64).map(|f| s.sequence_rate().tick_of(f)))
                     .unwrap_or_default();
                 // linked partners on locked tracks stay as they are; the clip itself cannot be on one
-                let locked = |q: &filmcraft_project::Sequence, x: ClipId| q.find_item(x).is_some_and(|(t, _)| q.track(t).is_some_and(|tr| tr.locked));
+                let locked = |q: &jilo_project::Sequence, x: ClipId| q.find_item(x).is_some_and(|(t, _)| q.track(t).is_some_and(|tr| tr.locked));
                 let clips: Vec<ClipId> = {
                     let q = s.active_sequence().ok_or(EngineError::NoSequence)?;
                     if locked(q, c) {
@@ -2639,7 +2638,7 @@ fn build() -> Vec<CommandSpec> {
                 let tr = track_p(s, p, "track", "timeline.setTrack")?.ok_or_else(|| bad("timeline.setTrack", "need `track`"))?;
                 let p = p.clone();
                 s.edit_sequence("Track Settings", |q, _, _| {
-                    let t = q.track_mut(tr).ok_or(filmcraft_edit::EditError::NoTrack(tr))?;
+                    let t = q.track_mut(tr).ok_or(jilo_edit::EditError::NoTrack(tr))?;
                     if let Some(v) = bool_p(&p, "locked") {
                         t.locked = v;
                     }
@@ -2697,19 +2696,19 @@ fn build() -> Vec<CommandSpec> {
         cmd!("effects.apply", "Apply Effect", [], None, r#"{"clips":[id]?,"effect":"gaussian_blur|Gaussian Blur|…"}"#, has_seq, |s, p| {
             let name = str_p(p, "effect").ok_or_else(|| bad("effects.apply", "need `effect`"))?;
             let def = resolve_effect_name(s, p, name).ok_or_else(|| bad("effects.apply", format!("unknown effect `{name}`")))?;
-            if filmcraft_project::graphic::is_layer_id(def.id) {
+            if jilo_project::graphic::is_layer_id(def.id) {
                 return Err(bad("effects.apply", "graphic layers are added with graphics.newText / graphics.newShape"));
             }
-            if matches!(def.kind, filmcraft_project::EffectKind::VideoTransition | filmcraft_project::EffectKind::AudioTransition) {
+            if matches!(def.kind, jilo_project::EffectKind::VideoTransition | jilo_project::EffectKind::AudioTransition) {
                 let mut q = p.clone();
                 q["effect"] = json!(def.id);
-                return apply_transition(s, &q, if def.kind == filmcraft_project::EffectKind::VideoTransition { TrackKind::Video } else { TrackKind::Audio });
+                return apply_transition(s, &q, if def.kind == jilo_project::EffectKind::VideoTransition { TrackKind::Video } else { TrackKind::Audio });
             }
             let clips = clips_p(s, p);
             if clips.is_empty() {
                 return Err(bad("effects.apply", "select clips first"));
             }
-            let is_audio = def.kind == filmcraft_project::EffectKind::Audio;
+            let is_audio = def.kind == jilo_project::EffectKind::Audio;
             let (fw, fh) = s.active_sequence().map(|q| (q.settings.width, q.settings.height)).unwrap_or((1920, 1080));
             let label = format!("Apply {}", def.name);
             s.edit_sequence(&label, |q, _, _| {
@@ -2736,7 +2735,7 @@ fn build() -> Vec<CommandSpec> {
             let c = clip_p(p, "clip").ok_or_else(|| bad("effects.remove", "need `clip`"))?;
             let idx = u64_p(p, "index").ok_or_else(|| bad("effects.remove", "need `index`"))? as usize;
             s.edit_sequence("Remove Effect", |q, _, _| {
-                let (_, it) = q.find_item_mut(c).ok_or(filmcraft_edit::EditError::NoItem(c))?;
+                let (_, it) = q.find_item_mut(c).ok_or(jilo_edit::EditError::NoItem(c))?;
                 if it.effects.get(idx).and_then(|e| e.def()).is_some_and(|d| d.intrinsic) {
                     return Err(EngineError::Other("intrinsic effects cannot be removed".into()));
                 }
@@ -2769,7 +2768,7 @@ fn build() -> Vec<CommandSpec> {
                     s.history.merge_key = None;
                 }
                 let keyframes = s.edit_sequence_as("Change Effect Parameter", merge.as_deref(), |q, _, _| {
-                    let (_, it) = q.find_item_mut(c).ok_or(filmcraft_edit::EditError::NoItem(c))?;
+                    let (_, it) = q.find_item_mut(c).ok_or(jilo_edit::EditError::NoItem(c))?;
                     let mt = it.source_time_at(tl.clamp(it.start, (it.end() - Tick(1)).max(it.start)));
                     let e = match &eff {
                         Value::Number(n) => it.effects.get_mut(n.as_u64().unwrap_or(0) as usize),
@@ -2781,7 +2780,7 @@ fn build() -> Vec<CommandSpec> {
                     let def = if pq.get("mask").is_none_or(Value::is_null) { e.def().and_then(|d| d.param(&pid)) } else { None };
                     // a choice takes its option name as well as its index, as transition parameters do
                     let val = match (def.map(|d| &d.kind), &val) {
-                        (Some(filmcraft_project::ParamKind::Choice(opts)), Value::String(name)) => {
+                        (Some(jilo_project::ParamKind::Choice(opts)), Value::String(name)) => {
                             let i = opts
                                 .iter()
                                 .position(|o| o.eq_ignore_ascii_case(name))
@@ -2800,7 +2799,7 @@ fn build() -> Vec<CommandSpec> {
                     if !e.params.contains_key(&pid)
                         && let Some(d) = e.def().and_then(|d| d.param(&pid))
                     {
-                        e.params.insert(pid.clone(), filmcraft_project::Param::new(d.default.clone()));
+                        e.params.insert(pid.clone(), jilo_project::Param::new(d.default.clone()));
                     }
                     let prm = crate::masks::target_param(e, &pq, &pid).ok_or_else(|| bad("effects.setParam", format!("no param `{pid}`")))?;
                     let v = json_to_param(&prm.value, &val).ok_or_else(|| bad("effects.setParam", "value has the wrong type"))?;
@@ -2822,7 +2821,7 @@ fn build() -> Vec<CommandSpec> {
             let eff = p.get("effect").cloned().unwrap_or(json!("motion"));
             let ph = s.playhead();
             s.edit_sequence("Toggle Animation", |q, _, _| {
-                let (_, it) = q.find_item_mut(c).ok_or(filmcraft_edit::EditError::NoItem(c))?;
+                let (_, it) = q.find_item_mut(c).ok_or(jilo_edit::EditError::NoItem(c))?;
                 let mt = it.source_time_at(ph.clamp(it.start, (it.end() - Tick(1)).max(it.start)));
                 let e = match &eff {
                     Value::Number(n) => it.effects.get_mut(n.as_u64().unwrap_or(0) as usize),
@@ -2839,7 +2838,7 @@ fn build() -> Vec<CommandSpec> {
             let c = clip_p(p, "clip").ok_or_else(|| bad("effects.toggleEnabled", "need `clip`"))?;
             let idx = u64_p(p, "index").unwrap_or(0) as usize;
             s.edit_sequence("Toggle Effect", |q, _, _| {
-                let (_, it) = q.find_item_mut(c).ok_or(filmcraft_edit::EditError::NoItem(c))?;
+                let (_, it) = q.find_item_mut(c).ok_or(jilo_edit::EditError::NoItem(c))?;
                 if let Some(e) = it.effects.get_mut(idx) {
                     e.enabled = !e.enabled;
                 }
@@ -2852,7 +2851,7 @@ fn build() -> Vec<CommandSpec> {
             let idx = u64_p(p, "index").unwrap_or(0) as usize;
             let (fw, fh) = s.active_sequence().map(|q| (q.settings.width, q.settings.height)).unwrap_or((1920, 1080));
             s.edit_sequence("Reset Effect", |q, _, _| {
-                let (_, it) = q.find_item_mut(c).ok_or(filmcraft_edit::EditError::NoItem(c))?;
+                let (_, it) = q.find_item_mut(c).ok_or(jilo_edit::EditError::NoItem(c))?;
                 if let Some(e) = it.effects.get_mut(idx)
                     && let Some(d) = e.def()
                 {
@@ -2917,15 +2916,15 @@ fn build() -> Vec<CommandSpec> {
                 .unwrap_or_else(|| s.state.project_selection.clone());
             // A bin named here goes with everything in it, as in the Project panel of any editor.
             let root = s.project.root.id;
-            let named: Vec<filmcraft_project::BinId> =
-                asked.iter().map(|i| filmcraft_project::BinId(i.0)).filter(|b| *b != root && s.project.root.find_bin(*b).is_some()).collect();
+            let named: Vec<jilo_project::BinId> =
+                asked.iter().map(|i| jilo_project::BinId(i.0)).filter(|b| *b != root && s.project.root.find_bin(*b).is_some()).collect();
             // a bin inside another named bin goes with that one
-            let bins: Vec<filmcraft_project::BinId> = named
+            let bins: Vec<jilo_project::BinId> = named
                 .iter()
                 .copied()
                 .filter(|b| !named.iter().any(|o| o != b && s.project.root.find_bin(*o).is_some_and(|o| o.find_bin(*b).is_some())))
                 .collect();
-            let mut items: Vec<ItemId> = asked.iter().copied().filter(|i| !named.contains(&filmcraft_project::BinId(i.0))).collect();
+            let mut items: Vec<ItemId> = asked.iter().copied().filter(|i| !named.contains(&jilo_project::BinId(i.0))).collect();
             for b in &bins {
                 if let Some(bin) = s.project.root.find_bin(*b) {
                     bin.all_items(&mut items);
@@ -2947,7 +2946,7 @@ fn build() -> Vec<CommandSpec> {
                     if let Some(q) = pr.sequence_mut(sid) {
                         for t in q.all_tracks_mut() {
                             t.items.retain(|x| !items.contains(&x.item));
-                            filmcraft_edit::remove_orphan_transitions(t);
+                            jilo_edit::remove_orphan_transitions(t);
                         }
                     }
                 }
@@ -2968,7 +2967,7 @@ fn build() -> Vec<CommandSpec> {
             if items.is_empty() {
                 return Err(bad("project.moveToBin", "need `items` (or a Project panel selection)"));
             }
-            let bin = u64_p(p, "bin").map(filmcraft_project::BinId);
+            let bin = u64_p(p, "bin").map(jilo_project::BinId);
             let moved = s.edit("Move to Bin", |pr, _| pr.move_to_bin(&items, bin).ok_or_else(|| bad("project.moveToBin", "no such bin")))?;
             Ok(json!({"moved": moved}))
         }),
@@ -3133,7 +3132,7 @@ fn keyframe_op(s: &mut Session, p: &Value, op: &str) -> Result<Value> {
         s.history.merge_key = None;
     }
     s.edit_sequence_as(label, merge.as_deref(), |q, _, _| {
-        let (_, it) = q.find_item_mut(c).ok_or(filmcraft_edit::EditError::NoItem(c))?;
+        let (_, it) = q.find_item_mut(c).ok_or(jilo_edit::EditError::NoItem(c))?;
         let mt_now = it.source_time_at(ph.clamp(it.start, (it.end() - Tick(1)).max(it.start)));
         let e = match &eff {
             Value::Number(n) => it.effects.get_mut(n.as_u64().unwrap_or(0) as usize),
@@ -3182,13 +3181,13 @@ fn keyframe_op(s: &mut Session, p: &Value, op: &str) -> Result<Value> {
             _ => {
                 let at = mtime.unwrap_or(mt_now);
                 let kind = match interp.as_deref().unwrap_or("linear").to_ascii_lowercase().as_str() {
-                    "bezier" => filmcraft_project::Interpolation::Bezier,
-                    "autobezier" => filmcraft_project::Interpolation::AutoBezier,
-                    "continuousbezier" => filmcraft_project::Interpolation::ContinuousBezier,
-                    "hold" => filmcraft_project::Interpolation::Hold,
-                    "easein" => filmcraft_project::Interpolation::EaseIn,
-                    "easeout" => filmcraft_project::Interpolation::EaseOut,
-                    _ => filmcraft_project::Interpolation::Linear,
+                    "bezier" => jilo_project::Interpolation::Bezier,
+                    "autobezier" => jilo_project::Interpolation::AutoBezier,
+                    "continuousbezier" => jilo_project::Interpolation::ContinuousBezier,
+                    "hold" => jilo_project::Interpolation::Hold,
+                    "easein" => jilo_project::Interpolation::EaseIn,
+                    "easeout" => jilo_project::Interpolation::EaseOut,
+                    _ => jilo_project::Interpolation::Linear,
                 };
                 let k = prm.keyframes.iter_mut().find(|k| k.time == at).ok_or_else(|| bad("keyframe", "no keyframe at that time"))?;
                 k.interp = kind;
@@ -3245,10 +3244,10 @@ pub(crate) fn json_to_param(template: &ParamValue, v: &Value) -> Option<ParamVal
         ParamValue::Float(_) => ParamValue::Float(v.as_f64()?),
         ParamValue::Vec2(_) => {
             let a = v.as_array()?;
-            ParamValue::Vec2(filmcraft_geom::Vec2::new(a.first()?.as_f64()?, a.get(1)?.as_f64()?))
+            ParamValue::Vec2(jilo_geom::Vec2::new(a.first()?.as_f64()?, a.get(1)?.as_f64()?))
         }
         ParamValue::Color(_) => match v {
-            Value::String(s) => ParamValue::Color(filmcraft_color::parse_hex(s)?),
+            Value::String(s) => ParamValue::Color(jilo_color::parse_hex(s)?),
             Value::Array(a) => ParamValue::Color([
                 a.first()?.as_f64()? as f32,
                 a.get(1)?.as_f64()? as f32,
@@ -3270,7 +3269,7 @@ pub(crate) fn json_to_param(template: &ParamValue, v: &Value) -> Option<ParamVal
 fn copy_selection(s: &mut Session) {
     let Some(q) = s.active_sequence() else { return };
     let sel = with_links(s, &s.state.selection);
-    let caps: Vec<(usize, &filmcraft_project::Caption)> = q
+    let caps: Vec<(usize, &jilo_project::Caption)> = q
         .caption_tracks
         .iter()
         .enumerate()
@@ -3279,7 +3278,7 @@ fn copy_selection(s: &mut Session) {
     // clips and captions keep their places relative to each other
     let min = sel.iter().filter_map(|c| q.find_item(*c).map(|(_, i)| i.start)).chain(caps.iter().map(|c| c.1.start)).min().unwrap_or_default();
     let max = sel.iter().filter_map(|c| q.find_item(*c).map(|(_, i)| i.end())).chain(caps.iter().map(|c| c.1.end())).max().unwrap_or_default();
-    let caption_clip: Vec<(usize, filmcraft_project::Caption)> = caps
+    let caption_clip: Vec<(usize, jilo_project::Caption)> = caps
         .iter()
         .map(|(ti, c)| {
             let mut c = (*c).clone();
@@ -3311,13 +3310,13 @@ fn copy_selection(s: &mut Session) {
 /// Put copied captions at `at` (+ their offset) on the caption track of the same number (the last
 /// one when there are fewer; a new one when there is none), overwriting what is there: a caption
 /// they cover goes, one they overlap is shortened. Returns the new captions' ids.
-fn paste_captions(q: &mut filmcraft_project::Sequence, caps: &[(usize, filmcraft_project::Caption)], at: Tick, ctx: &mut edit::EditCtx) -> Result<Vec<ClipId>> {
+fn paste_captions(q: &mut jilo_project::Sequence, caps: &[(usize, jilo_project::Caption)], at: Tick, ctx: &mut edit::EditCtx) -> Result<Vec<ClipId>> {
     if caps.is_empty() {
         return Ok(Vec::new());
     }
     if q.caption_tracks.is_empty() {
-        let id = filmcraft_project::TrackId(ctx.alloc());
-        q.caption_tracks.push(filmcraft_project::CaptionTrack::new(id, "Subtitle".into(), filmcraft_project::CaptionFormat::Subtitle));
+        let id = jilo_project::TrackId(ctx.alloc());
+        q.caption_tracks.push(jilo_project::CaptionTrack::new(id, "Subtitle".into(), jilo_project::CaptionFormat::Subtitle));
     }
     let mut made = Vec::new();
     for (ti, c) in caps {
@@ -3409,9 +3408,9 @@ fn nest(s: &mut Session, p: &Value) -> Result<Value> {
     let sel = with_links(s, &s.state.selection.clone());
     let q = s.active_sequence().ok_or(EngineError::NoSequence)?.clone();
     let name = str_p(p, "name").filter(|n| !n.trim().is_empty()).map(str::to_string).unwrap_or_else(|| next_nested_name(s));
-    let mut items: Vec<(TrackKind, usize, filmcraft_project::TrackItem)> = Vec::new();
+    let mut items: Vec<(TrackKind, usize, jilo_project::TrackItem)> = Vec::new();
     // transitions go into the nest with their clips: those whose clips are all nested
-    let mut transitions: Vec<(TrackKind, usize, filmcraft_project::Transition)> = Vec::new();
+    let mut transitions: Vec<(TrackKind, usize, jilo_project::Transition)> = Vec::new();
     for (k, ts) in [(TrackKind::Video, &q.video_tracks), (TrackKind::Audio, &q.audio_tracks)] {
         // clips on a locked track stay where they are (they cannot be removed from it)
         for (ti, t) in ts.iter().enumerate().filter(|(_, t)| !t.locked) {
@@ -3484,7 +3483,7 @@ fn nest(s: &mut Session, p: &Value) -> Result<Value> {
             for ((k, ti, trn), fresh) in transitions.iter().zip(&fresh_transitions) {
                 let mut trn = trn.clone();
                 if let Some(id) = fresh {
-                    trn.id = filmcraft_project::TransitionId(*id);
+                    trn.id = jilo_project::TransitionId(*id);
                 }
                 (trn.from, trn.to) = (trn.from.map(copy), trn.to.map(copy));
                 trn.start -= start;
@@ -3539,7 +3538,7 @@ fn nest(s: &mut Session, p: &Value) -> Result<Value> {
                 Some(i) => i,
                 None => {
                     let (word, n) = (if kind == TrackKind::Video { "Video" } else { "Audio" }, tracks.len() + 1);
-                    tracks.push(filmcraft_project::Track::new(TrackId(new_track), kind, format!("{word} {n}")));
+                    tracks.push(jilo_project::Track::new(TrackId(new_track), kind, format!("{word} {n}")));
                     tracks.len() - 1
                 }
             };
@@ -3564,7 +3563,7 @@ fn list_effects(p: &Value) -> Value {
     let kind = str_p(p, "kind");
     let folder = str_p(p, "folder");
     let detail = p.get("detail").and_then(Value::as_bool).unwrap_or(false);
-    let out = filmcraft_project::effect_defs()
+    let out = jilo_project::effect_defs()
         .iter()
         .filter(|d| kind.is_none_or(|k| format!("{:?}", d.kind).eq_ignore_ascii_case(k)))
         .filter(|d| folder.is_none_or(|f| d.category.join("/").starts_with(f)))
@@ -3588,8 +3587,8 @@ fn list_effects(p: &Value) -> Value {
     Value::Array(out)
 }
 
-fn param_info(p: &filmcraft_project::ParamDef) -> Value {
-    use filmcraft_project::ParamKind as K;
+fn param_info(p: &jilo_project::ParamDef) -> Value {
+    use jilo_project::ParamKind as K;
     let mut j = json!({"id": p.id, "label": p.label, "animatable": p.animatable, "default": serde_json::to_value(&p.default).unwrap_or_default()});
     let ty = match &p.kind {
         K::Choice(opts) => {
@@ -3617,8 +3616,8 @@ fn param_info(p: &filmcraft_project::ParamDef) -> Value {
 
 /// Set transition parameters from a JSON object (`{"direction": 1}` or `{"direction": "From East"}`,
 /// colours as `"#rrggbb"` or `[r,g,b]`, points as `[x,y]`). Floats are clamped to their range.
-fn set_transition_params(e: &mut filmcraft_project::EffectInstance, params: &Value, cmd: &str) -> Result<()> {
-    use filmcraft_project::{ParamKind as K, ParamValue as V};
+fn set_transition_params(e: &mut jilo_project::EffectInstance, params: &Value, cmd: &str) -> Result<()> {
+    use jilo_project::{ParamKind as K, ParamValue as V};
     let Some(obj) = params.as_object() else { return Err(bad(cmd, "`params` must be an object")) };
     let def = e.def().ok_or_else(|| bad(cmd, "unknown transition"))?;
     for (k, v) in obj {
@@ -3637,7 +3636,7 @@ fn set_transition_params(e: &mut filmcraft_project::EffectInstance, params: &Val
         match e.param_mut(k) {
             Some(prm) => prm.value = val,
             None => {
-                e.params.insert(k.clone(), filmcraft_project::Param::new(val));
+                e.params.insert(k.clone(), jilo_project::Param::new(val));
             }
         }
     }
@@ -3843,8 +3842,8 @@ pub fn preview_transition(s: &Session, p: &Value, kind: TrackKind) -> Result<(Tr
     let eff_id = str_p(p, "effect")
         .map(str::to_string)
         .unwrap_or_else(|| if kind == TrackKind::Video { s.state.default_video_transition.clone() } else { s.state.default_audio_transition.clone() });
-    let ekind = if kind == TrackKind::Video { filmcraft_project::EffectKind::VideoTransition } else { filmcraft_project::EffectKind::AudioTransition };
-    let def = filmcraft_project::vtransition::find_transition(&eff_id, ekind).ok_or_else(|| bad("transition", format!("unknown transition `{eff_id}`")))?;
+    let ekind = if kind == TrackKind::Video { jilo_project::EffectKind::VideoTransition } else { jilo_project::EffectKind::AudioTransition };
+    let def = jilo_project::vtransition::find_transition(&eff_id, ekind).ok_or_else(|| bad("transition", format!("unknown transition `{eff_id}`")))?;
     let mut instance = def.instance();
     if let Some(params) = p.get("params") {
         set_transition_params(&mut instance, params, "transition")?;
@@ -3907,16 +3906,16 @@ pub fn preview_transition(s: &Session, p: &Value, kind: TrackKind) -> Result<(Tr
 /// JSON description of the project (bins, items) for agents.
 pub fn inspect_project(s: &Session) -> Value {
     let p = &s.project;
-    fn bin(b: &filmcraft_project::Bin, p: &filmcraft_project::Project) -> Value {
+    fn bin(b: &jilo_project::Bin, p: &jilo_project::Project) -> Value {
         json!({
             "id": b.id.0,
             "name": b.name,
             "children": b.children.iter().map(|c| match c {
-                filmcraft_project::BinEntry::Item(i) => {
+                jilo_project::BinEntry::Item(i) => {
                     let it = p.item(*i);
                     json!({"item": i.0, "name": it.map(|x| x.name.clone()), "type": it.map(|x| x.type_label()), "duration": it.map(|x| x.duration().0), "label": it.map(|x| x.label.name())})
                 }
-                filmcraft_project::BinEntry::Bin(b) => bin(b, p),
+                jilo_project::BinEntry::Bin(b) => bin(b, p),
             }).collect::<Vec<_>>()
         })
     }
@@ -3931,9 +3930,9 @@ pub fn inspect_project(s: &Session) -> Value {
     })
 }
 
-pub fn inspect_sequence(s: &Session, id: ItemId, q: &filmcraft_project::Sequence) -> Value {
+pub fn inspect_sequence(s: &Session, id: ItemId, q: &jilo_project::Sequence) -> Value {
     let rate = q.settings.frame_rate;
-    let tr = |t: &filmcraft_project::Track| {
+    let tr = |t: &jilo_project::Track| {
         json!({
             "id": t.id.0, "name": t.name, "locked": t.locked, "syncLock": t.sync_lock, "enabled": t.enabled, "muted": t.muted, "solo": t.solo,
             "items": t.items.iter().map(|i| json!({
@@ -3946,7 +3945,7 @@ pub fn inspect_sequence(s: &Session, id: ItemId, q: &filmcraft_project::Sequence
                 "audioStream": i.audio_stream, "sourceChannels": i.source_channels,
                 "effects": i.effects.iter().map(|e| json!({"effect": e.effect, "enabled": e.enabled, "masks": e.masks.len(), "params": e.params.iter().map(|(k, p)| (k.clone(), json!({"value": format!("{:?}", p.value), "keyframes": p.keyframes.len()}))).collect::<serde_json::Map<_, _>>()})).collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
-            "transitions": t.transitions.iter().map(|x| json!({"id": x.id.0, "effect": x.effect.effect, "start": x.start.0, "duration": x.duration.0, "from": x.from.map(|c| c.0), "to": x.to.map(|c| c.0), "reverse": x.reverse, "align": filmcraft_edit::transitions::bounds(t, x).map(|b| filmcraft_edit::transitions::alignment(x, b.1, rate.frame_duration()).id()), "params": x.effect.params.iter().map(|(k, v)| (k.clone(), serde_json::to_value(&v.value).unwrap_or_default())).collect::<serde_json::Map<_, _>>()})).collect::<Vec<_>>(),
+            "transitions": t.transitions.iter().map(|x| json!({"id": x.id.0, "effect": x.effect.effect, "start": x.start.0, "duration": x.duration.0, "from": x.from.map(|c| c.0), "to": x.to.map(|c| c.0), "reverse": x.reverse, "align": jilo_edit::transitions::bounds(t, x).map(|b| jilo_edit::transitions::alignment(x, b.1, rate.frame_duration()).id()), "params": x.effect.params.iter().map(|(k, v)| (k.clone(), serde_json::to_value(&v.value).unwrap_or_default())).collect::<serde_json::Map<_, _>>()})).collect::<Vec<_>>(),
         })
     };
     json!({
@@ -3977,14 +3976,14 @@ pub fn secs(s: f64) -> Tick {
 /// Serialize the project in the current schema and write it (atomically) to `path`. `adopt` =
 /// Save / Save As (the file becomes the project's path and the project is clean); otherwise Save a
 /// Copy. The first save over a file upgraded from an older schema keeps the original as
-/// `<name> (schema vN backup).fcproj`.
+/// `<name> (schema vN backup).<ext>`.
 /// A project is named after its file (as in Premiere): `/a/b/Trailer v2.fcproj` → `Trailer v2`.
 fn project_name_for(path: &str) -> Option<String> {
     let stem = std::path::Path::new(path).file_stem()?.to_string_lossy().to_string();
     (!stem.is_empty()).then_some(stem)
 }
 
-fn name_project(p: &mut filmcraft_project::Project, name: String) {
+fn name_project(p: &mut jilo_project::Project, name: String) {
     p.root.name.clone_from(&name);
     p.name = name;
 }
@@ -4000,9 +3999,9 @@ fn write_project(s: &mut Session, path: &str, adopt: bool) -> Result<Value> {
     }
     // what is open (sequence tabs, how each is shown) goes into the file beside the project
     let view = s.project_view();
-    let bytes = filmcraft_format::encode_with_view(&s.project, Some(&view), false);
+    let bytes = jilo_format::encode_with_view(&s.project, Some(&view), false);
     let mut backup = None;
-    if adopt && s.path.as_deref() == Some(path) && s.loaded_schema < filmcraft_format::SCHEMA_VERSION {
+    if adopt && s.path.as_deref() == Some(path) && s.loaded_schema < jilo_format::SCHEMA_VERSION {
         let b = schema_backup_path(path, s.loaded_schema);
         if s.services.read_file(&b).is_err()
             && let Ok(old) = s.services.read_file(path)
@@ -4017,18 +4016,20 @@ fn write_project(s: &mut Session, path: &str, adopt: bool) -> Result<Value> {
         s.previews_follow_path();
         s.note_recent_project();
         s.saved_revision = s.revision;
-        s.loaded_schema = filmcraft_format::SCHEMA_VERSION;
+        s.loaded_schema = jilo_format::SCHEMA_VERSION;
     }
     Ok(json!({"path": path, "bytes": bytes.len(), "ms": t0.elapsed().as_secs_f64() * 1000.0, "backup": backup}))
 }
 
+/// `<stem> (schema v<n> backup).<ext>`, keeping the file's own project extension.
 fn schema_backup_path(path: &str, schema: u32) -> String {
-    let stem = path.strip_suffix(".fcproj").unwrap_or(path);
-    format!("{stem} (schema v{schema} backup).fcproj")
+    let stem = jilo_format::strip_project_extension(path);
+    let ext = if stem.len() < path.len() { &path[stem.len() + 1..] } else { jilo_format::PROJECT_EXTENSION };
+    format!("{stem} (schema v{schema} backup).{ext}")
 }
 
 /// Make `proj` the session's project (fresh history, media pool and editor state).
-fn install_project(s: &mut Session, proj: filmcraft_project::Project, path: Option<String>, clean: bool) {
+fn install_project(s: &mut Session, proj: jilo_project::Project, path: Option<String>, clean: bool) {
     let proxies = s.media.use_proxies();
     s.media = std::sync::Arc::new(crate::MediaPool::default());
     s.media.set_use_proxies(proxies);
@@ -4049,13 +4050,13 @@ fn install_project(s: &mut Session, proj: filmcraft_project::Project, path: Opti
     s.revision += 1;
     // A recovered project is unsaved: its saved revision is one that never existed.
     s.saved_revision = if clean { s.revision } else { 0 };
-    s.loaded_schema = filmcraft_format::SCHEMA_VERSION;
+    s.loaded_schema = jilo_format::SCHEMA_VERSION;
     s.events.push(crate::Event::ProjectChanged { revision: s.revision });
 }
 
 fn open_project(s: &mut Session, path: &str) -> Result<Value> {
     let bytes = s.services.read_file(path).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
-    let loaded = filmcraft_format::decode(&bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    let loaded = jilo_format::decode(&bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
     let (from, migrated) = (loaded.schema_version, loaded.migrated());
     install_project(s, loaded.project, Some(path.to_string()), true);
     if let Some(view) = loaded.view.filter(|_| s.prefs.timeline.restore_open_sequences) {
@@ -4068,7 +4069,7 @@ fn open_project(s: &mut Session, path: &str) -> Result<Value> {
     s.note_recent_project();
     s.loaded_schema = from;
     if migrated {
-        s.toast(format!("Upgraded project from schema v{from} to v{}; the original is kept as a backup when you save", filmcraft_format::SCHEMA_VERSION));
+        s.toast(format!("Upgraded project from schema v{from} to v{}; the original is kept as a backup when you save", jilo_format::SCHEMA_VERSION));
     }
     let missing = crate::relink::on_open(s);
     let fixed = fix_caption_overlaps(s);
@@ -4079,7 +4080,7 @@ fn open_project(s: &mut Session, path: &str) -> Result<Value> {
 /// hand) end where the next one starts, as one undoable step; the user is told. Returns how many.
 pub(crate) fn fix_caption_overlaps(s: &mut Session) -> usize {
     let broken =
-        |q: &filmcraft_project::Sequence| q.caption_tracks.iter().any(|t| t.check_bounds().is_ok() && t.violations().iter().any(|v| v.ends_with("overlap")));
+        |q: &jilo_project::Sequence| q.caption_tracks.iter().any(|t| t.check_bounds().is_ok() && t.violations().iter().any(|v| v.ends_with("overlap")));
     if !s.project.sequences().any(|i| i.as_sequence().is_some_and(broken)) {
         return 0;
     }
@@ -4089,7 +4090,7 @@ pub(crate) fn fix_caption_overlaps(s: &mut Session) -> usize {
             let mut n = 0;
             for id in &ids {
                 if let Some(q) = p.sequence_mut(*id) {
-                    n += q.caption_tracks.iter_mut().map(filmcraft_project::CaptionTrack::fix_overlaps).sum::<usize>();
+                    n += q.caption_tracks.iter_mut().map(jilo_project::CaptionTrack::fix_overlaps).sum::<usize>();
                 }
             }
             Ok(n)
@@ -4134,9 +4135,9 @@ fn auto_save_dir(s: &Session) -> std::path::PathBuf {
         return std::path::PathBuf::from(d);
     }
     match (&s.path, &s.persistence) {
-        (Some(p), _) => filmcraft_format::autosave::auto_save_dir(std::path::Path::new(p)),
-        (None, Some(per)) => per.data_dir.join(filmcraft_format::autosave::AUTO_SAVE_DIR),
-        (None, None) => std::path::PathBuf::from(filmcraft_format::autosave::AUTO_SAVE_DIR),
+        (Some(p), _) => jilo_format::autosave::auto_save_dir(std::path::Path::new(p)),
+        (None, Some(per)) => per.data_dir.join(jilo_format::autosave::AUTO_SAVE_DIR),
+        (None, None) => std::path::PathBuf::from(jilo_format::autosave::AUTO_SAVE_DIR),
     }
 }
 

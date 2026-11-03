@@ -5,14 +5,14 @@ the control channel, or from the command line. This page covers all three.
 
 ## 1. MCP server
 
-`filmcraft-cli mcp` serves MCP on stdio, and so does the app itself started with `--mcp` (no
+`jilo-cli mcp` serves MCP on stdio, and so does the app itself started with `--mcp` (no
 window). The modes:
 
 | Mode | Command | What it drives |
 |---|---|---|
-| Headless | `filmcraft-cli mcp --demo` or `--project p.fcproj` (neither = empty project) | an in-process engine session, no window |
-| Bridge | `"Jilo Studio.app/Contents/MacOS/Jilo Studio" --mcp`, or `filmcraft-cli mcp --app` | the open Jilo Studio, with Settings ▸ AI ▸ Allow AI assistants on (port 47821) |
-| Bridge | `filmcraft-cli mcp --bridge 127.0.0.1:9876` (or the app's `--mcp --bridge 127.0.0.1:9876`) | the running desktop app started with `filmcraft --control 9876` |
+| Headless | `jilo-cli mcp --demo` or `--project p.jsproj` (neither = empty project) | an in-process engine session, no window |
+| Bridge | `"Jilo Studio.app/Contents/MacOS/Jilo Studio" --mcp`, or `jilo-cli mcp --app` | the open Jilo Studio, with Settings ▸ AI ▸ Allow AI assistants on (port 47821) |
+| Bridge | `jilo-cli mcp --bridge 127.0.0.1:9876` (or the app's `--mcp --bridge 127.0.0.1:9876`) | the running desktop app started with `jilo-studio --control 9876` |
 
 **Connecting Claude to the app you are working in.** The app's own executable is the MCP server:
 `Jilo Studio.app/Contents/MacOS/Jilo Studio --mcp` serves MCP on stdio without opening a window and
@@ -35,15 +35,15 @@ that channel.
 want the bridge, and register the server in your MCP client with the absolute path of the binary:
 
 ```sh
-cargo build --release -p filmcraft-cli -p filmcraft
-./target/release/filmcraft --control 9876 &      # only for the bridge server
+cargo build --release -p jilo-cli -p jilo-studio
+./target/release/jilo-studio --control 9876 &      # only for the bridge server
 ```
 
 ```json
-{ "mcpServers": { "filmcraft": { "command": "/abs/path/filmcraft-cli", "args": ["mcp", "--bridge", "127.0.0.1:9876"] } } }
+{ "mcpServers": { "jilo-studio": { "command": "/abs/path/jilo-cli", "args": ["mcp", "--bridge", "127.0.0.1:9876"] } } }
 ```
 
-`--app` works for the other subcommands too: `filmcraft-cli --app exec file.save` saves the
+`--app` works for the other subcommands too: `jilo-cli --app exec file.save` saves the
 project open in Jilo Studio.
 
 ### Tools
@@ -114,11 +114,11 @@ track and clip; `ok` is true when there is no error. `render_frames` shows the c
 ### Conventions
 
 The server follows a few conventions that make it predictable for agents. They are not
-FilmCraft-specific: the sibling craft apps' MCP servers can follow the same ones, so an agent that has
+Jilo Studio-specific: the sibling craft apps' MCP servers can follow the same ones, so an agent that has
 driven one app can drive the others.
 
 - **Core tools.** `command_list`, `command_run`, `command_batch`, `doc_inspect` and `render_preview`
-  work in both modes. The FilmCraft tools above stay as they are.
+  work in both modes. The Jilo Studio tools above stay as they are.
 - **Titles and annotations.** Every tool has a `title` and the four MCP hints (`readOnlyHint`,
   `destructiveHint`, `idempotentHint`, `openWorldHint`), so a client can let the read-only tools
   (lists, inspects, renders, screenshots) run without asking and ask before edits. When you add a
@@ -129,9 +129,9 @@ driven one app can drive the others.
 - **Errors.** A failing command is an `isError` result with the engine's message. A line that is not
   JSON gets a `-32700` parse error (id `null`) and the server keeps serving. A command that panics is
   reported as `internal error: …`, and the session stays usable.
-- **Resources.** `filmcraft://document` (the project tree and active sequence, as `doc_inspect`),
-  `filmcraft://commands` (the command catalog, as `command_list`), `filmcraft://jobs` (as
-  `jobs_list`) and `filmcraft://history` (the undo history), all `application/json`. For MCP
+- **Resources.** `jilo://document` (the project tree and active sequence, as `doc_inspect`),
+  `jilo://commands` (the command catalog, as `command_list`), `jilo://jobs` (as
+  `jobs_list`) and `jilo://history` (the undo history), all `application/json`. For MCP
   2026-07-28 clients such as current Claude Code, list and read results carry the `ttlMs` and
   `cacheScope` hints that revision requires.
 
@@ -181,7 +181,7 @@ progress and stop it:
   ignore the token.
 - Bridge mode works the same way: the export runs as an app job (the app stays responsive and shows
   "Exporting… NN%" in its status bar) and the call returns when it is written, however long it
-  takes. `filmcraft-cli --bridge … exec file.exportMedia … wait=true` blocks the same way, and so do
+  takes. `jilo-cli --bridge … exec file.exportMedia … wait=true` blocks the same way, and so do
   the other long jobs above.
 
 ### What only the bridge can do
@@ -193,9 +193,9 @@ window. Preferences themselves are engine commands in both modes (`prefs.get`, `
 
 ## 2. Control channel
 
-`filmcraft --control 9876` (or `FILMCRAFT_CONTROL_PORT=9876`) listens on `127.0.0.1` only. Send one
+`jilo-studio --control 9876` (or `JILO_CONTROL_PORT=9876`) listens on `127.0.0.1` only. Send one
 JSON request per line and get one JSON reply per line, after an `auth` line with the app's token (it is
-in `control-<port>.token` in the data directory; `filmcraft-cli --bridge` reads it for you). Full method table:
+in `control-<port>.token` in the data directory; `jilo-cli --bridge` reads it for you). Full method table:
 [control-protocol.md](control-protocol.md).
 
 ```jsonc
@@ -216,7 +216,7 @@ Minimal client:
 ```python
 import json, os, pathlib, socket
 port = 9876
-token = os.environ.get("FILMCRAFT_CONTROL_TOKEN") or (
+token = os.environ.get("JILO_CONTROL_TOKEN") or (
     pathlib.Path.home() / "Library/Application Support/com.rustamguloff.jilostudio" / f"control-{port}.token").read_text().strip()
 s = socket.create_connection(("127.0.0.1", port)); f = s.makefile("rw")
 def call(method, **params):
@@ -249,32 +249,32 @@ Notes:
 - `timeline.move` takes linked partners along while Linked Selection is on: moving a picture
   clip moves its sound by the same offset (pass `"linked": false` to move only the listed clips).
   It returns `{"moved": [ids]}`, every clip that moved.
-- Without a window, `filmcraft-cli run script.jsonl` (lines of `{"id":"…","params":{…}}`) runs the
+- Without a window, `jilo-cli run script.jsonl` (lines of `{"id":"…","params":{…}}`) runs the
   same commands headlessly. See §2b for the rest of the CLI.
 
 ## 2b. Command-line interface
 
 Every command is also one shell call away. Options go anywhere; output is JSON; exit status is 0 on
-success, 1 when a command fails and 2 on a usage error. `filmcraft-cli help`, `filmcraft-cli --help`
-and `filmcraft-cli -h` print the reference and exit successfully.
-If the reader of stdout closes the pipe early (`filmcraft-cli commands | head`), the CLI drops the rest
+success, 1 when a command fails and 2 on a usage error. `jilo-cli help`, `jilo-cli --help`
+and `jilo-cli -h` print the reference and exit successfully.
+If the reader of stdout closes the pipe early (`jilo-cli commands | head`), the CLI drops the rest
 of its output but still finishes the work, saves included, and the exit status still reports
 failures; any other stdout write error is reported and makes the status 1.
 
 ```sh
-filmcraft-cli commands razor                     # find ids (add --json for machine output)
-filmcraft-cli describe timeline.razor            # one command: menu, shortcut, params, enabled now
-filmcraft-cli --demo inspect sequence            # project / sequence as JSON
-filmcraft-cli --project p.fcproj --save exec timeline.razor seconds=3.5
-filmcraft-cli --project p.fcproj exec effects.apply '{"effect":"Gaussian Blur"}'
-filmcraft-cli --project p.fcproj exec markers.exportCsv path=review.csv
-filmcraft-cli --project p.fcproj --save import a.mov b.wav
-filmcraft-cli --project p.fcproj export out.mp4  # format from the extension; waits for the job
-filmcraft-cli --project p.fcproj export out --preset "YouTube 1080p Full HD" --start 0 --end 10
-filmcraft-cli export --list-presets prores       # built-in + user presets (--data-dir for another library)
-filmcraft-cli --project p.fcproj exec export.queue.add preset="Apple ProRes 422 HQ" path=renders/ start=true wait=true
-echo '{"id":"file.newBin","params":{"name":"Selects"}}' | filmcraft-cli --project p.fcproj --save run -
-filmcraft-cli --bridge 127.0.0.1:9876 exec window.workspace.color   # the running app
+jilo-cli commands razor                     # find ids (add --json for machine output)
+jilo-cli describe timeline.razor            # one command: menu, shortcut, params, enabled now
+jilo-cli --demo inspect sequence            # project / sequence as JSON
+jilo-cli --project p.jsproj --save exec timeline.razor seconds=3.5
+jilo-cli --project p.jsproj exec effects.apply '{"effect":"Gaussian Blur"}'
+jilo-cli --project p.jsproj exec markers.exportCsv path=review.csv
+jilo-cli --project p.jsproj --save import a.mov b.wav
+jilo-cli --project p.jsproj export out.mp4  # format from the extension; waits for the job
+jilo-cli --project p.jsproj export out --preset "YouTube 1080p Full HD" --start 0 --end 10
+jilo-cli export --list-presets prores       # built-in + user presets (--data-dir for another library)
+jilo-cli --project p.jsproj exec export.queue.add preset="Apple ProRes 422 HQ" path=renders/ start=true wait=true
+echo '{"id":"file.newBin","params":{"name":"Selects"}}' | jilo-cli --project p.jsproj --save run -
+jilo-cli --bridge 127.0.0.1:9876 exec window.workspace.color   # the running app
 ```
 
 `key=value` values are parsed as JSON when they can be (`3.5`, `true`, `[1,2]`), otherwise taken as
@@ -320,4 +320,4 @@ as JSON, the exit status is 0 when everything worked, and a notification says ho
   `.remove`); System Settings ▸ Keyboard ▸ Keyboard Shortcuts ▸ Services can give it a key.
 - **Shortcuts:** add a *Run Shell Script* action (input: *as arguments*) with the command line above
   and `"$@"` for the files, after a *Receive files* or *Get selected Finder items* step.
-- **Scripts:** `filmcraft-cli exec batch.processFiles '{"paths": ["a.mov"], "formats": true, "aspects": ["9:16"], "export": true}'`.
+- **Scripts:** `jilo-cli exec batch.processFiles '{"paths": ["a.mov"], "formats": true, "aspects": ["9:16"], "export": true}'`.

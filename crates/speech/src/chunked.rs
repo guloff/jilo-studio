@@ -17,7 +17,7 @@
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use filmcraft_audio_dsp::silence;
+use jilo_audio_dsp::silence;
 
 use crate::cues::{CUE_LIMITS, Cue, align_cue_words, letter_count, normalise_cues, tidy, uncovered_speech};
 use crate::{SAMPLE_RATE, SpeechError};
@@ -291,8 +291,8 @@ pub fn recognise(
 
 /// A transcript from tidied cues: their words (see [`crate::cues::cue_words`]) with the model's
 /// speaker labels as speakers ("S1" → "Speaker 1"), well formed ([`Transcript::normalize`]).
-pub fn transcript_from_cues(cues: &[Cue], language: &str, source: &str) -> filmcraft_project::Transcript {
-    use filmcraft_project::{Speaker, Transcript, Word};
+pub fn transcript_from_cues(cues: &[Cue], language: &str, source: &str) -> jilo_project::Transcript {
+    use jilo_project::{Speaker, Transcript, Word};
     let mut t = Transcript { language: language.to_string(), source: source.to_string(), ..Default::default() };
     let mut labels: Vec<String> = Vec::new();
     for (w, label) in crate::cues::cue_words(cues) {

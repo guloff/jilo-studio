@@ -1,6 +1,6 @@
 [package]
-name = "filmcraft-engine"
-description = "FilmCraft engine façade: session, command registry, history, media pool"
+name = "jilo-engine"
+description = "Jilo Studio engine façade: session, command registry, history, media pool"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,38 +12,38 @@ workspace = true
 [features]
 default = []
 # Speech-to-text with Whisper (candle, CPU). Off by default and in wasm builds.
-whisper = ["filmcraft-speech/whisper"]
+whisper = ["jilo-speech/whisper"]
 # Speech-model downloads over HTTPS.
-speech-download = ["filmcraft-speech/download"]
+speech-download = ["jilo-speech/download"]
 # Natural voices for Text to Speech: Kokoro-82M on candle (CPU) and their download.
-neural-voices = ["filmcraft-tts/kokoro", "speech-download"]
+neural-voices = ["jilo-tts/kokoro", "speech-download"]
 # macOS: Whisper and Kokoro on the GPU (Metal), and Accelerate for what stays on the CPU.
 # Cloud AI (Gemini, OpenAI) over HTTPS; without it only an installed transport reaches them.
-ai-net = ["filmcraft-ai/net"]
-apple-ml = ["filmcraft-speech/metal", "filmcraft-speech/accelerate", "filmcraft-tts/metal", "filmcraft-tts/accelerate"]
+ai-net = ["jilo-ai/net"]
+apple-ml = ["jilo-speech/metal", "jilo-speech/accelerate", "jilo-tts/metal", "jilo-tts/accelerate"]
 
 [dependencies]
 sha2 = "0.10"
-filmcraft-time = { workspace = true }
-filmcraft-geom = { workspace = true }
-filmcraft-color = { workspace = true }
-filmcraft-frame = { workspace = true }
-filmcraft-media = { workspace = true }
-filmcraft-codecs = { workspace = true }
-filmcraft-project = { workspace = true }
-filmcraft-edit = { workspace = true }
-filmcraft-render = { workspace = true }
-filmcraft-scopes = { workspace = true }
-filmcraft-text = { workspace = true }
-filmcraft-audio-dsp = { workspace = true }
-filmcraft-export = { workspace = true }
-filmcraft-mxf = { workspace = true }
-filmcraft-format = { workspace = true }
-filmcraft-interchange = { workspace = true }
-filmcraft-captions = { workspace = true }
-filmcraft-speech = { workspace = true }
-filmcraft-tts = { workspace = true }
-filmcraft-ai = { workspace = true }
+jilo-time = { workspace = true }
+jilo-geom = { workspace = true }
+jilo-color = { workspace = true }
+jilo-frame = { workspace = true }
+jilo-media = { workspace = true }
+jilo-codecs = { workspace = true }
+jilo-project = { workspace = true }
+jilo-edit = { workspace = true }
+jilo-render = { workspace = true }
+jilo-scopes = { workspace = true }
+jilo-text = { workspace = true }
+jilo-audio-dsp = { workspace = true }
+jilo-export = { workspace = true }
+jilo-mxf = { workspace = true }
+jilo-format = { workspace = true }
+jilo-interchange = { workspace = true }
+jilo-captions = { workspace = true }
+jilo-speech = { workspace = true }
+jilo-tts = { workspace = true }
+jilo-ai = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -51,7 +51,7 @@ log = { workspace = true }
 web-time = "1"
 
 [dev-dependencies]
-filmcraft-testkit = { workspace = true }
+jilo-testkit = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 # The control channel's access token (`control_token`): OS random numbers. Already in the lockfile.

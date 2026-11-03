@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use filmcraft_media::reader::{ByteReader, MemReader, open_reader};
+use jilo_media::reader::{ByteReader, MemReader, open_reader};
 
 struct Counting(MemReader, AtomicU64);
 
@@ -22,10 +22,10 @@ impl ByteReader for Counting {
 fn a_long_wav_opens_without_being_read_whole() {
     // 30 s of 48 kHz stereo 16-bit: 5.76 MB
     let samples = vec![0.1f32; 48_000 * 2 * 30];
-    let wav = filmcraft_media::wav::write_wav16(&samples, 2, 48_000);
+    let wav = jilo_media::wav::write_wav16(&samples, 2, 48_000);
     let size = wav.len() as u64;
     let r = Arc::new(Counting(MemReader(wav.into()), AtomicU64::new(0)));
-    let src = open_reader("take.wav", r.clone(), &filmcraft_codecs::reader_openers(), &filmcraft_codecs::openers()).unwrap();
+    let src = open_reader("take.wav", r.clone(), &jilo_codecs::reader_openers(), &jilo_codecs::openers()).unwrap();
     let read = r.1.load(Ordering::Relaxed);
     assert!(read < 100_000, "opening read {read} of {size} bytes");
     assert_eq!(src.info().audio().unwrap().channels, 2);

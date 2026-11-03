@@ -1,5 +1,5 @@
 [package]
-name = "filmcraft-media"
+name = "jilo-media"
 description = "Media sources: probing, decoding traits, frame cache, generators, stills"
 version.workspace = true
 edition.workspace = true
@@ -10,9 +10,9 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-filmcraft-time = { workspace = true }
-filmcraft-color = { workspace = true }
-filmcraft-frame = { workspace = true }
+jilo-time = { workspace = true }
+jilo-color = { workspace = true }
+jilo-frame = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }

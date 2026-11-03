@@ -7,14 +7,14 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
-use filmcraft_ui_egui::panels::timeline::{max_scroll, timeline_extent};
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
+use jilo_ui_egui::panels::timeline::{max_scroll, timeline_extent};
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
@@ -23,7 +23,7 @@ impl Driver {
         let mut session = Session::default();
         session.execute("file.openDemoProject", json!({})).expect("demo project");
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -64,7 +64,7 @@ impl Driver {
 }
 
 impl Driver {
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 
@@ -175,7 +175,7 @@ fn option_wheel_zooms_about_the_playhead_in_view() {
     assert_eq!(d.app().session.prefs.timeline.zoom_about, "playhead");
     let width = d.rect("timeline.tracks")[2] as f64;
     // the playhead a fifth of the way in, the pointer in the middle
-    d.app().session.set_playhead(filmcraft_time::Tick::from_seconds_f64(4.0 + width * 0.2 / 50.0));
+    d.app().session.set_playhead(jilo_time::Tick::from_seconds_f64(4.0 + width * 0.2 / 50.0));
     d.frames(2);
     let x = |d: &mut Driver| {
         let a = d.app();
@@ -191,7 +191,7 @@ fn option_wheel_zooms_about_the_playhead_in_view() {
     assert!((x(&mut d) - before).abs() < 0.5, "zooming out too");
     // out of view: about the pointer
     d.ok("ui.set", json!({"timeline": {"pps": 50.0, "scroll": 4.0}}));
-    d.app().session.set_playhead(filmcraft_time::Tick::from_seconds_f64(1.0));
+    d.app().session.set_playhead(jilo_time::Tick::from_seconds_f64(1.0));
     d.frames(3);
     let under_pointer = 4.0 + (width * 0.5) / 50.0;
     d.wheel(0.2, 0.0, 20.0, json!({"alt": true}));

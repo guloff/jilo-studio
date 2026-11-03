@@ -37,23 +37,23 @@ fn dir_size(d: &Path) -> u64 {
 
 fn local_models(_: &mut Session, _: &Value) -> Result<Value> {
     let dir = crate::transcript::models_dir();
-    let whisper: Vec<Value> = filmcraft_speech::models::catalogue()
+    let whisper: Vec<Value> = jilo_speech::models::catalogue()
         .iter()
         .map(|m| {
-            let installed = dir.as_ref().is_some_and(|d| filmcraft_speech::models::installed(d, m));
+            let installed = dir.as_ref().is_some_and(|d| jilo_speech::models::installed(d, m));
             json!({"id": m.id, "name": m.name, "kind": "speech", "size": m.size(), "installed": installed, "license": m.license, "source": m.source, "description": m.description})
         })
         .collect();
     let voices = json!({
-        "id": VOICES, "name": filmcraft_tts::catalog::PACKAGE_NAME, "kind": "voices", "size": filmcraft_tts::catalog::size(),
-        "installed": dir.as_ref().is_some_and(|d| filmcraft_tts::catalog::installed(d)),
+        "id": VOICES, "name": jilo_tts::catalog::PACKAGE_NAME, "kind": "voices", "size": jilo_tts::catalog::size(),
+        "installed": dir.as_ref().is_some_and(|d| jilo_tts::catalog::installed(d)),
     });
     let used = dir.as_ref().map_or(0, |d| dir_size(d));
     Ok(json!({
         "dir": dir.map(|d| d.to_string_lossy().to_string()),
         "used": used,
         "models": whisper.into_iter().chain(std::iter::once(voices)).collect::<Vec<_>>(),
-        "speechAvailable": filmcraft_speech::available(),
+        "speechAvailable": jilo_speech::available(),
     }))
 }
 
@@ -63,9 +63,9 @@ fn download(s: &mut Session, p: &Value) -> Result<Value> {
     if id == VOICES {
         return s.execute("tts.downloadVoices", json!({"wait": p.get("wait").cloned().unwrap_or(json!(false))}));
     }
-    let m = filmcraft_speech::models::find(id).ok_or_else(|| bad(cmd, format!("no model `{id}`")))?;
+    let m = jilo_speech::models::find(id).ok_or_else(|| bad(cmd, format!("no model `{id}`")))?;
     let dir = crate::transcript::models_dir().ok_or_else(|| bad(cmd, "no data directory for models"))?;
-    if filmcraft_speech::models::installed(&dir, m) {
+    if jilo_speech::models::installed(&dir, m) {
         return Ok(json!({"job": null, "installed": true}));
     }
     if !cfg!(feature = "speech-download") {
@@ -75,7 +75,7 @@ fn download(s: &mut Session, p: &Value) -> Result<Value> {
     let job = crate::narration::new_job(s, format!("Downloading {}", m.name));
     job.progress.total.store(m.size(), Ordering::Relaxed);
     let (prog, res) = (job.progress.clone(), job.result.clone());
-    let id = crate::narration::spawn(s, job, wait, "filmcraft-model-download", move || {
+    let id = crate::narration::spawn(s, job, wait, "jilo-model-download", move || {
         let t0 = web_time::Instant::now();
         let r = fetch(&dir, m, &prog);
         crate::narration::finish(&prog, &res, r.map(|()| format!("{} downloaded", m.name)), t0);
@@ -84,18 +84,18 @@ fn download(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 #[cfg(feature = "speech-download")]
-fn fetch(dir: &Path, m: &'static filmcraft_speech::models::ModelInfo, prog: &filmcraft_export::Progress) -> std::result::Result<(), String> {
+fn fetch(dir: &Path, m: &'static jilo_speech::models::ModelInfo, prog: &jilo_export::Progress) -> std::result::Result<(), String> {
     let mut progress = |done: u64, total: u64, file: &str| {
         prog.done.store(done, Ordering::Relaxed);
         prog.total.store(total, Ordering::Relaxed);
         *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("Downloading {file}");
         !prog.cancel.load(Ordering::Relaxed)
     };
-    filmcraft_speech::models::download(dir, m, &mut progress).map_err(|e| e.to_string())
+    jilo_speech::models::download(dir, m, &mut progress).map_err(|e| e.to_string())
 }
 
 #[cfg(not(feature = "speech-download"))]
-fn fetch(_: &Path, _: &'static filmcraft_speech::models::ModelInfo, _: &filmcraft_export::Progress) -> std::result::Result<(), String> {
+fn fetch(_: &Path, _: &'static jilo_speech::models::ModelInfo, _: &jilo_export::Progress) -> std::result::Result<(), String> {
     let _ = PoisonError::<()>::new;
     Err("model downloads are not available in this build".into())
 }
@@ -105,10 +105,10 @@ fn delete(_: &mut Session, p: &Value) -> Result<Value> {
     let id = str_p(p, "model").ok_or_else(|| bad(cmd, "`model`"))?;
     let dir = crate::transcript::models_dir().ok_or_else(|| bad(cmd, "no data directory for models"))?;
     let target = if id == VOICES {
-        filmcraft_tts::catalog::package_dir(&dir)
+        jilo_tts::catalog::package_dir(&dir)
     } else {
-        let m = filmcraft_speech::models::find(id).ok_or_else(|| bad(cmd, format!("no model `{id}`")))?;
-        filmcraft_speech::models::model_dir(&dir, m)
+        let m = jilo_speech::models::find(id).ok_or_else(|| bad(cmd, format!("no model `{id}`")))?;
+        jilo_speech::models::model_dir(&dir, m)
     };
     if !target.starts_with(&dir) || !target.exists() {
         return Ok(json!({"model": id, "freed": 0}));
@@ -157,10 +157,10 @@ mod tests {
     fn only_on_this_computer_refuses_the_cloud() {
         let mut s = Session::default();
         s.prefs.ai.local_only = true;
-        let e = crate::recognition::ensure_consent_for(&mut s, filmcraft_ai::Provider::Gemini, &json!({"confirm": true}), "x", "text").unwrap_err();
+        let e = crate::recognition::ensure_consent_for(&mut s, jilo_ai::Provider::Gemini, &json!({"confirm": true}), "x", "text").unwrap_err();
         assert!(e.to_string().contains("Only on this computer"), "{e}");
         assert!(s.prefs.ai.confirmed_providers.is_empty(), "no consent recorded");
         s.prefs.ai.local_only = false;
-        crate::recognition::ensure_consent_for(&mut s, filmcraft_ai::Provider::Gemini, &json!({"confirm": true}), "x", "text").unwrap();
+        crate::recognition::ensure_consent_for(&mut s, jilo_ai::Provider::Gemini, &json!({"confirm": true}), "x", "text").unwrap();
     }
 }

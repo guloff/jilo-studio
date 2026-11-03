@@ -5,8 +5,8 @@ use serde_json::json;
 
 use crate::presets::{KeyframeMode, retime};
 use crate::{Services, Session};
-use filmcraft_project::{ClipId, ParamValue, TrackItem};
-use filmcraft_time::{TICKS_PER_SECOND, Tick};
+use jilo_project::{ClipId, ParamValue, TrackItem};
+use jilo_time::{TICKS_PER_SECOND, Tick};
 
 fn demo() -> (Session, Vec<ClipId>) {
     let mut s = Session::default();
@@ -134,13 +134,13 @@ fn presets_with_masks_and_intrinsics_round_trip_through_files() {
     let bw = ia.effects.iter().position(|e| e.effect == "black_white").unwrap();
     let op = ia.effects.iter().position(|e| e.effect == "opacity").unwrap();
     s.execute("presets.save", json!({"name": "masked bw", "effects": [bw, op], "description": "test"})).unwrap();
-    let dir = std::env::temp_dir().join(format!("filmcraft-presets-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-presets-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("p.json").to_string_lossy().to_string();
     let r = s.execute("presets.export", json!({"path": path, "names": ["masked bw", "Fade In"]})).unwrap();
     assert_eq!(r["count"], 2);
     let text = std::fs::read_to_string(&path).unwrap();
-    assert!(text.contains("filmcraft.effect-presets"));
+    assert!(text.contains("jilo.effect-presets"));
     // a fresh session imports and applies it
     let (mut s2, clips2) = demo();
     s2.execute("presets.import", json!({"path": path})).unwrap();
@@ -176,7 +176,7 @@ fn builtins_apply_and_user_presets_persist() {
     assert_eq!(op.keyframes.last().unwrap().time, it.source_in + media_len(&it));
     assert!(s.execute("presets.delete", json!({"name": "Fade In"})).is_err(), "built-ins stay");
     // persistence through the data directory
-    let dir = std::env::temp_dir().join(format!("filmcraft-presets-lib-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-presets-lib-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     s.presets.set_dir(&dir);
     s.state.selection = vec![clips[1]];
@@ -230,7 +230,7 @@ fn export_and_import_go_through_host_services() {
     let r = s.execute("presets.export", json!({"path": path, "names": ["Fade In"]})).unwrap();
     assert_eq!(r["count"], 1);
     let bytes = fs.read_file(path).unwrap();
-    assert!(String::from_utf8_lossy(&bytes).contains("filmcraft.effect-presets"));
+    assert!(String::from_utf8_lossy(&bytes).contains("jilo.effect-presets"));
     // a second session on the same host imports it from there
     let mut s2 = Session::new(fs);
     let r = s2.execute("presets.import", json!({"path": path})).unwrap();
@@ -287,7 +287,7 @@ fn premiere_preset_retime_overflow_leaves_the_project_unchanged() {
 #[test]
 fn premiere_presets_import_apply_retime_persist_and_undo() {
     for (mode, timing) in [(0, KeyframeMode::Scale), (1, KeyframeMode::AnchorToIn), (2, KeyframeMode::AnchorToOut)] {
-        let dir = std::env::temp_dir().join(format!("filmcraft-native-presets-{}-{mode}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("jilo-native-presets-{}-{mode}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("synthetic.PRFPSET");
         std::fs::write(&path, premiere_preset_xml(mode)).unwrap();
@@ -333,7 +333,7 @@ fn premiere_presets_import_apply_retime_persist_and_undo() {
 
 #[test]
 fn premiere_preset_unknown_effect_and_failed_persistence_keep_the_library() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-native-presets-errors-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-native-presets-errors-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("synthetic.prfpset");
     std::fs::write(&path, premiere_preset_xml(0).replace("AE.ADBE AECrop", "AE.Example.Unsupported")).unwrap();
@@ -371,7 +371,7 @@ fn premiere_project_import_uses_file_command_and_is_undoable() {
       <Media ObjectUID="media"><FilePath>test-only-missing.mov</FilePath><VideoStream ObjectRef="23"/></Media>
       <VideoStream ObjectID="23"><FrameRect>0,0,64,48</FrameRect><FrameRate>8467200000</FrameRate><Duration>1016064000000</Duration></VideoStream>
     </PremiereData>"#;
-    let dir = std::env::temp_dir().join(format!("filmcraft-native-project-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-native-project-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("synthetic.PRPROJ");
     std::fs::write(&path, xml).unwrap();
@@ -395,7 +395,7 @@ fn premiere_project_import_uses_file_command_and_is_undoable() {
 
 #[test]
 fn premiere_motion_preset_uses_sequence_position_and_source_anchor_in_a_portrait_edit() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-native-geometry-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-native-geometry-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("motion.prfpset");
     let xml=premiere_preset_xml(0).replace("AE.ADBE AECrop","AE.ADBE Motion")
@@ -406,7 +406,7 @@ fn premiere_motion_preset_uses_sequence_position_and_source_anchor_in_a_portrait
     std::fs::write(&path, xml).unwrap();
     let (mut s, clips) = demo();
     let target = item(&s, clips[0]);
-    let size = filmcraft_render::source_size(&s.project, target.item).unwrap();
+    let size = jilo_render::source_size(&s.project, target.item).unwrap();
     let q = std::sync::Arc::make_mut(&mut s.project).sequence_mut(s.state.active_sequence.unwrap()).unwrap();
     q.settings.width = 1080;
     q.settings.height = 1920;
@@ -415,14 +415,14 @@ fn premiere_motion_preset_uses_sequence_position_and_source_anchor_in_a_portrait
     s.execute("presets.apply", json!({"preset":"Native crop","clips":[target.id.0]})).unwrap();
     let target = item(&s, clips[0]);
     let motion = target.effect("motion").unwrap();
-    assert_eq!(motion.vec2_at("position", target.source_in), filmcraft_geom::Vec2::new(540.0, 960.0));
-    assert_eq!(motion.vec2_at("anchor", target.source_in), filmcraft_geom::Vec2::new(f64::from(size.0) / 2.0, f64::from(size.1) / 2.0));
+    assert_eq!(motion.vec2_at("position", target.source_in), jilo_geom::Vec2::new(540.0, 960.0));
+    assert_eq!(motion.vec2_at("anchor", target.source_in), jilo_geom::Vec2::new(f64::from(size.0) / 2.0, f64::from(size.1) / 2.0));
     let _ = std::fs::remove_dir_all(dir);
 }
 
 #[test]
 fn premiere_cross_dissolve_preset_applies_at_an_edit_point_with_one_undo_step() {
-    let dir = std::env::temp_dir().join(format!("filmcraft-native-transition-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-native-transition-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("transition.prfpset");
     let xml = premiere_preset_xml(0)
@@ -455,7 +455,7 @@ fn premiere_oversized_project_is_rejected_before_reading_the_file() {
             Ok(())
         }
         fn file_size(&self, _: &str) -> std::io::Result<u64> {
-            Ok(filmcraft_interchange::premiere::MAX_DOCUMENT_BYTES as u64 + 1)
+            Ok(jilo_interchange::premiere::MAX_DOCUMENT_BYTES as u64 + 1)
         }
     }
     let mut s = Session { services: std::sync::Arc::new(Oversized), ..Session::default() };

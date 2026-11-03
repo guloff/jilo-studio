@@ -6,8 +6,8 @@
 use std::cmp::Ordering;
 
 use egui::{Modifiers, Pos2};
-use filmcraft_edit::Edge;
-use filmcraft_project::{ClipId, Sequence, Track, TrackId, TransitionId};
+use jilo_edit::Edge;
+use jilo_project::{ClipId, Sequence, Track, TrackId, TransitionId};
 
 use super::timeline::Layout;
 use crate::state::Tool;
@@ -287,8 +287,8 @@ fn roll(seq: &Sequence, track: TrackId, clip: ClipId, edge: Edge) -> EdgeKind {
 mod tests {
     use super::*;
     use egui::{Rect, pos2};
-    use filmcraft_project::{ItemId, Label, Project, SequenceSettings, TrackItem, TrackKind};
-    use filmcraft_time::{FrameRate, Tick};
+    use jilo_project::{ItemId, Label, Project, SequenceSettings, TrackItem, TrackKind};
+    use jilo_time::{FrameRate, Tick};
 
     use crate::panels::timeline::Row;
 

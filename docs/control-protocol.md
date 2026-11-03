@@ -1,9 +1,9 @@
 # Control protocol & MCP
 
 ## Desktop control channel
-`filmcraft --control 9876` (or `FILMCRAFT_CONTROL_PORT`) listens on `127.0.0.1:<port>` (loopback only).
+`jilo-studio --control 9876` (or `JILO_CONTROL_PORT`) listens on `127.0.0.1:<port>` (loopback only).
 One JSON request per line → one JSON reply per line. The app opts out of macOS App Nap
-(`apps/filmcraft/src/app_nap.rs`): a hidden window would otherwise drop the whole process to
+(`apps/jilo-studio/src/app_nap.rs`): a hidden window would otherwise drop the whole process to
 background priority, and on a busy machine it would stop answering.
 
 **Only requests are read.** Every line must be a JSON object with a string `method` (`id` and `params`
@@ -14,7 +14,7 @@ an object without `method`, invalid UTF-8, and a line longer than 4 MiB. An HTTP
 web page's cross-origin `fetch` to `127.0.0.1:<port>`) therefore can't smuggle a command in its body:
 its request line is rejected first. At most 16 connections are served at once; further ones get an error
 line and are closed. Clients that get an error reply should reconnect. Transport:
-`apps/filmcraft/src/control_server.rs`.
+`apps/jilo-studio/src/control_server.rs`.
 
 **Authentication (#163).** Loopback keeps other machines out, not other programs on this one, so each
 connection must first present the app's token:
@@ -25,12 +25,12 @@ connection must first present the app's token:
 ```
 
 Any other request before it, or a wrong token, gets an error reply and the connection is closed. The
-token is `FILMCRAFT_CONTROL_TOKEN` when set (for a harness that starts both the app and the client);
+token is `JILO_CONTROL_TOKEN` when set (for a harness that starts both the app and the client);
 otherwise the app makes a random one at start and writes it to `control-<port>.token` in its data
-directory (`~/Library/Application Support/com.rustamguloff.jilostudio` on macOS, `--data-dir` / `FILMCRAFT_DATA_DIR`
-override), readable by the user only. `filmcraft-cli --bridge` and `filmcraft-cli mcp --bridge` read it
+directory (`~/Library/Application Support/com.rustamguloff.jilostudio` on macOS, `--data-dir` / `JILO_DATA_DIR`
+override), readable by the user only. `jilo-cli --bridge` and `jilo-cli mcp --bridge` read it
 from there on every connection (pass the same `--data-dir` if the app got one). If the app can't make
-the file, it does not start the control server. `FILMCRAFT_CONTROL_NO_AUTH=1` turns authentication off
+the file, it does not start the control server. `JILO_CONTROL_NO_AUTH=1` turns authentication off
 for old scripts on a machine you trust; `auth` is then accepted and ignored.
 
 ```json
@@ -67,7 +67,7 @@ still apply. `engine.commands` and the menus always show the selection's enablem
 **Focus.** Driving the app never steals the user's keyboard. Started with `--control`, the app opens
 without activating itself. UI requests and screenshots that need a rendered frame bring the window
 forward without making it key (macOS `orderFrontRegardless`), so the user's typing keeps going to
-the app they are in. Only an explicit `ui.focus` activates FilmCraft.
+the app they are in. Only an explicit `ui.focus` activates Jilo Studio.
 
 Element ids are stable, e.g. `timeline.clip.<id>`, `timeline.track.V1.lock`, `tools.Razor`,
 `project.item.<id>`, `effects.item.gaussian_blur`, `panel.tab.Timeline`, `program.transport.playback.toggle`. The "+" at the end of a
@@ -175,12 +175,12 @@ Ctrl), `Ctrl` (macOS ⌃), `Alt`, `Shift`. The dialog (Edit ▸ Keyboard Shortcu
 `shortcuts.*` (`shortcuts.key.K`, `shortcuts.cell.<command>`, `shortcuts.ok`, …).
 
 ## MCP
-`filmcraft-cli mcp` serves MCP on stdio: headless (in-process session; `--demo` / `--project p.fcproj`)
+`jilo-cli mcp` serves MCP on stdio: headless (in-process session; `--demo` / `--project p.jsproj`)
 or `--bridge 127.0.0.1:9876` to drive the running app (it reads the app's control token itself; see
 Authentication above). Tools: `command_list`, `command_run`,
 `command_batch`, `doc_inspect`, `render_preview`, `project_inspect`, `sequence_inspect`, `media_import`,
 `render_frame`, `ui_inspect`, `ui_elements`, `ui_click`, `ui_drag`, `ui_key`, `ui_type`, `ui_screenshot`,
-`ui_control`; resources `filmcraft://document` and `filmcraft://commands`.
+`ui_control`; resources `jilo://document` and `jilo://commands`.
 Annotations, argument checking, errors and export progress / cancellation:
 [automation.md § Conventions](automation.md#conventions).
 

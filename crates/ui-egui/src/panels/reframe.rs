@@ -7,18 +7,18 @@
 use egui::{Color32, RichText, Sense, Stroke, StrokeKind, pos2, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::state::FacePicker;
 
 /// The selected video clips.
-fn selected(app: &FilmcraftApp) -> Vec<u64> {
+fn selected(app: &JiloApp) -> Vec<u64> {
     let Some(q) = app.session.active_sequence() else { return Vec::new() };
     app.session.state.selection.iter().filter(|c| q.find_item(**c).is_some_and(|(tid, _)| q.video_tracks.iter().any(|t| t.id == tid))).map(|c| c.0).collect()
 }
 
 /// Open the dialog (refused, with the reason, without face detection or selected video clips).
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("clip.reframeToFace").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("clip.reframeToFace").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
     if app.session.face_detector.is_none() {
         return Err("face detection is not available on this system (it needs Apple Vision on macOS)".into());
     }
@@ -43,7 +43,7 @@ fn done_message(r: &Value) -> String {
 }
 
 /// Apply a framing: at once when the faces are known, else after the background analysis.
-fn run(app: &mut FilmcraftApp, params: Value) {
+fn run(app: &mut JiloApp, params: Value) {
     let mut bg = params.clone();
     bg["background"] = json!(true);
     match app.session.execute("clip.reframeToFace", bg) {
@@ -57,7 +57,7 @@ fn run(app: &mut FilmcraftApp, params: Value) {
 }
 
 /// The dialog, and the framing when the analysis it started ends.
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if let Some((id, params)) = app.ui.reframe.job.clone() {
         match app.session.jobs.iter().find(|j| j.id == id).map(|j| j.to_json()) {
             Some(j) if j["finished"] != true => {}
@@ -80,7 +80,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
 }
 
 /// The faces at the playhead, found again when the playhead has moved.
-fn load_picker(app: &mut FilmcraftApp) {
+fn load_picker(app: &mut JiloApp) {
     let at = app.session.playhead().0;
     if app.ui.reframe.picker.as_ref().is_some_and(|p| p.at == at) {
         return;
@@ -109,14 +109,14 @@ fn load_picker(app: &mut FilmcraftApp) {
 }
 
 /// The frame the faces were found on, as a texture (kept while the dialog shows it).
-fn frame_texture(app: &FilmcraftApp, ctx: &egui::Context, item: u64, time: i64) -> Option<egui::TextureHandle> {
+fn frame_texture(app: &JiloApp, ctx: &egui::Context, item: u64, time: i64) -> Option<egui::TextureHandle> {
     let key = egui::Id::new(("reframe-frame", item, time));
     if let Some(t) = ctx.data(|d| d.get_temp::<Option<egui::TextureHandle>>(key)) {
         return t;
     }
-    let tex = app.session.source(filmcraft_project::ItemId(item)).and_then(|src| {
+    let tex = app.session.source(jilo_project::ItemId(item)).and_then(|src| {
         let w = src.info().video.as_ref().map_or(1920, |v| v.width).max(1);
-        let f = src.video_frame(filmcraft_media::FrameRequest { time: filmcraft_time::Tick(time), scale: (900.0 / w as f32).min(1.0) }).ok()?;
+        let f = src.video_frame(jilo_media::FrameRequest { time: jilo_time::Tick(time), scale: (900.0 / w as f32).min(1.0) }).ok()?;
         let img = egui::ColorImage::from_rgba_unmultiplied([f.width as usize, f.height as usize], &f.to_rgba8());
         Some(ctx.load_texture(format!("reframe-frame-{item}-{time}"), img, egui::TextureOptions::LINEAR))
     });
@@ -125,7 +125,7 @@ fn frame_texture(app: &FilmcraftApp, ctx: &egui::Context, item: u64, time: i64) 
 }
 
 /// The frame with its faces boxed; a click picks the face nearest to it.
-fn picker(app: &mut FilmcraftApp, ui: &mut egui::Ui, width: f32) {
+fn picker(app: &mut JiloApp, ui: &mut egui::Ui, width: f32) {
     let t = app.tokens;
     let Some(p) = app.ui.reframe.picker.clone() else { return };
     if let Some(e) = &p.error {
@@ -164,7 +164,7 @@ fn picker(app: &mut FilmcraftApp, ui: &mut egui::Ui, width: f32) {
     }
 }
 
-fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn dialog(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let (mut go, mut cancel) = (false, false);
     let w = 480.0;

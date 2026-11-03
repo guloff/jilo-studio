@@ -9,10 +9,10 @@
 mod common;
 
 use common::*;
-use filmcraft_codecs::{DecodedFrame, VideoDecoder};
-use filmcraft_frame::PixelData;
-use filmcraft_platform::HybridDecoder;
-use filmcraft_platform::videotoolbox::VtProResDecoder;
+use jilo_codecs::{DecodedFrame, VideoDecoder};
+use jilo_frame::PixelData;
+use jilo_platform::HybridDecoder;
+use jilo_platform::videotoolbox::VtProResDecoder;
 
 /// (file, ffmpeg arguments): 12 frames each.
 const PRORES: &[(&str, &[&str])] = &[
@@ -112,7 +112,7 @@ fn stream(ff: &std::path::Path, name: &str) -> Option<Stream> {
 
 /// The hardware decoder for a stream, or `None` (skip) when this Mac has none for ProRes.
 fn hardware(s: &Stream) -> Option<Box<dyn VideoDecoder>> {
-    match filmcraft_platform::videotoolbox_factory(&s.entry) {
+    match jilo_platform::videotoolbox_factory(&s.entry) {
         Some(Ok(d)) => {
             assert_eq!(d.name(), "VideoToolbox ProRes");
             Some(d)
@@ -161,11 +161,11 @@ fn assert_close(what: &str, a: &[DecodedFrame], b: &[DecodedFrame]) -> u16 {
 
 #[test]
 fn prores_422_matches_our_decoder() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     for (name, _) in PRORES {
         let Some(s) = stream(&ff, name) else { continue };
         let Some(mut hw) = hardware(&s) else { return };
-        let mut sw = filmcraft_codecs::software_video_decoder(&s.entry).unwrap();
+        let mut sw = jilo_codecs::software_video_decoder(&s.entry).unwrap();
         assert!(hw.intra_only() && sw.intra_only());
         let a = decode_all(hw.as_mut(), &s.samples);
         let b = decode_all(sw.as_mut(), &s.samples);
@@ -192,7 +192,7 @@ fn non_prores_and_odd_sizes_are_declined() {
 
 #[test]
 fn mid_stream_failure_continues_in_software() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     let Some(s) = stream(&ff, "prores_hq.mov") else { return };
     let (w, h) = s.entry.video.as_ref().map(|v| (u32::from(v.width), u32::from(v.height))).unwrap();
     let Ok(mut vt) = VtProResDecoder::new(*b"apch", w, h) else {
@@ -200,17 +200,17 @@ fn mid_stream_failure_continues_in_software() {
         return;
     };
     vt.fail_after(5);
-    let mut hy = HybridDecoder::new(Box::new(vt), s.entry.clone(), filmcraft_codecs::hw::StreamInfo::Intra);
+    let mut hy = HybridDecoder::new(Box::new(vt), s.entry.clone(), jilo_codecs::hw::StreamInfo::Intra);
     let a = decode_all(&mut hy, &s.samples);
     assert!(!hy.is_hardware(), "switched to software");
-    let mut sw = filmcraft_codecs::software_video_decoder(&s.entry).unwrap();
+    let mut sw = jilo_codecs::software_video_decoder(&s.entry).unwrap();
     let b = decode_all(sw.as_mut(), &s.samples);
     assert_close("after the failure", &a, &b);
 }
 
 #[test]
 fn damaged_samples_never_crash_or_hang() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     let Some(s) = stream(&ff, "prores_422.mov") else { return };
     let Some(mut hw) = hardware(&s) else { return };
     let (tx, rx) = std::sync::mpsc::channel();
@@ -245,11 +245,11 @@ fn damaged_samples_never_crash_or_hang() {
 #[test]
 #[ignore = "diagnostic: distance of both decoders from ffmpeg's ProRes decoder (422)"]
 fn distance_from_ffmpeg() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     for (name, _) in PRORES.iter().filter(|f| !f.0.contains("4444")) {
         let Some(s) = stream(&ff, name) else { continue };
         let Some(mut hw) = hardware(&s) else { return };
-        let mut sw = filmcraft_codecs::software_video_decoder(&s.entry).unwrap();
+        let mut sw = jilo_codecs::software_video_decoder(&s.entry).unwrap();
         let a = decode_all(hw.as_mut(), &s.samples[..1]);
         let b = decode_all(sw.as_mut(), &s.samples[..1]);
         let raw = dir().join(format!("{name}.yuv"));
@@ -263,7 +263,7 @@ fn distance_from_ffmpeg() {
         assert!(st.success());
         let bytes = std::fs::read(&raw).unwrap();
         let reference: Vec<u16> = bytes.as_chunks::<2>().0.iter().map(|b| u16::from_le_bytes(*b)).collect();
-        for (who, f) in [("VideoToolbox", &a[0]), ("FilmCraft", &b[0])] {
+        for (who, f) in [("VideoToolbox", &a[0]), ("Jilo Studio", &b[0])] {
             let PixelData::Yuv16 { planes, .. } = &f.frame.data else { panic!() };
             let ours: Vec<u16> = planes.iter().flat_map(|p| p.iter().copied()).collect();
             let n = ours.len().min(reference.len());
@@ -282,11 +282,11 @@ fn distance_from_ffmpeg() {
 #[test]
 #[ignore = "diagnostic: signed difference from our decoder per plane (a rounding bias shows here)"]
 fn rounding_bias() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     for name in ["prores_hq.mov", "prores_422.mov", "prores_4444_opaque.mov", "prores_4444_alpha.mov"] {
         let Some(s) = stream(&ff, name) else { continue };
         let Some(mut hw) = hardware(&s) else { return };
-        let mut sw = filmcraft_codecs::software_video_decoder(&s.entry).unwrap();
+        let mut sw = jilo_codecs::software_video_decoder(&s.entry).unwrap();
         let a = decode_all(hw.as_mut(), &s.samples[..1]);
         let b = decode_all(sw.as_mut(), &s.samples[..1]);
         let (PixelData::Yuv16 { planes: p, .. }, PixelData::Yuv16 { planes: q, .. }) = (&a[0].frame.data, &b[0].frame.data) else { panic!() };

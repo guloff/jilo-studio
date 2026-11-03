@@ -1,9 +1,9 @@
 //! Modal dialogs (About; Keyboard Shortcuts in `shortcuts_dialog`; Settings in `settings`;
 //! Recovery/Revert in `file_dialogs`).
 
-use crate::{Dialog, FilmcraftApp};
+use crate::{Dialog, JiloApp};
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     crate::panels::media_dialogs::show(app, ctx);
     crate::panels::color_dialogs::show(app, ctx);
     crate::panels::clip_dialogs::show(app, ctx);
@@ -33,8 +33,8 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let mut open = true;
     match d {
         Dialog::About => {
-            crate::dialog_style::Window::new(tl!("About FilmCraft"))
-                .id(egui::Id::new("About FilmCraft"))
+            crate::dialog_style::Window::new(tl!("About Jilo Studio"))
+                .id(egui::Id::new("About Jilo Studio"))
                 .open(&mut open)
                 .collapsible(false)
                 .resizable(false)
@@ -92,7 +92,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
 ///
 /// Automation ids: `audioGain.<set|adjust|normalizeMax|normalizeAll>` (radio buttons),
 /// `audioGain.<mode>.value` (dB fields), `audioGain.peak`, `audioGain.ok`, `audioGain.cancel`.
-fn audio_gain(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+fn audio_gain(app: &mut JiloApp, ctx: &egui::Context) -> bool {
     let peak_id = egui::Id::new("audio-gain-peak");
     let rev = app.session.revision;
     let cached: Option<(u64, Option<f64>)> = ctx.data(|d| d.get_temp(peak_id));
@@ -185,9 +185,9 @@ fn audio_gain(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
 /// (n tracks before the new ones; 0 = Before First Track); `addTracks.<audio|submix>.type` and
 /// `addTracks.<audio|submix>.type.option.<standard|stereo|5.1|adaptive|mono>`; `addTracks.ok`,
 /// `addTracks.cancel`.
-fn add_tracks(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+fn add_tracks(app: &mut JiloApp, ctx: &egui::Context) -> bool {
     let Some(seq) = app.session.active_sequence() else { return false };
-    let names = |tracks: &[filmcraft_engine::project::Track]| tracks.iter().map(|t| t.name.clone()).collect::<Vec<_>>();
+    let names = |tracks: &[jilo_engine::project::Track]| tracks.iter().map(|t| t.name.clone()).collect::<Vec<_>>();
     let (vnames, anames, snames) = (names(&seq.video_tracks), names(&seq.audio_tracks), names(&seq.submix_tracks));
     let mut d = app.ui.add_tracks.clone();
     crate::widgets::revert_drag_on_escape(ctx, egui::Id::new("add-tracks-before-drag"), &mut d);
@@ -316,7 +316,7 @@ fn add_tracks(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
 /// `deleteTracks.video.target`, `deleteTracks.audio.target` (track menus),
 /// `deleteTracks.<kind>.option.<empty|V1|A2…>` (menu entries while open), `deleteTracks.ok`,
 /// `deleteTracks.cancel`.
-fn delete_tracks(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+fn delete_tracks(app: &mut JiloApp, ctx: &egui::Context) -> bool {
     let Some(seq) = app.session.active_sequence() else { return false };
     let names = |n: usize, p: &str| (1..=n).map(|i| format!("{p}{i}")).collect::<Vec<_>>();
     let vnames = names(seq.video_tracks.len(), "V");
@@ -400,7 +400,7 @@ fn delete_tracks(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
 ///
 /// Automation ids: `about.tab.about`, `about.tab.contributors`, `about.tab.models`; the About tab's
 /// links and the credits controls are listed on [`about_tab`] and [`crate::credits::contributors_ui`].
-fn about(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
+fn about(app: &mut JiloApp, ui: &mut egui::Ui) {
     let tab_id = egui::Id::new("about_tab");
     let mut tab = ui.data_mut(|d| d.get_temp::<u8>(tab_id)).unwrap_or(0);
     ui.horizontal(|ui| {
@@ -433,7 +433,7 @@ fn about(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
 /// and the credit to FilmCraft, which Jilo Studio is based on.
 ///
 /// Automation ids: `about.website`, `about.github`, `about.reportIssue`, `about.upstream`.
-fn about_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
+fn about_tab(app: &mut JiloApp, ui: &mut egui::Ui) {
     use crate::icons::{self, Icon};
     use crate::links;
     let t = app.tokens;
@@ -443,7 +443,7 @@ fn about_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
     crate::brand::paint_wordmark(ui, egui::pos2(r.min.x, r.center().y), 20.0, app.ui.dark);
     ui.add_space(6.0);
     ui.label(tlf!("Version {version}", version = env!("CARGO_PKG_VERSION")));
-    ui.label(tl!("A non-linear video editor for the Mac, written in Rust."));
+    ui.label(tl!("An AI-first video editor for the Mac, written in Rust."));
     ui.label(
         egui::RichText::new(tlf!(
             "Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.",
@@ -479,7 +479,7 @@ fn about_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
             links::open(ui.ctx(), url);
         }
     };
-    link(ui, "website", Icon::Globe, crate::i18n::t("FilmCraft Website"), links::website(), true);
+    link(ui, "website", Icon::Globe, crate::i18n::t("Jilo Studio Website"), links::website(), true);
     ui.add_space(6.0);
     link(ui, "github", Icon::Code, tl!("Source code on GitHub"), links::GITHUB, false);
     link(ui, "reportIssue", Icon::Code, tl!("Report an issue"), links::ISSUES, false);

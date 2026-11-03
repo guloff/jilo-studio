@@ -1,0 +1,8 @@
+asset:        favicon.png
+title:        Jilo Studio web app icon (favicon and loading image), 128 px
+author:       Rustam Gulov (Jilo Studio owner)
+source:       resized from assets/brand/jilo/jilo-studio-512.png with sips
+license:      LicenseRef-Jilo-Trademark — the Jilo name and icon are the owner's marks (assets/brand/jilo/LICENSE-brand.txt)
+license-file: assets/brand/jilo/LICENSE-brand.txt
+added:        2026-11-03 by Claude (agent) for Rustam Gulov
+notes:        Replaces the FilmCraft owl icon.

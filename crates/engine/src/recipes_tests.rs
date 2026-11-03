@@ -1,7 +1,7 @@
 use serde_json::json;
 
 use super::*;
-use filmcraft_project::CaptionStyle;
+use jilo_project::CaptionStyle;
 
 fn demo() -> Session {
     let mut s = Session::default();
@@ -75,17 +75,17 @@ fn a_run_is_one_undo_step_and_stops_at_a_failing_step() {
 
 #[test]
 fn karaoke_captions_recipe_transcribes_in_the_background_then_styles() {
-    use filmcraft_project::{Transcript, Word};
+    use jilo_project::{Transcript, Word};
     let mut s = demo();
     let q = s.active_sequence().unwrap();
     let a = &q.audio_tracks[0].items[0];
     let sin = a.source_in;
     let mut t = Transcript { language: "en".into(), ..Default::default() };
     for (text, x, y) in [("Hello", 0.2, 0.5), ("big", 0.6, 0.9), ("world.", 1.0, 1.4)] {
-        t.words.push(Word::new(text, sin + filmcraft_time::Tick::from_seconds_f64(x), sin + filmcraft_time::Tick::from_seconds_f64(y)));
+        t.words.push(Word::new(text, sin + jilo_time::Tick::from_seconds_f64(x), sin + jilo_time::Tick::from_seconds_f64(y)));
     }
     t.normalize();
-    s.transcriber = Some(std::sync::Arc::new(filmcraft_speech::FixedTranscriber { transcript: t, id: "fixed".into() }));
+    s.transcriber = Some(std::sync::Arc::new(jilo_speech::FixedTranscriber { transcript: t, id: "fixed".into() }));
     let r = s.execute("recipes.run", json!({"name": "Karaoke Captions", "wait": true})).unwrap();
     assert!(r["error"].is_null(), "{r}");
     let q = s.active_sequence().unwrap();

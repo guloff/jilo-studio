@@ -1,7 +1,7 @@
 //! Frame rates and start timecodes a hostile document carries are bounded on import, so no export
 //! overflows its frame arithmetic. (FCP7 `timebase` and start-timecode cases: `tests/fcp7.rs`.)
 
-use filmcraft_interchange::{ExportOptions, Format, export, import};
+use jilo_interchange::{ExportOptions, Format, export, import};
 
 /// A `frameDuration` of `1/9223372036854775807s` is a rate of 9e18 per second: `frame_at` clamps to
 /// `i64::MAX` and `frames_round` then overflowed adding 1 (a panic in debug builds) as soon as the
@@ -56,9 +56,9 @@ fn clamped_timebase_and_replaced_otio_rate_are_reported() {
 /// timecodes themselves: an AAF whose start timecode is beyond the limit is reset with a warning (OMF has none to carry).
 #[test]
 fn aaf_and_omf_start_timecodes_are_bounded() {
-    use filmcraft_interchange::{ImportOptions, aaf, omf};
-    use filmcraft_project::{Project, TrackKind};
-    use filmcraft_time::FrameRate;
+    use jilo_interchange::{ImportOptions, aaf, omf};
+    use jilo_project::{Project, TrackKind};
+    use jilo_time::FrameRate;
     #[path = "support/mod.rs"]
     mod support;
     let r = FrameRate::FPS_25;

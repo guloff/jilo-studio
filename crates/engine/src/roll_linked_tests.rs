@@ -1,7 +1,7 @@
 //! #855: a rolling edit on a linked A/V cut must move the sound cut with the picture.
 
-use filmcraft_project::ClipId;
-use filmcraft_time::Tick;
+use jilo_project::ClipId;
+use jilo_time::Tick;
 use serde_json::json;
 
 use crate::Session;
@@ -61,7 +61,7 @@ fn roll_delta_stops_at_the_start_of_the_media() {
     }
     let q = s.active_sequence().unwrap();
     let (left, right) = (q.video_tracks[0].items[0].id, q.video_tracks[0].items[1].id);
-    let far = Tick(-3600 * filmcraft_time::TICKS_PER_SECOND);
+    let far = Tick(-3600 * jilo_time::TICKS_PER_SECOND);
     let shown = crate::commands::roll_delta(&s, left, right, far).unwrap();
     assert_eq!(shown, -f(12), "clamped to the media before the right clip's In point");
     assert_eq!(crate::commands::roll_delta(&s, left, right, -f(5)).unwrap(), -f(5), "a roll within the media is not clamped");

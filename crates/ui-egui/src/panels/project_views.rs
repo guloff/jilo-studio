@@ -4,12 +4,12 @@
 //! grid).
 
 use egui::{Align2, Color32, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_engine::project_panel::{self as pp, Card, SortSpec, ViewMode};
-use filmcraft_project::{Bin, BinEntry, ItemId, ItemKind};
-use filmcraft_time::Tick;
+use jilo_engine::project_panel::{self as pp, Card, SortSpec, ViewMode};
+use jilo_project::{Bin, BinEntry, ItemId, ItemKind};
+use jilo_time::Tick;
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::icons::{self, Icon};
 use crate::panels::project::{Actions, Hover, Inst, View, commit_rename, font, open_bin, quantize};
 use crate::theme::Tokens;
@@ -22,8 +22,8 @@ const LEAD: f32 = 26.0;
 pub fn item_icon(k: &ItemKind) -> Icon {
     match k {
         ItemKind::Media(m) => match m.info.kind {
-            filmcraft_media::MediaKind::AudioOnly => Icon::Audio,
-            filmcraft_media::MediaKind::Still | filmcraft_media::MediaKind::ImageSequence => Icon::Image,
+            jilo_media::MediaKind::AudioOnly => Icon::Audio,
+            jilo_media::MediaKind::Still | jilo_media::MediaKind::ImageSequence => Icon::Image,
             _ => Icon::Film,
         },
         ItemKind::Sequence(_) => Icon::Sequence,
@@ -41,7 +41,7 @@ pub struct Badge {
     pub proxy_on: bool,
 }
 
-pub fn media_badge(app: &FilmcraftApp, it: &filmcraft_project::ProjectItem) -> Badge {
+pub fn media_badge(app: &JiloApp, it: &jilo_project::ProjectItem) -> Badge {
     let mut b = Badge { offline: false, offline_text: "", proxy: false, proxy_on: false };
     let target = match &it.kind {
         ItemKind::Subclip { parent, .. } => app.session.project.item(*parent),
@@ -55,7 +55,7 @@ pub fn media_badge(app: &FilmcraftApp, it: &filmcraft_project::ProjectItem) -> B
         (b.offline, b.offline_text) = (true, tl!("Media missing"));
     } else if let Some(st) = app.session.media.offline_status(id) {
         b.offline = true;
-        b.offline_text = if st.reason == filmcraft_render::offline::OfflineReason::Unreadable { tl!("Unreadable") } else { tl!("Media missing") };
+        b.offline_text = if st.reason == jilo_render::offline::OfflineReason::Unreadable { tl!("Unreadable") } else { tl!("Media missing") };
     }
     b.proxy = m.proxy.is_some();
     b.proxy_on = app.session.media.use_proxies();
@@ -75,25 +75,25 @@ fn paint_badges(ui: &egui::Ui, b: &Badge, at: egui::Pos2, t: &Tokens) {
     }
 }
 
-fn matches_filter(app: &FilmcraftApp, id: ItemId, filter: &str) -> bool {
+fn matches_filter(app: &JiloApp, id: ItemId, filter: &str) -> bool {
     app.session.project.item(id).is_some_and(|i| pp::listed(&app.session.project, i) && (filter.is_empty() || i.name.to_ascii_lowercase().contains(filter)))
 }
 
-fn label_color(app: &FilmcraftApp, l: filmcraft_project::Label) -> Color32 {
+fn label_color(app: &JiloApp, l: jilo_project::Label) -> Color32 {
     let c = app.session.prefs.labels.rgb(l);
     Color32::from_rgb(c[0], c[1], c[2])
 }
 
 /// Items in display order for a view (keyboard navigation): the list's expanded rows, or the icon
 /// / freeform cards.
-pub fn items_in_view(app: &FilmcraftApp, v: &View, filter: &str) -> Vec<ItemId> {
+pub fn items_in_view(app: &JiloApp, v: &View, filter: &str) -> Vec<ItemId> {
     let p = &app.session.project;
     let Some(bin) = p.root.find_bin(v.bin) else { return Vec::new() };
     match v.mode {
         ViewMode::List => {
             let sort = &app.session.prefs.project_panel.view.sort;
             let mut out = Vec::new();
-            fn walk(app: &FilmcraftApp, b: &Bin, sort: &SortSpec, filter: &str, out: &mut Vec<ItemId>) {
+            fn walk(app: &JiloApp, b: &Bin, sort: &SortSpec, filter: &str, out: &mut Vec<ItemId>) {
                 let (bins, items) = pp::bin_children(&app.session.project, b, sort);
                 for bid in bins {
                     if (app.ui.expanded_bins.contains(&bid.0) || !filter.is_empty())
@@ -124,7 +124,7 @@ pub fn items_in_view(app: &FilmcraftApp, v: &View, filter: &str) -> Vec<ItemId> 
 
 /// Icon view order: Sort Icons column, else the bin's order (User Order). A search shows matches
 /// from sub-bins too.
-fn icon_order(app: &FilmcraftApp, bin: &Bin, filter: &str) -> Vec<ItemId> {
+fn icon_order(app: &JiloApp, bin: &Bin, filter: &str) -> Vec<ItemId> {
     let mut ids = Vec::new();
     if filter.is_empty() {
         for e in &bin.children {
@@ -157,16 +157,7 @@ pub fn click_modifiers(ui: &egui::Ui) -> egui::Modifiers {
 }
 
 /// Click / double-click / drag / context menu of an item (row, card).
-pub fn item_interactions(
-    app: &mut FilmcraftApp,
-    ui: &egui::Ui,
-    resp: &egui::Response,
-    id: ItemId,
-    kind: &ItemKind,
-    actions: &mut Actions,
-    drag: bool,
-    menu: bool,
-) {
+pub fn item_interactions(app: &mut JiloApp, ui: &egui::Ui, resp: &egui::Response, id: ItemId, kind: &ItemKind, actions: &mut Actions, drag: bool, menu: bool) {
     if resp.clicked() {
         let mods = click_modifiers(ui);
         let mut sel = app.session.state.project_selection.clone();
@@ -183,7 +174,8 @@ pub fn item_interactions(
         actions.push(("project.select".into(), json!({"items": sel.iter().map(|i| i.0).collect::<Vec<_>>()})));
     }
     if resp.double_clicked() {
-        let matte = matches!(kind, ItemKind::Media(m) if matches!(m.media, filmcraft_engine::project::MediaRef::Generator(filmcraft_media::Generator::ColorMatte { .. })));
+        let matte =
+            matches!(kind, ItemKind::Media(m) if matches!(m.media, jilo_engine::project::MediaRef::Generator(jilo_media::Generator::ColorMatte { .. })));
         if matte {
             // like Premiere: double-clicking a Color Matte opens its color picker
             actions.push(("project.select".into(), json!({"items": [id.0]})));
@@ -201,7 +193,7 @@ pub fn item_interactions(
     }
 }
 
-fn item_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: ItemId, kind: &ItemKind, actions: &mut Actions) {
+fn item_menu(app: &mut JiloApp, ui: &mut egui::Ui, id: ItemId, kind: &ItemKind, actions: &mut Actions) {
     let sel = || json!({"items": [id.0]});
     if ui.button(tl!("Rename")).clicked() {
         actions.push(("projectPanel.rename".into(), json!({"item": id.0})));
@@ -254,7 +246,7 @@ fn item_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: ItemId, kind: &ItemK
         }
     }
     ui.menu_button(tl!("Label"), |ui| {
-        for l in filmcraft_project::Label::ALL {
+        for l in jilo_project::Label::ALL {
             if ui.button(crate::i18n::t(l.name())).clicked() {
                 actions.push(("project.select".into(), json!({"items": [id.0]})));
                 actions.push(("edit.label".into(), json!({"label": l.name()})));
@@ -262,7 +254,7 @@ fn item_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: ItemId, kind: &ItemK
             }
         }
     });
-    if matches!(kind, ItemKind::Media(m) if matches!(m.media, filmcraft_project::MediaRef::File { .. })) {
+    if matches!(kind, ItemKind::Media(m) if matches!(m.media, jilo_project::MediaRef::File { .. })) {
         ui.separator();
         for (label, cmd) in [(tl!("Link Media…"), "media.linkMedia"), (tl!("Make Offline…"), "media.makeOffline")] {
             if ui.button(label).clicked() {
@@ -293,7 +285,7 @@ fn item_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: ItemId, kind: &ItemK
     }
 }
 
-fn bin_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, bin: u64, actions: &mut Actions) {
+fn bin_menu(app: &mut JiloApp, ui: &mut egui::Ui, v: &View, bin: u64, actions: &mut Actions) {
     for (label, how) in [(tl!("Open in Place"), "inPlace"), (tl!("Open in New Tab"), "newTab"), (tl!("Open in New Window"), "newWindow")] {
         let b = ui.button(label);
         app.auto.add(&format!("{}.binMenu.{how}", v.prefix), b.rect, label);
@@ -327,7 +319,7 @@ fn bin_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, bin: u64, actio
 }
 
 /// Drop project items dragged onto a bin: move them (the selection when the dragged item is in it).
-fn accept_bin_drop(app: &FilmcraftApp, ui: &egui::Ui, r: Rect, bin: u64, actions: &mut Actions) -> bool {
+fn accept_bin_drop(app: &JiloApp, ui: &egui::Ui, r: Rect, bin: u64, actions: &mut Actions) -> bool {
     let Some(item) = crate::panels::dragged_project_item(ui) else { return false };
     if !ui.rect_contains_pointer(r) {
         return false;
@@ -343,7 +335,7 @@ fn accept_bin_drop(app: &FilmcraftApp, ui: &egui::Ui, r: Rect, bin: u64, actions
 }
 
 /// The inline rename field at `r`; true while it is shown.
-fn rename_field(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, item: Option<u64>, bin: Option<u64>, pre: &str) -> bool {
+fn rename_field(app: &mut JiloApp, ui: &mut egui::Ui, r: Rect, item: Option<u64>, bin: Option<u64>, pre: &str) -> bool {
     let Some(rn) = app.ui.project_panel.rename.clone() else { return false };
     if rn.item != item || rn.bin != bin || item.is_none() && bin.is_none() || (!rn.panel.is_empty() && rn.panel != pre) {
         return false;
@@ -378,7 +370,7 @@ fn rename_field(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, item: Option
 
 /// A second click on the name of the only selected item starts renaming it (after the
 /// double-click interval, so a double-click still opens it).
-fn slow_click_rename(app: &mut FilmcraftApp, ui: &egui::Ui, resp: &egui::Response, name_rect: Rect, id: ItemId, was_selected: bool) {
+fn slow_click_rename(app: &mut JiloApp, ui: &egui::Ui, resp: &egui::Response, name_rect: Rect, id: ItemId, was_selected: bool) {
     let key = egui::Id::new("project-rename-pending");
     let now = ui.input(|i| i.time);
     if resp.double_clicked() {
@@ -418,7 +410,7 @@ struct ListCtx {
     width: f32,
 }
 
-pub fn list_view(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, v: &View, filter: &str, actions: &mut Actions) {
+pub fn list_view(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, v: &View, filter: &str, actions: &mut Actions) {
     let t = app.tokens;
     let f = font(app);
     let thumbs = app.session.prefs.project_panel.thumbnails;
@@ -436,7 +428,7 @@ pub fn list_view(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, v: &View
         let mut row = 0usize;
         list_bin(app, ui, &root, 0, filter, &mut row, actions, v, &lc);
         if v.inst == Inst::Main && v.bin == app.session.project.root.id {
-            let mut draw = |app: &mut FilmcraftApp, ui: &mut egui::Ui, bin: &Bin, row: &mut usize, actions: &mut Actions| {
+            let mut draw = |app: &mut JiloApp, ui: &mut egui::Ui, bin: &Bin, row: &mut usize, actions: &mut Actions| {
                 list_bin(app, ui, bin, 1, "", row, actions, v, &lc);
             };
             crate::panels::menu_dialogs::search_bin_rows(app, ui, &mut row, actions, &mut draw);
@@ -511,7 +503,7 @@ fn background(ui: &egui::Ui, v: &View) -> egui::Response {
 
 /// Empty space under the rows / cards, and the gaps between them (`bg`): click deselects,
 /// double-click imports, right-click menu, drag selects with a marquee.
-fn empty_space(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, bg: &egui::Response, actions: &mut Actions) {
+fn empty_space(app: &mut JiloApp, ui: &mut egui::Ui, v: &View, bg: &egui::Response, actions: &mut Actions) {
     let rest = ui.available_rect_before_wrap();
     let r = Rect::from_min_size(rest.min, vec2(rest.width(), rest.height().max(40.0)));
     ui.allocate_rect(r, Sense::hover());
@@ -540,7 +532,7 @@ fn note_hit(ui: &egui::Ui, v: &View, id: ItemId, r: Rect) {
 /// Marquee selection: dragging `bg` (empty space) selects every item drawn this frame whose rect
 /// the rectangle touches, live. Shift/Ctrl add to the selection the drag started with; Escape
 /// cancels and restores it. `origin` is the content's top-left, so scrolling keeps the anchor.
-fn marquee(app: &mut FilmcraftApp, ui: &egui::Ui, v: &View, bg: &egui::Response, origin: egui::Pos2, actions: &mut Actions) {
+fn marquee(app: &mut JiloApp, ui: &egui::Ui, v: &View, bg: &egui::Response, origin: egui::Pos2, actions: &mut Actions) {
     // (press point relative to `origin`, selection when the drag began, adds to it)
     type Drag = (egui::Vec2, Vec<u64>, bool);
     let key = egui::Id::new((&v.prefix, "marquee"));
@@ -586,7 +578,7 @@ fn marquee(app: &mut FilmcraftApp, ui: &egui::Ui, v: &View, bg: &egui::Response,
     }
 }
 
-fn background_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, bin: Option<u64>, actions: &mut Actions) {
+fn background_menu(app: &mut JiloApp, ui: &mut egui::Ui, v: &View, bin: Option<u64>, actions: &mut Actions) {
     for (label, cmd) in [
         (tl!("New Bin"), "file.newBin"),
         (tl!("New Search Bin"), "file.newSearchBin"),
@@ -604,7 +596,7 @@ fn background_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, bin: Opt
 }
 
 #[allow(clippy::too_many_arguments)]
-fn list_bin(app: &mut FilmcraftApp, ui: &mut egui::Ui, bin: &Bin, depth: usize, filter: &str, row: &mut usize, actions: &mut Actions, v: &View, lc: &ListCtx) {
+fn list_bin(app: &mut JiloApp, ui: &mut egui::Ui, bin: &Bin, depth: usize, filter: &str, row: &mut usize, actions: &mut Actions, v: &View, lc: &ListCtx) {
     let t = app.tokens;
     let (bins, items) = pp::bin_children(&app.session.project, bin, &app.session.prefs.project_panel.view.sort);
     for bid in bins {
@@ -715,9 +707,9 @@ fn list_bin(app: &mut FilmcraftApp, ui: &mut egui::Ui, bin: &Bin, depth: usize, 
 }
 
 /// An item's thumbnail at `t` (None: the poster frame or a third in) fitted into `r`.
-fn thumb(app: &mut FilmcraftApp, ui: &egui::Ui, r: Rect, it: &filmcraft_project::ProjectItem, at: Option<Tick>) {
+fn thumb(app: &mut JiloApp, ui: &egui::Ui, r: Rect, it: &jilo_project::ProjectItem, at: Option<Tick>) {
     ui.painter().rect_filled(r, 2.0, Color32::from_rgb(12, 12, 12));
-    let tt = at.or_else(|| filmcraft_engine::keyboard::poster_frame(it)).unwrap_or(Tick(it.duration().0 * 3 / 10));
+    let tt = at.or_else(|| jilo_engine::keyboard::poster_frame(it)).unwrap_or(Tick(it.duration().0 * 3 / 10));
     let ctx = ui.ctx().clone();
     let w = (r.width() as u32).clamp(96, 320);
     if let Some((tex, sz)) = app.thumbnail(&ctx, it.id, quantize(tt), w) {
@@ -735,7 +727,7 @@ fn thumb(app: &mut FilmcraftApp, ui: &egui::Ui, r: Rect, it: &filmcraft_project:
 // ------------------------------------------------------------------------------------ icon view
 
 /// Hover scrub over a thumbnail: the media time under the pointer (recorded for I / O).
-fn hover_time(app: &mut FilmcraftApp, ui: &egui::Ui, resp: &egui::Response, r: Rect, it: &filmcraft_project::ProjectItem) -> Option<Tick> {
+fn hover_time(app: &mut JiloApp, ui: &egui::Ui, resp: &egui::Response, r: Rect, it: &jilo_project::ProjectItem) -> Option<Tick> {
     if !(resp.hovered() && app.session.prefs.project_panel.hover_scrub) || it.duration().0 <= 0 {
         return None;
     }
@@ -749,7 +741,7 @@ fn hover_time(app: &mut FilmcraftApp, ui: &egui::Ui, resp: &egui::Response, r: R
 
 /// A clip card: thumbnail (hover scrub, poster frame), In/Out bar, badges, name and duration.
 #[allow(clippy::too_many_arguments)]
-fn card(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, id: ItemId, pre: &str, show_name: bool, show_dur: bool, sense: Sense) -> Option<egui::Response> {
+fn card(app: &mut JiloApp, ui: &mut egui::Ui, r: Rect, id: ItemId, pre: &str, show_name: bool, show_dur: bool, sense: Sense) -> Option<egui::Response> {
     let t = app.tokens;
     let it = app.session.project.item(id).cloned()?;
     let resp = ui.interact(r.expand(2.0), egui::Id::new((pre, "card", id.0)), sense);
@@ -837,7 +829,7 @@ fn card(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, id: ItemId, pre: &st
     Some(resp)
 }
 
-fn bin_card(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, b: &Bin, v: &View, actions: &mut Actions) {
+fn bin_card(app: &mut JiloApp, ui: &mut egui::Ui, r: Rect, b: &Bin, v: &View, actions: &mut Actions) {
     let t = app.tokens;
     let th = Rect::from_min_size(r.min, vec2(r.width(), r.width() * 9.0 / 16.0));
     let resp = ui.interact(r.expand(2.0), egui::Id::new((&v.prefix, "bincard", b.id.0)), Sense::click());
@@ -878,7 +870,7 @@ fn bin_card(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, b: &Bin, v: &Vie
     resp.context_menu(|ui| bin_menu(app, ui, v, b.id.0, actions));
 }
 
-pub fn icon_view(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, v: &View, filter: &str, actions: &mut Actions) {
+pub fn icon_view(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, v: &View, filter: &str, actions: &mut Actions) {
     let Some(bin) = app.session.project.root.find_bin(v.bin).cloned() else { return };
     let size = v.icon_size;
     let th_h = size * 9.0 / 16.0;
@@ -926,7 +918,7 @@ pub fn icon_view(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, v: &View
 
 // ------------------------------------------------------------------------------------ freeform
 
-pub fn freeform_view(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, v: &View, filter: &str, actions: &mut Actions) {
+pub fn freeform_view(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, v: &View, filter: &str, actions: &mut Actions) {
     let t = app.tokens;
     let opts = app.session.prefs.project_panel.freeform.clone();
     let mut cards: Vec<Card> = pp::freeform_layout(&app.session.project, Some(v.bin), &opts, rect.width());
@@ -1052,7 +1044,7 @@ fn cards_stack(cards: &[Card], item: u64) -> Option<u64> {
     cards.iter().find(|c| c.item == item).and_then(|c| c.stack)
 }
 
-fn card_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, item: u64, actions: &mut Actions) {
+fn card_menu(app: &mut JiloApp, ui: &mut egui::Ui, v: &View, item: u64, actions: &mut Actions) {
     let sel: Vec<u64> = app.session.state.project_selection.iter().map(|i| i.0).collect();
     let items: Vec<u64> = if sel.contains(&item) { sel.clone() } else { vec![item] };
     let b = ui.add_enabled(items.len() > 1, egui::Button::new(tl!("Stack")));
@@ -1087,8 +1079,8 @@ fn card_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, item: u64, act
     }
 }
 
-fn canvas_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, bin: Option<u64>, actions: &mut Actions) {
-    fn entry(app: &mut FilmcraftApp, ui: &mut egui::Ui, v: &View, actions: &mut Actions, id: &str, label: &str, cmd: &str, p: serde_json::Value) {
+fn canvas_menu(app: &mut JiloApp, ui: &mut egui::Ui, v: &View, bin: Option<u64>, actions: &mut Actions) {
+    fn entry(app: &mut JiloApp, ui: &mut egui::Ui, v: &View, actions: &mut Actions, id: &str, label: &str, cmd: &str, p: serde_json::Value) {
         let b = ui.button(label);
         app.auto.add(&format!("{}.canvasMenu.{id}", v.prefix), b.rect, label);
         if b.clicked() {

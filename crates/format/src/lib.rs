@@ -3,7 +3,7 @@
 //! A project file is UTF-8 JSON with an explicit schema version:
 //!
 //! ```json
-//! { "format": "filmcraft.project", "schema_version": 2, "generator": "FilmCraft 0.1.0", "project": { … } }
+//! { "format": "jilo.project", "schema_version": 2, "generator": "Jilo Studio 0.1.0", "project": { … } }
 //! ```
 //!
 //! - **Versioning.** [`SCHEMA_VERSION`] is the version this build writes. Older files are upgraded on
@@ -43,14 +43,40 @@
 pub mod atomic;
 pub mod autosave;
 
-use filmcraft_project::{Project, ProjectView};
+use jilo_project::{Project, ProjectView};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub use atomic::atomic_write;
 
 /// The `format` tag written in every envelope.
-pub const FORMAT_ID: &str = "filmcraft.project";
+pub const FORMAT_ID: &str = "jilo.project";
+/// The format id of projects saved before Jilo Studio named its own format (still read).
+pub const LEGACY_FORMAT_ID: &str = "filmcraft.project";
+
+/// The extension projects are saved with.
+pub const PROJECT_EXTENSION: &str = "jsproj";
+/// The extension of projects saved before 1.0; they still open, and are saved as `.jsproj`.
+pub const LEGACY_PROJECT_EXTENSION: &str = "fcproj";
+/// Every extension a project file can have, the current one first (open dialogs, drops).
+pub const PROJECT_EXTENSIONS: [&str; 2] = [PROJECT_EXTENSION, LEGACY_PROJECT_EXTENSION];
+
+/// Whether `path` names a project file (either extension, any case).
+pub fn is_project_path(path: impl AsRef<std::path::Path>) -> bool {
+    path.as_ref().extension().and_then(|e| e.to_str()).is_some_and(|e| PROJECT_EXTENSIONS.iter().any(|x| e.eq_ignore_ascii_case(x)))
+}
+
+/// `path` without its project extension (either one, any case); other paths are returned whole.
+pub fn strip_project_extension(path: &str) -> &str {
+    PROJECT_EXTENSIONS
+        .iter()
+        .find_map(|x| {
+            let cut = path.len().checked_sub(x.len() + 1)?;
+            let (stem, ext) = (path.get(..cut)?, path.get(cut..)?);
+            (ext.starts_with('.') && ext[1..].eq_ignore_ascii_case(x)).then_some(stem)
+        })
+        .unwrap_or(path)
+}
 
 /// A migration upgrades a whole document from schema `n` to `n + 1`.
 pub type Migration = fn(Value) -> Result<Value, String>;
@@ -68,10 +94,10 @@ pub const OLDEST_SCHEMA: u32 = 1;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FormatError {
-    #[error("not a FilmCraft project: {0}")]
+    #[error("not a Jilo Studio project: {0}")]
     NotAProject(String),
     #[error(
-        "this project was saved by a newer version of FilmCraft (project schema v{found}); this build reads up to v{supported}. Update FilmCraft to open it."
+        "this project was saved by a newer version of Jilo Studio (project schema v{found}); this build reads up to v{supported}. Update Jilo Studio to open it."
     )]
     TooNew { found: u32, supported: u32 },
     #[error("project schema v{found} is too old for this build (oldest supported: v{oldest})")]
@@ -104,7 +130,7 @@ impl Loaded {
 
 /// Writer identification stored in the envelope.
 pub fn generator() -> String {
-    format!("FilmCraft {}", env!("CARGO_PKG_VERSION"))
+    format!("Jilo Studio {}", env!("CARGO_PKG_VERSION"))
 }
 
 #[derive(Serialize)]
@@ -177,6 +203,7 @@ fn probe_version(p: &Probe) -> Result<u32, FormatError> {
     if let Some(v) = p.schema_version {
         if let Some(f) = &p.format
             && f != FORMAT_ID
+            && f != LEGACY_FORMAT_ID
         {
             return Err(FormatError::NotAProject(format!("format is `{f}`, expected `{FORMAT_ID}`")));
         }
@@ -214,10 +241,14 @@ pub fn decode(bytes: &[u8]) -> Result<Loaded, FormatError> {
 /// Refuse only values that would overflow or exhaust memory later (`Sequence::check_bounds`);
 /// structural rules such as overlaps are left to the editor, so projects that open today still open.
 fn validate_loaded(mut loaded: Loaded) -> Result<Loaded, FormatError> {
+    // Renderer names written before Jilo Studio named its own ("FilmCraft GPU Acceleration (wgpu)").
+    if let Some(rest) = loaded.project.settings.renderer.strip_prefix("FilmCraft ") {
+        loaded.project.settings.renderer = format!("Jilo Studio {rest}");
+    }
     // Embedded LUT text is rendered on the hot path. Drop oversize entries at load time so a
     // hostile project cannot retain an unrenderable multi-megabyte source or repeatedly offer it
     // to renderers. Clips that refer to one simply have no LUT, like a deleted library entry.
-    let max_lut = filmcraft_project::MAX_LUT_TEXT_BYTES;
+    let max_lut = jilo_project::MAX_LUT_TEXT_BYTES;
     loaded.project.luts.retain(|lut| {
         let keep = lut.text.len() <= max_lut;
         if !keep {
@@ -228,20 +259,20 @@ fn validate_loaded(mut loaded: Loaded) -> Result<Loaded, FormatError> {
     // Out-of-range audio stream data is repaired, not refused: failing the load would lose the
     // whole project over one bad index. A media item keeps its first `MAX_AUDIO_STREAMS` streams; a
     // clip pointing past that plays stream 0.
-    let max = filmcraft_media::MAX_AUDIO_STREAMS;
+    let max = jilo_media::MAX_AUDIO_STREAMS;
     for item in loaded.project.items.values_mut() {
         let name = item.name.clone();
         match &mut item.kind {
-            filmcraft_project::ItemKind::Media(m) => {
+            jilo_project::ItemKind::Media(m) => {
                 if let Some(video) = &m.info.video {
-                    filmcraft_project::validate_frame_size(video.width, video.height).map_err(|e| FormatError::Corrupt(format!("media `{name}`: {e}")))?;
+                    jilo_project::validate_frame_size(video.width, video.height).map_err(|e| FormatError::Corrupt(format!("media `{name}`: {e}")))?;
                 }
                 if m.info.audio_streams.len() > max {
                     log::warn!("media `{name}`: {} audio streams, keeping the first {max}", m.info.audio_streams.len());
                     m.info.audio_streams.truncate(max);
                 }
             }
-            filmcraft_project::ItemKind::Sequence(sequence) => {
+            jilo_project::ItemKind::Sequence(sequence) => {
                 let sequence = std::sync::Arc::make_mut(sequence);
                 for clip in sequence.audio_tracks.iter_mut().flat_map(|t| t.items.iter_mut()) {
                     if clip.audio_stream >= max {
@@ -254,7 +285,7 @@ fn validate_loaded(mut loaded: Loaded) -> Result<Loaded, FormatError> {
         }
     }
     for item in loaded.project.sequences() {
-        if let filmcraft_project::ItemKind::Sequence(sequence) = &item.kind {
+        if let jilo_project::ItemKind::Sequence(sequence) = &item.kind {
             sequence.check_bounds().map_err(|e| FormatError::Corrupt(format!("sequence `{}`: {e}", item.name)))?;
         }
     }
@@ -300,7 +331,7 @@ fn v1_to_v2(doc: Value) -> Result<Value, String> {
     Ok(serde_json::json!({
         "format": FORMAT_ID,
         "schema_version": 2,
-        "generator": "FilmCraft (schema v1)",
+        "generator": "Jilo Studio (schema v1)",
         "project": Value::Object(project),
     }))
 }
@@ -375,6 +406,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn project_extensions() {
+        assert!(is_project_path("/a/Cut.jsproj") && is_project_path("Cut.FCPROJ") && !is_project_path("Cut.mov"));
+        assert!(!is_project_path("jsproj"));
+        assert_eq!(strip_project_extension("/a/Cut.jsproj"), "/a/Cut");
+        assert_eq!(strip_project_extension("Cut.fcproj"), "Cut");
+        assert_eq!(strip_project_extension("Cut.mov"), "Cut.mov");
+        assert_eq!(strip_project_extension("клип.JSPROJ"), "клип");
+        assert_eq!(strip_project_extension("é"), "é");
+    }
+
+    #[test]
     fn schema_version_matches_table() {
         assert_eq!(SCHEMA_VERSION, 14);
     }
@@ -382,7 +424,7 @@ mod tests {
     #[test]
     fn damaged_sequence_settings_are_rejected_before_rendering() {
         let mut p = Project::new("Invalid sequence");
-        let id = p.new_sequence("Bad", filmcraft_project::SequenceSettings::default(), 1, 1, None);
+        let id = p.new_sequence("Bad", jilo_project::SequenceSettings::default(), 1, 1, None);
         for (width, height, sample_rate) in [(0, 90, 48000), (160, 0, 48000), (160, 90, 0), (65536, 90, 48000), (32768, 16384, 48000)] {
             let settings = &mut p.sequence_mut(id).unwrap().settings;
             (settings.width, settings.height, settings.sample_rate) = (width, height, sample_rate);
@@ -395,16 +437,12 @@ mod tests {
     /// opens, as it did before; and 16K sequences are not "too large".
     #[test]
     fn structural_rule_breaks_still_open() {
-        use filmcraft_project::{ItemKind, SequenceSettings, TrackKind};
-        use filmcraft_time::{FrameRate, Tick, TimeRange};
+        use jilo_project::{ItemKind, SequenceSettings, TrackKind};
+        use jilo_time::{FrameRate, Tick, TimeRange};
         let mut p = Project::new("Legacy");
         let rate = FrameRate::FPS_24;
-        let layer = p.add_item(
-            "Layer",
-            filmcraft_project::Label::Iris,
-            ItemKind::AdjustmentLayer { width: 1920, height: 1080, rate, duration: rate.tick_of(48) },
-            None,
-        );
+        let layer =
+            p.add_item("Layer", jilo_project::Label::Iris, ItemKind::AdjustmentLayer { width: 1920, height: 1080, rate, duration: rate.tick_of(48) }, None);
         let settings = SequenceSettings { width: 15360, height: 8640, ..Default::default() };
         let seq = p.new_sequence("Sequence 01", settings, 1, 1, None);
         let range = TimeRange::new(Tick::ZERO, rate.tick_of(48));
@@ -434,12 +472,12 @@ mod tests {
     #[test]
     fn oversized_embedded_luts_are_dropped_on_load() {
         let mut p = Project::new("LUT limit");
-        p.luts.push(filmcraft_project::ProjectLut {
+        p.luts.push(jilo_project::ProjectLut {
             id: "huge".into(),
             name: "huge".into(),
             source_path: None,
             format: "cube".into(),
-            text: "#".repeat(filmcraft_project::MAX_LUT_TEXT_BYTES + 1).into(),
+            text: "#".repeat(jilo_project::MAX_LUT_TEXT_BYTES + 1).into(),
         });
         let loaded = decode(&encode(&p, false)).unwrap();
         assert!(loaded.project.luts.is_empty());
@@ -449,14 +487,14 @@ mod tests {
     /// read, opens all the same.
     #[test]
     fn the_view_is_kept_beside_the_project_and_never_stops_a_file_from_opening() {
-        use filmcraft_project::{ItemId, SequenceSettings, SequenceView};
+        use jilo_project::{ItemId, SequenceSettings, SequenceView};
         let mut p = Project::new("Tabs");
         let seq = p.new_sequence("Sequence 01", SequenceSettings::default(), 1, 1, None);
         let view = ProjectView {
             open_sequences: vec![seq],
             active_sequence: Some(seq),
             sequences: [(seq, SequenceView { pps: 80.0, scroll: 1.5, v_scroll: 0.0, a_scroll: 4.0, video_track_h: 60.0, audio_track_h: 56.0 })].into(),
-            playheads: [(seq, filmcraft_time::Tick(3 * filmcraft_time::TICKS_PER_SECOND))].into(),
+            playheads: [(seq, jilo_time::Tick(3 * jilo_time::TICKS_PER_SECOND))].into(),
         };
         for pretty in [true, false] {
             let l = decode(&encode_with_view(&p, Some(&view), pretty)).unwrap();
@@ -481,12 +519,12 @@ mod tests {
     /// used to be refused as damaged; it opens, and the points are still "auto".
     #[test]
     fn auto_points_written_as_null_open_again() {
-        use filmcraft_project::{ItemKind, SequenceSettings, TrackKind};
-        use filmcraft_time::{FrameRate, Tick, TimeRange};
+        use jilo_project::{ItemKind, SequenceSettings, TrackKind};
+        use jilo_time::{FrameRate, Tick, TimeRange};
         let mut p = Project::new("Imported");
         let layer = p.add_item(
             "Layer",
-            filmcraft_project::Label::Iris,
+            jilo_project::Label::Iris,
             ItemKind::AdjustmentLayer { width: 3840, height: 2160, rate: FrameRate::FPS_24, duration: FrameRate::FPS_24.tick_of(48) },
             None,
         );
@@ -524,7 +562,7 @@ mod tests {
         v["schema_version"] = Value::from(SCHEMA_VERSION + 1);
         let e = decode(&serde_json::to_vec(&v).unwrap()).unwrap_err();
         assert!(matches!(e, FormatError::TooNew { .. }));
-        assert!(e.to_string().contains("newer version of FilmCraft"), "{e}");
+        assert!(e.to_string().contains("newer version of Jilo Studio"), "{e}");
     }
 
     #[test]

@@ -7,22 +7,22 @@ use std::sync::Arc;
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_project::{Transcript, Word};
-use filmcraft_time::Tick;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_project::{Transcript, Word};
+use jilo_time::Tick;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -64,7 +64,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -79,7 +79,7 @@ fn session() -> Session {
         t.words.push(Word::new(text, sin + Tick::from_seconds_f64(a), sin + Tick::from_seconds_f64(b)));
     }
     t.normalize();
-    s.transcriber = Some(Arc::new(filmcraft_speech::FixedTranscriber { transcript: t, id: "fixed".into() }));
+    s.transcriber = Some(Arc::new(jilo_speech::FixedTranscriber { transcript: t, id: "fixed".into() }));
     s
 }
 
@@ -104,7 +104,7 @@ fn run_a_built_in_recipe_and_discard_a_recording() {
     let app = d.app();
     assert!(app.ui.recipes.message.contains("done"), "message {:?}, status {status}, ui status {:?}", app.ui.recipes.message, app.ui.status);
     let q = app.session.active_sequence().unwrap();
-    assert_eq!(q.caption_tracks[0].style, filmcraft_engine::caption_presets::find("karaoke-yellow").unwrap().style);
+    assert_eq!(q.caption_tracks[0].style, jilo_engine::caption_presets::find("karaoke-yellow").unwrap().style);
     assert_eq!(app.session.history.undo.len(), undo0 + 1, "one undo step");
 
     // recording: steps are counted; Stop and Save needs a name; Discard keeps nothing
@@ -129,7 +129,7 @@ fn retakes_are_listed_and_cut_from_the_ai_menu() {
         t.words.push(Word::new(*w, at, at + Tick::from_seconds_f64(0.3)));
     }
     t.normalize();
-    s.transcriber = Some(Arc::new(filmcraft_speech::FixedTranscriber { transcript: t, id: "fixed".into() }));
+    s.transcriber = Some(Arc::new(jilo_speech::FixedTranscriber { transcript: t, id: "fixed".into() }));
     s.execute("transcript.generate", json!({"items": [a.item.0]})).unwrap();
     let mut d = Driver::new(s);
     let before = d.app().session.active_sequence().unwrap().duration();

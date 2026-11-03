@@ -1,6 +1,6 @@
 //! Colour management in the renderer: source colour space resolution (Interpret Footage override
 //! or stream metadata), source → working conversion of decoded frames, and the working → monitor
-//! transform. The maths lives in `filmcraft_color::transform`.
+//! transform. The maths lives in `jilo_color::transform`.
 //!
 //! A sequence whose pipeline is "plain" (Rec. 709 working space without wide gamut) and media
 //! whose metadata says Rec. 709 / sRGB / linear take the original fast path unchanged.
@@ -8,9 +8,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use filmcraft_color::{ColorPipeline, ColorSpace, InputTransform, OutputTransform, Range};
-use filmcraft_frame::VideoFrame;
-use filmcraft_project::{ItemId, Project};
+use jilo_color::{ColorPipeline, ColorSpace, InputTransform, OutputTransform, Range};
+use jilo_frame::VideoFrame;
+use jilo_project::{ItemId, Project};
 
 use crate::Image;
 
@@ -31,7 +31,7 @@ pub fn needs_management(pipe: &ColorPipeline, cs: ColorSpace, frame: &VideoFrame
 
 /// [`needs_management`] for a frame with colour metadata `color` (e.g. a stream's, before any
 /// frame is decoded).
-pub fn needs_management_for(pipe: &ColorPipeline, cs: ColorSpace, color: &filmcraft_color::ColorInfo) -> bool {
+pub fn needs_management_for(pipe: &ColorPipeline, cs: ColorSpace, color: &jilo_color::ColorInfo) -> bool {
     let default_decode = cs == ColorSpace::from_info(color) && matches!(cs, ColorSpace::Rec709 | ColorSpace::Srgb | ColorSpace::Linear709);
     !(pipe.is_plain() && default_decode)
 }
@@ -66,7 +66,7 @@ pub fn decode(project: &Project, item: ItemId, frame: &VideoFrame, n: usize, pip
     }
     // RGB stills/generators carry full-range code values; YUV carries its own range flag
     let range = match frame.data {
-        filmcraft_frame::PixelData::Rgba8(_) | filmcraft_frame::PixelData::RgbaF32(_) => Range::Full,
+        jilo_frame::PixelData::Rgba8(_) | jilo_frame::PixelData::RgbaF32(_) => Range::Full,
         _ => frame.color.range,
     };
     let t = input_transform(cs, range, pipe, source_peak_nits(project, item));
@@ -75,7 +75,7 @@ pub fn decode(project: &Project, item: ItemId, frame: &VideoFrame, n: usize, pip
 
 /// Decode a frame (box-decimated by `n`) through an input transform.
 pub fn decode_with(frame: &VideoFrame, n: usize, t: &InputTransform) -> Image {
-    let float_src = matches!(frame.data, filmcraft_frame::PixelData::RgbaF32(_));
+    let float_src = matches!(frame.data, jilo_frame::PixelData::RgbaF32(_));
     // float frames are linear already: only the gamut/tone stages apply to them
     let (w, h, px) = frame.to_linear_f32_decimated_with(n, if float_src { None } else { Some(&t.table) });
     let mut img = Image { w, h, px };
@@ -90,7 +90,7 @@ pub fn decode_with(frame: &VideoFrame, n: usize, t: &InputTransform) -> Image {
 /// itself. None when the frame needs none or is RGB (decoded on the CPU).
 pub fn gpu_transform(project: &Project, item: ItemId, frame: &VideoFrame, pipe: &ColorPipeline) -> Option<Arc<InputTransform>> {
     let cs = source_space(project, item, frame);
-    if !needs_management(pipe, cs, frame) || !matches!(frame.data, filmcraft_frame::PixelData::Yuv8 { .. } | filmcraft_frame::PixelData::Yuv16 { .. }) {
+    if !needs_management(pipe, cs, frame) || !matches!(frame.data, jilo_frame::PixelData::Yuv8 { .. } | jilo_frame::PixelData::Yuv16 { .. }) {
         return None;
     }
     Some(input_transform(cs, frame.color.range, pipe, source_peak_nits(project, item)))
@@ -122,7 +122,7 @@ impl Edr {
     pub fn new(graphics_white_nits: f32, headroom: f32) -> Edr {
         let white = if graphics_white_nits.is_finite() && graphics_white_nits > 0.0 { graphics_white_nits } else { 203.0 };
         let headroom = if headroom.is_finite() { headroom.max(1.0) } else { 1.0 };
-        Edr { white_scale: (filmcraft_color::REFERENCE_WHITE_NITS as f32) / white, headroom }
+        Edr { white_scale: (jilo_color::REFERENCE_WHITE_NITS as f32) / white, headroom }
     }
 }
 
@@ -176,7 +176,7 @@ pub fn display_transform(pipe: &ColorPipeline) -> Arc<OutputTransform> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_color::{ColorInfo, Primaries, Transfer, WorkingSpace};
+    use jilo_color::{ColorInfo, Primaries, Transfer, WorkingSpace};
 
     fn f16(bits: u16) -> f32 {
         half::f16::from_bits(bits).to_f32()
@@ -199,7 +199,7 @@ mod tests {
         assert!(f16(brighter[0]) > enc(1.9) && f16(brighter[0]) < enc(2.1));
         // SDR pipeline: clipped to the SDR range, with the same curve as the 8-bit monitors
         let sdr = to_edr(&img, &ColorPipeline::REC709, Edr::new(203.0, 8.0));
-        assert!((f16(sdr[4]) - 1.0).abs() < 2e-3 && (f16(sdr[12]) - filmcraft_color::linear_to_srgb(0.18)).abs() < 2e-3);
+        assert!((f16(sdr[4]) - 1.0).abs() < 2e-3 && (f16(sdr[12]) - jilo_color::linear_to_srgb(0.18)).abs() < 2e-3);
         // a display without headroom never goes past 1.0; hostile parameters are sanitised
         let flat = to_edr(&img, &pq, Edr::new(f32::NAN, f32::NAN));
         assert!(flat.iter().all(|b| f16(*b) <= 1.0 + 1e-3));
@@ -213,16 +213,16 @@ mod tests {
 
     #[test]
     fn mastering_metadata_sets_the_tone_mapping_peak() {
-        use filmcraft_color::HdrMetadata;
-        use filmcraft_media::MediaSource;
-        use filmcraft_project::{ItemKind, Label, MediaClip, MediaRef};
+        use jilo_color::HdrMetadata;
+        use jilo_media::MediaSource;
+        use jilo_project::{ItemKind, Label, MediaClip, MediaRef};
         let pq = ColorInfo { transfer: Transfer::Pq, primaries: Primaries::Bt2020, ..ColorInfo::SRGB_FULL };
         // a PQ grey of ≈ 2000 cd/m² (code 0.83) and one of ≈ 4000 cd/m² (code 0.90)
-        let px = |nits: f32| (filmcraft_color::pq_inverse_eotf(nits / 10_000.0) * 255.0).round() as u8;
+        let px = |nits: f32| (jilo_color::pq_inverse_eotf(nits / 10_000.0) * 255.0).round() as u8;
         let item_with = |hdr: Option<HdrMetadata>| {
             let mut p = Project::new("t");
-            let g = filmcraft_media::Generator::BlackVideo;
-            let mut info = filmcraft_media::generators::GeneratorSource::new(g.clone(), 2, 2, Default::default(), filmcraft_time::Tick(1)).info().clone();
+            let g = jilo_media::Generator::BlackVideo;
+            let mut info = jilo_media::generators::GeneratorSource::new(g.clone(), 2, 2, Default::default(), jilo_time::Tick(1)).info().clone();
             if let Some(v) = info.video.as_mut() {
                 v.color = pq;
                 v.hdr = hdr;

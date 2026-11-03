@@ -1708,718 +1708,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "filmcraft"
-version = "0.12.0"
-dependencies = [
- "arboard",
- "chrono",
- "cpal",
- "eframe",
- "egui",
- "filmcraft-automation",
- "filmcraft-engine",
- "filmcraft-export",
- "filmcraft-gpu",
- "filmcraft-platform",
- "filmcraft-project",
- "filmcraft-render",
- "filmcraft-time",
- "filmcraft-ui-egui",
- "glob",
- "log",
- "muda",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
- "rfd",
- "serde_json",
- "sys-locale",
- "tokio",
- "winit",
- "winresource",
- "zbus",
-]
-
-[[package]]
-name = "filmcraft-aac"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-ac3"
-version = "0.12.0"
-dependencies = [
- "filmcraft-testkit",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-ai"
-version = "0.12.0"
-dependencies = [
- "rustls",
- "rustls-rustcrypto",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "ureq",
-]
-
-[[package]]
-name = "filmcraft-apv"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-audio-dsp"
-version = "0.12.0"
-dependencies = [
- "filmcraft-testkit",
-]
-
-[[package]]
-name = "filmcraft-automation"
-version = "0.12.0"
-dependencies = [
- "base64 0.22.1",
- "filmcraft-engine",
- "filmcraft-time",
- "image",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "filmcraft-av1"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "rustix 1.1.5",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-bitstream"
-version = "0.12.0"
-dependencies = [
- "proptest",
-]
-
-[[package]]
-name = "filmcraft-captions"
-version = "0.12.0"
-dependencies = [
- "filmcraft-color",
- "filmcraft-project",
- "filmcraft-text",
- "filmcraft-time",
- "proptest",
- "roxmltree",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-cfb"
-version = "0.12.0"
-
-[[package]]
-name = "filmcraft-cli"
-version = "0.12.0"
-dependencies = [
- "filmcraft-automation",
- "filmcraft-codecs",
- "filmcraft-engine",
- "filmcraft-export",
- "filmcraft-gpu",
- "filmcraft-media",
- "filmcraft-mpegts",
- "filmcraft-mxf",
- "filmcraft-ogg",
- "filmcraft-platform",
- "filmcraft-project",
- "filmcraft-render",
- "filmcraft-time",
- "serde_json",
- "tokio",
- "wgpu",
-]
-
-[[package]]
-name = "filmcraft-codecs"
-version = "0.12.0"
-dependencies = [
- "filmcraft-aac",
- "filmcraft-ac3",
- "filmcraft-apv",
- "filmcraft-av1",
- "filmcraft-bitstream",
- "filmcraft-color",
- "filmcraft-dnx",
- "filmcraft-frame",
- "filmcraft-h264",
- "filmcraft-hevc",
- "filmcraft-isobmff",
- "filmcraft-matroska",
- "filmcraft-media",
- "filmcraft-mpeg2v",
- "filmcraft-mpegts",
- "filmcraft-mxf",
- "filmcraft-ogg",
- "filmcraft-opus",
- "filmcraft-prores",
- "filmcraft-testkit",
- "filmcraft-time",
- "filmcraft-vp9",
- "image",
- "log",
- "serde_json",
- "symphonia",
- "thiserror 2.0.21",
- "web-time",
-]
-
-[[package]]
-name = "filmcraft-color"
-version = "0.12.0"
-dependencies = [
- "proptest",
- "serde",
-]
-
-[[package]]
-name = "filmcraft-dnx"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-edit"
-version = "0.12.0"
-dependencies = [
- "filmcraft-geom",
- "filmcraft-media",
- "filmcraft-project",
- "filmcraft-time",
- "proptest",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-engine"
-version = "0.12.0"
-dependencies = [
- "filmcraft-ai",
- "filmcraft-audio-dsp",
- "filmcraft-captions",
- "filmcraft-codecs",
- "filmcraft-color",
- "filmcraft-edit",
- "filmcraft-export",
- "filmcraft-format",
- "filmcraft-frame",
- "filmcraft-geom",
- "filmcraft-interchange",
- "filmcraft-media",
- "filmcraft-mxf",
- "filmcraft-project",
- "filmcraft-render",
- "filmcraft-scopes",
- "filmcraft-speech",
- "filmcraft-testkit",
- "filmcraft-text",
- "filmcraft-time",
- "filmcraft-tts",
- "getrandom 0.3.4",
- "image",
- "log",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.21",
- "web-time",
-]
-
-[[package]]
-name = "filmcraft-export"
-version = "0.12.0"
-dependencies = [
- "filmcraft-aac",
- "filmcraft-apv",
- "filmcraft-audio-dsp",
- "filmcraft-codecs",
- "filmcraft-color",
- "filmcraft-dnx",
- "filmcraft-flac",
- "filmcraft-frame",
- "filmcraft-geom",
- "filmcraft-h264enc",
- "filmcraft-isobmff",
- "filmcraft-media",
- "filmcraft-mxf",
- "filmcraft-project",
- "filmcraft-prores",
- "filmcraft-render",
- "filmcraft-testkit",
- "filmcraft-text",
- "filmcraft-time",
- "image",
- "rayon",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "web-time",
-]
-
-[[package]]
-name = "filmcraft-flac"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-format"
-version = "0.12.0"
-dependencies = [
- "filmcraft-media",
- "filmcraft-project",
- "filmcraft-time",
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-frame"
-version = "0.12.0"
-dependencies = [
- "filmcraft-color",
- "filmcraft-time",
- "rayon",
- "serde",
-]
-
-[[package]]
-name = "filmcraft-geom"
-version = "0.12.0"
-dependencies = [
- "proptest",
- "serde",
-]
-
-[[package]]
-name = "filmcraft-golden"
-version = "0.12.0"
-dependencies = [
- "filmcraft-color",
- "filmcraft-frame",
- "filmcraft-geom",
- "filmcraft-gpu",
- "filmcraft-media",
- "filmcraft-project",
- "filmcraft-render",
- "filmcraft-testkit",
- "filmcraft-time",
- "pollster 0.4.0",
- "wgpu",
-]
-
-[[package]]
-name = "filmcraft-gpu"
-version = "0.12.0"
-dependencies = [
- "filmcraft-color",
- "filmcraft-export",
- "filmcraft-frame",
- "filmcraft-geom",
- "filmcraft-media",
- "filmcraft-project",
- "filmcraft-render",
- "filmcraft-time",
- "image",
- "log",
- "pollster 0.4.0",
- "rayon",
- "wgpu",
-]
-
-[[package]]
-name = "filmcraft-h264"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-h264enc"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-hevc"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-interchange"
-version = "0.12.0"
-dependencies = [
- "filmcraft-cfb",
- "filmcraft-color",
- "filmcraft-geom",
- "filmcraft-media",
- "filmcraft-project",
- "filmcraft-time",
- "flate2",
- "proptest",
- "roxmltree",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-isobmff"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "proptest",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-matroska"
-version = "0.12.0"
-dependencies = [
- "filmcraft-testkit",
- "serde_json",
-]
-
-[[package]]
-name = "filmcraft-media"
-version = "0.12.0"
-dependencies = [
- "filmcraft-color",
- "filmcraft-frame",
- "filmcraft-time",
- "image",
- "rayon",
- "serde",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-mpeg2v"
-version = "0.12.0"
-dependencies = [
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-mpegts"
-version = "0.12.0"
-dependencies = [
- "filmcraft-testkit",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-mxf"
-version = "0.12.0"
-dependencies = [
- "chrono",
- "filmcraft-testkit",
-]
-
-[[package]]
-name = "filmcraft-ogg"
-version = "0.12.0"
-dependencies = [
- "filmcraft-testkit",
-]
-
-[[package]]
-name = "filmcraft-opus"
-version = "0.12.0"
-dependencies = [
- "filmcraft-testkit",
-]
-
-[[package]]
-name = "filmcraft-platform"
-version = "0.12.0"
-dependencies = [
- "block2 0.6.2",
- "filmcraft-bitstream",
- "filmcraft-codecs",
- "filmcraft-color",
- "filmcraft-export",
- "filmcraft-frame",
- "filmcraft-h264",
- "filmcraft-hevc",
- "filmcraft-isobmff",
- "filmcraft-media",
- "filmcraft-project",
- "filmcraft-render",
- "filmcraft-testkit",
- "filmcraft-time",
- "libloading",
- "log",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-core-media",
- "objc2-core-video",
- "objc2-foundation 0.3.2",
- "objc2-video-toolbox",
- "objc2-vision",
- "rustix 1.1.5",
- "windows 0.62.2",
-]
-
-[[package]]
-name = "filmcraft-project"
-version = "0.12.0"
-dependencies = [
- "filmcraft-color",
- "filmcraft-geom",
- "filmcraft-media",
- "filmcraft-time",
- "proptest",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-prores"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-render"
-version = "0.12.0"
-dependencies = [
- "filmcraft-audio-dsp",
- "filmcraft-captions",
- "filmcraft-color",
- "filmcraft-frame",
- "filmcraft-geom",
- "filmcraft-media",
- "filmcraft-project",
- "filmcraft-text",
- "filmcraft-time",
- "half",
- "image",
- "rayon",
- "rustix 1.1.5",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "filmcraft-scopes"
-version = "0.12.0"
-dependencies = [
- "filmcraft-color",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "filmcraft-speech"
-version = "0.12.0"
-dependencies = [
- "candle-core",
- "candle-nn",
- "filmcraft-audio-dsp",
- "filmcraft-project",
- "filmcraft-time",
- "rayon",
- "rustls",
- "rustls-rustcrypto",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.21",
- "ureq",
-]
-
-[[package]]
-name = "filmcraft-testkit"
-version = "0.12.0"
-dependencies = [
- "chrono",
- "png",
- "tempfile",
-]
-
-[[package]]
-name = "filmcraft-text"
-version = "0.12.0"
-dependencies = [
- "filmcraft-color",
- "harfrust",
- "skrifa",
- "tempfile",
- "unicode-bidi",
- "unicode-linebreak",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "filmcraft-time"
-version = "0.12.0"
-dependencies = [
- "proptest",
- "serde",
-]
-
-[[package]]
-name = "filmcraft-tts"
-version = "0.12.0"
-dependencies = [
- "candle-core",
- "candle-nn",
- "filmcraft-audio-dsp",
- "filmcraft-tts-text",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "zip",
-]
-
-[[package]]
-name = "filmcraft-tts-text"
-version = "0.12.0"
-dependencies = [
- "serde",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-ui-egui"
-version = "0.12.0"
-dependencies = [
- "cpu-time",
- "eframe",
- "egui",
- "egui_kittest",
- "filmcraft-ai",
- "filmcraft-audio-dsp",
- "filmcraft-captions",
- "filmcraft-codecs",
- "filmcraft-color",
- "filmcraft-edit",
- "filmcraft-engine",
- "filmcraft-export",
- "filmcraft-frame",
- "filmcraft-geom",
- "filmcraft-gpu",
- "filmcraft-interchange",
- "filmcraft-media",
- "filmcraft-platform",
- "filmcraft-project",
- "filmcraft-render",
- "filmcraft-scopes",
- "filmcraft-speech",
- "filmcraft-text",
- "filmcraft-time",
- "filmcraft-tts",
- "image",
- "log",
- "pollster 0.4.0",
- "rayon",
- "rustix 1.1.5",
- "serde",
- "serde_json",
- "sha2",
- "toml 1.1.6+spec-1.1.0",
- "web-time",
-]
-
-[[package]]
-name = "filmcraft-vp9"
-version = "0.12.0"
-dependencies = [
- "filmcraft-bitstream",
- "filmcraft-testkit",
- "rayon",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "filmcraft-web"
-version = "0.12.0"
-dependencies = [
- "eframe",
- "egui",
- "filmcraft-codecs",
- "filmcraft-color",
- "filmcraft-engine",
- "filmcraft-format",
- "filmcraft-frame",
- "filmcraft-isobmff",
- "filmcraft-media",
- "filmcraft-time",
- "filmcraft-ui-egui",
- "js-sys",
- "log",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "web-time",
-]
-
-[[package]]
 name = "find-msvc-tools"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3456,6 +2744,717 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
+name = "jilo-aac"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-ac3"
+version = "0.12.0"
+dependencies = [
+ "jilo-testkit",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-ai"
+version = "0.12.0"
+dependencies = [
+ "rustls",
+ "rustls-rustcrypto",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "ureq",
+]
+
+[[package]]
+name = "jilo-apv"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-audio-dsp"
+version = "0.12.0"
+dependencies = [
+ "jilo-testkit",
+]
+
+[[package]]
+name = "jilo-automation"
+version = "0.12.0"
+dependencies = [
+ "base64 0.22.1",
+ "image",
+ "jilo-engine",
+ "jilo-time",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "jilo-av1"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "rustix 1.1.5",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-bitstream"
+version = "0.12.0"
+dependencies = [
+ "proptest",
+]
+
+[[package]]
+name = "jilo-captions"
+version = "0.12.0"
+dependencies = [
+ "jilo-color",
+ "jilo-project",
+ "jilo-text",
+ "jilo-time",
+ "proptest",
+ "roxmltree",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-cfb"
+version = "0.12.0"
+
+[[package]]
+name = "jilo-cli"
+version = "0.12.0"
+dependencies = [
+ "jilo-automation",
+ "jilo-codecs",
+ "jilo-engine",
+ "jilo-export",
+ "jilo-gpu",
+ "jilo-media",
+ "jilo-mpegts",
+ "jilo-mxf",
+ "jilo-ogg",
+ "jilo-platform",
+ "jilo-project",
+ "jilo-render",
+ "jilo-time",
+ "serde_json",
+ "tokio",
+ "wgpu",
+]
+
+[[package]]
+name = "jilo-codecs"
+version = "0.12.0"
+dependencies = [
+ "image",
+ "jilo-aac",
+ "jilo-ac3",
+ "jilo-apv",
+ "jilo-av1",
+ "jilo-bitstream",
+ "jilo-color",
+ "jilo-dnx",
+ "jilo-frame",
+ "jilo-h264",
+ "jilo-hevc",
+ "jilo-isobmff",
+ "jilo-matroska",
+ "jilo-media",
+ "jilo-mpeg2v",
+ "jilo-mpegts",
+ "jilo-mxf",
+ "jilo-ogg",
+ "jilo-opus",
+ "jilo-prores",
+ "jilo-testkit",
+ "jilo-time",
+ "jilo-vp9",
+ "log",
+ "serde_json",
+ "symphonia",
+ "thiserror 2.0.21",
+ "web-time",
+]
+
+[[package]]
+name = "jilo-color"
+version = "0.12.0"
+dependencies = [
+ "proptest",
+ "serde",
+]
+
+[[package]]
+name = "jilo-dnx"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-edit"
+version = "0.12.0"
+dependencies = [
+ "jilo-geom",
+ "jilo-media",
+ "jilo-project",
+ "jilo-time",
+ "proptest",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-engine"
+version = "0.12.0"
+dependencies = [
+ "getrandom 0.3.4",
+ "image",
+ "jilo-ai",
+ "jilo-audio-dsp",
+ "jilo-captions",
+ "jilo-codecs",
+ "jilo-color",
+ "jilo-edit",
+ "jilo-export",
+ "jilo-format",
+ "jilo-frame",
+ "jilo-geom",
+ "jilo-interchange",
+ "jilo-media",
+ "jilo-mxf",
+ "jilo-project",
+ "jilo-render",
+ "jilo-scopes",
+ "jilo-speech",
+ "jilo-testkit",
+ "jilo-text",
+ "jilo-time",
+ "jilo-tts",
+ "log",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+ "web-time",
+]
+
+[[package]]
+name = "jilo-export"
+version = "0.12.0"
+dependencies = [
+ "image",
+ "jilo-aac",
+ "jilo-apv",
+ "jilo-audio-dsp",
+ "jilo-codecs",
+ "jilo-color",
+ "jilo-dnx",
+ "jilo-flac",
+ "jilo-frame",
+ "jilo-geom",
+ "jilo-h264enc",
+ "jilo-isobmff",
+ "jilo-media",
+ "jilo-mxf",
+ "jilo-project",
+ "jilo-prores",
+ "jilo-render",
+ "jilo-testkit",
+ "jilo-text",
+ "jilo-time",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "web-time",
+]
+
+[[package]]
+name = "jilo-flac"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-format"
+version = "0.12.0"
+dependencies = [
+ "jilo-media",
+ "jilo-project",
+ "jilo-time",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-frame"
+version = "0.12.0"
+dependencies = [
+ "jilo-color",
+ "jilo-time",
+ "rayon",
+ "serde",
+]
+
+[[package]]
+name = "jilo-geom"
+version = "0.12.0"
+dependencies = [
+ "proptest",
+ "serde",
+]
+
+[[package]]
+name = "jilo-golden"
+version = "0.12.0"
+dependencies = [
+ "jilo-color",
+ "jilo-frame",
+ "jilo-geom",
+ "jilo-gpu",
+ "jilo-media",
+ "jilo-project",
+ "jilo-render",
+ "jilo-testkit",
+ "jilo-time",
+ "pollster 0.4.0",
+ "wgpu",
+]
+
+[[package]]
+name = "jilo-gpu"
+version = "0.12.0"
+dependencies = [
+ "image",
+ "jilo-color",
+ "jilo-export",
+ "jilo-frame",
+ "jilo-geom",
+ "jilo-media",
+ "jilo-project",
+ "jilo-render",
+ "jilo-time",
+ "log",
+ "pollster 0.4.0",
+ "rayon",
+ "wgpu",
+]
+
+[[package]]
+name = "jilo-h264"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-h264enc"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-hevc"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-interchange"
+version = "0.12.0"
+dependencies = [
+ "flate2",
+ "jilo-cfb",
+ "jilo-color",
+ "jilo-geom",
+ "jilo-media",
+ "jilo-project",
+ "jilo-time",
+ "proptest",
+ "roxmltree",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-isobmff"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "proptest",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-matroska"
+version = "0.12.0"
+dependencies = [
+ "jilo-testkit",
+ "serde_json",
+]
+
+[[package]]
+name = "jilo-media"
+version = "0.12.0"
+dependencies = [
+ "image",
+ "jilo-color",
+ "jilo-frame",
+ "jilo-time",
+ "rayon",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-mpeg2v"
+version = "0.12.0"
+dependencies = [
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-mpegts"
+version = "0.12.0"
+dependencies = [
+ "jilo-testkit",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-mxf"
+version = "0.12.0"
+dependencies = [
+ "chrono",
+ "jilo-testkit",
+]
+
+[[package]]
+name = "jilo-ogg"
+version = "0.12.0"
+dependencies = [
+ "jilo-testkit",
+]
+
+[[package]]
+name = "jilo-opus"
+version = "0.12.0"
+dependencies = [
+ "jilo-testkit",
+]
+
+[[package]]
+name = "jilo-platform"
+version = "0.12.0"
+dependencies = [
+ "block2 0.6.2",
+ "jilo-bitstream",
+ "jilo-codecs",
+ "jilo-color",
+ "jilo-export",
+ "jilo-frame",
+ "jilo-h264",
+ "jilo-hevc",
+ "jilo-isobmff",
+ "jilo-media",
+ "jilo-project",
+ "jilo-render",
+ "jilo-testkit",
+ "jilo-time",
+ "libloading",
+ "log",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-core-media",
+ "objc2-core-video",
+ "objc2-foundation 0.3.2",
+ "objc2-video-toolbox",
+ "objc2-vision",
+ "rustix 1.1.5",
+ "windows 0.62.2",
+]
+
+[[package]]
+name = "jilo-project"
+version = "0.12.0"
+dependencies = [
+ "jilo-color",
+ "jilo-geom",
+ "jilo-media",
+ "jilo-time",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-prores"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-render"
+version = "0.12.0"
+dependencies = [
+ "half",
+ "image",
+ "jilo-audio-dsp",
+ "jilo-captions",
+ "jilo-color",
+ "jilo-frame",
+ "jilo-geom",
+ "jilo-media",
+ "jilo-project",
+ "jilo-text",
+ "jilo-time",
+ "rayon",
+ "rustix 1.1.5",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "jilo-scopes"
+version = "0.12.0"
+dependencies = [
+ "jilo-color",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "jilo-speech"
+version = "0.12.0"
+dependencies = [
+ "candle-core",
+ "candle-nn",
+ "jilo-audio-dsp",
+ "jilo-project",
+ "jilo-time",
+ "rayon",
+ "rustls",
+ "rustls-rustcrypto",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+ "ureq",
+]
+
+[[package]]
+name = "jilo-studio"
+version = "0.12.0"
+dependencies = [
+ "arboard",
+ "chrono",
+ "cpal",
+ "eframe",
+ "egui",
+ "glob",
+ "jilo-automation",
+ "jilo-engine",
+ "jilo-export",
+ "jilo-gpu",
+ "jilo-platform",
+ "jilo-project",
+ "jilo-render",
+ "jilo-time",
+ "jilo-ui-egui",
+ "log",
+ "muda",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "rfd",
+ "serde_json",
+ "sys-locale",
+ "tokio",
+ "winit",
+ "zbus",
+]
+
+[[package]]
+name = "jilo-testkit"
+version = "0.12.0"
+dependencies = [
+ "chrono",
+ "png",
+ "tempfile",
+]
+
+[[package]]
+name = "jilo-text"
+version = "0.12.0"
+dependencies = [
+ "harfrust",
+ "jilo-color",
+ "skrifa",
+ "tempfile",
+ "unicode-bidi",
+ "unicode-linebreak",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "jilo-time"
+version = "0.12.0"
+dependencies = [
+ "proptest",
+ "serde",
+]
+
+[[package]]
+name = "jilo-tts"
+version = "0.12.0"
+dependencies = [
+ "candle-core",
+ "candle-nn",
+ "jilo-audio-dsp",
+ "jilo-tts-text",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "zip",
+]
+
+[[package]]
+name = "jilo-tts-text"
+version = "0.12.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-ui-egui"
+version = "0.12.0"
+dependencies = [
+ "cpu-time",
+ "eframe",
+ "egui",
+ "egui_kittest",
+ "image",
+ "jilo-ai",
+ "jilo-audio-dsp",
+ "jilo-captions",
+ "jilo-codecs",
+ "jilo-color",
+ "jilo-edit",
+ "jilo-engine",
+ "jilo-export",
+ "jilo-frame",
+ "jilo-geom",
+ "jilo-gpu",
+ "jilo-interchange",
+ "jilo-media",
+ "jilo-platform",
+ "jilo-project",
+ "jilo-render",
+ "jilo-scopes",
+ "jilo-speech",
+ "jilo-text",
+ "jilo-time",
+ "jilo-tts",
+ "log",
+ "pollster 0.4.0",
+ "rayon",
+ "rustix 1.1.5",
+ "serde",
+ "serde_json",
+ "sha2",
+ "toml 1.1.6+spec-1.1.0",
+ "web-time",
+]
+
+[[package]]
+name = "jilo-vp9"
+version = "0.12.0"
+dependencies = [
+ "jilo-bitstream",
+ "jilo-testkit",
+ "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "jilo-web"
+version = "0.12.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "jilo-codecs",
+ "jilo-color",
+ "jilo-engine",
+ "jilo-format",
+ "jilo-frame",
+ "jilo-isobmff",
+ "jilo-media",
+ "jilo-time",
+ "jilo-ui-egui",
+ "js-sys",
+ "log",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "web-time",
+]
 
 [[package]]
 name = "jni"
@@ -7575,16 +7574,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "winresource"
-version = "0.1.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0986a8b1d586b7d3e4fe3d9ea39fb451ae22869dcea4aa109d287a374d866087"
-dependencies = [
- "toml 1.1.6+spec-1.1.0",
- "version_check",
-]
-
-[[package]]
 name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7668,7 +7657,7 @@ checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
 name = "xtask"
 version = "0.12.0"
 dependencies = [
- "filmcraft-testkit",
+ "jilo-testkit",
  "serde_json",
 ]
 

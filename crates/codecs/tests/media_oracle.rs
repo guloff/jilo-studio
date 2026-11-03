@@ -9,9 +9,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use common::*;
-use filmcraft_media::sequence::{FrameLoader, ImageSequenceSource, Numbered, sequence_frames};
-use filmcraft_media::{FrameRequest, MediaKind, MediaSource};
-use filmcraft_time::FrameRate;
+use jilo_media::sequence::{FrameLoader, ImageSequenceSource, Numbered, sequence_frames};
+use jilo_media::{FrameRequest, MediaKind, MediaSource};
+use jilo_time::FrameRate;
 
 /// Twelve numbered stills written by ffmpeg, shared by every test that uses `ext` (#125).
 ///
@@ -26,7 +26,7 @@ fn make_sequence(ff: &Path, ext: &str, codec_args: &[&str]) -> Option<std::path:
     if complete(&d) {
         return Some(d);
     }
-    let tmp = filmcraft_testkit::fixtures::temp_path(&d);
+    let tmp = jilo_testkit::fixtures::temp_path(&d);
     std::fs::create_dir_all(&tmp).ok()?;
     let pattern = tmp.join(format!("img_%04d.{ext}"));
     let mut args = vec!["-y", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=96x64:rate=25", "-frames:v", "12"];
@@ -53,9 +53,9 @@ fn open_sequence(d: &Path, ext: &str) -> ImageSequenceSource {
     ImageSequenceSource::new("img_0001", sequence_frames(&n, &names), FrameRate::FPS_25, loader()).unwrap()
 }
 
-fn rgba(f: &filmcraft_frame::VideoFrame) -> Vec<u8> {
+fn rgba(f: &jilo_frame::VideoFrame) -> Vec<u8> {
     match &f.data {
-        filmcraft_frame::PixelData::Rgba8(p) => p.to_vec(),
+        jilo_frame::PixelData::Rgba8(p) => p.to_vec(),
         _ => panic!("still frames are RGBA"),
     }
 }
@@ -90,36 +90,36 @@ fn check(ff: &Path, ext: &str, codec_args: &[&str], tol: u8) {
 
 #[test]
 fn png_sequence_exact() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     check(&ff, "png", &[], 0);
 }
 
 #[test]
 fn tiff_and_bmp_sequences_exact() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     check(&ff, "tif", &["-pix_fmt", "rgb24"], 0);
     check(&ff, "bmp", &[], 0);
 }
 
 #[test]
 fn jpeg_sequence_close() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     // different IDCT and chroma upsampling than ffmpeg's: a few levels
     check(&ff, "jpg", &["-q:v", "2", "-pix_fmt", "yuvj444p"], 12);
 }
 
 #[test]
 fn webp_sequence_lossless() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     check(&ff, "webp", &["-c:v", "libwebp", "-lossless", "1"], 0);
 }
 
 #[test]
 fn missing_frames_hold_the_previous_frame() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     let Some(d) = make_sequence(&ff, "png", &[]) else { return };
     // a private copy without frames 5 and 6
-    let gap = filmcraft_testkit::fixtures::temp_path(&dir().join("seq_png_gap"));
+    let gap = jilo_testkit::fixtures::temp_path(&dir().join("seq_png_gap"));
     std::fs::create_dir_all(&gap).unwrap();
     for n in (1..=12).filter(|n| *n != 5 && *n != 6) {
         let name = format!("img_{n:04}.png");
@@ -138,7 +138,7 @@ fn missing_frames_hold_the_previous_frame() {
 
 #[test]
 fn broadcast_wav_time_reference() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     // 01:00:00:00 at 23.976: 86 400 frames × 2002 samples
     let tr = (86_400u64 * 2002).to_string();
     let meta = format!("time_reference={tr}");
@@ -149,11 +149,11 @@ fn broadcast_wav_time_reference() {
     ) else {
         panic!("could not write BWF")
     };
-    let src = filmcraft_codecs::open_bytes("bwf_1h.wav", bytes(&f)).unwrap();
+    let src = jilo_codecs::open_bytes("bwf_1h.wav", bytes(&f)).unwrap();
     assert_eq!(src.info().container, "Broadcast WAV");
     assert_eq!(src.info().start_timecode, Some(86_400));
     // ffprobe agrees on the time reference
-    if let Some(fp) = filmcraft_testkit::ffprobe() {
+    if let Some(fp) = jilo_testkit::ffprobe() {
         let o = std::process::Command::new(fp).args(["-v", "error", "-show_entries", "format_tags=time_reference", "-of", "csv=p=0"]).arg(&f).output().unwrap();
         assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), tr);
     }

@@ -7,10 +7,10 @@
 //! Automation ids: `quick.<command id>`.
 
 use egui::{Align2, Color32, Rect, Sense, pos2, vec2};
-use filmcraft_project::ItemKind;
+use jilo_project::ItemKind;
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::theme::Tokens;
 
 /// What the selection is.
@@ -22,7 +22,7 @@ enum Kind {
     Captions,
 }
 
-fn selection_kind(app: &FilmcraftApp) -> Option<Kind> {
+fn selection_kind(app: &JiloApp) -> Option<Kind> {
     let s = &app.session;
     if !s.state.caption_selection.is_empty() {
         return Some(Kind::Captions);
@@ -55,7 +55,7 @@ fn actions(kind: Kind) -> &'static [(&'static str, &'static str)] {
 }
 
 /// Draw the row over the bottom of `area` (the visible picture).
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, area: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, area: Rect) {
     if !app.ui.quick_actions || app.playback.playing {
         return;
     }
@@ -79,7 +79,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, area: Rect) {
     for ((id, label), w) in list.iter().zip(&widths) {
         let r = Rect::from_min_size(pos2(x, bar.min.y + 4.0), vec2(*w, h));
         let enabled =
-            id.starts_with("window.") || id.starts_with("graphics.") || filmcraft_engine::find_command(id).is_none_or(|c| (c.enabled)(&app.session).is_ok());
+            id.starts_with("window.") || id.starts_with("graphics.") || jilo_engine::find_command(id).is_none_or(|c| (c.enabled)(&app.session).is_ok());
         let resp = ui.interact(r, egui::Id::new(("quick-action", *id)), if enabled { Sense::click() } else { Sense::hover() });
         let shown = crate::i18n::t(label);
         app.auto.add(&format!("quick.{id}"), r, shown);
@@ -113,7 +113,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, area: Rect) {
             .pivot(Align2::LEFT_BOTTOM)
             .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
-                    for (id, name) in filmcraft_engine::speed_presets::PRESETS {
+                    for (id, name) in jilo_engine::speed_presets::PRESETS {
                         let r = ui.button(crate::i18n::t(name));
                         app.auto.add(&format!("quick.speed.{id}"), r.rect, name);
                         if r.clicked() {

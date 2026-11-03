@@ -30,9 +30,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::{Value, json};
 
-use filmcraft_project::{ClipId, ItemId, ItemKind, MediaRef, Narration, TrackId, TrackKind, VocalPitch};
-use filmcraft_time::{Tick, TimeRange};
-use filmcraft_tts as tts;
+use jilo_project::{ClipId, ItemId, ItemKind, MediaRef, Narration, TrackId, TrackKind, VocalPitch};
+use jilo_time::{Tick, TimeRange};
+use jilo_tts as tts;
 
 use crate::commands::{CommandSpec, always, bad, bool_p, has_seq, str_p, time_p, u64_p};
 use crate::{EngineError, Result, Session};
@@ -119,7 +119,7 @@ pub fn cloud_voice(voice: &str) -> Option<&str> {
 /// on the session's thread, so a background job can use them).
 pub enum Speaker {
     Local(Option<std::path::PathBuf>),
-    Cloud { key: filmcraft_ai::Secret, transport: Arc<dyn filmcraft_ai::Transport>, model: String, sleep: Option<filmcraft_ai::SleepFn> },
+    Cloud { key: jilo_ai::Secret, transport: Arc<dyn jilo_ai::Transport>, model: String, sleep: Option<jilo_ai::SleepFn> },
 }
 
 /// The speaker of `n`: an ElevenLabs voice needs its key, the network and the user's consent to send
@@ -128,8 +128,8 @@ fn speaker(s: &mut Session, cmd: &str, p: &Value, n: &Narration) -> Result<Speak
     if cloud_voice(&n.voice).is_none() {
         return Ok(Speaker::Local(crate::transcript::models_dir()));
     }
-    let provider = filmcraft_ai::Provider::ElevenLabs;
-    let (key, _) = crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(filmcraft_ai::AiError::NoKey(provider)))?;
+    let provider = jilo_ai::Provider::ElevenLabs;
+    let (key, _) = crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(jilo_ai::AiError::NoKey(provider)))?;
     let transport = crate::ai::transport(s).map_err(crate::ai::ai_err)?;
     crate::recognition::ensure_consent_for(s, provider, p, cmd, "the narration's text")?;
     Ok(Speaker::Cloud { key, transport, model: s.prefs.ai.voice_model(), sleep: s.ai_sleep.clone() })
@@ -148,18 +148,18 @@ fn render(n: &Narration, speaker: &Speaker) -> std::result::Result<tts::Audio, S
             voice.synthesize(&n.text, &tts::Params { semitones: n.pitch.semitones(), pace: n.pace }).map_err(|e| e.to_string())
         }
         Speaker::Cloud { key, transport, model, sleep } => {
-            let mut ctx = filmcraft_ai::Ctx::new(transport.clone());
+            let mut ctx = jilo_ai::Ctx::new(transport.clone());
             if let Some(sl) = sleep {
                 ctx = ctx.with_sleep(sl.clone());
             }
             // each piece of speech is spoken on its own, the script's pauses as silence between them
-            let rate = filmcraft_ai::elevenlabs::VOICE_SAMPLE_RATE;
+            let rate = jilo_ai::elevenlabs::VOICE_SAMPLE_RATE;
             let mut samples: Vec<f32> = Vec::new();
             for seg in tts::script::parse(&n.text) {
                 match seg {
                     tts::script::Segment::Speech(text) if !text.trim().is_empty() => {
-                        let pcm = filmcraft_ai::elevenlabs::speak(&ctx, key, model, cloud_voice(&n.voice).unwrap_or_default(), text.trim())
-                            .map_err(|e| e.to_string())?;
+                        let pcm =
+                            jilo_ai::elevenlabs::speak(&ctx, key, model, cloud_voice(&n.voice).unwrap_or_default(), text.trim()).map_err(|e| e.to_string())?;
                         samples.extend(pcm.iter().map(|v| f32::from(*v) / 32768.0));
                     }
                     tts::script::Segment::Speech(_) => {}
@@ -208,7 +208,7 @@ fn package_json() -> Value {
 fn cloud_voices_json(s: &Session) -> Value {
     let list = s.cloud_voices.lock().unwrap_or_else(PoisonError::into_inner).clone();
     json!({
-        "key": crate::ai::key(s, filmcraft_ai::Provider::ElevenLabs).is_some(),
+        "key": crate::ai::key(s, jilo_ai::Provider::ElevenLabs).is_some(),
         "loaded": list.is_some(),
         "voices": list.unwrap_or_default().iter().map(|v| json!({
             "id": format!("{CLOUD_VOICE_PREFIX}{}", v.id), "name": v.name, "gender": v.gender, "language": v.language, "engine": "cloud",
@@ -218,19 +218,19 @@ fn cloud_voices_json(s: &Session) -> Value {
 
 /// Load the account's ElevenLabs voices (a job; `tts.voices` lists them as `cloud` once loaded).
 fn cloud_voices(s: &mut Session, p: &Value) -> Result<Value> {
-    let provider = filmcraft_ai::Provider::ElevenLabs;
-    let (key, _) = crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(filmcraft_ai::AiError::NoKey(provider)))?;
+    let provider = jilo_ai::Provider::ElevenLabs;
+    let (key, _) = crate::ai::key(s, provider).ok_or_else(|| crate::ai::ai_err(jilo_ai::AiError::NoKey(provider)))?;
     let transport = crate::ai::transport(s).map_err(crate::ai::ai_err)?;
     let job = new_job(s, "Loading ElevenLabs voices".into());
     let (prog, res, cache, sleep) = (job.progress.clone(), job.result.clone(), s.cloud_voices.clone(), s.ai_sleep.clone());
     let wait = bool_p(p, "wait").unwrap_or(false);
-    let id = spawn(s, job, wait, "filmcraft-cloud-voices", move || {
+    let id = spawn(s, job, wait, "jilo-cloud-voices", move || {
         let t0 = web_time::Instant::now();
-        let mut ctx = filmcraft_ai::Ctx::new(transport);
+        let mut ctx = jilo_ai::Ctx::new(transport);
         if let Some(sl) = sleep {
             ctx = ctx.with_sleep(sl);
         }
-        let r = filmcraft_ai::elevenlabs::voices(&ctx, &key).map(|v| {
+        let r = jilo_ai::elevenlabs::voices(&ctx, &key).map(|v| {
             let n = v.len();
             *cache.lock().unwrap_or_else(PoisonError::into_inner) = Some(v);
             format!("{n} ElevenLabs voices")
@@ -496,14 +496,14 @@ pub(crate) fn spawn(s: &mut Session, job: crate::Job, wait: bool, name: &str, ru
     Ok(id)
 }
 
-pub(crate) type JobResult = std::sync::Mutex<Option<std::result::Result<filmcraft_export::Report, String>>>;
+pub(crate) type JobResult = std::sync::Mutex<Option<std::result::Result<jilo_export::Report, String>>>;
 
-pub(crate) fn finish(prog: &filmcraft_export::Progress, res: &JobResult, r: std::result::Result<String, String>, t0: web_time::Instant) {
+pub(crate) fn finish(prog: &jilo_export::Progress, res: &JobResult, r: std::result::Result<String, String>, t0: web_time::Instant) {
     let secs = t0.elapsed().as_secs_f64();
     let r = match r {
         Ok(status) => {
             *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = status;
-            Ok(filmcraft_export::Report { path: String::new(), frames: 0, seconds: secs, bytes: 0, render_fps: 0.0, extra_files: Vec::new() })
+            Ok(jilo_export::Report { path: String::new(), frames: 0, seconds: secs, bytes: 0, render_fps: 0.0, extra_files: Vec::new() })
         }
         Err(e) => {
             *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = e.clone();
@@ -532,7 +532,7 @@ pub(crate) fn render_many(s: &mut Session, cmd: &str, list: &[Value], label: &st
     let job = new_job(s, label.to_string());
     job.progress.total.store(todo.len() as u64, Ordering::Relaxed);
     let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.tts_cache.clone());
-    let id = spawn(s, job, wait, "filmcraft-tts", move || {
+    let id = spawn(s, job, wait, "jilo-tts", move || {
         let t0 = web_time::Instant::now();
         let total = todo.len();
         let r = (|| -> std::result::Result<String, String> {
@@ -572,7 +572,7 @@ fn render_job(s: &mut Session, p: &Value) -> Result<Value> {
     let job = new_job(s, "Synthesizing narration".into());
     let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.tts_cache.clone());
     let wait = p.get("wait").and_then(Value::as_bool).unwrap_or(false);
-    let id = spawn(s, job, wait, "filmcraft-tts", move || {
+    let id = spawn(s, job, wait, "jilo-tts", move || {
         let t0 = web_time::Instant::now();
         *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = "Synthesizing…".into();
         let r = render(&n, &sp).map(|a| {
@@ -599,7 +599,7 @@ fn download_voices(s: &mut Session, p: &Value) -> Result<Value> {
     let job = new_job(s, format!("Downloading {}", tts::catalog::PACKAGE_NAME));
     job.progress.total.store(tts::catalog::missing_bytes(&dir), std::sync::atomic::Ordering::Relaxed);
     let (prog, res) = (job.progress.clone(), job.result.clone());
-    let id = spawn(s, job, wait, "filmcraft-tts-download", move || {
+    let id = spawn(s, job, wait, "jilo-tts-download", move || {
         let t0 = web_time::Instant::now();
         let r = download_package(&dir, &prog);
         finish(&prog, &res, r.map(|()| "Natural voices installed".to_string()), t0);
@@ -608,20 +608,20 @@ fn download_voices(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 #[cfg(feature = "neural-voices")]
-fn download_package(dir: &std::path::Path, prog: &filmcraft_export::Progress) -> std::result::Result<(), String> {
-    let files: Vec<filmcraft_speech::models::ModelFile> =
-        tts::catalog::FILES.iter().map(|f| filmcraft_speech::models::ModelFile { name: f.name, url: f.url, sha256: f.sha256, size: f.size }).collect();
+fn download_package(dir: &std::path::Path, prog: &jilo_export::Progress) -> std::result::Result<(), String> {
+    let files: Vec<jilo_speech::models::ModelFile> =
+        tts::catalog::FILES.iter().map(|f| jilo_speech::models::ModelFile { name: f.name, url: f.url, sha256: f.sha256, size: f.size }).collect();
     let mut progress = |done: u64, total: u64, file: &str| {
         prog.done.store(done, Ordering::Relaxed);
         prog.total.store(total, Ordering::Relaxed);
         *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("Downloading {file}");
         !prog.cancel.load(Ordering::Relaxed)
     };
-    filmcraft_speech::models::download_files(&tts::catalog::package_dir(dir), &files, &mut progress).map_err(|e| e.to_string())
+    jilo_speech::models::download_files(&tts::catalog::package_dir(dir), &files, &mut progress).map_err(|e| e.to_string())
 }
 
 #[cfg(not(feature = "neural-voices"))]
-fn download_package(_: &std::path::Path, _: &filmcraft_export::Progress) -> std::result::Result<(), String> {
+fn download_package(_: &std::path::Path, _: &jilo_export::Progress) -> std::result::Result<(), String> {
     Err("natural voices are not available in this build".into())
 }
 

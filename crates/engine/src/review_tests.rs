@@ -73,7 +73,7 @@ fn problems_are_found_where_they_are() {
 fn frames_come_as_one_sheet_without_moving_the_playhead() {
     let mut s = demo();
     s.set_playhead(Tick::from_seconds_f64(7.0));
-    let dir = std::env::temp_dir().join(format!("filmcraft-review-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-review-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("sheet.png");
     let r = s.execute("program.renderFrames", json!({"seconds": [0.5, 3, 6, 9, 12], "maxSide": 160, "columns": 3, "path": path.to_string_lossy()})).unwrap();

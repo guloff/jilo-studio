@@ -18,7 +18,7 @@ struct FakeFs {
 
 impl FakeFs {
     fn new() -> Self {
-        let wav = filmcraft_media::wav::write_wav16(&[0.0; 4800], 2, 48_000);
+        let wav = jilo_media::wav::write_wav16(&[0.0; 4800], 2, 48_000);
         let mut files = BTreeMap::new();
         for f in ["/home/me/Movies/b-roll.wav", "/home/me/Movies/A-interview.wav", "/home/me/Movies/notes.txt", "/home/me/Movies/.hidden.wav"] {
             files.insert(f.to_string(), wav.clone());
@@ -264,9 +264,9 @@ fn probing_large_unstreamable_files_does_not_read_them_whole() {
     std::fs::write(&avi, &head).unwrap();
     std::fs::OpenOptions::new().write(true).open(&avi).unwrap().set_len(crate::media_pool::PROBE_WHOLE_FILE_MAX + 36 * 1024 * 1024).unwrap();
     let wav = dir.join("voice.wav");
-    std::fs::write(&wav, filmcraft_media::wav::write_wav16(&[0.1; 9_600], 2, 48_000)).unwrap();
+    std::fs::write(&wav, jilo_media::wav::write_wav16(&[0.1; 9_600], 2, 48_000)).unwrap();
     let mov = dir.join("clip.mov");
-    crate::media_test_util::make_movie(&mov, filmcraft_media::DemoScene::OceanSunset, 64, 36, 24);
+    crate::media_test_util::make_movie(&mov, jilo_media::DemoScene::OceanSunset, 64, 36, 24);
     let mut s = Session::default();
     assert!(media_browser::probe(&mut s, &avi.to_string_lossy()).is_none());
     assert_eq!(media_browser::probe(&mut s, &wav.to_string_lossy()).unwrap().audio().unwrap().channels, 2);

@@ -13,9 +13,9 @@
 //! over up to 0.35 s. `intensity` 1.02–1.6 (1.15) multiplies the clip's own scale; `minGap` 2–60 s
 //! (6) also caps the count at the sequence length divided by it. One undo step.
 
-use filmcraft_edit::transcript::SeqWord;
-use filmcraft_project::{ClipId, Interpolation, Keyframe, ParamValue, TrackItem};
-use filmcraft_time::Tick;
+use jilo_edit::transcript::SeqWord;
+use jilo_project::{ClipId, Interpolation, Keyframe, ParamValue, TrackItem};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::ai_tasks::{Outcome, TaskWork, other, run, started};
@@ -238,8 +238,8 @@ fn mix_loudness(s: &Session, ranges: &[(f64, f64)]) -> Result<Vec<f64>> {
             if n == 0 {
                 return 0.0;
             }
-            let buf = filmcraft_render::audio::mix_sequence(&project, q, start, n, &provider);
-            let mono = filmcraft_speech::downmix(&buf.channels);
+            let buf = jilo_render::audio::mix_sequence(&project, q, start, n, &provider);
+            let mono = jilo_speech::downmix(&buf.channels);
             let sum: f64 = mono.iter().map(|x| f64::from(*x) * f64::from(*x)).sum();
             (sum / mono.len().max(1) as f64).sqrt()
         })
@@ -301,7 +301,7 @@ fn auto_zoom(s: &mut Session, p: &Value) -> Result<Value> {
         let system = meaning_prompt(max_count, min_gap);
         let work: TaskWork = Box::new(move |engine, ctx, progress| {
             if !progress(0.1, "Finding stressed phrases") {
-                return Err(filmcraft_ai::AiError::Cancelled);
+                return Err(jilo_ai::AiError::Cancelled);
             }
             let v = engine.json(ctx, &system, &transcript, Some(&meaning_schema()), 0.3)?;
             let _ = progress(1.0, "Stressed phrases found");

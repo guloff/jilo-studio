@@ -7,12 +7,12 @@
 //! | `audio.removeSilences` | ripple-delete them, keeping `keepSeconds` of each pause on both sides (one undo step) |
 //!
 //! The mix (the full mixer graph: mutes, solos, levels) is measured in 10-second blocks as 10 ms
-//! RMS frames ([`filmcraft_audio_dsp::silence`]); a pause is a run below `thresholdDb` (default −35
+//! RMS frames ([`jilo_audio_dsp::silence`]); a pause is a run below `thresholdDb` (default −35
 //! dBFS, −70…−10) lasting at least `minSeconds` (default 0.6, 0.2…5), the defaults of Jilo Studio.
 //! Cut points are snapped to frames.
 
-use filmcraft_audio_dsp::silence;
-use filmcraft_time::{Tick, TimeRange};
+use jilo_audio_dsp::silence;
+use jilo_time::{Tick, TimeRange};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, f64_p, has_seq};
@@ -40,8 +40,8 @@ pub fn find(s: &Session, p: &Value) -> Result<(Vec<TimeRange>, f64)> {
     let mut start = 0usize;
     while start < total {
         let n = block.min(total - start);
-        let buf = filmcraft_render::audio::mix_sequence(&project, q, start as i64, n, &provider);
-        let mono: Vec<f32> = filmcraft_speech::downmix(&buf.channels);
+        let buf = jilo_render::audio::mix_sequence(&project, q, start as i64, n, &provider);
+        let mono: Vec<f32> = jilo_speech::downmix(&buf.channels);
         levels.extend(silence::frame_levels_db(&mono, rate));
         start += n;
     }
@@ -91,7 +91,7 @@ fn remove_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     if n == 0 {
         return Ok(json!({"removed": 0, "seconds": 0.0}));
     }
-    let total = s.edit_sequence("Remove Silent Pauses", |q, ctx, _| Ok(filmcraft_edit::transcript::ripple_delete_ranges(q, cut, ctx)))?;
+    let total = s.edit_sequence("Remove Silent Pauses", |q, ctx, _| Ok(jilo_edit::transcript::ripple_delete_ranges(q, cut, ctx)))?;
     Ok(json!({"removed": n, "seconds": total.seconds()}))
 }
 

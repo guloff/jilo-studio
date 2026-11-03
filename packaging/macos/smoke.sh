@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test of a built FilmCraft on macOS: import → sequence → export → ffprobe, through the CLI
+# Smoke test of a built Jilo Studio on macOS: import → sequence → export → ffprobe, through the CLI
 # (the same engine the app runs), plus the launch check of packaging/macos/check_symbols.py.
 #
 #   packaging/macos/smoke.sh [bin dir]      (default: target/release)
@@ -10,14 +10,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BIN="${1:-$ROOT/target/release}"
-CLI="$BIN/filmcraft-cli"
-OUT="$(mktemp -d "${TMPDIR:-/tmp}/filmcraft-smoke.XXXXXX")"
+CLI="$BIN/jilo-cli"
+OUT="$(mktemp -d "${TMPDIR:-/tmp}/jilo-smoke.XXXXXX")"
 trap 'rm -rf "$OUT"' EXIT
 pass() { printf '  ok    %s\n' "$*"; }
 fail() { printf '  FAIL  %s\n' "$*" >&2; exit 1; }
 
 echo "==> launch: framework symbols against the deployment target"
-python3 -I "$ROOT/packaging/macos/check_symbols.py" "$BIN/filmcraft" || fail "a framework symbol is newer than the deployment target"
+python3 -I "$ROOT/packaging/macos/check_symbols.py" "$BIN/jilo-studio" || fail "a framework symbol is newer than the deployment target"
 python3 -I "$ROOT/packaging/macos/check_symbols.py" "$CLI" || fail "a framework symbol of the CLI is newer than the deployment target"
 pass "no symbol newer than the binaries' minos"
 
@@ -32,8 +32,8 @@ pass "mcp: $tools tools"
 # protocol on stdout
 app_tools=$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-  | "$BIN/filmcraft" --mcp --bridge 127.0.0.1:9 2>/dev/null | jq -s '[.[] | select(.id == 2) | .result.tools[].name] | length')
-[ "${app_tools:-0}" -ge 10 ] || fail "filmcraft --mcp tools/list returned ${app_tools:-nothing}"
+  | "$BIN/jilo-studio" --mcp --bridge 127.0.0.1:9 2>/dev/null | jq -s '[.[] | select(.id == 2) | .result.tools[].name] | length')
+[ "${app_tools:-0}" -ge 10 ] || fail "jilo-studio --mcp tools/list returned ${app_tools:-nothing}"
 pass "app --mcp: $app_tools tools"
 
 echo "==> test media"

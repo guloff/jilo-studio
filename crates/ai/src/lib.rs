@@ -1,7 +1,7 @@
-//! Cloud AI providers for FilmCraft's AI features (Settings ▸ AI).
+//! Cloud AI providers for Jilo Studio's AI features (Settings ▸ AI).
 //!
 //! - [`Provider`]: Google Gemini, OpenAI, Anthropic Claude (text) and ElevenLabs (speech and voices). Nothing here runs unless a feature the user started
-//!   asks for it; the local engines (Whisper, see `filmcraft-speech`) stay the default.
+//!   asks for it; the local engines (Whisper, see `jilo-speech`) stay the default.
 //! - [`transport`]: the [`Transport`] trait every request goes through. [`transport::FakeTransport`]
 //!   answers from a script and records the requests, so tests never touch the network;
 //!   [`transport::HttpTransport`] (feature `net`) sends them over HTTPS.

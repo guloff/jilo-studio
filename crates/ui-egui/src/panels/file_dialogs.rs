@@ -8,7 +8,7 @@ use egui::{Frame, Margin, RichText, Ui};
 use serde_json::json;
 
 use crate::theme::Tokens;
-use crate::{Dialog, FilmcraftApp};
+use crate::{Dialog, JiloApp};
 
 /// Dialog-local state.
 #[derive(Default)]
@@ -20,14 +20,14 @@ fn modal_frame(t: &Tokens) -> Frame {
     crate::dialog_style::frame(t)
 }
 
-fn button(app: &mut FilmcraftApp, ui: &mut Ui, id: &str, label: &str, primary: bool) -> bool {
+fn button(app: &mut JiloApp, ui: &mut Ui, id: &str, label: &str, primary: bool) -> bool {
     let widget = if primary { crate::dialog_style::primary(label) } else { crate::dialog_style::secondary(label) };
     let r = ui.add(widget);
     app.auto.add(id, r.rect, label);
     r.clicked()
 }
 
-pub fn show_recovery(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+pub fn show_recovery(app: &mut JiloApp, ctx: &egui::Context) -> bool {
     let t = app.tokens;
     let list = app.session.execute("file.recoveryList", json!({})).unwrap_or_default();
     let items = list.as_array().cloned().unwrap_or_default();
@@ -46,9 +46,9 @@ pub fn show_recovery(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
             let name = c["projectName"].as_str().unwrap_or(tl!("Untitled"));
             let when = c["savedAt"].as_str().unwrap_or("");
             let why = if c["cleanExit"].as_bool() == Some(true) {
-                tlf!("FilmCraft was closed while “{name}” had unsaved changes.", name)
+                tlf!("Jilo Studio was closed while “{name}” had unsaved changes.", name)
             } else {
-                tlf!("FilmCraft quit unexpectedly while “{name}” had unsaved changes.", name)
+                tlf!("Jilo Studio quit unexpectedly while “{name}” had unsaved changes.", name)
             };
             ui.label(RichText::new(why).size(13.5).color(t.text));
             ui.add_space(4.0);
@@ -95,7 +95,7 @@ pub fn show_recovery(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
     open && !app.session.recovery_candidates().is_empty()
 }
 
-pub fn show_revert(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+pub fn show_revert(app: &mut JiloApp, ctx: &egui::Context) -> bool {
     let t = app.tokens;
     let file = app.session.path.as_deref().and_then(|p| std::path::Path::new(p).file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let mut open = true;
@@ -126,7 +126,7 @@ pub fn show_revert(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
 
 /// "Save changes to '<project>' before quitting?" Save (Save As when the project has no file yet),
 /// Don't Save (quit and drop the recovery journal) or Cancel (stay), like Premiere (#266).
-pub fn show_quit(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+pub fn show_quit(app: &mut JiloApp, ctx: &egui::Context) -> bool {
     let t = app.tokens;
     // the file, else the project's name as the title bar shows it (a project not saved yet)
     let name = app.session.path.as_deref().and_then(|p| std::path::Path::new(p).file_name()).map(|n| n.to_string_lossy().into_owned());
@@ -176,7 +176,7 @@ pub fn show_quit(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
 }
 
 /// Draw the dialog if it is one of ours; returns Some(still open).
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context, d: Dialog) -> Option<bool> {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context, d: Dialog) -> Option<bool> {
     match d {
         Dialog::Preferences => Some(crate::panels::settings::show(app, ctx)),
         Dialog::Recovery => Some(show_recovery(app, ctx)),

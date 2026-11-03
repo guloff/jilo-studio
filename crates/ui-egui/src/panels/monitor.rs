@@ -8,11 +8,11 @@
 //! that is dragged instead of waiting for the mouse to rest.
 
 use egui::{Align2, Color32, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_project::ItemKind;
-use filmcraft_time::{Tick, TimeDisplay, format_time};
+use jilo_project::ItemKind;
+use jilo_time::{Tick, TimeDisplay, format_time};
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::frames::{FrameKey, Target};
 use crate::icons::{self, Icon};
 use crate::panels::monitor_view;
@@ -25,7 +25,7 @@ pub enum Which {
     Program,
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, which: Which) {
     let t = app.tokens;
     let ctx = ui.ctx().clone();
     let controls_h = 28.0 + 24.0 + 36.0;
@@ -61,7 +61,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
                 return;
             };
             let Some(pi) = app.session.project.item(item) else { return };
-            let Some(view) = filmcraft_engine::clip_ops::source_view(&app.session, item) else { return };
+            let Some(view) = jilo_engine::clip_ops::source_view(&app.session, item) else { return };
             // a subclip shows its parent media's frames
             let size = match app.session.project.item(view.media).map(|i| &i.kind) {
                 Some(ItemKind::Media(m)) => m.info.video.as_ref().map(|v| (v.width, v.height)).unwrap_or((0, 0)),
@@ -460,7 +460,7 @@ const ASKED_KEYS: usize = 64;
 /// is, and showing it keeps the picture one pass behind the mouse instead of frozen until the
 /// mouse rests. Playback has its own schedule and remembers nothing (what was on screen before
 /// Play is no stand-in for where it stopped).
-fn asked_before(app: &mut FilmcraftApp, prefix: &str, key: FrameKey, playing: bool) -> Vec<FrameKey> {
+fn asked_before(app: &mut JiloApp, prefix: &str, key: FrameKey, playing: bool) -> Vec<FrameKey> {
     let asked = app.monitor_asked.entry(prefix.to_string()).or_default();
     if playing {
         asked.clear();
@@ -480,7 +480,7 @@ fn asked_before(app: &mut FilmcraftApp, prefix: &str, key: FrameKey, playing: bo
 /// it, else the newest ready one of `asked` (see [`asked_before`]), with the display mode's
 /// channel mapping. Returns the texture and the frame it shows.
 fn cpu_texture(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ctx: &egui::Context,
     name: &str,
     key: FrameKey,
@@ -517,7 +517,7 @@ struct EyedropperPick {
     key: FrameKey,
     time: Tick,
     /// The project with the armed effect switched off, so a colour that effect keys out can be picked.
-    project: std::sync::Arc<filmcraft_project::Project>,
+    project: std::sync::Arc<jilo_project::Project>,
 }
 
 /// Output scale of the frame an eyedropper samples (half size is plenty and quick to render).
@@ -527,7 +527,7 @@ const EYEDROPPER_SCALE: f32 = 0.5;
 /// takes a crosshair and a click fills that parameter with the colour under the pointer. The colour is
 /// read from a render of the sequence at the playhead with the armed effect switched off (an Ultra Key
 /// has already removed the green it is asked to key); Esc disarms.
-fn eyedropper(app: &mut FilmcraftApp, ui: &mut egui::Ui, resp: &egui::Response, pic: Rect, target: Target, rate: filmcraft_time::FrameRate, time: Tick) {
+fn eyedropper(app: &mut JiloApp, ui: &mut egui::Ui, resp: &egui::Response, pic: Rect, target: Target, rate: jilo_time::FrameRate, time: Tick) {
     let Some(armed) = app.ui.eyedropper.clone() else { return };
     let ctx = ui.ctx().clone();
     let pending_id = egui::Id::new("eyedropper-pending");
@@ -547,7 +547,7 @@ fn eyedropper(app: &mut FilmcraftApp, ui: &mut egui::Ui, resp: &egui::Response, 
         let uv = (((pos.x - pic.min.x) / pic.width()).clamp(0.0, 1.0), ((pos.y - pic.min.y) / pic.height()).clamp(0.0, 1.0));
         let mut project = (*app.session.project).clone();
         if let Some(e) =
-            project.sequence_mut(seq).and_then(|q| q.find_item_mut(filmcraft_project::ClipId(armed.clip))).and_then(|(_, it)| it.effects.get_mut(armed.effect))
+            project.sequence_mut(seq).and_then(|q| q.find_item_mut(jilo_project::ClipId(armed.clip))).and_then(|(_, it)| it.effects.get_mut(armed.effect))
         {
             e.enabled = false;
         }
@@ -615,14 +615,14 @@ pub fn fit(area: Rect, w: f32, h: f32) -> Rect {
 
 #[allow(clippy::too_many_arguments)]
 fn mini_timeline(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     bar: Rect,
     which: Which,
     origin: Tick,
     time: Tick,
     end: Tick,
-    rate: filmcraft_time::FrameRate,
+    rate: jilo_time::FrameRate,
     mark_in: Option<Tick>,
     mark_out: Option<Tick>,
 ) {
@@ -679,7 +679,7 @@ fn mini_timeline(
     // markers: the sequence's (Program), the clip's or the subclip's inherited ones (Source)
     let markers = match which {
         Which::Program => app.session.active_sequence().map(|q| q.markers.clone()),
-        Which::Source => app.session.state.source_item.and_then(|i| filmcraft_engine::clip_ops::source_view(&app.session, i)).map(|v| v.markers),
+        Which::Source => app.session.state.source_item.and_then(|i| jilo_engine::clip_ops::source_view(&app.session, i)).map(|v| v.markers),
     };
     if let Some(markers) = markers {
         for m in &markers {
@@ -768,7 +768,7 @@ pub fn default_buttons(source: bool) -> Vec<String> {
 }
 
 /// Every button the Button Editor offers for a monitor: the default row plus extras (#431).
-pub fn button_catalogue(app: &FilmcraftApp, src: bool) -> Vec<(Icon, &'static str, &'static str)> {
+pub fn button_catalogue(app: &JiloApp, src: bool) -> Vec<(Icon, &'static str, &'static str)> {
     if src {
         vec![
             (Icon::Marker, "markers.add", tl!("Add Marker (M)")),
@@ -806,7 +806,7 @@ pub fn button_catalogue(app: &FilmcraftApp, src: bool) -> Vec<(Icon, &'static st
     }
 }
 
-fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which) {
+fn transport(app: &mut JiloApp, ui: &mut egui::Ui, row: Rect, which: Which) {
     let t = app.tokens;
     let src = which == Which::Source;
     let shown = crate::panels::monitor_view::view_mut(app, which).buttons.clone().unwrap_or_else(|| default_buttons(src));
@@ -869,7 +869,7 @@ fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which)
 ///
 /// Automation ids: `buttonEditor.item.<button id>`, `buttonEditor.reset`, `buttonEditor.cancel`,
 /// `buttonEditor.ok`.
-pub fn button_editor(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn button_editor(app: &mut JiloApp, ctx: &egui::Context) {
     let Some(mut draft) = app.ui.button_editor.take() else { return };
     let catalogue = button_catalogue(app, draft.source);
     let title = if draft.source { tl!("Button Editor (Source)") } else { tl!("Button Editor (Program)") };
@@ -937,9 +937,9 @@ pub fn button_editor(app: &mut FilmcraftApp, ctx: &egui::Context) {
     }
 }
 
-fn source_nav(app: &mut FilmcraftApp, cmd: &str) {
+fn source_nav(app: &mut JiloApp, cmd: &str) {
     let Some(item) = app.session.state.source_item else { return };
-    let Some(v) = filmcraft_engine::clip_ops::source_view(&app.session, item) else { return };
+    let Some(v) = jilo_engine::clip_ops::source_view(&app.session, item) else { return };
     let rate = v.rate;
     let cur = app.session.state.source_playhead;
     let t = match cmd {
@@ -954,7 +954,7 @@ fn source_nav(app: &mut FilmcraftApp, cmd: &str) {
 
 /// The project with the hovered caption style on the open sequence's caption tracks, and a
 /// revision of its own for the frame cache; None when nothing is hovered (this pass or the last).
-fn caption_preview(app: &mut FilmcraftApp, ctx: &egui::Context) -> Option<(u64, std::sync::Arc<filmcraft_project::Project>)> {
+fn caption_preview(app: &mut JiloApp, ctx: &egui::Context) -> Option<(u64, std::sync::Arc<jilo_project::Project>)> {
     let pass = ctx.cumulative_pass_nr();
     let (id, style, seen) = app.ui.caption_hover.clone()?;
     if seen + 1 < pass {

@@ -7,9 +7,9 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use filmcraft_frame::VideoFrame;
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND, Tick};
 use image::AnimationDecoder;
+use jilo_frame::VideoFrame;
+use jilo_time::{FrameRate, TICKS_PER_SECOND, Tick};
 
 use crate::still::{DEFAULT_STILL_DURATION, StillSource};
 use crate::{FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, Result, VideoStreamInfo};
@@ -106,7 +106,7 @@ pub fn open(name: &str, bytes: &[u8]) -> Result<Arc<dyn MediaSource>> {
             par: (1, 1),
             codec: format!("{codec} (animated, {} frames)", out.len()),
             pixel_format: if has_alpha { "RGBA 8-bit".into() } else { "RGB 8-bit".into() },
-            color: filmcraft_color::ColorInfo::SRGB_FULL,
+            color: jilo_color::ColorInfo::SRGB_FULL,
             has_alpha,
             bitrate: None,
             hdr: None,
@@ -128,7 +128,7 @@ impl MediaSource for AnimatedSource {
         let i = self.frames.partition_point(|f| f.0 <= t).min(self.frames.len() - 1);
         Ok(self.frames[i].1.clone())
     }
-    fn audio(&self, _start: i64, _frames: usize, _sample_rate: u32) -> Result<filmcraft_frame::AudioBuffer> {
+    fn audio(&self, _start: i64, _frames: usize, _sample_rate: u32) -> Result<jilo_frame::AudioBuffer> {
         Err(MediaError::NoStream("audio"))
     }
 }

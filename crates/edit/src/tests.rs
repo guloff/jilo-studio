@@ -1,6 +1,6 @@
 use super::*;
-use filmcraft_project::{Label, Project, SequenceSettings, TrackKind};
-use filmcraft_time::FrameRate;
+use jilo_project::{Label, Project, SequenceSettings, TrackKind};
+use jilo_time::FrameRate;
 use proptest::prelude::*;
 
 const R: FrameRate = FrameRate::FPS_24;
@@ -255,7 +255,7 @@ fn closing_a_gap_moves_the_sync_locked_tracks_and_captions_with_it() {
     fx.put(v1, 30, 10, 0);
     fx.put(v2, 35, 5, 0);
     fx.put(a1, 30, 10, 0);
-    fx.seq.caption_tracks.push(filmcraft_project::CaptionTrack::new(TrackId(900), "Subtitles".into(), Default::default()));
+    fx.seq.caption_tracks.push(jilo_project::CaptionTrack::new(TrackId(900), "Subtitles".into(), Default::default()));
     let mut n = fx.next;
     let cap = captions::add_caption(&mut fx.seq, TrackId(900), f(32), f(4), "hi", &mut Fx::ctx(&mut n)).unwrap();
     assert_eq!(close_gap(&mut fx.seq, v1, f(20)).unwrap(), TimeRange::from_bounds(f(10), f(30)));
@@ -271,7 +271,7 @@ fn a_gap_with_a_caption_in_it_or_on_a_locked_track_stays() {
     let (v1, v2) = (fx.v(0), fx.v(1));
     fx.put(v1, 0, 10, 0);
     fx.put(v1, 30, 10, 0);
-    fx.seq.caption_tracks.push(filmcraft_project::CaptionTrack::new(TrackId(900), "Subtitles".into(), Default::default()));
+    fx.seq.caption_tracks.push(jilo_project::CaptionTrack::new(TrackId(900), "Subtitles".into(), Default::default()));
     let mut n = fx.next;
     captions::add_caption(&mut fx.seq, TrackId(900), f(15), f(4), "over the gap", &mut Fx::ctx(&mut n)).unwrap();
     let before = fx.seq.clone();
@@ -416,7 +416,7 @@ fn ripple_trim_group_takes_a_split_edit_along() {
     }
     fx.seq.track_mut(a1).unwrap().transitions = vec![Transition {
         id: TransitionId(1),
-        effect: filmcraft_project::find_effect("cross_dissolve").unwrap().instance(),
+        effect: jilo_project::find_effect("cross_dissolve").unwrap().instance(),
         start: f(4),
         duration: f(4),
         from: Some(stays),
@@ -476,7 +476,7 @@ fn transitions_stay_on_their_cuts() {
     let c = fx.put(v1, 20, 10, 10);
     let cross = |id, start, from, to| Transition {
         id: TransitionId(id),
-        effect: filmcraft_project::find_effect("cross_dissolve").unwrap().instance(),
+        effect: jilo_project::find_effect("cross_dissolve").unwrap().instance(),
         start: f(start),
         duration: f(4),
         from,
@@ -588,7 +588,7 @@ fn transitions_on_a_clips_own_edges_move_with_it() {
     let g = fx.put(v2, 40, 20, 10);
     let fade = |id, start, from, to| Transition {
         id: TransitionId(id),
-        effect: filmcraft_project::find_effect("cross_dissolve").unwrap().instance(),
+        effect: jilo_project::find_effect("cross_dissolve").unwrap().instance(),
         start: f(start),
         duration: f(4),
         from,

@@ -97,7 +97,7 @@ pub fn register() {
     static ONCE: OnceLock<()> = OnceLock::new();
     ONCE.get_or_init(|| {
         if let Some(d) = dir().filter(|d| d.is_dir()) {
-            filmcraft_text::fonts::add_dir(d);
+            jilo_text::fonts::add_dir(d);
         }
     });
 }
@@ -118,7 +118,7 @@ fn download(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "fonts.downloadCaptionPack";
     let dir = dir().ok_or_else(|| bad(cmd, "no data directory for fonts"))?;
     if installed() {
-        filmcraft_text::fonts::add_dir(&dir);
+        jilo_text::fonts::add_dir(&dir);
         return Ok(json!({"job": null, "installed": true}));
     }
     if !cfg!(feature = "speech-download") {
@@ -128,10 +128,10 @@ fn download(s: &mut Session, p: &Value) -> Result<Value> {
     let job = crate::narration::new_job(s, "Downloading caption fonts".into());
     job.progress.total.store(size(), std::sync::atomic::Ordering::Relaxed);
     let (prog, res) = (job.progress.clone(), job.result.clone());
-    let id = crate::narration::spawn(s, job, wait, "filmcraft-font-download", move || {
+    let id = crate::narration::spawn(s, job, wait, "jilo-font-download", move || {
         let t0 = web_time::Instant::now();
         let r = fetch(&dir, &prog).map(|()| {
-            filmcraft_text::fonts::add_dir(&dir);
+            jilo_text::fonts::add_dir(&dir);
             "Caption fonts installed".to_string()
         });
         crate::narration::finish(&prog, &res, r, t0);
@@ -140,25 +140,25 @@ fn download(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 #[cfg(feature = "speech-download")]
-fn fetch(dir: &std::path::Path, prog: &filmcraft_export::Progress) -> std::result::Result<(), String> {
+fn fetch(dir: &std::path::Path, prog: &jilo_export::Progress) -> std::result::Result<(), String> {
     use std::sync::PoisonError;
     use std::sync::atomic::Ordering;
     // the URLs are built once and live for the process (the downloader takes `&'static str`)
     static URLS: OnceLock<Vec<String>> = OnceLock::new();
     let urls = URLS.get_or_init(|| FILES.iter().map(|f| format!("https://raw.githubusercontent.com/google/fonts/{COMMIT}/{}", f.path)).collect());
-    let files: Vec<filmcraft_speech::models::ModelFile> =
-        FILES.iter().zip(urls).map(|(f, url)| filmcraft_speech::models::ModelFile { name: f.name, url, sha256: f.sha256, size: f.size }).collect();
+    let files: Vec<jilo_speech::models::ModelFile> =
+        FILES.iter().zip(urls).map(|(f, url)| jilo_speech::models::ModelFile { name: f.name, url, sha256: f.sha256, size: f.size }).collect();
     let mut progress = |done: u64, total: u64, file: &str| {
         prog.done.store(done, Ordering::Relaxed);
         prog.total.store(total, Ordering::Relaxed);
         *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("Downloading {file}");
         !prog.cancel.load(Ordering::Relaxed)
     };
-    filmcraft_speech::models::download_files(dir, &files, &mut progress).map_err(|e| e.to_string())
+    jilo_speech::models::download_files(dir, &files, &mut progress).map_err(|e| e.to_string())
 }
 
 #[cfg(not(feature = "speech-download"))]
-fn fetch(_: &std::path::Path, _: &filmcraft_export::Progress) -> std::result::Result<(), String> {
+fn fetch(_: &std::path::Path, _: &jilo_export::Progress) -> std::result::Result<(), String> {
     Err("downloads are not available in this build".into())
 }
 

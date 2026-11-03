@@ -9,7 +9,7 @@
 use egui::{RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 #[derive(Clone, Debug)]
 pub struct BrollUi {
@@ -30,9 +30,9 @@ impl Default for BrollUi {
     }
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("broll.auto").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
-    if filmcraft_engine::transcript::sequence_words(&app.session).is_empty() {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("broll.auto").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+    if jilo_engine::transcript::sequence_words(&app.session).is_empty() {
         return Err("the sequence has no transcript (AI ▸ Speech and Captions ▸ Transcribe first)".into());
     }
     if app.ui.broll.job.is_some() {
@@ -54,7 +54,7 @@ fn done(r: &Value) -> String {
     m
 }
 
-fn run(app: &mut FilmcraftApp, params: Value) {
+fn run(app: &mut JiloApp, params: Value) {
     let mut bg = params.clone();
     bg["background"] = json!(true);
     match app.session.execute("broll.auto", bg) {
@@ -67,7 +67,7 @@ fn run(app: &mut FilmcraftApp, params: Value) {
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if let Some((id, params)) = app.ui.broll.job.clone() {
         match app.session.jobs.iter().find(|j| j.id == id).map(|j| j.to_json()) {
             Some(j) if j["finished"] != true => {}
@@ -95,7 +95,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
         .state
         .project_selection
         .iter()
-        .filter(|i| app.session.project.item(**i).is_some_and(|x| matches!(x.kind, filmcraft_project::ItemKind::Media(_)) && x.has_video()))
+        .filter(|i| app.session.project.item(**i).is_some_and(|x| matches!(x.kind, jilo_project::ItemKind::Media(_)) && x.has_video()))
         .count();
     let text = app.session.prefs.ai.text_provider().name();
     let image = app.session.prefs.ai.image_provider().name();

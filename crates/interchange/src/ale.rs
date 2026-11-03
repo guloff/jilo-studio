@@ -22,8 +22,8 @@
 //! heading's `FPS`, `End` exclusive. Values never contain tabs or line breaks (they are replaced by
 //! spaces). Lines end with CR LF (Avid's own files); the reader accepts LF and CR too.
 
-use filmcraft_project::{ItemId, MediaRef, Project};
-use filmcraft_time::{FrameRate, Tick, format_timecode_frames, parse_timecode};
+use jilo_project::{ItemId, MediaRef, Project};
+use jilo_time::{FrameRate, Tick, format_timecode_frames, parse_timecode};
 
 /// A parsed or to-be-written ALE file.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -76,7 +76,7 @@ fn video_format(height: u32) -> &'static str {
 /// Build the log of `items` (media clips and subclips; other items are skipped). The heading's
 /// frame rate is the first video item's (24 fps when there is none).
 pub fn export_items(p: &Project, items: &[ItemId]) -> AleDoc {
-    let media_of = |id: ItemId| -> Option<(&filmcraft_project::MediaClip, Tick, Tick)> {
+    let media_of = |id: ItemId| -> Option<(&jilo_project::MediaClip, Tick, Tick)> {
         let (_, m, range) = p.resolve_media(id)?;
         let (start, dur) = range.map_or((Tick::ZERO, m.duration()), |r| (r.start, r.duration));
         Some((m, start, dur))
@@ -199,9 +199,9 @@ pub fn row_range(doc: &AleDoc, row: usize) -> Option<(Tick, Tick)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_media::{AudioStreamInfo, MediaInfo, MediaKind, VideoStreamInfo};
-    use filmcraft_project::{ItemKind, Label, MediaClip};
-    use filmcraft_time::TimeRange;
+    use jilo_media::{AudioStreamInfo, MediaInfo, MediaKind, VideoStreamInfo};
+    use jilo_project::{ItemKind, Label, MediaClip};
+    use jilo_time::TimeRange;
 
     fn media(p: &mut Project, name: &str, rate: FrameRate, seconds: i64, tc: Option<i64>, audio: u32) -> ItemId {
         let info = MediaInfo {

@@ -1,4 +1,4 @@
-//! Media sources for FilmCraft.
+//! Media sources for Jilo Studio.
 //!
 //! A [`MediaSource`] is anything that yields video frames and/or audio for a media time: decoded
 //! files (containers + codecs), stills, image sequences and synthetic generators (bars & tone,
@@ -23,9 +23,9 @@ pub mod wav;
 use std::path::Path;
 use std::sync::Arc;
 
-use filmcraft_color::ColorInfo;
-use filmcraft_frame::{AudioBuffer, VideoFrame};
-use filmcraft_time::{FrameRate, Tick};
+use jilo_color::ColorInfo;
+use jilo_frame::{AudioBuffer, VideoFrame};
+use jilo_time::{FrameRate, Tick};
 use serde::{Deserialize, Serialize};
 
 pub use cache::FrameCache;
@@ -144,7 +144,7 @@ pub struct VideoStreamInfo {
     pub bitrate: Option<u64>,
     /// HDR static metadata (mastering display, content light level) when the file carries it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hdr: Option<filmcraft_color::HdrMetadata>,
+    pub hdr: Option<jilo_color::HdrMetadata>,
 }
 
 /// Most audio streams a source reports (the count comes from the file: never trusted).

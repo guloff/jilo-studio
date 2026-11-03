@@ -5,11 +5,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use filmcraft_media::generators::GeneratorSource;
-use filmcraft_media::{FrameRequest, Generator, MediaSource};
-use filmcraft_project::{ItemKind, Label, MediaClip, MediaRef, SequenceSettings, TrackKind};
-use filmcraft_render::SourceMap;
-use filmcraft_time::TICKS_PER_SECOND;
+use jilo_media::generators::GeneratorSource;
+use jilo_media::{FrameRequest, Generator, MediaSource};
+use jilo_project::{ItemKind, Label, MediaClip, MediaRef, SequenceSettings, TrackKind};
+use jilo_render::SourceMap;
+use jilo_time::TICKS_PER_SECOND;
 
 use super::*;
 
@@ -18,7 +18,7 @@ struct Scratch(PathBuf);
 
 impl Scratch {
     fn new(name: &str) -> Self {
-        let d = filmcraft_testkit::fixtures::workspace_root().join("target").join("export-tests").join(format!("{name}-{}", std::process::id()));
+        let d = jilo_testkit::fixtures::workspace_root().join("target").join("export-tests").join(format!("{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         Scratch(d)
@@ -74,7 +74,7 @@ fn matte(color: [f32; 4], w: u32, h: u32, tone_db: Option<f32>) -> (Arc<Project>
 }
 
 fn ffprobe_json(args: &[&str], path: &str) -> Option<serde_json::Value> {
-    let ffprobe = filmcraft_testkit::ffprobe_or_skip("export settings")?;
+    let ffprobe = jilo_testkit::ffprobe_or_skip("export settings")?;
     let mut a = vec!["-v", "error", "-of", "json"];
     a.extend_from_slice(args);
     a.push(path);
@@ -151,9 +151,9 @@ fn mp4_exports_are_fast_start_and_play_back() {
             let moov = boxes.iter().find(|b| b.0 == *b"moov").unwrap();
             let mdat = boxes.iter().find(|b| b.0 == *b"mdat").unwrap();
             assert_eq!(moov.1 < mdat.1, multiplexer == Multiplexer::Mp4, "{mode}.{ext}");
-            let file = filmcraft_isobmff::open(bytes.as_slice()).unwrap();
+            let file = jilo_isobmff::open(bytes.as_slice()).unwrap();
             assert_eq!(file.tracks.len(), 2);
-            let video = file.track_of_kind(filmcraft_isobmff::TrackKind::Video).unwrap();
+            let video = file.track_of_kind(jilo_isobmff::TrackKind::Video).unwrap();
             assert_eq!(file.tracks[video].samples.len(), 6);
             for (track, t) in file.tracks.iter().enumerate() {
                 for (index, sample) in t.samples.iter().enumerate() {
@@ -162,7 +162,7 @@ fn mp4_exports_are_fast_start_and_play_back() {
                     assert_eq!(file.read_sample(bytes.as_slice(), track, index).unwrap().len(), sample.size as usize);
                 }
             }
-            let src = filmcraft_codecs::open_bytes(&path, bytes.into()).unwrap();
+            let src = jilo_codecs::open_bytes(&path, bytes.into()).unwrap();
             for frame in [0, 3, 5] {
                 let rgba = src.video_frame(FrameRequest::full(FrameRate::FPS_24.tick_of(frame))).unwrap().to_rgba8();
                 assert!(rgba[0] > 230 && rgba[1] < 30 && rgba[2] < 30, "{mode}.{ext}: frame {frame}");
@@ -277,8 +277,8 @@ fn flac_is_lossless_against_wav() {
     let si = &fb[8..42];
     assert_eq!((u64::from(si[13] & 0x0F) << 32) | u64::from(u32::from_be_bytes(si[14..18].try_into().unwrap())), 72_000);
 
-    // the same samples through FilmCraft's own readers
-    let decode = |name: &str, bytes: Vec<u8>| filmcraft_codecs::open_bytes(name, bytes.into()).unwrap().audio(0, 72_000, 48_000).unwrap();
+    // the same samples through Jilo Studio's own readers
+    let decode = |name: &str, bytes: Vec<u8>| jilo_codecs::open_bytes(name, bytes.into()).unwrap().audio(0, 72_000, 48_000).unwrap();
     let (a, b) = (decode("a.wav", wb), decode("a.flac", fb));
     assert_eq!(a.channels.len(), 2);
     for (ca, cb) in a.channels.iter().zip(&b.channels) {
@@ -288,7 +288,7 @@ fn flac_is_lossless_against_wav() {
         assert!(ca.iter().any(|v| v.abs() > 0.1), "the tone is there");
     }
     // and bit for bit through ffmpeg
-    if let Some(ffmpeg) = filmcraft_testkit::ffmpeg_or_skip("flac export") {
+    if let Some(ffmpeg) = jilo_testkit::ffmpeg_or_skip("flac export") {
         let raw = |path: &str| {
             let out = std::process::Command::new(&ffmpeg).args(["-v", "error", "-i", path, "-f", "s32le", "-c:a", "pcm_s32le", "-"]).output().unwrap();
             assert!(out.status.success() && out.stderr.is_empty(), "{}", String::from_utf8_lossy(&out.stderr));
@@ -330,8 +330,8 @@ fn flac_audio_in_mp4_and_mov() {
         assert!(si[4..10].iter().any(|&b| b != 0), "{name}: frame sizes");
         assert_eq!(u32::from_be_bytes(si[14..18].try_into().unwrap()), 72_000, "{name}: total samples");
         assert!(si[18..34].iter().any(|&b| b != 0), "{name}: MD5");
-        // FilmCraft's own importer reads the FLAC track back, sample-accurately long
-        let src = filmcraft_codecs::open_bytes(name, bytes.into()).unwrap();
+        // Jilo Studio's own importer reads the FLAC track back, sample-accurately long
+        let src = jilo_codecs::open_bytes(name, bytes.into()).unwrap();
         let a = src.audio(0, 72_000, 48_000).unwrap();
         assert!(a.channels.iter().all(|c| c.len() == 72_000) && a.channels[0].iter().any(|v| v.abs() > 0.1), "{name}");
         if let Some(j) = ffprobe_json(&["-show_streams", "-count_packets"], &path) {
@@ -341,7 +341,7 @@ fn flac_audio_in_mp4_and_mov() {
             assert_eq!(st["duration_ts"].as_u64(), Some(72_000), "{name}: the short last frame is timed exactly");
         }
         // the audio decodes to the WAV export's samples bit for bit
-        if let Some(ffmpeg) = filmcraft_testkit::ffmpeg_or_skip("flac in containers") {
+        if let Some(ffmpeg) = jilo_testkit::ffmpeg_or_skip("flac in containers") {
             let raw = |path: &str| {
                 let out = std::process::Command::new(&ffmpeg)
                     .args(["-v", "error", "-i", path, "-map", "0:a", "-f", "s32le", "-c:a", "pcm_s32le", "-"])
@@ -428,7 +428,7 @@ fn frame_size_rate_and_scaling() {
     let r = export(&p, seq, &s, &m, &Progress::default()).unwrap();
     assert_eq!(r.frames, 12, "1 s at 12 fps");
     let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-    let src = filmcraft_codecs::open_bytes("square.mp4", bytes).unwrap();
+    let src = jilo_codecs::open_bytes("square.mp4", bytes).unwrap();
     let v = src.info().video.clone().unwrap();
     assert_eq!((v.width, v.height), (256, 256));
     let f = src.video_frame(FrameRequest::full(Tick(TICKS_PER_SECOND / 2))).unwrap().to_rgba8();
@@ -454,7 +454,7 @@ fn frame_size_rate_and_scaling() {
     };
     export(&p, seq, &s, &m, &Progress::default()).unwrap();
     let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-    let src = filmcraft_codecs::open_bytes("fill.mov", bytes).unwrap();
+    let src = jilo_codecs::open_bytes("fill.mov", bytes).unwrap();
     let f = src.video_frame(FrameRequest::full(Tick(TICKS_PER_SECOND / 2))).unwrap().to_rgba8();
     assert!(f[(5 * 200 + 100) * 4] > 200, "filled to the top edge");
 }
@@ -462,7 +462,7 @@ fn frame_size_rate_and_scaling() {
 /// Integrated loudness of planar audio.
 fn lufs(planar: &[Vec<f32>], sr: u32) -> (f64, f64) {
     let refs: Vec<&[f32]> = planar.iter().map(Vec::as_slice).collect();
-    let s = filmcraft_audio_dsp::loudness::measure(&refs, sr as f64);
+    let s = jilo_audio_dsp::loudness::measure(&refs, sr as f64);
     (s.integrated_lufs, s.true_peak_dbtp)
 }
 
@@ -506,7 +506,7 @@ fn loudness_normalization_hits_target_and_true_peak() {
     s.effects.loudness = LoudnessNormalization { enabled: true, target_lufs: -20.0, true_peak_dbtp: -1.0 };
     export(&p, seq, &s, &m, &Progress::default()).unwrap();
     let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-    let src = filmcraft_codecs::open_bytes("loud.mp4", bytes).unwrap();
+    let src = jilo_codecs::open_bytes("loud.mp4", bytes).unwrap();
     let a = src.audio(4800, 38_400, 48_000).unwrap();
     let (i, _) = lufs(&a.channels, 48_000);
     assert!((i + 20.0).abs() < 0.5, "AAC: {i:.2} LUFS");
@@ -526,7 +526,7 @@ fn two_pass_and_cbr_h264() {
         assert_eq!(prog.total.load(Ordering::Relaxed), 24 * passes);
         assert_eq!(prog.done.load(Ordering::Relaxed), 24 * passes);
         let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-        let src = filmcraft_codecs::open_bytes("x.mp4", bytes).unwrap();
+        let src = jilo_codecs::open_bytes("x.mp4", bytes).unwrap();
         let f = src.video_frame(FrameRequest::full(Tick(TICKS_PER_SECOND / 2))).unwrap().to_rgba8();
         assert!((f[2] as i32 - 204).abs() < 12 && (f[1] as i32 - 127).abs() < 12, "{mode:?}: {:?}", &f[..4]);
     }
@@ -559,7 +559,7 @@ fn crf_h264() {
         assert_eq!((r.frames, prog.total.load(Ordering::Relaxed)), (24, 24));
         let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
         sizes.push(bytes.len());
-        let src = filmcraft_codecs::open_bytes("x.mp4", bytes).unwrap();
+        let src = jilo_codecs::open_bytes("x.mp4", bytes).unwrap();
         let f = src.video_frame(FrameRequest::full(Tick(TICKS_PER_SECOND / 2))).unwrap().to_rgba8();
         assert!((f[2] as i32 - 204).abs() < 12 && (f[1] as i32 - 127).abs() < 12, "CRF {crf}: {:?}", &f[..4]);
     }
@@ -640,7 +640,7 @@ fn metadata_and_quicktime_multiplexer() {
     let dir = Scratch::new("meta");
     let path = dir.path("m.mov");
     let mut s = ExportSettings { format: Format::H264, path: path.clone(), multiplexer: Multiplexer::Mov, ..Default::default() };
-    s.metadata = ExportMetadata { title: "Test Title".into(), creator: "FilmCraft Tests".into(), copyright: "CC0".into(), ..Default::default() };
+    s.metadata = ExportMetadata { title: "Test Title".into(), creator: "Jilo Studio Tests".into(), copyright: "CC0".into(), ..Default::default() };
     s.audio.codec = AudioCodec::Pcm;
     s.audio.bits = 24;
     assert_eq!(s.extension(), "mov");

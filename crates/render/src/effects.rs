@@ -1,14 +1,14 @@
-//! CPU reference implementations of the video effects in `filmcraft_project::effect`.
+//! CPU reference implementations of the video effects in `jilo_project::effect`.
 //!
 //! Effects operate in place on a layer [`Image`] (premultiplied linear f32). Spatial parameters are
 //! authored in full-resolution clip pixels; `FxCtx::px_scale` converts them to the working image
 //! (so ½/¼ playback resolution renders the same look). Colour-grading math runs on display-encoded
 //! straight colour where artists expect it (contrast, levels, posterize), linear light elsewhere.
 
-use filmcraft_color::{GradeSpace, hsl_to_rgb, linear_to_srgb, luma709, rgb_to_hsl, srgb_to_linear};
-use filmcraft_geom::{Affine, Vec2};
-use filmcraft_project::{EffectInstance, ParamValue};
-use filmcraft_time::Tick;
+use jilo_color::{GradeSpace, hsl_to_rgb, linear_to_srgb, luma709, rgb_to_hsl, srgb_to_linear};
+use jilo_geom::{Affine, Vec2};
+use jilo_project::{EffectInstance, ParamValue};
+use jilo_time::Tick;
 use rayon::prelude::*;
 
 use crate::image::Image;
@@ -25,13 +25,13 @@ pub struct FxCtx<'a> {
     pub timecode: &'a str,
     pub clip_name: &'a str,
     /// The project (LUT library for Lumetri); `None` in isolated effect tests.
-    pub project: Option<&'a filmcraft_project::Project>,
+    pub project: Option<&'a jilo_project::Project>,
     /// The clip's surroundings (other frames, other tracks, sequence geometry) for temporal,
     /// track-reading and reframing effects; `None` in isolated tests and adjustment layers.
     pub env: Option<&'a dyn crate::vfx::FxEnv>,
     /// The sequence's working colour space: Lumetri grades HDR (PQ / HLG) working spaces in their
-    /// own signal, normalised to HDR White ([`filmcraft_color::GradeSpace`]).
-    pub working: filmcraft_color::WorkingSpace,
+    /// own signal, normalised to HDR White ([`jilo_color::GradeSpace`]).
+    pub working: jilo_color::WorkingSpace,
 }
 
 pub(crate) fn f(e: &EffectInstance, id: &str, cx: &FxCtx) -> f32 {
@@ -815,7 +815,7 @@ pub(crate) fn mosaic(img: &mut Image, bx: usize, by: usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_project::find_effect;
+    use jilo_project::find_effect;
 
     fn cx() -> FxCtx<'static> {
         FxCtx {
@@ -826,14 +826,14 @@ mod tests {
             clip_name: "x",
             project: None,
             env: None,
-            working: filmcraft_color::WorkingSpace::Rec709,
+            working: jilo_color::WorkingSpace::Rec709,
         }
     }
 
     #[test]
     fn every_effect_runs_and_stays_finite() {
-        for def in filmcraft_project::effect_defs() {
-            if def.kind != filmcraft_project::EffectKind::Video || def.intrinsic {
+        for def in jilo_project::effect_defs() {
+            if def.kind != jilo_project::EffectKind::Video || def.intrinsic {
                 continue;
             }
             let mut img = Image::filled(24, 16, [0.2, 0.4, 0.1, 1.0]);
@@ -841,7 +841,7 @@ mod tests {
             // push params away from identity so code paths run
             for (id, p) in e.params.iter_mut() {
                 if let ParamValue::Float(v) = &mut p.value
-                    && let Some(filmcraft_project::ParamKind::Float { soft_max, .. }) = def.param(id).map(|d| &d.kind)
+                    && let Some(jilo_project::ParamKind::Float { soft_max, .. }) = def.param(id).map(|d| &d.kind)
                 {
                     *v = (*v + soft_max * 0.3).min(*soft_max);
                 }
@@ -1276,8 +1276,8 @@ mod curve_tests {
 mod lumetri_cpu_parity_tests {
     use super::*;
     use crate::gpufx::FxOp;
-    use filmcraft_project::{EffectInstance, ParamValue, find_effect};
-    use filmcraft_time::Tick;
+    use jilo_project::{EffectInstance, ParamValue, find_effect};
+    use jilo_time::Tick;
 
     fn test_picture(w: usize, h: usize) -> Image {
         let mut px = Vec::with_capacity(w * h * 4);
@@ -1291,8 +1291,8 @@ mod lumetri_cpu_parity_tests {
                     2 => [fy, fy, fy],
                     3 => [1.6 * fy, 1.2 * fy, 0.3],
                     _ => {
-                        let rgb = filmcraft_color::hsl_to_rgb(fx, 0.25 + 0.75 * ((y % 5) as f32 / 4.0), 0.1 + 0.8 * fy);
-                        rgb.map(filmcraft_color::srgb_to_linear)
+                        let rgb = jilo_color::hsl_to_rgb(fx, 0.25 + 0.75 * ((y % 5) as f32 / 4.0), 0.1 + 0.8 * fy);
+                        rgb.map(jilo_color::srgb_to_linear)
                     }
                 };
                 let a = match y % 7 {
@@ -1421,7 +1421,7 @@ mod lumetri_cpu_parity_tests {
             clip_name: "",
             project: None,
             env: None,
-            working: filmcraft_color::WorkingSpace::Rec709,
+            working: jilo_color::WorkingSpace::Rec709,
         };
 
         for (name, params) in cases {

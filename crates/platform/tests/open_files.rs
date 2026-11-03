@@ -11,7 +11,7 @@ fn more_open_files_than_the_launchd_default_after_raising() {
     low.current = Some(256);
     setrlimit(Resource::Nofile, low).unwrap();
 
-    let dir = std::env::temp_dir().join(format!("filmcraft-open-files-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-open-files-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let opened = |n: usize| -> std::io::Result<Vec<std::fs::File>> {
         (0..n).map(|i| std::fs::OpenOptions::new().create(true).truncate(false).write(true).open(dir.join(format!("{i}")))).collect()
@@ -19,12 +19,12 @@ fn more_open_files_than_the_launchd_default_after_raising() {
     // The launchd default really is too small for 400 sources.
     assert!(opened(400).is_err());
 
-    let limit = filmcraft_platform::raise_open_file_limit().unwrap();
+    let limit = jilo_platform::raise_open_file_limit().unwrap();
     assert!(limit >= 1024, "limit {limit}");
     let files = opened(400).unwrap();
     assert_eq!(files.len(), 400);
     // Raising again is a no-op, never a decrease.
-    assert_eq!(filmcraft_platform::raise_open_file_limit().unwrap(), limit);
+    assert_eq!(jilo_platform::raise_open_file_limit().unwrap(), limit);
 
     drop(files);
     let _ = std::fs::remove_dir_all(&dir);

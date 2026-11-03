@@ -6,8 +6,8 @@
 //! `background: true` the phrases are spoken in a job (progress, Stop) and the same call
 //! afterwards puts them in.
 
-use filmcraft_project::{ClipId, TrackId};
-use filmcraft_time::Tick;
+use jilo_project::{ClipId, TrackId};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, bool_p, f64_p, has_seq, str_p};

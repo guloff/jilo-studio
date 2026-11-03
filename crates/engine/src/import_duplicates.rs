@@ -34,8 +34,8 @@
 
 use std::collections::HashMap;
 
-use filmcraft_media::MediaKind;
-use filmcraft_project::{ItemId, MediaIdentity, MediaRef};
+use jilo_media::MediaKind;
+use jilo_project::{ItemId, MediaIdentity, MediaRef};
 
 use crate::{FileIdentity, Services, Session};
 

@@ -1,4 +1,4 @@
-use filmcraft_time::Tick;
+use jilo_time::Tick;
 use roxmltree::Node;
 use std::collections::HashSet;
 
@@ -56,7 +56,7 @@ pub fn import_presets(bytes: &[u8]) -> Result<(Vec<ImportedPreset>, Report)> {
                 if graph.boolean(component, &["Component", "Bypass"], false)? {
                     return Err(error(PRESETS, "disabled transition presets are not supported"));
                 }
-                filmcraft_project::find_effect("cross_dissolve").map(|d| d.instance())
+                jilo_project::find_effect("cross_dissolve").map(|d| d.instance())
             } else {
                 effects::component(&graph, component, Tick(start), (1920, 1080), (1920, 1080), &mut report)?
             };

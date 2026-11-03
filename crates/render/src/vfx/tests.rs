@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use filmcraft_project::{EffectKind, ParamKind, find_effect};
+use jilo_project::{EffectKind, ParamKind, find_effect};
 
 use super::*;
 
@@ -17,7 +17,7 @@ fn cx() -> FxCtx<'static> {
         clip_name: "clip",
         project: None,
         env: None,
-        working: filmcraft_color::WorkingSpace::Rec709,
+        working: jilo_color::WorkingSpace::Rec709,
     }
 }
 
@@ -658,7 +658,7 @@ fn paint_bucket_fills_the_connected_region() {
 
 #[test]
 fn write_on_follows_the_animated_brush() {
-    use filmcraft_project::{Interpolation, Keyframe};
+    use jilo_project::{Interpolation, Keyframe};
     let img = solid(40, 20, [0.0, 0.0, 0.0]);
     let mut e = inst("write_on");
     let p = e.params.get_mut("brush").unwrap();
@@ -932,7 +932,7 @@ impl FxEnv for ClipEnv {
 
 fn texture(x: f64, y: f64) -> [f32; 3] {
     let v = 0.5 + 0.45 * fbm(x as f32 / 9.0, y as f32 / 9.0, 0.3, 4.0, 11);
-    let l = filmcraft_color::srgb_to_linear(v.clamp(0.0, 1.0));
+    let l = jilo_color::srgb_to_linear(v.clamp(0.0, 1.0));
     [l, l, l]
 }
 /// Camera jitter at time t: a few pixels, changing every frame.
@@ -1017,7 +1017,7 @@ fn warp_stabilizer_removes_camera_jitter() {
     crate::effects::apply(&mut st, &e, &FxCtx { seconds: 9.0 / 24.0, env: Some(&env), ..cx() });
     assert!(st.px.as_chunks::<4>().0.iter().all(|p| p[3] > 0.99), "auto-scale leaves no border");
     // the path cache is reused
-    assert!(stabilizer_path(&env, 0.0, filmcraft_project::TrackMethod::Position, false).is_some());
+    assert!(stabilizer_path(&env, 0.0, jilo_project::TrackMethod::Position, false).is_some());
 }
 
 #[test]
@@ -1047,10 +1047,10 @@ fn auto_reframe_follows_the_subject() {
 mod pipeline {
     use super::*;
     use crate::{RenderOptions, SourceMap, render_sequence};
-    use filmcraft_media::generators::GeneratorSource;
-    use filmcraft_media::{DemoScene, Generator, MediaSource, SharedSource};
-    use filmcraft_project::{ItemId, ItemKind, Label, MediaClip, MediaRef, SequenceSettings, TrackKind};
-    use filmcraft_time::{FrameRate, TICKS_PER_SECOND, TimeRange};
+    use jilo_media::generators::GeneratorSource;
+    use jilo_media::{DemoScene, Generator, MediaSource, SharedSource};
+    use jilo_project::{ItemId, ItemKind, Label, MediaClip, MediaRef, SequenceSettings, TrackKind};
+    use jilo_time::{FrameRate, TICKS_PER_SECOND, TimeRange};
 
     fn add(p: &mut Project, map: &mut SourceMap, g: GeneratorSource) -> ItemId {
         let info = g.info().clone();

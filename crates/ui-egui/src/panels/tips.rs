@@ -8,7 +8,7 @@
 use egui::RichText;
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The tips, in order.
 pub const TIPS: [&str; 14] = [
@@ -34,11 +34,11 @@ pub struct TipsUi {
     pub index: usize,
 }
 
-pub fn open(app: &mut FilmcraftApp) {
+pub fn open(app: &mut JiloApp) {
     app.ui.tips.open = true;
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.tips.open {
         return;
     }
@@ -61,7 +61,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
             ui.add(egui::Label::new(RichText::new(crate::i18n::t(TIPS[i])).size(15.0)).wrap());
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                let r = ui.checkbox(&mut at_start, tl!("Show tips when FilmCraft starts"));
+                let r = ui.checkbox(&mut at_start, tl!("Show tips when Jilo Studio starts"));
                 app.auto.add("tips.atStart", r.rect, "Show tips at start");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let n = ui.button(tl!("Next Tip"));

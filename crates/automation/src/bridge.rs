@@ -76,10 +76,10 @@ impl BridgeClient {
 
     /// Present the app's control token on a new connection (#163). Read on every connect, so a
     /// restarted app's new token is picked up. Without one (an app started with
-    /// `FILMCRAFT_CONTROL_NO_AUTH=1`, or an older app) nothing is sent.
+    /// `JILO_CONTROL_NO_AUTH=1`, or an older app) nothing is sent.
     async fn authenticate(&self, conn: &mut Conn) -> Result<(), AutomationError> {
         let port = self.addr.rsplit_once(':').and_then(|(_, p)| p.parse::<u16>().ok()).unwrap_or(0);
-        let Some(token) = filmcraft_engine::control_token::for_client(port, self.data_dir.as_deref()) else { return Ok(()) };
+        let Some(token) = jilo_engine::control_token::for_client(port, self.data_dir.as_deref()) else { return Ok(()) };
         let line = format!("{}\n", json!({"id": 0, "method": "auth", "params": {"token": token}}));
         conn.1.write_all(line.as_bytes()).await.map_err(|e| AutomationError::Bridge(e.to_string()))?;
         let mut buf = String::new();
@@ -99,13 +99,13 @@ impl BridgeClient {
     /// is Jilo Studio's setting, on any other the app's `--control` option.
     fn not_reachable(&self, e: &str) -> String {
         let port = self.addr.rsplit_once(':').and_then(|(_, p)| p.parse::<u16>().ok());
-        if port == Some(filmcraft_engine::control_token::ASSISTANT_PORT) {
+        if port == Some(jilo_engine::control_token::ASSISTANT_PORT) {
             format!(
                 "Jilo Studio is not open, or it does not allow AI assistants: open it and turn on Settings ▸ AI ▸ Allow AI assistants (cannot connect to {}: {e})",
                 self.addr
             )
         } else {
-            format!("cannot connect to {} ({e}); start the app with `filmcraft --control <port>`", self.addr)
+            format!("cannot connect to {} ({e}); start the app with `jilo-studio --control <port>`", self.addr)
         }
     }
 
@@ -214,14 +214,14 @@ mod tests {
     /// after a reconnect; the app answers nothing before that.
     #[tokio::test]
     async fn the_client_presents_the_apps_token_on_every_connection() {
-        if filmcraft_engine::control_token::token_from_env().is_some() {
+        if jilo_engine::control_token::token_from_env().is_some() {
             return; // the environment's token would take precedence over the file
         }
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         let dir = std::env::temp_dir().join(format!("fc-bridge-token-{}", std::process::id()));
-        let path = filmcraft_engine::control_token::token_path(&dir, addr.port());
-        filmcraft_engine::control_token::write(&path, "t0ken").unwrap();
+        let path = jilo_engine::control_token::token_path(&dir, addr.port());
+        jilo_engine::control_token::write(&path, "t0ken").unwrap();
         let auths = Arc::new(Mutex::new(0usize));
         let count = auths.clone();
         tokio::spawn(async move {

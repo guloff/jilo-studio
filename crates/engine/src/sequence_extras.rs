@@ -15,9 +15,9 @@
 //! effects (standard effects; Motion, Opacity, Volume… are kept), remove text (graphic clips and
 //! caption tracks), keep only video or only audio.
 
-use filmcraft_edit as edit;
-use filmcraft_project::{ClipId, ItemKind, Label, Marker, MarkerId, MarkerKind, Sequence, TrackId, TrackKind};
-use filmcraft_time::{Tick, TimeRange};
+use jilo_edit as edit;
+use jilo_project::{ClipId, ItemKind, Label, Marker, MarkerId, MarkerKind, Sequence, TrackId, TrackKind};
+use jilo_time::{Tick, TimeRange};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, bool_p, f64_p, has_seq, str_p, time_p, u64_p};
@@ -183,7 +183,7 @@ pub fn mix_peak_db(s: &Session) -> Result<f64> {
     let mut pos = 0i64;
     while pos < total {
         let n = (total - pos).min(sr as i64) as usize;
-        let b = filmcraft_render::audio::mix_sequence(&s.project, q, pos, n, &provider);
+        let b = jilo_render::audio::mix_sequence(&s.project, q, pos, n, &provider);
         peak = b.peaks().into_iter().fold(peak, f32::max);
         pos += n as i64;
     }
@@ -291,12 +291,12 @@ impl SimplifyOptions {
     }
 }
 
-fn is_text(p: &filmcraft_project::Project, it: &filmcraft_project::TrackItem) -> bool {
+fn is_text(p: &jilo_project::Project, it: &jilo_project::TrackItem) -> bool {
     p.item(it.item).is_some_and(|x| matches!(x.kind, ItemKind::Graphic { .. }))
 }
 
 /// Apply Simplify Sequence to `q` (a copy). Returns what changed.
-pub fn simplify_sequence(proj: &filmcraft_project::Project, q: &mut Sequence, o: &SimplifyOptions) -> Value {
+pub fn simplify_sequence(proj: &jilo_project::Project, q: &mut Sequence, o: &SimplifyOptions) -> Value {
     let mut removed_clips = 0usize;
     // keep only video / audio
     if o.keep == "video" {
@@ -342,7 +342,7 @@ pub fn simplify_sequence(proj: &filmcraft_project::Project, q: &mut Sequence, o:
         for t in tracks.iter_mut() {
             for it in &mut t.items {
                 let n = it.effects.len();
-                it.effects.retain(|e| e.def().is_none_or(|d| d.intrinsic || filmcraft_project::graphic::is_layer_id(d.id)) || e.essential);
+                it.effects.retain(|e| e.def().is_none_or(|d| d.intrinsic || jilo_project::graphic::is_layer_id(d.id)) || e.essential);
                 removed_effects += n - it.effects.len();
             }
             if !video {

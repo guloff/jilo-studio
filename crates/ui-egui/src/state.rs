@@ -265,7 +265,7 @@ impl DisplayMode {
 }
 
 /// Monitor guide (frame pixels): `vertical` = a line at x = `position`.
-pub type Guide = filmcraft_engine::autosave::Guide;
+pub type Guide = jilo_engine::autosave::Guide;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -550,7 +550,7 @@ pub struct BatchUi {
     pub dialog: bool,
     /// Project items to process.
     pub items: Vec<u64>,
-    /// The steps chosen, in `filmcraft_engine::batch::STEPS` order.
+    /// The steps chosen, in `jilo_engine::batch::STEPS` order.
     pub steps: [bool; 11],
     /// Caption style preset for the captions step ("" = the default style).
     pub caption_preset: String,
@@ -622,7 +622,7 @@ pub struct UiState {
     /// The workspace before Simple mode, given back when it ends.
     #[serde(default)]
     pub pro_workspace: String,
-    /// Simple mode as last applied ([`crate::FilmcraftApp::apply_simple_mode`]).
+    /// Simple mode as last applied ([`crate::JiloApp::apply_simple_mode`]).
     #[serde(skip)]
     pub simple_applied: Option<bool>,
     pub dock: DockNode,
@@ -643,10 +643,10 @@ pub struct UiState {
     /// Collapsed effect sections in Effect Controls ("clip:index").
     pub collapsed_fx: Vec<String>,
     pub show_menu_bar: bool,
-    /// The header bar (Home, Import, Edit, Export, workspaces). An app that embeds FilmCraft can hide it.
+    /// The header bar (Home, Import, Edit, Export, workspaces). An app that embeds Jilo Studio can hide it.
     #[serde(default = "shown")]
     pub show_header: bool,
-    /// The status bar (hints, messages, job progress). An app that embeds FilmCraft can hide it.
+    /// The status bar (hints, messages, job progress). An app that embeds Jilo Studio can hide it.
     #[serde(default = "shown")]
     pub show_status_bar: bool,
     /// View ▸ Quick Actions: the row of actions for the selection over the Program monitor.
@@ -746,10 +746,10 @@ pub struct UiState {
     /// A caption style hovered in the Caption Style panel (id, style, pass), previewed in the paused
     /// Program monitor.
     #[serde(skip)]
-    pub caption_hover: Option<(String, filmcraft_project::CaptionStyle, u64)>,
+    pub caption_hover: Option<(String, jilo_project::CaptionStyle, u64)>,
     /// The project the preview renders (key, project).
     #[serde(skip)]
-    pub caption_hover_project: Option<(u64, std::sync::Arc<filmcraft_project::Project>)>,
+    pub caption_hover_project: Option<(u64, std::sync::Arc<jilo_project::Project>)>,
     /// The start from a video: the clips to offer the choices for, and the batch of a choice.
     #[serde(skip)]
     pub start: crate::panels::start::StartUi,
@@ -1134,7 +1134,7 @@ pub struct TransitionDurationDraft {
 /// The Sequence Settings dialog (Sequence ▸ Sequence Settings…), filled from the active sequence
 /// when it opens (`panels::sequence_settings::open`). `tab`: `general`, `color` or `vr`; the
 /// timebase is `fps_num`/`fps_den`; `mix`: `Stereo`, `Mono`, `5.1` or `Adaptive`; `working_space`:
-/// a [`filmcraft_color::WorkingSpace`] id. `scale_motion` is "Scale motion effects proportionally
+/// a [`jilo_color::WorkingSpace`] id. `scale_motion` is "Scale motion effects proportionally
 /// when changing frame size", on by default as in Premiere.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]

@@ -7,19 +7,19 @@
 use egui::RichText;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// Open the dialog (refused, with the reason, when the sequence has no transcript).
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("clip.autoZoom").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("clip.autoZoom").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
     app.ui.auto_zoom.dialog = true;
     Ok(json!({"dialog": "autoZoom"}))
 }
 
 /// Which clips the zooms go on, as `clip.autoZoom` chooses them: (selected, count).
-fn targets(app: &FilmcraftApp) -> (bool, usize) {
+fn targets(app: &JiloApp) -> (bool, usize) {
     let Some(q) = app.session.active_sequence() else { return (false, 0) };
-    let video = |c: &filmcraft_project::ClipId| q.find_item(*c).is_some_and(|(tid, _)| q.video_tracks.iter().any(|t| t.id == tid));
+    let video = |c: &jilo_project::ClipId| q.find_item(*c).is_some_and(|(tid, _)| q.video_tracks.iter().any(|t| t.id == tid));
     let selected = app.session.state.selection.iter().filter(|c| video(c)).count();
     if selected > 0 {
         return (true, selected);
@@ -32,7 +32,7 @@ fn done_message(r: &Value) -> String {
 }
 
 /// The dialog, and the message when a zoom by meaning has been applied.
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if app.ui.ai_task_result.as_ref().is_some_and(|(cmd, _)| cmd == "clip.autoZoom")
         && let Some((_, r)) = app.ui.ai_task_result.take()
     {
@@ -43,7 +43,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     }
 }
 
-fn dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn dialog(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let (mut go, mut cancel) = (false, false);
     let w = 440.0;

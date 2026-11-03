@@ -11,8 +11,8 @@ pub mod pool;
 
 use std::sync::Arc;
 
-use filmcraft_color::{ColorInfo, DecodeTable, Matrix, Range, linear_to_srgb_u8, normalize_c, normalize_y, srgb_u8_to_linear_table, to_linear, ycbcr_to_rgb};
-use filmcraft_time::Tick;
+use jilo_color::{ColorInfo, DecodeTable, Matrix, Range, linear_to_srgb_u8, normalize_c, normalize_y, srgb_u8_to_linear_table, to_linear, ycbcr_to_rgb};
+use jilo_time::Tick;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -553,9 +553,7 @@ impl VideoFrame {
         let (w, h) = (self.width as usize, self.height as usize);
         match &self.data {
             PixelData::Rgba8(d) => d.as_ref().clone(),
-            PixelData::Yuv8 { planes, chroma, alpha: None }
-                if matches!(self.color.transfer, filmcraft_color::Transfer::Bt709 | filmcraft_color::Transfer::Srgb) =>
-            {
+            PixelData::Yuv8 { planes, chroma, alpha: None } if matches!(self.color.transfer, jilo_color::Transfer::Bt709 | jilo_color::Transfer::Srgb) => {
                 // Direct display path: Y'CbCr → R'G'B' without linearisation.
                 let (sx, sy) = chroma.shifts();
                 let cw = w.div_ceil(1 << sx);
@@ -1131,7 +1129,7 @@ mod tests {
             seed ^= seed << 5;
             (seed >> 24) as u8
         };
-        let curve = filmcraft_color::DecodeTable::new(0.0, 1.0, 4096, |v| v.max(0.0).powf(2.4));
+        let curve = jilo_color::DecodeTable::new(0.0, 1.0, 4096, |v| v.max(0.0).powf(2.4));
         for chroma in [Chroma::C420, Chroma::C422, Chroma::C444] {
             let (sx, sy) = chroma.shifts();
             let (cw, ch) = (w.div_ceil(1 << sx), h.div_ceil(1 << sy));

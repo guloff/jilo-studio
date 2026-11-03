@@ -18,11 +18,11 @@
 
 use std::sync::Arc;
 
-use filmcraft_frame::VideoFrame;
-use filmcraft_geom::Affine;
-use filmcraft_media::FrameRequest;
-use filmcraft_project::{ItemId, ItemKind, Project, Sequence, TrackItem};
-use filmcraft_time::Tick;
+use jilo_frame::VideoFrame;
+use jilo_geom::Affine;
+use jilo_media::FrameRequest;
+use jilo_project::{ItemId, ItemKind, Project, Sequence, TrackItem};
+use jilo_time::Tick;
 
 use crate::gpufx::FxOp;
 use crate::{Blend, RenderOptions, SourceProvider, motion_matrix, output_size};
@@ -45,7 +45,7 @@ pub struct PlanLayer {
     pub fx: Option<Arc<LayerFx>>,
     /// Colour management of a Y'CbCr frame without effects: decoded through this transform
     /// ([`crate::colorman::decode_with`]) instead of the frame's own transfer curve.
-    pub color: Option<Arc<filmcraft_color::InputTransform>>,
+    pub color: Option<Arc<jilo_color::InputTransform>>,
 }
 
 /// The GPU effect stage of a layer: the frame is decoded into a working image of `size` (the
@@ -89,7 +89,7 @@ pub enum PlanStep {
     /// Inputs are isolated clip canvases; transition result composites Normal over lower tracks.
     Transition {
         inputs: [Vec<PlanLayer>; 2],
-        effect: filmcraft_project::EffectInstance,
+        effect: jilo_project::EffectInstance,
         progress: f32,
         scale: f32,
     },
@@ -124,7 +124,7 @@ impl PlanStack {
         self.layers = self.layers.saturating_add(1);
     }
 
-    fn push_transition(&mut self, inputs: [Vec<PlanLayer>; 2], effect: filmcraft_project::EffectInstance, progress: f32, scale: f32) {
+    fn push_transition(&mut self, inputs: [Vec<PlanLayer>; 2], effect: jilo_project::EffectInstance, progress: f32, scale: f32) {
         let added: usize = inputs.iter().map(Vec::len).sum();
         if self.exhausted || self.layer_count().saturating_add(added) > MAX_PLAN_LAYERS {
             self.exhausted = true;
@@ -202,7 +202,7 @@ fn simple_transition(id: &str) -> bool {
 /// The standard effects of a media clip if the GPU can draw it (any blend mode, every enabled
 /// standard effect with a GPU implementation, masked or not; empty without effects or with
 /// effects off). None: the clip is rendered on the CPU.
-fn gpu_chain<'a>(project: &Project, item: &'a TrackItem, opts: RenderOptions) -> Option<Vec<&'a filmcraft_project::EffectInstance>> {
+fn gpu_chain<'a>(project: &Project, item: &'a TrackItem, opts: RenderOptions) -> Option<Vec<&'a jilo_project::EffectInstance>> {
     let is_media = project.item(item.item).is_some_and(|p| matches!(p.kind, ItemKind::Media(_) | ItemKind::Subclip { .. }));
     if !is_media {
         return None;
@@ -211,7 +211,7 @@ fn gpu_chain<'a>(project: &Project, item: &'a TrackItem, opts: RenderOptions) ->
         return Some(Vec::new());
     }
     let mut chain = Vec::new();
-    for e in item.effects.iter().filter(|e| e.def().is_some_and(|d| !d.intrinsic) && !filmcraft_project::graphic::is_layer(e)) {
+    for e in item.effects.iter().filter(|e| e.def().is_some_and(|d| !d.intrinsic) && !jilo_project::graphic::is_layer(e)) {
         if !e.enabled {
             continue;
         }
@@ -297,7 +297,7 @@ fn gpu_color_managed(project: &Project, seq: &Sequence, item: &TrackItem, t: Tic
         return false;
     }
     let Some(v) = project.resolve_media(item.item).and_then(|(_, media, _)| media.info.video.as_ref()) else { return false };
-    let cs = crate::colorman::override_of(project, item.item).unwrap_or_else(|| filmcraft_color::ColorSpace::from_info(&v.color));
+    let cs = crate::colorman::override_of(project, item.item).unwrap_or_else(|| jilo_color::ColorSpace::from_info(&v.color));
     crate::colorman::needs_management_for(&seq.settings.color, cs, &v.color) && crate::interpolation_blend(item, t, v.frame_rate).is_none()
 }
 
@@ -528,7 +528,7 @@ fn push_item(
             };
             // a masked effect mixes with what it started from, opacity masks come last: the
             // order of `mask::apply_effect` and `mask::apply_opacity_masks` in `item_layer`
-            let masked = |op: FxOp, masks: &[filmcraft_project::Mask]| {
+            let masked = |op: FxOp, masks: &[jilo_project::Mask]| {
                 let masks = crate::mask::prepare(masks, mt, px_scale);
                 if masks.is_empty() { op } else { FxOp::Masked { op: Box::new(op), masks } }
             };
@@ -559,7 +559,7 @@ fn push_item(
             // drawn instead of the full picture (a quarter at 1/2, a sixteenth at 1/4 of the
             // upload and sampling). The mean is taken over Y'CbCr codes, not linear light as
             // the shader's supersampling does, so this stays limited to the opt-in draft mode.
-            let n = if filmcraft_media::cancel::draft() { crate::decimation(frame.width as f32, size.0 as f32 * want) } else { 1 };
+            let n = if jilo_media::cancel::draft() { crate::decimation(frame.width as f32, size.0 as f32 * want) } else { 1 };
             let frame = match frame.box_decimated(n) {
                 Some(small) => Arc::new(small),
                 None => frame,
@@ -571,7 +571,7 @@ fn push_item(
         }
     }
     // CPU-rendered layer (standard effects): drawn by the GPU as a pre-rendered canvas image.
-    let tc = filmcraft_time::format_time(t, seq.settings.frame_rate, seq.settings.drop_frame, filmcraft_time::TimeDisplay::Timecode, 48_000);
+    let tc = jilo_time::format_time(t, seq.settings.frame_rate, seq.settings.drop_frame, jilo_time::TimeDisplay::Timecode, 48_000);
     if let Some((img, op2, _)) = crate::item_layer(project, seq, item, t, opts, sources, &tc) {
         out.push(PlanLayer::new(cpu_frame(img), Affine::IDENTITY, op2 * extra_opacity, bl));
     }
@@ -584,7 +584,7 @@ fn push_item(
 fn track_matte(
     project: &Project,
     seq: &Sequence,
-    e: &filmcraft_project::EffectInstance,
+    e: &jilo_project::EffectInstance,
     t: Tick,
     opts: RenderOptions,
     sources: &dyn SourceProvider,
@@ -670,7 +670,7 @@ mod tests {
         let frame = Arc::new(VideoFrame::rgba_f32(1, 1, vec![0.25, 0.0, 0.0, 0.5]));
         let steps = vec![PlanStep::Transition {
             inputs: [vec![PlanLayer::new(frame, Affine::IDENTITY, 1.0, Blend::Normal)], vec![]],
-            effect: filmcraft_project::find_effect("push").unwrap().instance(),
+            effect: jilo_project::find_effect("push").unwrap().instance(),
             progress: 0.0,
             scale: 1.0,
         }];

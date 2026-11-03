@@ -10,7 +10,7 @@
 use egui::{Align2, Rect, RichText, Sense, pos2, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The kinds, in tab order: (id, name).
 pub const KINDS: [(&str, &str); 8] = [
@@ -54,7 +54,7 @@ const ANIMATIONS: [(&str, &str); 8] = [
 
 /// A sticker's picture as a texture, made once: an emoji drawn by the system font, or a shape
 /// sticker's template thumbnail.
-fn sticker_texture(app: &FilmcraftApp, ctx: &egui::Context, id: &str) -> Option<egui::TextureHandle> {
+fn sticker_texture(app: &JiloApp, ctx: &egui::Context, id: &str) -> Option<egui::TextureHandle> {
     let key = egui::Id::new(("sticker-tile", id));
     if let Some(t) = ctx.data(|d| d.get_temp::<Option<egui::TextureHandle>>(key)) {
         return t;
@@ -70,9 +70,9 @@ fn sticker_texture(app: &FilmcraftApp, ctx: &egui::Context, id: &str) -> Option<
             ctx.load_texture(format!("sticker-{id}"), egui::ColorImage::from_rgba_unmultiplied(size, img.as_raw()), egui::TextureOptions::LINEAR)
         })
     } else {
-        filmcraft_engine::graphic_templates::find_template(&app.session, id).ok().map(|e| {
+        jilo_engine::graphic_templates::find_template(&app.session, id).ok().map(|e| {
             // drawn on the whole frame: cropped to the shape, so it fills its tile
-            let (w, h, rgba) = filmcraft_engine::graphic_templates::thumbnail(&e.template, 640);
+            let (w, h, rgba) = jilo_engine::graphic_templates::thumbnail(&e.template, 640);
             let img = image::RgbaImage::from_raw(w, h, rgba).map(|full| {
                 let (mut x0, mut y0, mut x1, mut y1) = (w, h, 0, 0);
                 for (x, y, p) in full.enumerate_pixels() {
@@ -99,7 +99,7 @@ fn sticker_texture(app: &FilmcraftApp, ctx: &egui::Context, id: &str) -> Option<
 
 /// The Stickers panel (Window ▸ Stickers): a search field over the same tiles as Libraries ▸
 /// Stickers.
-pub fn stickers_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn stickers_panel(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let mut q = app.ui.library.sticker_search.clone();
     let sr = Rect::from_min_size(pos2(rect.min.x + 8.0, rect.min.y + 6.0), vec2(rect.width() - 16.0, 22.0));
@@ -114,7 +114,7 @@ pub fn stickers_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 /// The Stickers tab: categories, the entrance animation, drawing one from a description, and the
 /// tiles; a click puts one at the playhead, a drag puts it where it is dropped (the Timeline or the
 /// picture), a right-click makes it a favourite.
-fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str, panel: bool) {
+fn stickers(app: &mut JiloApp, ui: &mut egui::Ui, body: Rect, query: &str, panel: bool) {
     let t = app.tokens;
     let cat = if app.ui.library.sticker_category.is_empty() { "recent".to_string() } else { app.ui.library.sticker_category.clone() };
     let mut p = json!({"query": query});
@@ -304,8 +304,8 @@ fn look_texture(ctx: &egui::Context, name: &str) -> Option<egui::TextureHandle> 
     if let Some(t) = ctx.data(|d| d.get_temp::<Option<egui::TextureHandle>>(key)) {
         return t;
     }
-    let tex = filmcraft_render::lumetri_presets::presets().iter().find(|p| p.name == name).map(|p| {
-        let img = filmcraft_render::lumetri_presets::thumbnail(p, 160, 90);
+    let tex = jilo_render::lumetri_presets::presets().iter().find(|p| p.name == name).map(|p| {
+        let img = jilo_render::lumetri_presets::thumbnail(p, 160, 90);
         ctx.load_texture(
             format!("look-{name}"),
             egui::ColorImage::from_rgba_unmultiplied([img.w, img.h], &img.over_black_rgba8()),
@@ -323,10 +323,10 @@ struct Entry {
     name: String,
     detail: String,
     /// A media item for a thumbnail.
-    item: Option<filmcraft_project::ItemId>,
+    item: Option<jilo_project::ItemId>,
 }
 
-fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
+fn entries(app: &mut JiloApp, kind: &str) -> Vec<Entry> {
     let templates: Vec<Value> = if kind == "text" {
         app.session.execute("graphics.template.list", json!({})).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default()
     } else {
@@ -337,13 +337,13 @@ fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
         let mut v: Vec<Entry> = p
             .items
             .iter()
-            .filter(|(_, i)| matches!(i.kind, filmcraft_project::ItemKind::Media(_)) && (i.has_video() == want_video) && (want_video || i.has_audio()))
+            .filter(|(_, i)| matches!(i.kind, jilo_project::ItemKind::Media(_)) && (i.has_video() == want_video) && (want_video || i.has_audio()))
             .map(|(id, i)| {
                 let d = i.duration();
                 Entry {
                     key: id.0.to_string(),
                     name: i.name.clone(),
-                    detail: if d > filmcraft_time::Tick::ZERO { format!("{:.1} s", d.seconds()) } else { String::new() },
+                    detail: if d > jilo_time::Tick::ZERO { format!("{:.1} s", d.seconds()) } else { String::new() },
                     item: Some(*id),
                 }
             })
@@ -355,7 +355,7 @@ fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
         // the project's sound, then the sound library (made on this computer, free to use)
         "audio" => media(false)
             .into_iter()
-            .chain(filmcraft_engine::sound_library::SOUNDS.iter().map(|(id, name, cat, sec)| Entry {
+            .chain(jilo_engine::sound_library::SOUNDS.iter().map(|(id, name, cat, sec)| Entry {
                 key: format!("sfx:{id}"),
                 name: crate::i18n::t(name).to_string(),
                 detail: format!("{} · {:.1} s", if *cat == "music" { tl!("Music") } else { tl!("Sound effect") }, sec),
@@ -373,9 +373,9 @@ fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
                 })
             })
             .collect(),
-        "effects" => filmcraft_project::effect_defs()
+        "effects" => jilo_project::effect_defs()
             .iter()
-            .filter(|d| d.kind == filmcraft_project::EffectKind::Video && !d.intrinsic)
+            .filter(|d| d.kind == jilo_project::EffectKind::Video && !d.intrinsic)
             .map(|d| Entry {
                 key: d.id.to_string(),
                 name: crate::i18n::t(d.name).to_string(),
@@ -383,9 +383,9 @@ fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
                 item: None,
             })
             .collect(),
-        "transitions" => filmcraft_project::effect_defs()
+        "transitions" => jilo_project::effect_defs()
             .iter()
-            .filter(|d| d.kind == filmcraft_project::EffectKind::VideoTransition)
+            .filter(|d| d.kind == jilo_project::EffectKind::VideoTransition)
             .map(|d| Entry {
                 key: d.id.to_string(),
                 name: crate::i18n::t(d.name).to_string(),
@@ -393,11 +393,11 @@ fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
                 item: None,
             })
             .collect(),
-        "captions" => filmcraft_engine::caption_presets::builtin()
+        "captions" => jilo_engine::caption_presets::builtin()
             .iter()
             .map(|pr| Entry { key: pr.id.to_string(), name: crate::i18n::t(pr.name).to_string(), detail: String::new(), item: None })
             .collect(),
-        "filters" => filmcraft_render::lumetri_presets::presets()
+        "filters" => jilo_render::lumetri_presets::presets()
             .iter()
             .map(|pr| Entry { key: pr.name.to_string(), name: crate::i18n::t(pr.name).to_string(), detail: crate::i18n::t(pr.folder).to_string(), item: None })
             .collect(),
@@ -407,7 +407,7 @@ fn entries(app: &mut FilmcraftApp, kind: &str) -> Vec<Entry> {
 }
 
 /// What a double-click on `key` in `kind` does: (command, parameters).
-fn action(app: &FilmcraftApp, kind: &str, key: &str) -> Option<(&'static str, Value)> {
+fn action(app: &JiloApp, kind: &str, key: &str) -> Option<(&'static str, Value)> {
     let at = app.session.playhead().0;
     match kind {
         "audio" if key.starts_with("sfx:") => Some(("sounds.add", json!({"id": &key[4..]}))),
@@ -421,7 +421,7 @@ fn action(app: &FilmcraftApp, kind: &str, key: &str) -> Option<(&'static str, Va
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let kind = if app.ui.library.kind.is_empty() { "media".to_string() } else { app.ui.library.kind.clone() };
     // the tabs, wrapping on a narrow panel
@@ -490,7 +490,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                             );
                         } else if let Some(item) = e.item
                             && kind == "media"
-                            && let Some((tex, size)) = app.thumbnail(ui.ctx(), item, filmcraft_time::Tick::ZERO, 160)
+                            && let Some((tex, size)) = app.thumbnail(ui.ctx(), item, jilo_time::Tick::ZERO, 160)
                         {
                             let s = (th.width() / size.x).min(th.height() / size.y);
                             let ir = Rect::from_center_size(th.center(), size * s);

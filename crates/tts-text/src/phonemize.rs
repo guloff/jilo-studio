@@ -1469,13 +1469,13 @@ PERCENT  P ER0 S EH1 N T
     }
 
     /// Measured accuracy against a real CMUdict, when the environment provides one
-    /// (FILMCRAFT_CMUDICT=/path/to/cmudict.dict). Holds out every 50th entry,
+    /// (JILO_CMUDICT=/path/to/cmudict.dict). Holds out every 50th entry,
     /// rebuilds the lexicon without them, and reports letter-to-sound word
     /// accuracy and phoneme error rate on the held-out words.
     #[test]
     fn measured_accuracy_against_cmudict() {
-        let Ok(path) = std::env::var("FILMCRAFT_CMUDICT") else {
-            eprintln!("measured_accuracy_against_cmudict: FILMCRAFT_CMUDICT not set; skipping");
+        let Ok(path) = std::env::var("JILO_CMUDICT") else {
+            eprintln!("measured_accuracy_against_cmudict: JILO_CMUDICT not set; skipping");
             return;
         };
         let Ok(bytes) = std::fs::read(&path) else {

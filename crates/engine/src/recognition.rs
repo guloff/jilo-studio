@@ -12,23 +12,23 @@
 //! interface asks once per provider, and agents pass `confirm: true` (which records it). Otherwise
 //! the command fails before any audio is read.
 //!
-//! Cloud recognition goes window by window ([`filmcraft_speech::chunked`]): WAV windows (16-bit mono
+//! Cloud recognition goes window by window ([`jilo_speech::chunked`]): WAV windows (16-bit mono
 //! 16 kHz, our own writer), 2 minutes for Gemini and 10 for OpenAI, 3 at a time, each checked
 //! against the sound and recognised again in halves when incomplete. The cues are tidied, become
 //! words, word bounds are tightened by level, and speakers come from the model's labels or, when it
-//! gave none, from FilmCraft's own speaker labelling. A retired Gemini model is replaced by the one
+//! gave none, from Jilo Studio's own speaker labelling. A retired Gemini model is replaced by the one
 //! its error names, and Settings ▸ AI remembers the replacement.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use filmcraft_ai::speech::{Recognised, SpeechRequest};
-use filmcraft_ai::{AiError, Provider, Secret, Transport};
-use filmcraft_project::{ItemId, ItemKind, Transcript};
-use filmcraft_speech::chunked::{ChunkOptions, ChunkReport, WindowAnswer, WindowRecognizer, WindowRequest};
-use filmcraft_speech::cues::{Cue, CueWord};
-use filmcraft_speech::{Options, SpeechError, Transcriber};
-use filmcraft_time::Tick;
+use jilo_ai::speech::{Recognised, SpeechRequest};
+use jilo_ai::{AiError, Provider, Secret, Transport};
+use jilo_project::{ItemId, ItemKind, Transcript};
+use jilo_speech::chunked::{ChunkOptions, ChunkReport, WindowAnswer, WindowRecognizer, WindowRequest};
+use jilo_speech::cues::{Cue, CueWord};
+use jilo_speech::{Options, SpeechError, Transcriber};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{bad, bool_p, str_p, u64_p};
@@ -152,7 +152,7 @@ pub fn ensure_consent_for(s: &mut Session, provider: Provider, p: &Value, cmd: &
         return Ok(());
     }
     let who = match provider {
-        Provider::Custom => format!("{} ({})", provider.name(), filmcraft_ai::images::custom_host(&s.prefs.ai.custom_image_url)),
+        Provider::Custom => format!("{} ({})", provider.name(), jilo_ai::images::custom_host(&s.prefs.ai.custom_image_url)),
         _ => provider.name().to_string(),
     };
     Err(bad(cmd, format!("CONFIRM_CLOUD: {who} would receive {what}. Ask the user, then pass confirm: true (asked once per provider).")))
@@ -184,14 +184,14 @@ pub fn plan(s: &mut Session, p: &Value, cmd: &str, items: &[ItemId]) -> Result<P
 }
 
 /// Mono 16 kHz audio of a media source of length `dur` (None: no audio).
-pub fn source_audio(src: &filmcraft_media::SharedSource, dur: Tick) -> Option<Vec<f32>> {
+pub fn source_audio(src: &jilo_media::SharedSource, dur: Tick) -> Option<Vec<f32>> {
     if !src.info().has_audio() {
         return None;
     }
-    let sr = filmcraft_speech::SAMPLE_RATE;
+    let sr = jilo_speech::SAMPLE_RATE;
     let len = dur.to_units_floor(sr as i64).max(0) as usize;
     let buf = src.audio(0, len, sr).ok()?;
-    Some(filmcraft_speech::downmix(&buf.channels))
+    Some(jilo_speech::downmix(&buf.channels))
 }
 
 /// A waiting recognition of `item` with settings `key` (taken out of the cache).
@@ -219,7 +219,7 @@ pub fn recognize(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(cmd, "nothing to transcribe (pass `items`, select clips, or open a sequence with audio)"));
     }
     let plan = plan(s, p, cmd, &items)?;
-    let sources: Vec<(ItemId, filmcraft_media::SharedSource, Tick)> = items
+    let sources: Vec<(ItemId, jilo_media::SharedSource, Tick)> = items
         .iter()
         .filter_map(|&i| {
             let dur = match &s.project.item(i)?.kind {
@@ -238,7 +238,7 @@ pub fn recognize(s: &mut Session, p: &Value) -> Result<Value> {
     job.progress.total.store(1000 * sources.len() as u64, Ordering::Relaxed);
     let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.recognition_cache.clone());
     let wait = bool_p(p, "wait").unwrap_or(false);
-    let id = crate::narration::spawn(s, job, wait, "filmcraft-recognize", move || {
+    let id = crate::narration::spawn(s, job, wait, "jilo-recognize", move || {
         let t0 = web_time::Instant::now();
         let r = run_job(&plan, &sources, &prog, &cache);
         crate::narration::finish(&prog, &res, r, t0);
@@ -248,8 +248,8 @@ pub fn recognize(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn run_job(
     plan: &Plan,
-    sources: &[(ItemId, filmcraft_media::SharedSource, Tick)],
-    prog: &filmcraft_export::Progress,
+    sources: &[(ItemId, jilo_media::SharedSource, Tick)],
+    prog: &jilo_export::Progress,
     cache: &RecognitionCache,
 ) -> std::result::Result<String, String> {
     let mut done_words = 0usize;
@@ -288,13 +288,13 @@ pub struct CloudTranscriber {
     model: Mutex<String>,
     key: Secret,
     transport: Arc<dyn Transport>,
-    sleep: Option<filmcraft_ai::SleepFn>,
+    sleep: Option<jilo_ai::SleepFn>,
     report: Mutex<Option<ChunkReport>>,
     switched: Mutex<Option<String>>,
 }
 
 impl CloudTranscriber {
-    pub fn new(provider: Provider, model: String, key: Secret, transport: Arc<dyn Transport>, sleep: Option<filmcraft_ai::SleepFn>) -> Self {
+    pub fn new(provider: Provider, model: String, key: Secret, transport: Arc<dyn Transport>, sleep: Option<jilo_ai::SleepFn>) -> Self {
         Self { provider, model: Mutex::new(model), key, transport, sleep, report: Mutex::new(None), switched: Mutex::new(None) }
     }
 
@@ -311,7 +311,7 @@ impl CloudTranscriber {
     }
 
     fn chunk_options(&self) -> ChunkOptions {
-        ChunkOptions { window_seconds: filmcraft_ai::speech::max_window_seconds(self.provider), ..Default::default() }
+        ChunkOptions { window_seconds: jilo_ai::speech::max_window_seconds(self.provider), ..Default::default() }
     }
 
     /// Recognise with `model`, window by window, stopping when `stop` is raised.
@@ -325,7 +325,7 @@ impl CloudTranscriber {
         status: &Mutex<String>,
     ) -> std::result::Result<(Vec<Cue>, Option<String>, ChunkReport), (SpeechError, Option<AiError>)> {
         let stop_c = stop.clone();
-        let mut ctx = filmcraft_ai::Ctx::new(self.transport.clone()).with_cancel(move || stop_c.load(Ordering::Relaxed));
+        let mut ctx = jilo_ai::Ctx::new(self.transport.clone()).with_cancel(move || stop_c.load(Ordering::Relaxed));
         if let Some(sl) = &self.sleep {
             ctx = ctx.with_sleep(sl.clone());
         }
@@ -337,14 +337,14 @@ impl CloudTranscriber {
             *status.lock().unwrap_or_else(PoisonError::into_inner) = st.to_string();
             !stop.load(Ordering::Relaxed)
         };
-        filmcraft_speech::chunked::recognise(audio, &win, self.chunk_options(), &progress)
+        jilo_speech::chunked::recognise(audio, &win, self.chunk_options(), &progress)
             .map_err(|e| (e, win.last_error.lock().unwrap_or_else(PoisonError::into_inner).take()))
     }
 }
 
 /// The windows of one recognition, sent to the provider.
 struct Windows<'a> {
-    ctx: filmcraft_ai::Ctx,
+    ctx: jilo_ai::Ctx,
     provider: Provider,
     key: &'a Secret,
     model: &'a str,
@@ -354,9 +354,9 @@ struct Windows<'a> {
 
 impl WindowRecognizer for Windows<'_> {
     fn recognise(&self, w: &WindowRequest) -> std::result::Result<WindowAnswer, SpeechError> {
-        let wav = filmcraft_media::wav::write_wav16(w.audio, 1, filmcraft_speech::SAMPLE_RATE);
+        let wav = jilo_media::wav::write_wav16(w.audio, 1, jilo_speech::SAMPLE_RATE);
         let req = SpeechRequest { wav: &wav, duration: w.duration, offset: w.offset, language: self.language };
-        match filmcraft_ai::speech::transcribe(&self.ctx, self.provider, self.key, self.model, &req) {
+        match jilo_ai::speech::transcribe(&self.ctx, self.provider, self.key, self.model, &req) {
             Ok(r) => Ok(answer(r)),
             Err(AiError::Cancelled) => Err(SpeechError::Cancelled),
             Err(e) => {
@@ -369,7 +369,7 @@ impl WindowRecognizer for Windows<'_> {
 
     fn word_timings(&self) -> bool {
         // OpenAI models other than whisper-1 give no word times
-        self.provider == Provider::Gemini || self.model == filmcraft_ai::openai::DEFAULT_SPEECH_MODEL
+        self.provider == Provider::Gemini || self.model == jilo_ai::openai::DEFAULT_SPEECH_MODEL
     }
 }
 
@@ -396,7 +396,7 @@ impl Transcriber for CloudTranscriber {
         format!("{}:{}", self.provider.id(), self.model())
     }
 
-    fn transcribe(&self, audio: &[f32], opts: &Options, progress: filmcraft_speech::ProgressFn) -> std::result::Result<Transcript, SpeechError> {
+    fn transcribe(&self, audio: &[f32], opts: &Options, progress: jilo_speech::ProgressFn) -> std::result::Result<Transcript, SpeechError> {
         let stop = Arc::new(AtomicBool::new(false));
         let frac = AtomicU32::new(0f32.to_bits());
         let status = Mutex::new(String::new());
@@ -426,11 +426,11 @@ impl Transcriber for CloudTranscriber {
         });
         let ((cues, heard, report), model) = outcome.map_err(|(e, _)| e)?;
         let lang = opts.language.clone().or(heard).unwrap_or_else(|| "und".into());
-        let mut t = filmcraft_speech::chunked::transcript_from_cues(&cues, &lang, &format!("{}:{model}", self.provider.id()));
-        filmcraft_speech::vad::tighten_words(audio, &mut t.words);
+        let mut t = jilo_speech::chunked::transcript_from_cues(&cues, &lang, &format!("{}:{model}", self.provider.id()));
+        jilo_speech::vad::tighten_words(audio, &mut t.words);
         if opts.diarize && t.speakers.is_empty() && !t.words.is_empty() {
-            let p = filmcraft_speech::diarize::Params { max_speakers: opts.max_speakers, ..Default::default() };
-            filmcraft_speech::diarize::diarize(audio, &mut t, &p);
+            let p = jilo_speech::diarize::Params { max_speakers: opts.max_speakers, ..Default::default() };
+            jilo_speech::diarize::diarize(audio, &mut t, &p);
         }
         *self.report.lock().unwrap_or_else(PoisonError::into_inner) = Some(report);
         let _ = progress(1.0, "Done");

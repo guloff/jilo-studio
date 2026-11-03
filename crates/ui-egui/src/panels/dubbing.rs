@@ -10,7 +10,7 @@
 use egui::{RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 #[derive(Clone, Debug)]
 pub struct DubUi {
@@ -30,7 +30,7 @@ impl Default for DubUi {
     }
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     let has = app.session.active_sequence().is_some_and(|q| q.caption_tracks.iter().any(|t| !t.captions.is_empty()));
     if !has {
         return Err(tl!("Make captions first: AI ▸ Captions from the Transcript.").to_string());
@@ -40,12 +40,12 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
 }
 
 /// The caption track already in `lang` (C1, C2… index from 1).
-fn track_in(app: &FilmcraftApp, lang: &str) -> Option<usize> {
+fn track_in(app: &JiloApp, lang: &str) -> Option<usize> {
     app.session.active_sequence()?.caption_tracks.iter().position(|t| t.language == lang && !t.captions.is_empty()).map(|i| i + 1)
 }
 
 /// Speak caption track `index` (from 1): in a job, then put in.
-fn speak(app: &mut FilmcraftApp, index: usize) {
+fn speak(app: &mut JiloApp, index: usize) {
     let u = &app.ui.dub;
     let db = match u.original.as_str() {
         "mute" => -96.0,
@@ -68,14 +68,14 @@ fn speak(app: &mut FilmcraftApp, index: usize) {
     }
 }
 
-fn put_in(app: &mut FilmcraftApp, p: Value) {
+fn put_in(app: &mut JiloApp, p: Value) {
     app.ui.status = match app.session.execute("audio.dub", p) {
         Ok(r) => tlf!("Dubbed: {n} phrases on a new track.", n = r["clips"].as_array().map_or(0, Vec::len)),
         Err(e) => e.to_string(),
     };
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     // the translation arrived: speak it
     if app.ui.dub.translating {
         if app.ui.ai_task_result.as_ref().is_some_and(|(cmd, _)| cmd == "captions.translate")

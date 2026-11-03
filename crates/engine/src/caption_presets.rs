@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use filmcraft_project::{CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle};
+use jilo_project::{CaptionAlign, CaptionAnchor, CaptionAnimation, CaptionHighlight, CaptionStyle};
 
 use crate::captions::{has_caption_track, style_json, style_targets};
 use crate::commands::{CommandSpec, always, bad, str_p};
@@ -313,7 +313,7 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
     let (_, style) = style_of(id, d.as_deref()).ok_or_else(|| bad(cmd, format!("unknown preset `{id}`")))?;
     // phrases set apart: the look becomes their own
     if let Some(ids) = p.get("captions").and_then(Value::as_array) {
-        let ids: Vec<filmcraft_project::ClipId> = ids.iter().filter_map(Value::as_u64).map(filmcraft_project::ClipId).collect();
+        let ids: Vec<jilo_project::ClipId> = ids.iter().filter_map(Value::as_u64).map(jilo_project::ClipId).collect();
         let n = s.edit("Caption Style (Phrase)", |pr, st| {
             let seq = st.active_sequence.ok_or(EngineError::NoSequence)?;
             let q = pr.sequence_mut(seq).ok_or(EngineError::NoSequence)?;
@@ -340,8 +340,8 @@ fn apply(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// The parameters of a graphic's text layer that give it a caption look: font, size, capitals,
 /// tracking, colour, outline, box (padding, corners) and shadow.
-pub fn text_layer_params(y: &CaptionStyle) -> Vec<(&'static str, filmcraft_project::ParamValue)> {
-    use filmcraft_project::ParamValue as V;
+pub fn text_layer_params(y: &CaptionStyle) -> Vec<(&'static str, jilo_project::ParamValue)> {
+    use jilo_project::ParamValue as V;
     let col = |c: [u8; 4]| V::Color([c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0, 1.0]);
     let alpha = |c: [u8; 4]| V::Float(f64::from(c[3]) / 255.0 * 100.0);
     let (dx, dy) = (f64::from(y.shadow_offset[0]), f64::from(y.shadow_offset[1]));
@@ -386,15 +386,15 @@ fn apply_to_text(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let params = text_layer_params(&style);
     let n = s.edit_sequence("Caption Look on Text", |q, _, _| {
-        let (_, it) = q.find_item_mut(clip).ok_or(filmcraft_edit::EditError::NoItem(clip))?;
+        let (_, it) = q.find_item_mut(clip).ok_or(jilo_edit::EditError::NoItem(clip))?;
         // layer indices count the clip's layers (graphic effects) in order
         let mut n = 0;
-        for (this, e) in it.effects.iter_mut().filter(|e| filmcraft_project::graphic::is_layer(e)).enumerate() {
-            if e.effect != filmcraft_project::graphic::TEXT_LAYER || !(chosen.is_empty() || chosen.contains(&this)) {
+        for (this, e) in it.effects.iter_mut().filter(|e| jilo_project::graphic::is_layer(e)).enumerate() {
+            if e.effect != jilo_project::graphic::TEXT_LAYER || !(chosen.is_empty() || chosen.contains(&this)) {
                 continue;
             }
             for (k, v) in &params {
-                e.params.insert((*k).to_string(), filmcraft_project::Param::new(v.clone()));
+                e.params.insert((*k).to_string(), jilo_project::Param::new(v.clone()));
             }
             n += 1;
         }
@@ -564,18 +564,18 @@ mod tests {
         let mut s = Session::default();
         s.execute("file.openDemoProject", json!({})).unwrap();
         let r = s.execute("graphics.newText", json!({"text": "Title"})).unwrap();
-        let clip = filmcraft_project::ClipId(r["clip"].as_u64().unwrap());
+        let clip = jilo_project::ClipId(r["clip"].as_u64().unwrap());
         let undo = s.history.undo.len();
         s.execute("graphics.applyCaptionStyle", json!({"preset": "yellow-pop", "clip": clip.0})).unwrap();
         assert_eq!(s.history.undo.len(), undo + 1);
         let want = find("yellow-pop").unwrap().style;
         let (_, it) = s.active_sequence().unwrap().find_item(clip).unwrap();
-        let e = it.effects.iter().find(|e| e.effect == filmcraft_project::graphic::TEXT_LAYER).unwrap();
-        let at = filmcraft_time::Tick::ZERO;
-        assert_eq!(e.params["font"].value_at(at), filmcraft_project::ParamValue::Text(want.font.clone()));
-        let filmcraft_project::ParamValue::Color(c) = e.params["fill_color"].value_at(at) else { panic!("colour") };
+        let e = it.effects.iter().find(|e| e.effect == jilo_project::graphic::TEXT_LAYER).unwrap();
+        let at = jilo_time::Tick::ZERO;
+        assert_eq!(e.params["font"].value_at(at), jilo_project::ParamValue::Text(want.font.clone()));
+        let jilo_project::ParamValue::Color(c) = e.params["fill_color"].value_at(at) else { panic!("colour") };
         assert_eq!((c[0] * 255.0).round() as u8, want.color[0]);
-        assert_eq!(e.params["caps"].value_at(at), filmcraft_project::ParamValue::Choice(u32::from(want.uppercase)));
+        assert_eq!(e.params["caps"].value_at(at), jilo_project::ParamValue::Choice(u32::from(want.uppercase)));
         assert!(s.execute("graphics.applyCaptionStyle", json!({"preset": "nope", "clip": clip.0})).is_err());
     }
 }

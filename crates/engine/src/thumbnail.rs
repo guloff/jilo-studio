@@ -6,8 +6,8 @@
 //! The title is the one given, else the first of the sequence's YouTube titles
 //! (`youtube.generate`), else the sequence's name; long titles wrap to two lines.
 
-use filmcraft_project::{Caption, CaptionAlign, CaptionStyle, ClipId};
-use filmcraft_time::Tick;
+use jilo_project::{Caption, CaptionAlign, CaptionStyle, ClipId};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, bool_p, has_seq, str_p, time_p};
@@ -78,13 +78,8 @@ fn thumbnail(s: &mut Session, p: &Value) -> Result<Value> {
     let (fw, fh) = (f64::from(q.settings.width).max(1.0), f64::from(q.settings.height).max(1.0));
     let k = (1280.0 / fw).max(720.0 / fh) as f32;
     let provider = s.media.provider(s.project.clone(), s.services.clone());
-    let img = filmcraft_render::render_sequence(
-        &s.project,
-        seq_id,
-        s.sequence_rate().snap(at),
-        filmcraft_render::RenderOptions { scale: k, ..Default::default() },
-        &provider,
-    );
+    let img =
+        jilo_render::render_sequence(&s.project, seq_id, s.sequence_rate().snap(at), jilo_render::RenderOptions { scale: k, ..Default::default() }, &provider);
     let (ox, oy) = (img.w.saturating_sub(1280) / 2, img.h.saturating_sub(720) / 2);
     let punch = bool_p(p, "punch").unwrap_or(true);
     let mut px = vec![0.0f32; 1280 * 720 * 4];
@@ -117,12 +112,12 @@ fn thumbnail(s: &mut Session, p: &Value) -> Result<Value> {
         words: Vec::new(),
     };
     if !cap.text.trim().is_empty()
-        && let Some(o) = filmcraft_captions::burn::render_caption(&cap, &style, 1280, 720)
+        && let Some(o) = jilo_captions::burn::render_caption(&cap, &style, 1280, 720)
     {
         o.composite_onto(&mut px, 1280, 720);
     }
-    let out = filmcraft_render::Image { w: 1280, h: 720, px };
-    let png = filmcraft_export::encode_png(out.over_black_rgba8(), 1280, 720).map_err(|e| EngineError::Other(e.to_string()))?;
+    let out = jilo_render::Image { w: 1280, h: 720, px };
+    let png = jilo_export::encode_png(out.over_black_rgba8(), 1280, 720).map_err(|e| EngineError::Other(e.to_string()))?;
     let path = match str_p(p, "path") {
         Some(x) => std::path::PathBuf::from(crate::export_tools::expand_home(x)),
         None => {

@@ -11,7 +11,7 @@
 # Clean-room: every entry was written from the plain meaning of the English text using ordinary
 # Spanish video-editing vocabulary (pista, cabezal, secuencia, bandeja, procesar…). No proprietary
 # localisation resource, string table or product UI was consulted or copied; add entries the same
-# way. Product and technology names (FilmCraft, ArtCraft, Lumetri, ProRes, LUFS…) keep their
+# way. Product and technology names (Jilo Studio, ArtCraft, Lumetri, ProRes, LUFS…) keep their
 # spelling. "video" is written without an accent, as in the rest of this catalog.
 
 	A bold call to subscribe on a red pill, with an accent dot.	Una llamada a suscribirse en una cápsula roja, con un punto de acento.
@@ -22,7 +22,7 @@
 	A red label and a white headline bar, news style.	Una etiqueta roja y una barra blanca con el titular, estilo noticias.
 	A small kicker over a big outlined headline.	Un antetítulo pequeño sobre un gran titular con contorno.
 	A white pill asking to like and follow.	Una cápsula blanca que pide «me gusta» y seguir.
-	About FilmCraft	Acerca de FilmCraft
+	About Jilo Studio	Acerca de Jilo Studio
 	Add Audio Submix Track	Añadir pista de submezcla de audio
 	Add Caption at Playhead	Añadir subtítulo en el cabezal
 	Add Caption Track	Añadir pista de subtítulos
@@ -193,8 +193,8 @@
 	File	Archivo
 	File…	Archivo…
 	Fill frame	Rellenar fotograma
-	FilmCraft Help…	Ayuda de FilmCraft…
-	FilmCraft on GitHub	FilmCraft en GitHub
+	Jilo Studio Help…	Ayuda de Jilo Studio…
+	Jilo Studio on GitHub	Jilo Studio en GitHub
 	Find Next	Buscar siguiente
 	Find the best moments for a short	Encuentra los mejores momentos para un short
 	Find…	Buscar…
@@ -443,7 +443,7 @@
 	Select Previous Graphic	Seleccionar gráfico anterior
 	Select Previous Layer	Seleccionar capa anterior
 	Selection Follows Playhead	La selección sigue al cabezal
-	Selection as FilmCraft Project…	Selección como proyecto de FilmCraft…
+	Selection as Jilo Studio Project…	Selección como proyecto de Jilo Studio…
 	Selection…	Selección…
 	Send Backward	Enviar atrás
 	Send to Back	Enviar al fondo
@@ -618,8 +618,8 @@
 	No background jobs.	No hay tareas en segundo plano.
 	Recover Unsaved Changes	Recuperar cambios no guardados
 	Untitled	Sin título
-	FilmCraft was closed while “{name}” had unsaved changes.	FilmCraft se cerró mientras “{name}” tenía cambios sin guardar.
-	FilmCraft quit unexpectedly while “{name}” had unsaved changes.	FilmCraft se cerró de forma inesperada mientras “{name}” tenía cambios sin guardar.
+	Jilo Studio was closed while “{name}” had unsaved changes.	Jilo Studio se cerró mientras “{name}” tenía cambios sin guardar.
+	Jilo Studio quit unexpectedly while “{name}” had unsaved changes.	Jilo Studio se cerró de forma inesperada mientras “{name}” tenía cambios sin guardar.
 	Recover unsaved changes from {when}?	¿Recuperar los cambios no guardados de {when}?
 	The project had not been saved yet.	El proyecto aún no se había guardado.
 	{n} sessions have unsaved changes:	{n} sesiones tienen cambios sin guardar:
@@ -1145,7 +1145,7 @@
 	Font family	Familia de fuentes
 	Label Colors	Colores de etiqueta
 	Decoded frames held for the monitors and thumbnails: {used} of {budget}.	Fotogramas descodificados en memoria para los monitores y miniaturas: {used} de {budget}.
-	FilmCraft keeps the rest of the RAM free for other applications.	FilmCraft deja el resto de la RAM libre para otras aplicaciones.
+	Jilo Studio keeps the rest of the RAM free for other applications.	Jilo Studio deja el resto de la RAM libre para otras aplicaciones.
 	not available in this session	no disponible en esta sesión
 	Currently: {loc} — {files} file(s), {size}	Actualmente: {loc} — {files} archivo(s), {size}
 	 ({ch} output channels)	 ({ch} canales de salida)
@@ -1242,7 +1242,7 @@
 	Search templates	Buscar plantillas
 	All Categories	Todas las categorías
 	Install…	Instalar…
-	Install Motion Graphics Template (.fcgt)	Instalar plantilla de animación (.fcgt)
+	Install Motion Graphics Template (.jstpl)	Instalar plantilla de animación (.jstpl)
 	No templates match.	Ninguna plantilla coincide.
 	{category} · My Template	{category} · Mi plantilla
 	Apply	Aplicar
@@ -1259,7 +1259,7 @@
 	Video Frame	Fotograma de video
 	Pin To	Fijar a
 	Pinned Edges	Bordes fijados
-	FilmCraft Graphics Template	Plantilla de gráficos de FilmCraft
+	Jilo Studio Graphics Template	Plantilla de gráficos de Jilo Studio
 	{n} Font	{n} Fuente
 	{n} Size	{n} Tamaño
 	{n} Color	{n} Color
@@ -1269,7 +1269,7 @@
 	Export As Motion Graphics Template	Exportar como plantilla de animación
 	Category:	Categoría:
 	Editable properties:	Propiedades editables:
-	Saved as a FilmCraft graphics template (.fcgt) in your templates folder.	Se guarda como plantilla de gráficos de FilmCraft (.fcgt) en tu carpeta de plantillas.
+	Saved as a Jilo Studio graphics template (.jstpl) in your templates folder.	Se guarda como plantilla de gráficos de Jilo Studio (.jstpl) en tu carpeta de plantillas.
 	Exported graphics template to {path}	Plantilla de gráficos exportada a {path}
 	Replace Fonts in Projects	Reemplazar fuentes en proyectos
 	Fonts used in the project:	Fuentes usadas en el proyecto:
@@ -1636,7 +1636,7 @@
 	Center of Sphere	Centro de la esfera
 	Cents	Centésimas
 	Change to Color	Cambiar a color
-	Changes are copied in the background a moment after each edit. If FilmCraft quits unexpectedly, they are offered the next time it starts.	Los cambios se copian en segundo plano poco después de cada edición. Si FilmCraft se cierra de forma inesperada, se ofrecen la próxima vez que se inicie.
+	Changes are copied in the background a moment after each edit. If Jilo Studio quits unexpectedly, they are offered the next time it starts.	Los cambios se copian en segundo plano poco después de cada edición. Si Jilo Studio se cierra de forma inesperada, se ofrecen la próxima vez que se inicie.
 	Channel	Canal
 	Channel Blur	Desenfoque de canal
 	Channel Mix	Mezcla de canales
@@ -1864,7 +1864,7 @@
 	Exclusion	Exclusión
 	Exponential Fade	Fundido exponencial
 	Extended Dynamic Range Monitoring	Monitorización de rango dinámico ampliado
-	Extended Dynamic Range Monitoring shows HDR above SDR white on EDR displays (macOS); it takes effect after FilmCraft restarts.	La monitorización de rango dinámico ampliado muestra el HDR por encima del blanco SDR en pantallas EDR (macOS); se aplica al reiniciar FilmCraft.
+	Extended Dynamic Range Monitoring shows HDR above SDR white on EDR displays (macOS); it takes effect after Jilo Studio restarts.	La monitorización de rango dinámico ampliado muestra el HDR por encima del blanco SDR en pantallas EDR (macOS); se aplica al reiniciar Jilo Studio.
 	FFT Filter	Filtro FFT
 	Fade	Fundido
 	Fade Out	Fundido de salida
@@ -2010,7 +2010,7 @@
 	Hard Limiter	Limitador duro
 	Hard Mix	Mezcla definida
 	Hardware decoding	Descodificación por hardware
-	Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API or NVDEC for H.264 and HEVC on Linux) for the streams it supports, and FilmCraft's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.	Descodificación por hardware: Automático usa el descodificador de video del sistema (VideoToolbox en macOS, Media Foundation en Windows, VA-API o NVDEC para H.264 y HEVC en Linux) para los flujos que admite, y el descodificador propio de FilmCraft para todo lo demás o si falla el hardware. Los medios ya abiertos mantienen su descodificador hasta que se vuelven a abrir.
+	Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API or NVDEC for H.264 and HEVC on Linux) for the streams it supports, and Jilo Studio's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.	Descodificación por hardware: Automático usa el descodificador de video del sistema (VideoToolbox en macOS, Media Foundation en Windows, VA-API o NVDEC para H.264 y HEVC en Linux) para los flujos que admite, y el descodificador propio de Jilo Studio para todo lo demás o si falla el hardware. Los medios ya abiertos mantienen su descodificador hasta que se vuelven a abrir.
 	Head Size	Tamaño de la cabeza
 	Heart	Corazón
 	Height	Altura
@@ -2285,7 +2285,7 @@
 	Night	Noche
 	No Motion	Sin movimiento
 	No Scroll	Sin desplazamiento
-	No plugins are installed. Changes will take effect the next time you start FilmCraft.	No hay complementos instalados. Los cambios se aplicarán la próxima vez que inicies FilmCraft.
+	No plugins are installed. Changes will take effect the next time you start Jilo Studio.	No hay complementos instalados. Los cambios se aplicarán la próxima vez que inicies Jilo Studio.
 	Noise	Ruido
 	Noise & Grain	Ruido y grano
 	Noise (Legacy)	Ruido (heredado)
@@ -2716,7 +2716,7 @@
 	Template Properties	Propiedades de la plantilla
 	Text Animator	Animador de texto
 	Text Color	Color del texto
-	The media cache holds render previews of unsaved projects and other files FilmCraft can recreate. Deleting them is always safe; FilmCraft rebuilds them as needed.	La caché de medios guarda previsualizaciones procesadas de proyectos sin guardar y otros archivos que FilmCraft puede volver a crear. Eliminarlos siempre es seguro; FilmCraft los regenera cuando hace falta.
+	The media cache holds render previews of unsaved projects and other files Jilo Studio can recreate. Deleting them is always safe; Jilo Studio rebuilds them as needed.	La caché de medios guarda previsualizaciones procesadas de proyectos sin guardar y otros archivos que Jilo Studio puede volver a crear. Eliminarlos siempre es seguro; Jilo Studio los regenera cuando hace falta.
 	Thickness	Grosor
 	Tile Gradient	Degradado en mosaico
 	Tilt	Inclinación
@@ -2928,8 +2928,8 @@
 	System Compatibility Report	Informe de compatibilidad del sistema
 	no GPU adapter: the CPU compositor is used	no hay adaptador de GPU: se usa el compositor de CPU
 	Avid Log Exchange	Avid Log Exchange
-	FilmCraft Project	Proyecto de FilmCraft
-	{name} Selection.fcproj	{name} Selección.fcproj
+	Jilo Studio Project	Proyecto de Jilo Studio
+	{name} Selection.jsproj	{name} Selección.jsproj
 	{name} (Simplified)	{name} (simplificada)
 	Find in:	Buscar en:
 	Find:	Buscar:
@@ -3068,7 +3068,7 @@
 	Start Queue	Iniciar cola
 	Stop	Detener
 	Clear Finished	Borrar terminadas
-	Not supported by FilmCraft's encoders yet	Los codificadores de FilmCraft aún no lo admiten
+	Not supported by Jilo Studio's encoders yet	Los codificadores de Jilo Studio aún no lo admiten
 	Sequence name	Nombre de la secuencia
 	Folder	Carpeta
 	Preset	Ajuste preestablecido
@@ -3155,7 +3155,7 @@
 	Drag a clip to slide it between its neighbours.	Arrastra un clip para deslizarlo entre sus vecinos.
 	Drag to scroll the timeline.	Arrastra para desplazar la línea de tiempo.
 	Click to zoom in; Opt-click to zoom out.	Haz clic para acercar; Opción+clic para alejar.
-	FilmCraft hit an error	FilmCraft ha encontrado un error
+	Jilo Studio hit an error	Jilo Studio ha encontrado un error
 	Details: {path}	Detalles: {path}
 	Opened {url}	Abierto {url}
 	(empty)	(vacío)
@@ -3399,7 +3399,7 @@
 	QuickTime, ProRes 422 LT, 24-bit 48 kHz PCM	QuickTime, ProRes 422 LT, PCM de 24 bits y 48 kHz
 	QuickTime, ProRes 422 Proxy, 24-bit 48 kHz PCM	QuickTime, ProRes 422 Proxy, PCM de 24 bits y 48 kHz
 	QuickTime, ProRes 422, 24-bit 48 kHz PCM	QuickTime, ProRes 422, PCM de 24 bits y 48 kHz
-	Quit FilmCraft	Salir de FilmCraft
+	Quit Jilo Studio	Salir de Jilo Studio
 	Rate Stretch Tool	Herramienta Ajuste de velocidad
 	Razor Tool	Herramienta Cuchilla
 	Rectangle Tool	Herramienta Rectángulo
@@ -3697,8 +3697,8 @@
 	Composite in Linear Color	Componer en color lineal
 	Auto Tone Map Media (HDR and log into SDR)	Mapeo de tonos automático de medios (HDR y log a SDR)
 	Configure…	Configurar…
-	Not supported in FilmCraft yet	FilmCraft aún no lo admite
-	FilmCraft always composites in linear light	FilmCraft siempre compone en luz lineal
+	Not supported in Jilo Studio yet	Jilo Studio aún no lo admite
+	Jilo Studio always composites in linear light	Jilo Studio siempre compone en luz lineal
 	Loop marked range	Bucle del intervalo marcado
 	Play Source	Reproducir origen
 	Source Play/Stop	Reproducir/Detener origen
@@ -3785,11 +3785,11 @@
 	This build has no network access: the cloud engines are not available.	Esta compilación no tiene acceso a la red: los motores en la nube no están disponibles.
 	Translation, Highlights and YouTube Texts	Traducción, momentos destacados y textos para YouTube
 	Whisper on this computer (offline)	Whisper en este ordenador (sin conexión)
-	Whisper runs on this computer and sends nothing. The cloud engines send audio or text to Google or OpenAI only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper funciona en este ordenador y no envía nada. Los motores en la nube envían audio o texto a Google u OpenAI solo cuando ejecutas una función de IA con ellos; FilmCraft te avisa antes de la primera vez.
+	Whisper runs on this computer and sends nothing. The cloud engines send audio or text to Google or OpenAI only when you run an AI feature with them; Jilo Studio says so before the first time.	Whisper funciona en este ordenador y no envía nada. Los motores en la nube envían audio o texto a Google u OpenAI solo cuando ejecutas una función de IA con ellos; Jilo Studio te avisa antes de la primera vez.
 # Jilo Studio: the website and the credit to FilmCraft (ArtCraft links are not in this build)
-	FilmCraft Website	Sitio web de FilmCraft
+	Jilo Studio Website	Sitio web de Jilo Studio
 	Based on FilmCraft by the ArtCraft Team	Basado en FilmCraft, del equipo de ArtCraft
-	A non-linear video editor for the Mac, written in Rust.	Un editor de vídeo no lineal para Mac, escrito en Rust.
+	An AI-first video editor for the Mac, written in Rust.	Un editor de vídeo para Mac centrado en la IA, escrito en Rust.
 	Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.	Basado en {upstream}, del equipo de ArtCraft. No está hecho ni respaldado por el equipo de ArtCraft.
 	The name and icon of this app belong to Rustam Gulov.	El nombre y el icono de esta aplicación pertenecen a Rustam Gulov.
 # Text panel ▸ Transcribe: engines, cloud consent
@@ -3966,7 +3966,7 @@
 	The report is copied	Informe copiado
 # Settings ▸ General ▸ daily update check
 	Check for updates once a day	Buscar actualizaciones una vez al día
-	The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once.	La comprobación pregunta a GitHub por la última versión de FilmCraft y no envía nada más; cada versión nueva se ofrece una vez.
+	The check asks GitHub for the latest Jilo Studio release and sends nothing else; a newer one is offered once.	La comprobación pregunta a GitHub por la última versión de Jilo Studio y no envía nada más; cada versión nueva se ofrece una vez.
 # Settings ▸ AI: Claude, ElevenLabs, image generation; File ▸ New ▸ Generate Image
 	A lighthouse on a cliff at dawn, soft mist, wide shot	Un faro en un acantilado al amanecer, niebla suave, plano general
 	Anthropic Claude (cloud)	Anthropic Claude (en la nube)
@@ -3981,7 +3981,7 @@
 	Image added: {name}	Imagen añadida: {name}
 	Put it on the timeline at the playhead	Ponerla en la línea de tiempo en el cabezal
 	Voices	Voces
-	Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper funciona en este ordenador y no envía nada. Los motores en la nube envían audio, texto o la descripción de una imagen a Google, OpenAI, Anthropic o ElevenLabs solo cuando usas una función de IA con ellos; FilmCraft lo avisa la primera vez.
+	Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; Jilo Studio says so before the first time.	Whisper funciona en este ordenador y no envía nada. Los motores en la nube envían audio, texto o la descripción de una imagen a Google, OpenAI, Anthropic o ElevenLabs solo cuando usas una función de IA con ellos; Jilo Studio lo avisa la primera vez.
 	The description goes to {provider}. The picture is saved with the project's media and imported as a still; undo removes it.	La descripción se envía a {provider}. La imagen se guarda con los medios del proyecto y se importa como imagen fija; deshacer la quita.
 	Generating an image	Generando una imagen
 	the picture's description	la descripción de la imagen
@@ -3999,16 +3999,16 @@
 	Couldn't load the ElevenLabs voices: {e}	No se pudieron cargar las voces de ElevenLabs: {e}
 	Loading ElevenLabs voices…	Cargando voces de ElevenLabs…
 	1. Open the disk image.	1. Abre la imagen de disco.
-	2. Drag FilmCraft to Applications and choose Replace.	2. Arrastra Jilo Studio a Aplicaciones y elige Reemplazar.
-	3. Quit this version and open FilmCraft again.	3. Sal de esta versión y vuelve a abrir Jilo Studio.
+	2. Drag Jilo Studio to Applications and choose Replace.	2. Arrastra Jilo Studio a Aplicaciones y elige Reemplazar.
+	3. Quit this version and open Jilo Studio again.	3. Sal de esta versión y vuelve a abrir Jilo Studio.
 	Checking the new version's signature…	Comprobando la firma de la nueva versión…
 	Download and Install	Descargar e instalar
-	Download and Install fetches the new version, checks its signature and installs it when you restart FilmCraft.	Descargar e instalar obtiene la nueva versión, comprueba su firma y la instala al reiniciar Jilo Studio.
+	Download and Install fetches the new version, checks its signature and installs it when you restart Jilo Studio.	Descargar e instalar obtiene la nueva versión, comprueba su firma y la instala al reiniciar Jilo Studio.
 	Downloading the new version…	Descargando la nueva versión…
 	Hide	Ocultar
 	Install When I Quit	Instalar al salir
 	It can't install itself here: {why}.	Aquí no puede instalarse sola: {why}.
-	It will be installed when you quit FilmCraft; the next launch opens the new version.	Se instalará cuando salgas de Jilo Studio; el próximo inicio abrirá la nueva versión.
+	It will be installed when you quit Jilo Studio; the next launch opens the new version.	Se instalará cuando salgas de Jilo Studio; el próximo inicio abrirá la nueva versión.
 	Open Disk Image	Abrir imagen de disco
 	Open Release Page	Abrir página de la versión
 	Release page on GitHub	Página de la versión en GitHub
@@ -4466,7 +4466,7 @@
 	The frame at the playhead with a big title, 1280×720.	El fotograma en el cabezal con un título grande, 1280×720.
 	Tips	Consejos
 	Tip {n} of {total}	Consejo {n} de {total}
-	Show tips when FilmCraft starts	Mostrar consejos al iniciar Jilo Studio
+	Show tips when Jilo Studio starts	Mostrar consejos al iniciar Jilo Studio
 	Next Tip	Siguiente consejo
 	Previous	Anterior
 	Drop a video on the home screen: a vertical short with captions, or a clean talking head, in one click.	Suelta un vídeo en la pantalla de inicio: un short vertical con subtítulos o una entrevista limpia, en un clic.
@@ -4488,10 +4488,10 @@
 	{n} item	{n} elemento
 	{total} item	{total} elemento
 	AI Assistants	Asistentes de IA
-	Added to Claude Code. Start a new Claude Code session to use FilmCraft there.	Añadido a Claude Code. Inicia una nueva sesión de Claude Code para usar FilmCraft allí.
-	Added to Claude Desktop. Quit and reopen Claude to use FilmCraft there.	Añadido a Claude Desktop. Cierra y vuelve a abrir Claude para usar FilmCraft allí.
-	Allow AI assistants (Claude and other MCP clients) to control FilmCraft on this computer	Permitir que los asistentes de IA (Claude y otros clientes MCP) controlen FilmCraft en este ordenador
-	An assistant connected to FilmCraft can open, edit, save and export your projects as you would. Nothing is sent anywhere by FilmCraft: the assistant talks to it on this computer only.	Un asistente conectado a FilmCraft puede abrir, editar, guardar y exportar tus proyectos como lo harías tú. FilmCraft no envía nada a ninguna parte: el asistente se comunica con él solo en este ordenador.
+	Added to Claude Code. Start a new Claude Code session to use Jilo Studio there.	Añadido a Claude Code. Inicia una nueva sesión de Claude Code para usar Jilo Studio allí.
+	Added to Claude Desktop. Quit and reopen Claude to use Jilo Studio there.	Añadido a Claude Desktop. Cierra y vuelve a abrir Claude para usar Jilo Studio allí.
+	Allow AI assistants (Claude and other MCP clients) to control Jilo Studio on this computer	Permitir que los asistentes de IA (Claude y otros clientes MCP) controlen Jilo Studio en este ordenador
+	An assistant connected to Jilo Studio can open, edit, save and export your projects as you would. Nothing is sent anywhere by Jilo Studio: the assistant talks to it on this computer only.	Un asistente conectado a Jilo Studio puede abrir, editar, guardar y exportar tus proyectos como lo harías tú. Jilo Studio no envía nada a ninguna parte: el asistente se comunica con él solo en este ordenador.
 	Connect Again	Conectar de nuevo
 	Connect an Assistant	Conectar un asistente
 	Connect to Claude Code	Conectar a Claude Code
@@ -4499,12 +4499,12 @@
 	Connected	Conectado
 	Copy Command	Copiar comando
 	Could not open the channel: {error}	No se pudo abrir el canal: {error}
-	Off: no assistant can reach FilmCraft.	Desactivado: ningún asistente puede llegar a FilmCraft.
+	Off: no assistant can reach Jilo Studio.	Desactivado: ningún asistente puede llegar a Jilo Studio.
 	On.	Activado.
 	On: assistants connect on this computer (port {port}).	Activado: los asistentes se conectan en este ordenador (puerto {port}).
 	The command is copied: paste it in Terminal.	Comando copiado: pégalo en Terminal.
 	Turns on when you press OK.	Se activa al pulsar OK.
-	Other MCP clients: run FilmCraft itself as the server, with this command:	Otros clientes MCP: ejecuta el propio FilmCraft como servidor con este comando:
+	Other MCP clients: run Jilo Studio itself as the server, with this command:	Otros clientes MCP: ejecuta el propio Jilo Studio como servidor con este comando:
 	Edit Text…	Editar texto…
 	Split at Playhead	Dividir en el cabezal
 	Select All on Track	Seleccionar todo en la pista

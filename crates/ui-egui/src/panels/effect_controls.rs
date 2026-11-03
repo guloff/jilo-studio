@@ -3,11 +3,11 @@
 //! keyframe lane on the right. Also hosts the Lumetri Color panel body (same editor, grouped).
 
 use egui::{Align2, Color32, Pos2, Rect, Sense, Stroke, pos2, vec2};
-use filmcraft_project::{ClipId, EffectInstance, ParamKind, ParamValue, TrackItem, TrackKind};
-use filmcraft_time::Tick;
+use jilo_project::{ClipId, EffectInstance, ParamKind, ParamValue, TrackItem, TrackKind};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::icons::{self, Icon};
 use crate::theme::Tokens;
 
@@ -41,12 +41,12 @@ fn graph_drag_offset(ui: &egui::Ui, response: &egui::Response, previous: egui::V
     }
 }
 
-fn selected_clip(app: &FilmcraftApp) -> Option<(ClipId, TrackItem, TrackKind)> {
+fn selected_clip(app: &JiloApp) -> Option<(ClipId, TrackItem, TrackKind)> {
     selected_clips(app).into_iter().next()
 }
 
 /// The selected clip (video first) and, for a video clip, the selected audio linked to it.
-fn selected_clips(app: &FilmcraftApp) -> Vec<(ClipId, TrackItem, TrackKind)> {
+fn selected_clips(app: &JiloApp) -> Vec<(ClipId, TrackItem, TrackKind)> {
     let Some(seq) = app.session.active_sequence() else { return Vec::new() };
     let picked: Vec<(ClipId, &TrackItem, TrackKind)> = app
         .session
@@ -68,7 +68,7 @@ fn selected_clips(app: &FilmcraftApp) -> Vec<(ClipId, TrackItem, TrackKind)> {
     out
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let clips = selected_clips(app);
     let Some((clip, it, _)) = clips.first().cloned() else {
@@ -229,13 +229,13 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         app.auto.add("effectControls.playhead", Rect::from_min_max(pos2(px - 5.0, top), pos2(px + 5.0, tip)), "playhead");
     }
     // footer timecode
-    let tc = filmcraft_time::format_time(ph, seq.settings.frame_rate, seq.settings.drop_frame, filmcraft_time::TimeDisplay::Timecode, 48000);
+    let tc = jilo_time::format_time(ph, seq.settings.frame_rate, seq.settings.drop_frame, jilo_time::TimeDisplay::Timecode, 48000);
     ui.painter().text(pos2(rect.min.x + 10.0, rect.max.y - 13.0), Align2::LEFT_CENTER, tc, Tokens::mono(13.0), t.timecode);
     run(app, ui.ctx(), actions);
 }
 
 /// Premiere's "Custom Setup ▸ Edit…" row: opens the effect's Clip Fx Editor window.
-fn custom_setup_row(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, clip: ClipId, idx: usize, effect: &str) {
+fn custom_setup_row(app: &mut JiloApp, ui: &mut egui::Ui, body: Rect, clip: ClipId, idx: usize, effect: &str) {
     let t = app.tokens;
     let (r, _) = ui.allocate_exact_size(vec2(body.width(), ROW_H), Sense::hover());
     ui.painter().text(pos2(r.min.x + 42.0, r.center().y), Align2::LEFT_CENTER, tl!("Custom Setup"), Tokens::ui(12.0), t.text_dim);
@@ -250,13 +250,13 @@ fn custom_setup_row(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, clip:
     }
 }
 
-fn seq_name(app: &FilmcraftApp) -> String {
+fn seq_name(app: &JiloApp) -> String {
     app.session.state.active_sequence.and_then(|s| app.session.project.item(s)).map(|i| i.name.clone()).unwrap_or_default()
 }
 
 /// The keyframe lane's time ruler: ticks and sequence timecode across the clip's stretch of the
 /// timeline (the lane shows exactly the clip, so the ruler starts at the clip's start).
-fn paint_ruler(p: &egui::Painter, ruler: Rect, it: &TrackItem, rate: filmcraft_time::FrameRate, drop_frame: bool, t: &Tokens) {
+fn paint_ruler(p: &egui::Painter, ruler: Rect, it: &TrackItem, rate: jilo_time::FrameRate, drop_frame: bool, t: &Tokens) {
     let p = p.with_clip_rect(ruler);
     let dur = it.duration.0.max(1) as f64;
     let frame_px = ruler.width() as f64 * rate.frame_duration().0.max(1) as f64 / dur;
@@ -296,7 +296,7 @@ fn paint_ruler(p: &egui::Painter, ruler: Rect, it: &TrackItem, rate: filmcraft_t
             let x = ruler.min.x + ((rate.tick_of(f) - it.start).0 as f64 / dur) as f32 * ruler.width();
             p.line_segment([pos2(x, base_y - h), pos2(x, base_y)], Stroke::new(1.0, t.tl_ruler_tick));
             if labelled {
-                let label = filmcraft_time::format_time(rate.tick_of(f), rate, drop_frame, filmcraft_time::TimeDisplay::Timecode, 48000);
+                let label = jilo_time::format_time(rate.tick_of(f), rate, drop_frame, jilo_time::TimeDisplay::Timecode, 48000);
                 p.text(pos2(x, ruler.min.y + 7.0), Align2::CENTER_CENTER, label, Tokens::ui(10.0), t.tl_ruler_text);
             }
             f = f.saturating_add(step);
@@ -311,10 +311,10 @@ fn paint_ruler(p: &egui::Painter, ruler: Rect, it: &TrackItem, rate: filmcraft_t
 /// Returns whether the diamond was clicked; the arrows queue their own `playhead.set`.
 #[allow(clippy::too_many_arguments)]
 fn keyframe_nav(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     at: Pos2,
-    param: Option<&filmcraft_project::Param>,
+    param: Option<&jilo_project::Param>,
     mt: Tick,
     it: &TrackItem,
     id: egui::Id,
@@ -359,7 +359,7 @@ fn keyframe_nav(
 /// the clip does not have yet (Crop) is applied first.
 #[allow(clippy::too_many_arguments)]
 fn properties_nav(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     row: Rect,
     clip: ClipId,
@@ -387,14 +387,14 @@ fn properties_nav(
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn param_row(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     body: Rect,
     clip: ClipId,
     idx: usize,
     e: &EffectInstance,
     mask: Option<usize>,
-    pd: &filmcraft_project::ParamDef,
+    pd: &jilo_project::ParamDef,
     mt: Tick,
     actions: &mut Vec<(String, Value)>,
     lane: &Rect,
@@ -564,10 +564,10 @@ pub(crate) fn param_row(
             let sel = k.time == mt || resp.dragged();
             let col = if sel { t.hot_text } else { Color32::from_rgb(0xb0, 0xb0, 0xb0) };
             match k.interp {
-                filmcraft_project::Interpolation::Hold => {
+                jilo_project::Interpolation::Hold => {
                     ui.painter().rect_filled(Rect::from_center_size(kr.center(), vec2(8.0, 8.0)), 0.0, col);
                 }
-                filmcraft_project::Interpolation::Linear => icons::paint(ui.painter(), kr, Icon::Keyframe, col),
+                jilo_project::Interpolation::Linear => icons::paint(ui.painter(), kr, Icon::Keyframe, col),
                 _ => {
                     ui.painter().circle_filled(kr.center(), 4.5, col);
                 }
@@ -626,7 +626,7 @@ pub(crate) fn param_row(
 }
 
 /// Lumetri Color panel: edits (or adds) the Lumetri effect on the selected clip, grouped by section.
-pub fn lumetri_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn lumetri_panel(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let Some((clip, it, _)) = selected_clip(app) else {
         crate::dock::placeholder(ui, rect, &t, tl!("Select a clip to grade"));
@@ -702,7 +702,7 @@ pub fn lumetri_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 }
 
 /// Properties panel (Premiere 26): a compact inspector for the selected clip.
-pub fn properties_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn properties_panel(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let clips = selected_clips(app);
     let Some((clip, it, kind)) = clips.first().cloned() else {
@@ -724,7 +724,7 @@ pub fn properties_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         ui.painter().text(pos2(r.min.x + 18.0, r.center().y), Align2::LEFT_CENTER, label, Tokens::ui(12.0), t.text_dim);
         r
     };
-    let section = |ui: &mut egui::Ui, app: &mut FilmcraftApp, name: &str, reset: Option<(usize, u64)>, actions: &mut Vec<(String, Value)>| -> bool {
+    let section = |ui: &mut egui::Ui, app: &mut JiloApp, name: &str, reset: Option<(usize, u64)>, actions: &mut Vec<(String, Value)>| -> bool {
         ui.add_space(4.0);
         let key = format!("props:{name}");
         let open = !app.ui.collapsed_fx.contains(&key);
@@ -886,7 +886,7 @@ pub fn properties_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 /// press begins (#201); typed values and clicks stay separate steps. A drag value only changes once
 /// the mouse moves, after the press frame, so the press that already began a step is remembered by
 /// its start time.
-pub(crate) fn run(app: &mut FilmcraftApp, ctx: &egui::Context, actions: Vec<(String, Value)>) {
+pub(crate) fn run(app: &mut JiloApp, ctx: &egui::Context, actions: Vec<(String, Value)>) {
     let (down, press) = ctx.input(|i| (i.pointer.any_down(), i.pointer.press_start_time()));
     let key = egui::Id::new("effect-controls-drag-step");
     for (cmd, mut p) in actions {
@@ -910,14 +910,14 @@ pub(crate) fn graph_key(clip: ClipId, idx: usize, pid: &str) -> String {
 /// Keyframes drag vertically (value); Bezier influence handles drag horizontally.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn graph_rows(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ui: &mut egui::Ui,
     body: Rect,
     clip: ClipId,
     idx: usize,
     mask: Option<usize>,
-    pd: &filmcraft_project::ParamDef,
-    param: &filmcraft_project::Param,
+    pd: &jilo_project::ParamDef,
+    param: &jilo_project::Param,
     lane: &Rect,
     it: &TrackItem,
     actions: &mut Vec<(String, Value)>,
@@ -973,7 +973,7 @@ pub(crate) fn graph_rows(
     let line: Vec<Pos2> = vals.iter().enumerate().map(|(i, v)| pos2(x_of(i as f32 / n as f32), y_of(*v))).collect();
     p.add(egui::Shape::line(line, Stroke::new(1.5, t.accent)));
     // velocity (units per second, derivative of the sampled value)
-    let secs = dur * speed / filmcraft_time::TICKS_PER_SECOND as f64 / n as f64;
+    let secs = dur * speed / jilo_time::TICKS_PER_SECOND as f64 / n as f64;
     let vel: Vec<f64> = (0..n).map(|i| (vals[i + 1] - vals[i]) / secs.max(1e-9)).collect();
     let vmax = vel.iter().fold(1e-6f64, |a, v| a.max(v.abs())) * 1.15;
     let varea = Rect::from_min_max(pos2(lane.min.x, velr.min.y + 2.0), pos2(lane.max.x, velr.max.y - 4.0));
@@ -1000,10 +1000,8 @@ pub(crate) fn graph_rows(
         let resp = ui.interact(r.expand(2.0), id, Sense::drag());
         app.auto.add(&format!("effectControls.{}.graph.keyframe.{}", pd.id, k.time.0), r, "keyframe value");
         // influence handles: flat (ease) tangents with length ∝ influence × neighbouring segment
-        let eases_out =
-            !matches!(k.interp, filmcraft_project::Interpolation::Linear | filmcraft_project::Interpolation::Hold | filmcraft_project::Interpolation::EaseIn);
-        let eases_in =
-            !matches!(k.interp, filmcraft_project::Interpolation::Linear | filmcraft_project::Interpolation::Hold | filmcraft_project::Interpolation::EaseOut);
+        let eases_out = !matches!(k.interp, jilo_project::Interpolation::Linear | jilo_project::Interpolation::Hold | jilo_project::Interpolation::EaseIn);
+        let eases_in = !matches!(k.interp, jilo_project::Interpolation::Linear | jilo_project::Interpolation::Hold | jilo_project::Interpolation::EaseOut);
         for (side, on, nb) in [(1.0f32, eases_out, ks.get(i + 1)), (-1.0f32, eases_in && i > 0, if i > 0 { ks.get(i - 1) } else { None })] {
             let (true, Some(nb)) = (on, nb) else { continue };
             let seg = (x_of(to_f(nb.time)) - c.x).abs();
@@ -1047,9 +1045,9 @@ pub(crate) fn graph_rows(
 }
 
 /// Read-only text for parameters without an inline editor (LUT references, free text, curves).
-fn param_text(project: &filmcraft_project::Project, id: &str, value: &ParamValue) -> String {
+fn param_text(project: &jilo_project::Project, id: &str, value: &ParamValue) -> String {
     match value {
-        ParamValue::Text(s) if id.ends_with("_lut") => filmcraft_render::luts::label(Some(project), s),
+        ParamValue::Text(s) if id.ends_with("_lut") => jilo_render::luts::label(Some(project), s),
         ParamValue::Text(s) if s.is_empty() => tl!("None").into(),
         ParamValue::Text(s) => s.clone(),
         ParamValue::Curve(pts) if pts.is_empty() || *pts == [[0.0, 0.0], [1.0, 1.0]] => tl!("Default").into(),
@@ -1064,7 +1062,7 @@ mod param_text_tests {
 
     #[test]
     fn readable_values_for_text_lut_and_curve_params() {
-        let p = filmcraft_project::Project::default();
+        let p = jilo_project::Project::default();
         assert_eq!(param_text(&p, "input_lut", &ParamValue::Text(String::new())), "None");
         assert_eq!(param_text(&p, "look_lut", &ParamValue::Text("builtin:look-teal-orange".into())), "Teal & Orange");
         assert_eq!(param_text(&p, "label", &ParamValue::Text(String::new())), "None");
@@ -1083,21 +1081,21 @@ mod drag_undo_tests {
     /// the same parameter are still two undo steps.
     #[test]
     fn each_press_begins_its_own_undo_step() {
-        let mut s = filmcraft_engine::Session::default();
+        let mut s = jilo_engine::Session::default();
         s.execute("file.openDemoProject", json!({})).unwrap();
         let clip = s.active_sequence().unwrap().video_tracks[0].items[0].id.0;
-        let mut app = crate::FilmcraftApp::new(s);
+        let mut app = crate::JiloApp::new(s);
         let ctx = egui::Context::default();
-        let opacity = |app: &crate::FilmcraftApp| {
+        let opacity = |app: &crate::JiloApp| {
             let q = app.session.active_sequence().unwrap();
-            let it = q.find_item(filmcraft_project::ClipId(clip)).unwrap().1;
+            let it = q.find_item(jilo_project::ClipId(clip)).unwrap().1;
             it.effects.iter().find(|e| e.effect == "opacity").unwrap().params["opacity"].value.as_f64().unwrap()
         };
         let start = opacity(&app);
         let pos = egui::pos2(10.0, 10.0);
         let button = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         let mut time = 0.0;
-        let mut frame = |app: &mut crate::FilmcraftApp, events: Vec<egui::Event>, value: Option<f64>| {
+        let mut frame = |app: &mut crate::JiloApp, events: Vec<egui::Event>, value: Option<f64>| {
             time += 0.1;
             let raw = egui::RawInput { time: Some(time), events, ..Default::default() };
             let mut out = ctx.run_ui(raw, |ui| {
@@ -1137,15 +1135,15 @@ mod lane_tests {
     /// keyframe navigators included.
     #[test]
     fn a_clip_without_a_duration_still_draws() {
-        let mut s = filmcraft_engine::Session::default();
+        let mut s = jilo_engine::Session::default();
         s.execute("file.openDemoProject", json!({})).unwrap();
         let clip = s.active_sequence().unwrap().video_tracks[0].items[0].id;
         s.execute("timeline.select", json!({"clips": [clip.0]})).unwrap();
         s.execute("effects.toggleAnimation", json!({"clip": clip.0, "effect": "motion", "param": "scale"})).unwrap();
         let seq = s.state.active_sequence.unwrap();
-        let mut app = crate::FilmcraftApp::new(s);
+        let mut app = crate::JiloApp::new(s);
         let ctx = context();
-        for duration in [0, -5 * filmcraft_time::TICKS_PER_SECOND] {
+        for duration in [0, -5 * jilo_time::TICKS_PER_SECOND] {
             let project = std::sync::Arc::make_mut(&mut app.session.project);
             project.sequence_mut(seq).unwrap().find_item_mut(clip).unwrap().1.duration = Tick(duration);
             let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(700.0, 500.0));
@@ -1163,7 +1161,7 @@ mod lane_tests {
     /// tick forever.
     #[test]
     fn ruler_survives_damaged_numbers() {
-        let mut s = filmcraft_engine::Session::default();
+        let mut s = jilo_engine::Session::default();
         s.execute("file.openDemoProject", json!({})).unwrap();
         let mut it = s.active_sequence().unwrap().video_tracks[0].items[0].clone();
         let ctx = context();
@@ -1172,13 +1170,13 @@ mod lane_tests {
         let rates = [(24000, 1001), (30, 1), (1000, 1), (1, 1), (1, big), (big, big), (0, 0), (-25, 1)];
         let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
             for width in [300.0, 0.0, -40.0, 0.001, 1.0e9, f32::NAN, f32::INFINITY] {
-                for duration in [1, 0, -7, filmcraft_time::TICKS_PER_SECOND, Tick::MAX.0 / 2] {
+                for duration in [1, 0, -7, jilo_time::TICKS_PER_SECOND, Tick::MAX.0 / 2] {
                     for start in [0, Tick::MIN.0, Tick::MAX.0 / 2] {
                         for (num, den) in rates {
                             it.start = Tick(start);
                             it.duration = Tick(duration);
                             let ruler = Rect::from_min_size(pos2(10.0, 10.0), vec2(width, RULER_H));
-                            paint_ruler(ui.painter(), ruler, &it, filmcraft_time::FrameRate { num, den }, false, &t);
+                            paint_ruler(ui.painter(), ruler, &it, jilo_time::FrameRate { num, den }, false, &t);
                         }
                     }
                 }
@@ -1190,10 +1188,10 @@ mod lane_tests {
     /// A five-second lane 300 px wide is labelled every two seconds, in sequence timecode.
     #[test]
     fn ruler_labels_sequence_timecode() {
-        let mut s = filmcraft_engine::Session::default();
+        let mut s = jilo_engine::Session::default();
         s.execute("file.openDemoProject", json!({})).unwrap();
         let mut it = s.active_sequence().unwrap().video_tracks[0].items[0].clone();
-        let rate = filmcraft_time::FrameRate { num: 24, den: 1 };
+        let rate = jilo_time::FrameRate { num: 24, den: 1 };
         it.start = rate.tick_of(24 * 60);
         it.duration = rate.tick_of(24 * 5);
         let ctx = context();
@@ -1218,10 +1216,10 @@ mod lane_tests {
 #[cfg(test)]
 mod graph_drag_tests {
     use super::*;
-    use filmcraft_project::{Interpolation, Keyframe, Param};
+    use jilo_project::{Interpolation, Keyframe, Param};
 
     struct Driver {
-        app: FilmcraftApp,
+        app: JiloApp,
         ctx: egui::Context,
         clip: ClipId,
         time: f64,
@@ -1229,7 +1227,7 @@ mod graph_drag_tests {
 
     impl Driver {
         fn new() -> Self {
-            let mut session = filmcraft_engine::Session::default();
+            let mut session = jilo_engine::Session::default();
             session.execute("file.openDemoProject", json!({})).unwrap();
             let seq = session.state.active_sequence.unwrap();
             let clip = session.active_sequence().unwrap().video_tracks[0].items[0].id;
@@ -1244,7 +1242,7 @@ mod graph_drag_tests {
                 .unwrap()
                 .params
                 .insert("scale".into(), Param { value: ParamValue::Float(40.0), keyframes: vec![a, b] });
-            let app = FilmcraftApp::new(session);
+            let app = JiloApp::new(session);
             let ctx = egui::Context::default();
             crate::theme::install(&ctx, &app.tokens);
             Self { app, ctx, clip, time: 0.0 }

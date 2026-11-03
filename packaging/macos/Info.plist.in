@@ -24,9 +24,9 @@
   <string>@SHORT_VERSION@</string>
   <key>CFBundleVersion</key>
   <string>@SHORT_VERSION@</string>
-  <key>FilmCraftVersion</key>
+  <key>JiloStudioVersion</key>
   <string>@VERSION@</string>
-  <key>FilmCraftBuildCommit</key>
+  <key>JiloStudioBuildCommit</key>
   <string>@BUILD_SHA@</string>
   <key>CFBundleIconFile</key>
   <string>JiloStudio</string>
@@ -83,7 +83,7 @@
     </dict>
   </array>
 
-  <!-- Filmcraft's own format. -->
+  <!-- Jilo Studio's own format: .jsproj, and .fcproj from builds before 1.0. -->
   <key>UTExportedTypeDeclarations</key>
   <array>
     <dict>
@@ -101,9 +101,9 @@
       <key>UTTypeTagSpecification</key>
       <dict>
         <key>public.filename-extension</key>
-        <array><string>fcproj</string></array>
+        <array><string>jsproj</string><string>fcproj</string></array>
         <key>public.mime-type</key>
-        <array><string>application/x-filmcraft</string></array>
+        <array><string>application/x-jilo-studio</string></array>
       </dict>
     </dict>
   </array>

@@ -183,7 +183,7 @@ mod tests {
     /// Every command of the engine gets a schema of an object.
     #[test]
     fn every_engine_command_has_a_schema() {
-        for c in filmcraft_engine::command_specs() {
+        for c in jilo_engine::command_specs() {
             let s = params_schema(c.params);
             assert_eq!(s["type"], "object", "{}: {}", c.id, c.params);
         }

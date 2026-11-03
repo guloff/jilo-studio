@@ -1,5 +1,5 @@
 use super::*;
-use filmcraft_project::{ItemKind, MarkerKind};
+use jilo_project::{ItemKind, MarkerKind};
 
 fn item_named(s: &Session, name: &str) -> ItemId {
     s.project.items.values().find(|i| i.name == name).map(|i| i.id).unwrap_or_else(|| panic!("no item {name}"))
@@ -11,14 +11,14 @@ fn sec(t: Tick) -> f64 {
 
 /// A small PNG card in a fresh folder.
 fn card(name: &str) -> String {
-    let dir = std::env::temp_dir().join(format!("filmcraft-assemble-{}-{name}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("jilo-assemble-{}-{name}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("card.png");
     image::RgbaImage::from_pixel(64, 36, image::Rgba([200, 40, 40, 255])).save(&path).unwrap();
     path.to_string_lossy().to_string()
 }
 
-fn rate_snap(q: &filmcraft_project::Sequence, t: f64) -> Tick {
+fn rate_snap(q: &jilo_project::Sequence, t: f64) -> Tick {
     q.settings.frame_rate.snap_nearest(Tick::from_seconds_f64(t))
 }
 

@@ -1,4 +1,4 @@
-//! The FilmCraft engine façade.
+//! The Jilo Studio engine façade.
 //!
 //! Every user-visible action is a command with a stable id (`sequence.addEdit`,
 //! `timeline.trim`, `markers.markIn`…) and JSON parameters, dispatched through
@@ -9,6 +9,13 @@
 //! thanks to structural sharing of untouched items).
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
+
+/// An environment variable `JILO_<name>`, else the name it had before Jilo Studio stood on its own
+/// (`FILMCRAFT_<name>`), so a script or an assistant's settings written for an older version
+/// still work.
+pub fn env_var(name: &str) -> Option<std::ffi::OsString> {
+    std::env::var_os(name).or_else(|| name.strip_prefix("JILO_").and_then(|rest| std::env::var_os(["FILMCRAFT_", rest].concat())))
+}
 
 pub mod aaf_omf;
 pub mod ai;
@@ -98,17 +105,18 @@ pub mod youtube;
 
 use std::sync::Arc;
 
-use filmcraft_edit::EditCtx;
-use filmcraft_project::{ClipId, ItemId, Project, Sequence, TrackId, TrackKind};
-use filmcraft_time::{FrameRate, Tick};
+use jilo_edit::EditCtx;
+use jilo_project::{ClipId, ItemId, Project, Sequence, TrackId, TrackKind};
+use jilo_time::{FrameRate, Tick};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub use commands::{CommandSpec, command_specs, find as find_command};
-pub use filmcraft_export as export;
-pub use filmcraft_project as project;
-pub use filmcraft_render as render;
-pub use filmcraft_time as time;
+pub use jilo_export as export;
+pub use jilo_format as project_file;
+pub use jilo_project as project;
+pub use jilo_render as render;
+pub use jilo_time as time;
 pub use media_pool::MediaPool;
 
 /// The OS temp folder; `/tmp` on wasm32, where `std::env::temp_dir()` panics ("no filesystem on
@@ -128,9 +136,9 @@ pub enum EngineError {
     #[error("no active sequence")]
     NoSequence,
     #[error("edit failed: {0}")]
-    Edit(#[from] filmcraft_edit::EditError),
+    Edit(#[from] jilo_edit::EditError),
     #[error("media: {0}")]
-    Media(#[from] filmcraft_media::MediaError),
+    Media(#[from] jilo_media::MediaError),
     #[error("{0}")]
     Other(String),
 }
@@ -142,7 +150,7 @@ pub type Result<T> = std::result::Result<T, EngineError>;
 /// Network and FUSE filesystems may hand out numbers that are not unique, so a match is a hint to
 /// be confirmed by the content (`import_duplicates`, tier 2), never proof.
 ///
-/// Not the *media identity* ([`filmcraft_project::MediaIdentity`]: size + content fingerprint,
+/// Not the *media identity* ([`jilo_project::MediaIdentity`]: size + content fingerprint,
 /// saved in the project and checked by relinking): a file identity is asked of the host each time
 /// and never saved, and a copy of a file has the same media identity and another file identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -180,7 +188,7 @@ pub trait Services: Send + Sync {
     }
     /// A random-access reader for a media file, so containers are opened without reading the
     /// whole file (web: `Blob` range reads). `None`: the host has none; media are read whole.
-    fn reader(&self, _path: &str) -> Option<std::io::Result<filmcraft_media::SharedReader>> {
+    fn reader(&self, _path: &str) -> Option<std::io::Result<jilo_media::SharedReader>> {
         None
     }
     /// File names in a directory (image sequence detection). `None`: the host cannot list
@@ -190,7 +198,7 @@ pub trait Services: Send + Sync {
     }
     /// A loader the media pool keeps for reading files later (image sequence frames on demand).
     /// `None`: the frames are read when the sequence is opened.
-    fn file_loader(&self) -> Option<filmcraft_media::sequence::FrameLoader> {
+    fn file_loader(&self) -> Option<jilo_media::sequence::FrameLoader> {
         None
     }
     /// Exports are encoded in memory and handed to [`Services::write_file`] (hosts without a
@@ -222,7 +230,7 @@ impl Services for FsServices {
     }
     fn write_file(&self, path: &str, data: &[u8]) -> std::io::Result<()> {
         // Atomic + durable: temp file in the same directory, fsync, rename, fsync the directory.
-        filmcraft_format::atomic_write(std::path::Path::new(path), data)
+        jilo_format::atomic_write(std::path::Path::new(path), data)
     }
     fn file_size(&self, path: &str) -> std::io::Result<u64> {
         let m = std::fs::metadata(path)?;
@@ -244,13 +252,13 @@ impl Services for FsServices {
         let dir = if dir.is_empty() { "." } else { dir };
         Some(std::fs::read_dir(dir).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().to_string()).collect()))
     }
-    fn file_loader(&self) -> Option<filmcraft_media::sequence::FrameLoader> {
+    fn file_loader(&self) -> Option<jilo_media::sequence::FrameLoader> {
         Some(std::sync::Arc::new(|p: &str| std::fs::read(p)))
     }
     /// Media are read in place from the open file: a clip costs its index, not its size.
     #[cfg(any(unix, windows))]
-    fn reader(&self, path: &str) -> Option<std::io::Result<filmcraft_media::SharedReader>> {
-        Some(filmcraft_media::reader::FileReader::open(std::path::Path::new(path)).map(|r| std::sync::Arc::new(r) as filmcraft_media::SharedReader))
+    fn reader(&self, path: &str) -> Option<std::io::Result<jilo_media::SharedReader>> {
+        Some(jilo_media::reader::FileReader::open(std::path::Path::new(path)).map(|r| std::sync::Arc::new(r) as jilo_media::SharedReader))
     }
     fn list_entries(&self, dir: &str) -> Option<std::io::Result<Vec<media_browser::DirEntry>>> {
         Some(media_browser::std_list_entries(dir))
@@ -339,10 +347,10 @@ pub struct EditorState {
     /// sequence keeps its own. The frontend writes the active sequence's view here as it changes
     /// and takes a sequence's view from here when it becomes the active one.
     #[serde(default)]
-    pub timeline_views: std::collections::BTreeMap<ItemId, filmcraft_project::SequenceView>,
+    pub timeline_views: std::collections::BTreeMap<ItemId, jilo_project::SequenceView>,
     /// Timeline clipboard (serialized track items with their relative track index).
     #[serde(skip)]
-    pub clipboard: Vec<(TrackKind, usize, filmcraft_project::TrackItem)>,
+    pub clipboard: Vec<(TrackKind, usize, jilo_project::TrackItem)>,
     pub default_video_transition: String,
     pub default_audio_transition: String,
     /// Selected edit points (trim mode).
@@ -360,11 +368,11 @@ pub struct EditorState {
     /// Copied captions: (caption track index, the caption with its start relative to the start of
     /// everything copied with it, clips included), pasted with the clips at the playhead.
     #[serde(skip)]
-    pub caption_clipboard: Vec<(usize, filmcraft_project::Caption)>,
+    pub caption_clipboard: Vec<(usize, jilo_project::Caption)>,
     /// Selected transitions (clicked in the Timeline): Effect Controls shows one, Delete removes
     /// them. Selecting clips clears it and selecting transitions clears the clip selection.
     #[serde(default)]
-    pub transition_selection: Vec<filmcraft_project::TransitionId>,
+    pub transition_selection: Vec<jilo_project::TransitionId>,
     /// The gap between clips clicked in the Timeline (Premiere): Delete closes it. It counts only
     /// while nothing else is selected and it is still a gap ([`Session::selected_gap`]).
     #[serde(default)]
@@ -386,7 +394,7 @@ pub struct EditorState {
     /// Audio Clip Mixer automation mode per audio track (track id → mode; missing = Read):
     /// Latch / Touch / Write record the clip Volume and Panner moves as clip keyframes.
     #[serde(default)]
-    pub clip_mixer_modes: std::collections::BTreeMap<u64, filmcraft_project::AutomationMode>,
+    pub clip_mixer_modes: std::collections::BTreeMap<u64, jilo_project::AutomationMode>,
     /// Sequence ▸ Selection Follows Playhead: moving the playhead selects the clips under it on
     /// targeted tracks.
     #[serde(default)]
@@ -402,10 +410,10 @@ pub struct EditorState {
     pub copy_paste_sequence_markers: bool,
     /// Marker colours hidden in the Markers panel (Show All Marker Colors clears this).
     #[serde(default)]
-    pub hidden_marker_colors: Vec<filmcraft_project::Label>,
+    pub hidden_marker_colors: Vec<jilo_project::Label>,
     /// Sequence markers copied with the clipboard clips (start relative to the copied range).
     #[serde(skip)]
-    pub clipboard_markers: Vec<filmcraft_project::Marker>,
+    pub clipboard_markers: Vec<jilo_project::Marker>,
     /// The last Edit ▸ Find… (Find Next continues it).
     #[serde(default)]
     pub find: Option<project_tools::FindState>,
@@ -458,11 +466,11 @@ pub struct Session {
     /// Voice-over recording: the input device and the take in progress.
     pub voiceover: voiceover::VoiceOver,
     /// The last `tts.preview` result, for the host to play (Text to Speech ▸ Preview).
-    pub tts_preview: Option<Arc<filmcraft_tts::Audio>>,
+    pub tts_preview: Option<Arc<jilo_tts::Audio>>,
     /// Synthesized narrations (`tts.render` fills it from a background job).
     pub tts_cache: narration::SynthCache,
     /// The account's ElevenLabs voices once loaded (`tts.cloudVoices`).
-    pub cloud_voices: std::sync::Arc<std::sync::Mutex<Option<Vec<filmcraft_ai::elevenlabs::Voice>>>>,
+    pub cloud_voices: std::sync::Arc<std::sync::Mutex<Option<Vec<jilo_ai::elevenlabs::Voice>>>>,
     /// Dynamic (J/K/L) trimming and trim-mode loop playback in progress.
     pub trim_play: trim::TrimPlayback,
     /// Keyboard shortcuts (active bindings, presets; `shortcuts.*` commands).
@@ -485,16 +493,16 @@ pub struct Session {
     pub stepped: Vec<SteppedJob>,
     /// Speech recogniser for `transcript.generate` (None = the Whisper model named by the command,
     /// feature `whisper`). Hosts and tests install one here.
-    pub transcriber: Option<Arc<dyn filmcraft_speech::Transcriber>>,
+    pub transcriber: Option<Arc<dyn jilo_speech::Transcriber>>,
     /// How AI requests reach Gemini / OpenAI (None = HTTPS, feature `ai-net`). Tests install a
-    /// scripted `filmcraft_ai::transport::FakeTransport`.
-    pub ai_transport: Option<Arc<dyn filmcraft_ai::Transport>>,
+    /// scripted `jilo_ai::transport::FakeTransport`.
+    pub ai_transport: Option<Arc<dyn jilo_ai::Transport>>,
     /// The API key file (None = `<data dir>/ai.json`).
     pub ai_keys_file: Option<std::path::PathBuf>,
     /// Where updates are downloaded (None = `<data dir>/Updates`; tests use their own).
     pub updates_dir: Option<std::path::PathBuf>,
     /// Waiting between AI retries (None = real waits; tests skip them).
-    pub ai_sleep: Option<filmcraft_ai::SleepFn>,
+    pub ai_sleep: Option<jilo_ai::SleepFn>,
     /// Model lists found by the last key check of each provider (`ai.test`).
     pub ai_models: ai::ModelCache,
     /// Transcripts recognised in the background (`transcript.recognize`), waiting for
@@ -541,10 +549,10 @@ pub struct Session {
 /// An export advanced a batch at a time on the host's thread ([`Session::pump_jobs`]).
 pub struct SteppedJob {
     pub job: u64,
-    pub exporter: filmcraft_export::Exporter,
+    pub exporter: jilo_export::Exporter,
     pub provider: media_pool::PoolProvider,
-    pub progress: Arc<filmcraft_export::Progress>,
-    pub result: Arc<std::sync::Mutex<Option<std::result::Result<filmcraft_export::Report, String>>>>,
+    pub progress: Arc<jilo_export::Progress>,
+    pub result: Arc<std::sync::Mutex<Option<std::result::Result<jilo_export::Report, String>>>>,
 }
 
 /// A background job with shared progress.
@@ -552,8 +560,8 @@ pub struct SteppedJob {
 pub struct Job {
     pub id: u64,
     pub label: String,
-    pub progress: Arc<filmcraft_export::Progress>,
-    pub result: Arc<std::sync::Mutex<Option<std::result::Result<filmcraft_export::Report, String>>>>,
+    pub progress: Arc<jilo_export::Progress>,
+    pub result: Arc<std::sync::Mutex<Option<std::result::Result<jilo_export::Report, String>>>>,
 }
 
 impl Job {
@@ -606,7 +614,7 @@ impl Session {
             prefs: Default::default(),
             prefs_path: None,
             persistence: None,
-            loaded_schema: filmcraft_format::SCHEMA_VERSION,
+            loaded_schema: jilo_format::SCHEMA_VERSION,
             previews: Arc::new(previews::PreviewStore::temp()),
             mixrec: Default::default(),
             mcrec: Default::default(),
@@ -659,9 +667,9 @@ impl Session {
         let t0 = web_time::Instant::now();
         while let Some(j) = self.stepped.first_mut() {
             match j.exporter.step(&j.provider, &j.progress) {
-                Ok(filmcraft_export::Step::Progress) => {}
-                Ok(filmcraft_export::Step::Pending) => return true,
-                Ok(filmcraft_export::Step::Done(r)) => {
+                Ok(jilo_export::Step::Progress) => {}
+                Ok(jilo_export::Step::Pending) => return true,
+                Ok(jilo_export::Step::Done(r)) => {
                     *j.result.lock().unwrap_or_else(|e| e.into_inner()) = Some(Ok(r));
                     self.stepped.remove(0);
                 }
@@ -792,6 +800,7 @@ impl Session {
         if let Some(p) = &self.path
             && !cfg!(target_arch = "wasm32")
         {
+            previews::adopt_legacy_dir(p);
             self.previews.move_to(project_tools::previews_dir(self).unwrap_or_else(|| previews::dir_for_project(p)));
         }
     }
@@ -904,9 +913,9 @@ impl Session {
     }
 
     /// What is open, to store beside the project when it is saved.
-    pub fn project_view(&self) -> filmcraft_project::ProjectView {
+    pub fn project_view(&self) -> jilo_project::ProjectView {
         let is_seq = |id: &ItemId| self.project.sequence(*id).is_some();
-        filmcraft_project::ProjectView {
+        jilo_project::ProjectView {
             open_sequences: self.state.open_sequences.iter().copied().filter(is_seq).collect(),
             active_sequence: self.state.active_sequence.filter(is_seq),
             sequences: self.state.timeline_views.iter().filter(|(id, _)| is_seq(id)).map(|(id, v)| (*id, *v)).collect(),
@@ -919,7 +928,7 @@ impl Session {
     /// and numbers are brought into range (a playhead also lands on a frame of its sequence). A
     /// view without any open sequence leaves the project on its first sequence: a project saved
     /// by a session that never showed one (a script, the CLI) should not open on an empty Timeline.
-    pub fn restore_project_view(&mut self, view: filmcraft_project::ProjectView) {
+    pub fn restore_project_view(&mut self, view: jilo_project::ProjectView) {
         let mut open: Vec<ItemId> = Vec::new();
         for id in view.open_sequences {
             if self.project.sequence(id).is_some() && !open.contains(&id) {
@@ -934,7 +943,7 @@ impl Session {
             view.sequences.into_iter().filter(|(id, _)| self.project.sequence(*id).is_some()).filter_map(|(id, v)| Some((id, v.checked()?))).collect();
         for (id, t) in view.playheads {
             if let Some(seq) = self.project.sequence(id) {
-                let t = t.clamp(Tick::ZERO, filmcraft_project::ProjectView::MAX_PLAYHEAD);
+                let t = t.clamp(Tick::ZERO, jilo_project::ProjectView::MAX_PLAYHEAD);
                 self.state.playheads.insert(id, seq.settings.frame_rate.snap(t));
             }
         }
@@ -1023,14 +1032,14 @@ impl Session {
     /// How far a trim of `clip`'s `edge` by `delta` in the active sequence can go: what
     /// `timeline.trim` would apply (it clamps the same way), for the Timeline's preview while
     /// dragging. None when the clip is not in the active sequence.
-    pub fn clamp_trim(&self, clip: ClipId, edge: filmcraft_edit::Edge, mode: filmcraft_edit::TrimMode, delta: Tick) -> Option<Tick> {
+    pub fn clamp_trim(&self, clip: ClipId, edge: jilo_edit::Edge, mode: jilo_edit::TrimMode, delta: Tick) -> Option<Tick> {
         let seq = self.active_sequence()?;
         let (p, media) = (&*self.project, &self.media);
         let durations = |id: ItemId| media_duration(p, media, id);
         let starts = |id: ItemId| media_start(p, id);
         let mut next = p.next_id;
         let ctx = EditCtx { next_id: &mut next, media_duration: &durations, media_start: &starts, min_duration: seq.settings.frame_rate.frame_duration() };
-        filmcraft_edit::clamp_trim(seq, clip, edge, mode, delta, &ctx).ok()
+        jilo_edit::clamp_trim(seq, clip, edge, mode, delta, &ctx).ok()
     }
 
     /// Edit the active sequence with the edit-algebra context.
@@ -1156,14 +1165,14 @@ impl Session {
 
     /// The selected gap (its track and extent), while nothing else is selected and it is still a
     /// gap in the active sequence.
-    pub fn selected_gap(&self) -> Option<(TrackId, filmcraft_time::TimeRange)> {
+    pub fn selected_gap(&self) -> Option<(TrackId, jilo_time::TimeRange)> {
         let g = self.state.gap_selection?;
         let st = &self.state;
         if !(st.selection.is_empty() && st.caption_selection.is_empty() && st.transition_selection.is_empty() && st.edit_points.is_empty()) {
             return None;
         }
         let tr = self.active_sequence()?.track(g.track)?;
-        filmcraft_edit::gap_at(tr, g.time).map(|r| (g.track, r))
+        jilo_edit::gap_at(tr, g.time).map(|r| (g.track, r))
     }
 
     pub fn playhead(&self) -> Tick {
@@ -1199,38 +1208,38 @@ impl Session {
     }
 
     /// The media source for an item (creating it on first use).
-    pub fn source(&self, item: ItemId) -> Option<filmcraft_media::SharedSource> {
+    pub fn source(&self, item: ItemId) -> Option<jilo_media::SharedSource> {
         self.media.source_for(&self.project, item, &*self.services)
     }
 
     /// Render the active sequence at the playhead in its working colour space (HDR values kept;
     /// for scopes and analysis).
-    pub fn render_program_working(&self, scale: f32) -> Option<filmcraft_render::Image> {
+    pub fn render_program_working(&self, scale: f32) -> Option<jilo_render::Image> {
         let seq = self.renderable_sequence(scale).ok()?;
         let provider = self.media.provider(self.project.clone(), self.services.clone());
-        let opts = filmcraft_render::RenderOptions { scale, working_output: true, ..Default::default() };
-        Some(filmcraft_render::render_sequence(&self.project, seq, self.playhead(), opts, &provider))
+        let opts = jilo_render::RenderOptions { scale, working_output: true, ..Default::default() };
+        Some(jilo_render::render_sequence(&self.project, seq, self.playhead(), opts, &provider))
     }
 
     /// Render the active sequence at the playhead (CPU reference path).
-    pub fn render_program(&self, scale: f32) -> Option<filmcraft_render::Image> {
+    pub fn render_program(&self, scale: f32) -> Option<jilo_render::Image> {
         self.render_program_at(scale, self.playhead())
     }
 
     /// Render the active sequence at `t` (snapped to its frame, as the playhead would be) without
     /// moving the playhead (CPU reference path). `None` when there is no sequence or the frame
     /// cannot be rendered at `scale`; [`Session::try_render_program_at`] says why.
-    pub fn render_program_at(&self, scale: f32, t: Tick) -> Option<filmcraft_render::Image> {
+    pub fn render_program_at(&self, scale: f32, t: Tick) -> Option<jilo_render::Image> {
         self.try_render_program_at(scale, t).ok()
     }
 
     /// [`Session::render_program_at`], with the reason when nothing can be rendered.
-    pub fn try_render_program_at(&self, scale: f32, t: Tick) -> Result<filmcraft_render::Image> {
+    pub fn try_render_program_at(&self, scale: f32, t: Tick) -> Result<jilo_render::Image> {
         let seq = self.renderable_sequence(scale)?;
         let t = self.sequence_rate().snap(t.max(Tick::ZERO));
         let provider = self.media.provider(self.project.clone(), self.services.clone());
-        let opts = filmcraft_render::RenderOptions { scale, captions: true, ..Default::default() };
-        Ok(filmcraft_render::render_sequence(&self.project, seq, t, opts, &provider))
+        let opts = jilo_render::RenderOptions { scale, captions: true, ..Default::default() };
+        Ok(jilo_render::render_sequence(&self.project, seq, t, opts, &provider))
     }
 
     /// The active sequence, if a frame of it at `scale` is within the image size limits.
@@ -1240,10 +1249,10 @@ impl Session {
         if !scale.is_finite() || scale <= 0.0 {
             return Err(EngineError::Other(format!("render scale {scale} must be finite and positive")));
         }
-        let (w, h) = filmcraft_render::output_size(seq, scale);
+        let (w, h) = jilo_render::output_size(seq, scale);
         let size = u32::try_from(w).ok().zip(u32::try_from(h).ok());
         let Some((w, h)) = size else { return Err(EngineError::Other("the requested render frame exceeds the image size limits".into())) };
-        filmcraft_project::validate_frame_size(w, h).map_err(|e| EngineError::Other(format!("cannot render a {w}x{h} frame: {e}")))?;
+        jilo_project::validate_frame_size(w, h).map_err(|e| EngineError::Other(format!("cannot render a {w}x{h} frame: {e}")))?;
         Ok(id)
     }
 }
@@ -1252,7 +1261,7 @@ impl Session {
 /// In point, everything else at 0.
 pub fn media_start(p: &Project, id: ItemId) -> Tick {
     match p.item(id).map(|i| &i.kind) {
-        Some(filmcraft_project::ItemKind::Subclip { range, restrict_trims: true, .. }) => range.start,
+        Some(jilo_project::ItemKind::Subclip { range, restrict_trims: true, .. }) => range.start,
         _ => Tick::ZERO,
     }
 }
@@ -1265,18 +1274,18 @@ pub fn media_duration(p: &Project, _pool: &MediaPool, id: ItemId) -> Option<Tick
     for _ in 0..=MAX_SUBCLIP_CHAIN {
         let it = p.item(id)?;
         return match &it.kind {
-            filmcraft_project::ItemKind::Media(m) => match m.info.kind {
-                filmcraft_media::MediaKind::Still | filmcraft_media::MediaKind::Synthetic => None,
+            jilo_project::ItemKind::Media(m) => match m.info.kind {
+                jilo_media::MediaKind::Still | jilo_media::MediaKind::Synthetic => None,
                 _ => Some(m.info.duration),
             },
-            filmcraft_project::ItemKind::Sequence(s) => Some(s.duration()),
+            jilo_project::ItemKind::Sequence(s) => Some(s.duration()),
             // a subclip that restricts trims ends at its Out point; otherwise its parent's media is the limit
-            filmcraft_project::ItemKind::Subclip { range, restrict_trims: true, .. } => Some(range.end()),
-            filmcraft_project::ItemKind::Subclip { parent, .. } => {
+            jilo_project::ItemKind::Subclip { range, restrict_trims: true, .. } => Some(range.end()),
+            jilo_project::ItemKind::Subclip { parent, .. } => {
                 id = *parent;
                 continue;
             }
-            filmcraft_project::ItemKind::AdjustmentLayer { .. } | filmcraft_project::ItemKind::Graphic { .. } => None,
+            jilo_project::ItemKind::AdjustmentLayer { .. } | jilo_project::ItemKind::Graphic { .. } => None,
         };
     }
     None

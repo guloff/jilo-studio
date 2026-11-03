@@ -6,11 +6,11 @@
 //! the selection marks In/Out and can be extracted or lifted (`transcript.*` commands).
 
 use egui::{Align2, Color32, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_project::{CaptionAlign, CaptionAnchor, CaptionFormat};
-use filmcraft_time::{TimeDisplay, format_time};
+use jilo_project::{CaptionAlign, CaptionAnchor, CaptionFormat};
+use jilo_time::{TimeDisplay, format_time};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::icons::{self, Icon};
 use crate::theme::Tokens;
 
@@ -25,7 +25,7 @@ fn tab_text_width(painter: &egui::Painter, label: &str) -> f32 {
     (label.chars().count() as f32 * 7.0).max(drawn)
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     ui.painter().rect_filled(rect, 0.0, t.panel_bg);
     // tabs
@@ -61,7 +61,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     }
 }
 
-fn tool_button(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, icon: Icon, id: &str, label: &str, enabled: bool) -> bool {
+fn tool_button(app: &mut JiloApp, ui: &mut egui::Ui, r: Rect, icon: Icon, id: &str, label: &str, enabled: bool) -> bool {
     let t = app.tokens;
     let resp = ui.interact(r, egui::Id::new(("text-tool", id)), if enabled { Sense::click() } else { Sense::hover() });
     if enabled && resp.hovered() {
@@ -72,7 +72,7 @@ fn tool_button(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, icon: Icon, i
     resp.on_hover_text(label).clicked() && enabled
 }
 
-fn captions(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+fn captions(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let Some(seq) = app.session.active_sequence().cloned() else {
         crate::dock::placeholder(ui, rect, &t, tl!("Open a sequence to work with captions"));
@@ -105,7 +105,7 @@ fn captions(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     }
     let rate = seq.settings.frame_rate;
     let df = seq.settings.drop_frame;
-    let tc = |x: filmcraft_time::Tick| format_time(x, rate, df, TimeDisplay::Timecode, 48_000);
+    let tc = |x: jilo_time::Tick| format_time(x, rate, df, TimeDisplay::Timecode, 48_000);
     // the track shown: the one holding the first selected caption, else C1
     let sel = app.session.state.caption_selection.clone();
     let track_idx = sel.first().and_then(|c| seq.caption_tracks.iter().position(|tr| tr.caption(*c).is_some())).unwrap_or(0);
@@ -300,14 +300,14 @@ fn captions(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     run(app, ui, actions);
 }
 
-fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+fn transcript(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     if app.session.active_sequence().is_none() {
         crate::dock::placeholder(ui, rect, &t, tl!("Open a sequence to see its transcript"));
         return;
     }
     let mut actions: Vec<(String, Value)> = Vec::new();
-    let words = filmcraft_engine::transcript::sequence_words(&app.session);
+    let words = jilo_engine::transcript::sequence_words(&app.session);
     if words.is_empty() {
         transcribe_empty(app, ui, rect);
         return;
@@ -321,7 +321,7 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(bar.min, vec2(sw, 24.0))));
     let sresp = crate::widgets::search_field(&mut child, &mut app.ui.transcript_search, tl!("Search"), sw, &t);
     app.auto.add("text.transcript.search", sresp.rect, "Search transcript");
-    let hits: Vec<std::ops::Range<usize>> = filmcraft_edit::transcript::search(&words, &app.ui.transcript_search);
+    let hits: Vec<std::ops::Range<usize>> = jilo_edit::transcript::search(&words, &app.ui.transcript_search);
     let mut x = bar.min.x + sw + 10.0;
     let range = sel.map(|(a, b)| json!({"from": a.min(b), "to": a.max(b)}));
     let tools: [(Icon, &str, &str, bool, &str, Value); 7] = [
@@ -370,8 +370,8 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let list = Rect::from_min_max(pos2(rect.min.x + 6.0, bar.max.y + 8.0), pos2(rect.max.x - 6.0, rect.max.y - 4.0));
     ui.painter().rect_filled(list, 3.0, t.app_bg);
     let ph = app.session.playhead();
-    let current = filmcraft_edit::transcript::word_at(&words, ph);
-    let paras = filmcraft_edit::transcript::paragraphs(&words, filmcraft_time::Tick::from_seconds_f64(1.5));
+    let current = jilo_edit::transcript::word_at(&words, ph);
+    let paras = jilo_edit::transcript::paragraphs(&words, jilo_time::Tick::from_seconds_f64(1.5));
     let rate = app.session.sequence_rate();
     let df = app.session.active_sequence().is_some_and(|q| q.settings.drop_frame);
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(list.shrink(6.0)).id_salt("transcript-list"));
@@ -416,7 +416,7 @@ fn transcript(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 
 /// AI ▸ Translate Captions… from the menu: the Text panel's Captions tab with the translation dialog
 /// for the caption track holding the first selected caption, else the first track with captions.
-pub fn open_translate(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open_translate(app: &mut JiloApp) -> Result<Value, String> {
     let seq = app.session.active_sequence().ok_or_else(|| tl!("No sequence is open.").to_string())?;
     let sel = app.session.state.caption_selection.first().copied();
     let track = sel
@@ -436,7 +436,7 @@ pub(crate) const TRANSLATE_LANGUAGES: [(&str, &str); 6] =
 
 /// Text panel ▸ Captions ▸ Translate captions: the target language, then a background translation
 /// into a new track (the status bar shows its progress).
-fn translate_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn translate_dialog(app: &mut JiloApp, ctx: &egui::Context) {
     let Some(track) = app.ui.translate_track else { return };
     let t = app.tokens;
     let (mut go, mut cancel) = (false, false);
@@ -493,7 +493,7 @@ fn translate_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
 }
 
 /// Text panel ▸ Remove filler words: the fillers found, hesitations chosen, discourse words not.
-fn fillers_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn fillers_dialog(app: &mut JiloApp, ctx: &egui::Context) {
     let Some(mut list) = app.ui.fillers.take() else { return };
     let t = app.tokens;
     let (mut remove, mut cancel) = (false, false);
@@ -547,7 +547,7 @@ const TRANSCRIBE_LANGUAGES: [(&str, &str); 4] = [("auto", "Auto-detect"), ("ru",
 /// The Transcript tab before there is a transcript: the engine and language, what a cloud engine
 /// would receive, Transcribe; then the background recognition with its progress and Stop, and the
 /// one-time consent before audio first goes to a cloud provider.
-fn transcribe_empty(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+fn transcribe_empty(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let c = rect.center();
     icons::paint(ui.painter(), Rect::from_center_size(c - vec2(0.0, 92.0), vec2(40.0, 40.0)), Icon::Captions, t.text_dim);
@@ -593,7 +593,7 @@ fn transcribe_empty(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(150));
         return;
     }
-    let note = if filmcraft_speech_available(app) || app.session.prefs.ai.speech_provider().is_some() {
+    let note = if builtin_speech_available(app) || app.session.prefs.ai.speech_provider().is_some() {
         tl!("Speech-to-text turns the dialogue into editable text.")
     } else {
         tl!("This build has no speech-to-text; import a transcript with transcript.set.")
@@ -606,10 +606,10 @@ fn transcribe_empty(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let mut set: Option<Value> = None;
     let row = Rect::from_center_size(c - vec2(0.0, 2.0), vec2(330.0, 24.0));
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(row).layout(egui::Layout::left_to_right(egui::Align::Center)));
-    let shown = filmcraft_engine::settings::SPEECH_ENGINES.iter().find(|e| e.0 == engine).map_or(engine.as_str(), |e| e.1);
+    let shown = jilo_engine::settings::SPEECH_ENGINES.iter().find(|e| e.0 == engine).map_or(engine.as_str(), |e| e.1);
     let mut items: Vec<(String, Rect, &str)> = Vec::new();
     let er = egui::ComboBox::from_id_salt("text.transcript.engine").width(190.0).selected_text(crate::i18n::t(shown)).show_ui(&mut child, |ui| {
-        for (v, l) in filmcraft_engine::settings::SPEECH_ENGINES {
+        for (v, l) in jilo_engine::settings::SPEECH_ENGINES {
             let r = ui.selectable_label(*v == engine, crate::i18n::t(l));
             items.push((format!("text.transcript.engine.{v}"), r.rect, l));
             if r.clicked() {
@@ -643,7 +643,7 @@ fn transcribe_empty(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     }
     // what a cloud engine would receive
     let provider = app.session.prefs.ai.speech_provider();
-    let seconds = filmcraft_engine::recognition::target_seconds(&app.session, &json!({}));
+    let seconds = jilo_engine::recognition::target_seconds(&app.session, &json!({}));
     if let Some(pv) = provider {
         let mins = (seconds / 60.0).ceil().max(1.0) as u64;
         ui.painter().text(
@@ -674,7 +674,7 @@ fn transcribe_empty(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
 }
 
 /// Start `transcript.recognize` with `params` in the background.
-fn start_recognition(app: &mut FilmcraftApp, params: Value) {
+fn start_recognition(app: &mut JiloApp, params: Value) {
     let mut p = params.clone();
     p["wait"] = json!(false);
     app.ui.transcribe.message.clear();
@@ -689,9 +689,9 @@ fn start_recognition(app: &mut FilmcraftApp, params: Value) {
 }
 
 /// Before audio first goes to a cloud provider: what is sent, to whom, and the choice.
-fn consent_dialog(app: &mut FilmcraftApp, ctx: &egui::Context, seconds: f64) {
+fn consent_dialog(app: &mut JiloApp, ctx: &egui::Context, seconds: f64) {
     let Some(params) = app.ui.transcribe.confirm.clone() else { return };
-    let Some(provider) = params["engine"].as_str().and_then(filmcraft_ai::Provider::from_id) else {
+    let Some(provider) = params["engine"].as_str().and_then(jilo_ai::Provider::from_id) else {
         app.ui.transcribe.confirm = None;
         return;
     };
@@ -733,11 +733,11 @@ fn consent_dialog(app: &mut FilmcraftApp, ctx: &egui::Context, seconds: f64) {
     }
 }
 
-fn filmcraft_speech_available(app: &FilmcraftApp) -> bool {
-    app.session.transcriber.is_some() || filmcraft_engine::transcript::speech_available()
+fn builtin_speech_available(app: &JiloApp) -> bool {
+    app.session.transcriber.is_some() || jilo_engine::transcript::speech_available()
 }
 
-fn style_strip(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, track_idx: usize, actions: &mut Vec<(String, Value)>) {
+fn style_strip(app: &mut JiloApp, ui: &mut egui::Ui, r: Rect, track_idx: usize, actions: &mut Vec<(String, Value)>) {
     let Some(tr) = app.session.active_sequence().and_then(|q| q.caption_tracks.get(track_idx)).cloned() else { return };
     let st = tr.style.clone();
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r).id_salt("caption-style"));
@@ -797,7 +797,7 @@ fn style_strip(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, track_idx: us
     });
 }
 
-fn run(app: &mut FilmcraftApp, ui: &egui::Ui, actions: Vec<(String, Value)>) {
+fn run(app: &mut JiloApp, ui: &egui::Ui, actions: Vec<(String, Value)>) {
     let ctx = ui.ctx().clone();
     for (cmd, p) in actions {
         if let Err(e) = crate::menus::invoke(app, &ctx, &cmd, p) {

@@ -20,8 +20,8 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 
-use filmcraft_project::{ItemId, ItemKind, TrackId};
-use filmcraft_time::Tick;
+use jilo_project::{ItemId, ItemKind, TrackId};
+use jilo_time::Tick;
 
 use crate::ai_tasks::{Outcome, TaskWork, other, run, started};
 use crate::commands::{CommandSpec, bad, bool_p, f64_p, has_seq, str_p, u64_p};
@@ -115,7 +115,7 @@ fn classify(s: &Session, item: ItemId, classifier: &ImageClassifier) -> Vec<Stri
     let times: Vec<Tick> = if dur > Tick::ZERO { [0.2, 0.5, 0.8].iter().map(|f| Tick((dur.0 as f64 * f) as i64)).collect() } else { vec![Tick::ZERO] };
     let mut found: Vec<(String, f32)> = Vec::new();
     for t in times {
-        let Ok(f) = src.video_frame(filmcraft_media::FrameRequest { time: t, scale }) else { continue };
+        let Ok(f) = src.video_frame(jilo_media::FrameRequest { time: t, scale }) else { continue };
         let Ok(labels) = classifier(&f.to_rgba8(), f.width as usize, f.height as usize) else { continue };
         for (l, c) in labels {
             let l = l.replace('_', " ");
@@ -275,7 +275,7 @@ fn auto(s: &mut Session, p: &Value) -> Result<Value> {
     let picks: Vec<(usize, usize)> = match method {
         "ai" if !clips.is_empty() => {
             let spoken = words.first().and_then(|w| s.project.transcripts.get(&w.item)).map(|t| t.language.clone()).unwrap_or_else(|| "en".into());
-            let language = filmcraft_ai::speech::language_name(&spoken).split(" (").next().unwrap_or("English").to_string();
+            let language = jilo_ai::speech::language_name(&spoken).split(" (").next().unwrap_or("English").to_string();
             let phrases: String = cues.iter().enumerate().map(|(i, c)| format!("{i}. {}\n", c.text)).collect();
             let list: String = clips
                 .iter()
@@ -287,7 +287,7 @@ fn auto(s: &mut Session, p: &Value) -> Result<Value> {
             let system = prompt(&language);
             let work: TaskWork = Box::new(move |engine, ctx, progress| {
                 if !progress(0.1, "Reading the talk") {
-                    return Err(filmcraft_ai::AiError::Cancelled);
+                    return Err(jilo_ai::AiError::Cancelled);
                 }
                 let v = engine.json(ctx, &system, &user, Some(&schema()), 0.2)?;
                 let _ = progress(1.0, "B-roll chosen");
@@ -343,7 +343,7 @@ fn auto(s: &mut Session, p: &Value) -> Result<Value> {
             if let Some(clip) = r["clips"][0].as_u64() {
                 let q = s.active_sequence().ok_or(EngineError::NoSequence)?;
                 // footage of another shape fills the frame
-                if q.find_item(filmcraft_project::ClipId(clip)).is_some_and(|(_, it)| !it.scale_to_frame) {
+                if q.find_item(jilo_project::ClipId(clip)).is_some_and(|(_, it)| !it.scale_to_frame) {
                     s.execute("clip.fillFrame", json!({"clips": [clip]}))?;
                 }
                 placed.push(json!({"clip": clip, "item": c.item.0, "name": c.name, "phrase": cues[ci].text, "seconds": start}));

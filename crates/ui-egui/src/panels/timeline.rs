@@ -13,11 +13,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use egui::{Align2, Color32, CursorIcon, Pos2, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_project::{ClipId, ItemId, Sequence, TrackId, TrackItem, TrackKind};
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND, Tick, TimeDisplay, format_time};
+use jilo_project::{ClipId, ItemId, Sequence, TrackId, TrackItem, TrackKind};
+use jilo_time::{FrameRate, TICKS_PER_SECOND, Tick, TimeDisplay, format_time};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::icons::{self, Icon};
 use crate::state::{TimelineView, Tool};
 use crate::theme::Tokens;
@@ -104,8 +104,8 @@ pub enum Drag {
     },
     Trim {
         clip: ClipId,
-        edge: filmcraft_edit::Edge,
-        mode: filmcraft_edit::TrimMode,
+        edge: jilo_edit::Edge,
+        mode: jilo_edit::TrimMode,
         delta: Tick,
         /// The time under the pointer when the button went down: the edge moves by how far the
         /// pointer has moved since (#259).
@@ -130,7 +130,7 @@ pub enum Drag {
     Volume(super::timeline_volume::LineDrag),
     Stretch {
         clip: ClipId,
-        edge: filmcraft_edit::Edge,
+        edge: jilo_edit::Edge,
         delta: Tick,
         /// As in [`Drag::Trim`].
         from: Tick,
@@ -145,8 +145,8 @@ pub enum Drag {
     /// A transition dragged by an end (`edge`: its duration) or its middle (slides it over the
     /// cut); `start` / `duration` are where it is shown now, committed on release (#224).
     Transition {
-        id: filmcraft_project::TransitionId,
-        edge: Option<filmcraft_edit::Edge>,
+        id: jilo_project::TransitionId,
+        edge: Option<jilo_edit::Edge>,
         /// As in [`Drag::Trim`].
         from: Tick,
         start: Tick,
@@ -230,11 +230,11 @@ pub fn zoom_about(v: &mut TimelineView, factor: f64, anchor_secs: f64, width: f3
     v.target_scroll = (anchor_secs - x as f64 / new).max(0.0);
 }
 
-fn label_color(app: &FilmcraftApp, l: filmcraft_project::Label) -> Color32 {
+fn label_color(app: &JiloApp, l: jilo_project::Label) -> Color32 {
     crate::panels::settings::label_color(app, l)
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let ctx = ui.ctx().clone();
     let Some(seq_id) = app.session.state.active_sequence else {
@@ -447,7 +447,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         }
         // Show Through Edits: a small bow-tie on cuts between continuous pieces of one clip
         if app.session.state.show_through_edits {
-            for te in filmcraft_edit::through::track_through_edits(tr) {
+            for te in jilo_edit::through::track_through_edits(tr) {
                 let x = layout.x_of(te.time);
                 if x < content.min.x - 6.0 || x > content.max.x + 6.0 {
                     continue;
@@ -576,10 +576,10 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let _ = (visible, TICKS_PER_SECOND);
 }
 
-fn empty_state(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+fn empty_state(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     ui.painter().text(rect.center() - vec2(0.0, 12.0), Align2::CENTER_CENTER, tl!("Drop media here to create sequence."), Tokens::ui(13.0), t.text_dim);
-    if app.session.project.items.values().any(|i| matches!(i.kind, filmcraft_project::ItemKind::Sequence(_))) {
+    if app.session.project.items.values().any(|i| matches!(i.kind, jilo_project::ItemKind::Sequence(_))) {
         let hint = tl!("Double-click a sequence in the Project panel to open it here.");
         ui.painter().text(rect.center() + vec2(0.0, 50.0), Align2::CENTER_CENTER, hint, Tokens::ui(12.0), t.text_dim);
     }
@@ -622,7 +622,7 @@ fn lighten(c: Color32, f: f32) -> Color32 {
 }
 
 /// Whether a clip lies inside the sequence In/Out range (Premiere brightens those).
-fn in_range(app: &FilmcraftApp, it: &TrackItem) -> bool {
+fn in_range(app: &JiloApp, it: &TrackItem) -> bool {
     let Some(q) = app.session.active_sequence() else { return false };
     if q.mark_in.is_none() && q.mark_out.is_none() {
         return false;
@@ -634,7 +634,7 @@ fn in_range(app: &FilmcraftApp, it: &TrackItem) -> bool {
 
 #[allow(clippy::too_many_arguments)]
 fn draw_clip(
-    app: &mut FilmcraftApp,
+    app: &mut JiloApp,
     ctx: &egui::Context,
     p: &egui::Painter,
     body: Rect,
@@ -664,8 +664,8 @@ fn draw_clip(
     if kind == TrackKind::Video && app.ui.timeline.show_thumbnails && body.height() > 28.0 && w > 20.0 && it.enabled {
         let th = Rect::from_min_max(pos2(body.min.x + 1.0, body.min.y + name_h), pos2(body.max.x - 1.0, body.max.y - 1.0));
         let aspect = app.session.project.item(it.item).and_then(|pi| match &pi.kind {
-            filmcraft_project::ItemKind::Media(m) => m.info.video.as_ref().map(|v| v.width as f32 / v.height as f32),
-            filmcraft_project::ItemKind::Sequence(s) => Some(s.settings.width as f32 / s.settings.height as f32),
+            jilo_project::ItemKind::Media(m) => m.info.video.as_ref().map(|v| v.width as f32 / v.height as f32),
+            jilo_project::ItemKind::Sequence(s) => Some(s.settings.width as f32 / s.settings.height as f32),
             _ => None,
         });
         if let Some(aspect) = aspect {
@@ -747,7 +747,7 @@ fn draw_clip(
     }
 }
 
-fn draw_waveform(app: &mut FilmcraftApp, p: &egui::Painter, body: Rect, it: &TrackItem, col: Color32) {
+fn draw_waveform(app: &mut JiloApp, p: &egui::Painter, body: Rect, it: &TrackItem, col: Color32) {
     let peaks = if it.audio_stream > 0 { request_stream_peaks(app, it.item, it.audio_stream) } else { request_peaks(app, it.item) };
     let Some(peaks) = peaks else { return };
     let spp = 256.0;
@@ -811,15 +811,15 @@ fn draw_waveform(app: &mut FilmcraftApp, p: &egui::Painter, body: Rect, it: &Tra
 fn waveform_display_gain(source_peak: f32, clip_gain_db: f64) -> f32 {
     const MAX_BOOST: f32 = 3.981_072; // +12 dB
     let boost = (1.0 / source_peak.max(1e-9)).min(MAX_BOOST);
-    filmcraft_render::audio::db_to_gain(clip_gain_db) * boost
+    jilo_render::audio::db_to_gain(clip_gain_db) * boost
 }
 
 /// A key that changes when the sound of sequence `item` does: its audio segments (clips,
-/// transitions, mixer state; see `filmcraft_render::preview::audio_segments`) and its length.
-fn sequence_audio_key(project: &filmcraft_project::Project, item: ItemId) -> u64 {
+/// transitions, mixer state; see `jilo_render::preview::audio_segments`) and its length.
+fn sequence_audio_key(project: &jilo_project::Project, item: ItemId) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
-    for seg in filmcraft_render::preview::audio_segments(project, item) {
+    for seg in jilo_render::preview::audio_segments(project, item) {
         (seg.first_sample, seg.samples, seg.hash).hash(&mut h);
     }
     project.sequence(item).map(|q| (q.duration().0, q.settings.sample_rate)).hash(&mut h);
@@ -829,7 +829,7 @@ fn sequence_audio_key(project: &filmcraft_project::Project, item: ItemId) -> u64
 /// Waveform peaks of a nested sequence's mix, in the same form as a media item's (min, max per
 /// 256 samples at 48 kHz). They are mixed in the background, and again whenever the sequence's
 /// sound changes; until the new ones are ready the old ones stay on show.
-fn request_sequence_peaks(app: &mut FilmcraftApp, item: ItemId) -> Option<Arc<Vec<(f32, f32)>>> {
+fn request_sequence_peaks(app: &mut JiloApp, item: ItemId) -> Option<Arc<Vec<(f32, f32)>>> {
     let revision = app.session.revision;
     let key = match app.tl.seq_keys_seen.get(&item) {
         Some(&(rev, key)) if rev == revision => key,
@@ -867,7 +867,7 @@ fn request_sequence_peaks(app: &mut FilmcraftApp, item: ItemId) -> Option<Arc<Ve
             let mut s = 0usize;
             while s < total {
                 let n = chunk.min(total - s);
-                let buf = filmcraft_render::audio::mix_sequence(&project, seq, s as i64, n, &provider);
+                let buf = jilo_render::audio::mix_sequence(&project, seq, s as i64, n, &provider);
                 let ch = buf.channels.first()?;
                 for c in ch.chunks(bucket) {
                     let (lo, hi) = c.iter().fold((0f32, 0f32), |(l, h), v| (l.min(*v), h.max(*v)));
@@ -891,7 +891,7 @@ fn request_sequence_peaks(app: &mut FilmcraftApp, item: ItemId) -> Option<Arc<Ve
 }
 
 /// One (min, max) per 256 samples at 48 kHz of the first channel of audio stream `stream`.
-fn media_peaks(src: &dyn filmcraft_media::MediaSource, stream: usize) -> Vec<(f32, f32)> {
+fn media_peaks(src: &dyn jilo_media::MediaSource, stream: usize) -> Vec<(f32, f32)> {
     let sr = 48_000u32;
     let total = src.info().duration.to_units_floor(sr as i64).max(0) as usize;
     let mut out = Vec::with_capacity(total / 256 + 1);
@@ -915,7 +915,7 @@ fn media_peaks(src: &dyn filmcraft_media::MediaSource, stream: usize) -> Vec<(f3
 }
 
 /// Peaks of audio stream `stream` (≥ 1) of a media item; stream 0 is [`request_peaks`].
-pub(crate) fn request_stream_peaks(app: &mut FilmcraftApp, item: ItemId, stream: usize) -> Option<Arc<Vec<(f32, f32)>>> {
+pub(crate) fn request_stream_peaks(app: &mut JiloApp, item: ItemId, stream: usize) -> Option<Arc<Vec<(f32, f32)>>> {
     let key = (item, stream);
     if let Some(p) = app.tl.stream_peaks.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
         return Some(p.clone());
@@ -941,7 +941,7 @@ pub(crate) fn request_stream_peaks(app: &mut FilmcraftApp, item: ItemId, stream:
     None
 }
 
-pub(crate) fn request_peaks(app: &mut FilmcraftApp, item: ItemId) -> Option<Arc<Vec<(f32, f32)>>> {
+pub(crate) fn request_peaks(app: &mut JiloApp, item: ItemId) -> Option<Arc<Vec<(f32, f32)>>> {
     if app.session.project.sequence(item).is_some() {
         return request_sequence_peaks(app, item);
     }
@@ -982,11 +982,11 @@ fn paint_hatch(p: &egui::Painter, r: Rect) {
     }
 }
 
-fn draw_transition(p: &egui::Painter, r: Rect, trn: &filmcraft_project::Transition, selected: bool, t: &Tokens) {
+fn draw_transition(p: &egui::Painter, r: Rect, trn: &jilo_project::Transition, selected: bool, t: &Tokens) {
     let cp = p.with_clip_rect(r.intersect(p.clip_rect()));
     cp.rect_filled(r, 0.0, Color32::from_black_alpha(90));
     paint_hatch(p, r);
-    let audio = matches!(trn.effect.def().map(|d| d.kind), Some(filmcraft_project::EffectKind::AudioTransition));
+    let audio = matches!(trn.effect.def().map(|d| d.kind), Some(jilo_project::EffectKind::AudioTransition));
     if audio {
         // crossing fade curves
         let n = 16;
@@ -1034,7 +1034,7 @@ fn patch_button(ui: &mut egui::Ui, r: Rect, clip: Rect, label: &str, on: bool, s
 }
 
 #[allow(clippy::too_many_arguments)]
-fn draw_headers(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, rows: &[Row], rect: Rect, vclip: Rect, aclip: Rect, t: &Tokens) {
+fn draw_headers(app: &mut JiloApp, ui: &mut egui::Ui, seq: &Sequence, rows: &[Row], rect: Rect, vclip: Rect, aclip: Rect, t: &Tokens) {
     let hw = app.ui.timeline.header_w;
     let tg = app.session.targeting();
     let mut actions: Vec<(String, Value)> = Vec::new();
@@ -1187,7 +1187,7 @@ fn draw_headers(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, rows:
     }
 }
 
-fn draw_top(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, seq: &Sequence, layout: &Layout, t: &Tokens, seq_id: ItemId) {
+fn draw_top(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, seq: &Sequence, layout: &Layout, t: &Tokens, seq_id: ItemId) {
     let p = ui.painter().clone();
     let rate = seq.settings.frame_rate;
     let hw = app.ui.timeline.header_w;
@@ -1334,7 +1334,7 @@ fn draw_top(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, seq: &Sequenc
     let rb = Rect::from_min_max(pos2(ruler.min.x, ruler.max.y - 2.0), ruler.max);
     let bar = app.session.previews.bar(&app.session.project, seq_id);
     for (i, span) in bar.iter().enumerate() {
-        use filmcraft_engine::previews::BarState;
+        use jilo_engine::previews::BarState;
         let (c, what) = match span.state {
             BarState::None => continue,
             BarState::Yellow => (t.render_yellow, tl!("Unrendered: should play back in real time")),
@@ -1394,7 +1394,7 @@ fn zoom_thumb(bar: Rect, seq_seconds: f64, scroll: f64, pps: f64) -> (f32, f32, 
     (bar.min.x + at, w, if travel > 0.5 { range / travel as f64 } else { 0.0 })
 }
 
-fn zoom_scrollbar(app: &mut FilmcraftApp, ui: &mut egui::Ui, bar: Rect, seq_seconds: f64, t: &Tokens) {
+fn zoom_scrollbar(app: &mut JiloApp, ui: &mut egui::Ui, bar: Rect, seq_seconds: f64, t: &Tokens) {
     let p = ui.painter();
     p.rect_filled(bar, bar.height() / 2.0, t.separator);
     let v = &mut app.ui.timeline;
@@ -1495,24 +1495,24 @@ fn vertical_scrollbar(ui: &mut egui::Ui, bar: Rect, value: &mut f32, max: f32, i
 }
 
 /// Snap `t` to nearby candidates (edits, playhead, markers, in/out). Returns snapped tick.
-fn snap(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId]) -> Tick {
+fn snap(app: &mut JiloApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId]) -> Tick {
     snap_to(app, seq, layout, t, exclude, true, &[])
 }
 
 /// [`snap`] for something dragged away from `home` (where its edges were when the drag began):
 /// not back onto those times. A neighbour's edge there would otherwise pull any move shorter than
 /// `SNAP_PX` back to where it started, and the clip would seem stuck.
-fn snap_away(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId], home: &[Tick]) -> Tick {
+fn snap_away(app: &mut JiloApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId], home: &[Tick]) -> Tick {
     snap_to(app, seq, layout, t, exclude, true, home)
 }
 
 /// Where a dragged playhead lands: [`snap`], but not onto itself, or it would stick where it is
 /// and only move in jumps of `SNAP_PX` (#164).
-fn snap_playhead(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick) -> Tick {
+fn snap_playhead(app: &mut JiloApp, seq: &Sequence, layout: &Layout, t: Tick) -> Tick {
     snap_to(app, seq, layout, t, &[], false, &[])
 }
 
-fn snap_to(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId], to_playhead: bool, home: &[Tick]) -> Tick {
+fn snap_to(app: &mut JiloApp, seq: &Sequence, layout: &Layout, t: Tick, exclude: &[ClipId], to_playhead: bool, home: &[Tick]) -> Tick {
     if !app.session.state.snapping {
         return t;
     }
@@ -1554,7 +1554,7 @@ fn snap_to(app: &mut FilmcraftApp, seq: &Sequence, layout: &Layout, t: Tick, exc
 
 /// What the Timeline shows at `pos` for the control channel's `ui.timeline.hit`, with `kind`: the
 /// trim a press of the current tool with `mods` starts there (null when it would not trim).
-pub fn hit_json(app: &FilmcraftApp, pos: Pos2, mods: egui::Modifiers) -> Value {
+pub fn hit_json(app: &JiloApp, pos: Pos2, mods: egui::Modifiers) -> Value {
     let (Some(layout), Some(seq)) = (app.tl.layout.as_ref(), app.session.active_sequence()) else { return json!({"hit": "none"}) };
     let t = layout.tick_at(pos.x);
     let grab = grab_at(seq, layout, pos, app.ui.tool, mods, app.session.prefs.trim.selection_tool_roll_ripple);
@@ -1575,7 +1575,7 @@ pub fn hit_json(app: &FilmcraftApp, pos: Pos2, mods: egui::Modifiers) -> Value {
 }
 
 /// Screen point of a clip (centre, or its in/out edge).
-pub fn locate(app: &FilmcraftApp, clip: u64, edge: Option<&str>) -> Option<(f32, f32)> {
+pub fn locate(app: &JiloApp, clip: u64, edge: Option<&str>) -> Option<(f32, f32)> {
     let layout = app.tl.layout.as_ref()?;
     let seq = app.session.active_sequence()?;
     let (tid, it) = seq.find_item(ClipId(clip))?;
@@ -1589,7 +1589,7 @@ pub fn locate(app: &FilmcraftApp, clip: u64, edge: Option<&str>) -> Option<(f32,
     Some((x, y))
 }
 
-fn preview_drag(app: &FilmcraftApp, seq: &Sequence, _layout: &Layout, out: &mut HashMap<ClipId, (Tick, Tick, Option<TrackId>)>) {
+fn preview_drag(app: &JiloApp, seq: &Sequence, _layout: &Layout, out: &mut HashMap<ClipId, (Tick, Tick, Option<TrackId>)>) {
     // captions dragged with clips selected: the clips go along
     if let Some(d) = app.tl.caption_move {
         for c in &app.session.state.selection {
@@ -1614,19 +1614,19 @@ fn preview_drag(app: &FilmcraftApp, seq: &Sequence, _layout: &Layout, out: &mut 
             }
         }
         Drag::Trim { clip, edge, delta, .. } | Drag::Stretch { clip, edge, delta, .. } => {
-            let ids = filmcraft_engine::commands::with_links(&app.session, &[*clip]);
+            let ids = jilo_engine::commands::with_links(&app.session, &[*clip]);
             for c in ids {
                 if let Some((_, it)) = seq.find_item(c) {
                     let v = match edge {
-                        filmcraft_edit::Edge::In => (it.start + *delta, it.duration - *delta, None),
-                        filmcraft_edit::Edge::Out => (it.start, it.duration + *delta, None),
+                        jilo_edit::Edge::In => (it.start + *delta, it.duration - *delta, None),
+                        jilo_edit::Edge::Out => (it.start, it.duration + *delta, None),
                     };
                     out.insert(c, v);
                 }
             }
         }
         Drag::Roll { left, right, delta, .. } => {
-            let pairs = filmcraft_engine::commands::linked_roll_pairs(seq, *left, *right, app.session.state.linked_selection);
+            let pairs = jilo_engine::commands::linked_roll_pairs(seq, *left, *right, app.session.state.linked_selection);
             for (pl, pr) in pairs {
                 if let Some((_, l)) = seq.find_item(pl) {
                     out.insert(pl, (l.start, l.duration + *delta, None));
@@ -1711,37 +1711,37 @@ struct EditPointTarget {
 }
 
 impl EditPointTarget {
-    fn at(seq: &Sequence, track: TrackId, clip: ClipId, edge: filmcraft_edit::Edge) -> Option<Self> {
+    fn at(seq: &Sequence, track: TrackId, clip: ClipId, edge: jilo_edit::Edge) -> Option<Self> {
         let tr = seq.track(track)?;
         let it = tr.item(clip)?;
         Some(match edge {
-            filmcraft_edit::Edge::Out => Self { left: Some(clip), right: tr.items.iter().find(|x| x.start == it.end()).map(|x| x.id) },
-            filmcraft_edit::Edge::In => Self { left: tr.items.iter().find(|x| x.end() == it.start).map(|x| x.id), right: Some(clip) },
+            jilo_edit::Edge::Out => Self { left: Some(clip), right: tr.items.iter().find(|x| x.start == it.end()).map(|x| x.id) },
+            jilo_edit::Edge::In => Self { left: tr.items.iter().find(|x| x.end() == it.start).map(|x| x.id), right: Some(clip) },
         })
     }
 }
 
 /// The edit point menu's trim types: label, id (`timeline.editPointMenu.<id>`), trim kind, and
 /// which side of the cut it selects (the incoming clip's In or the outgoing clip's Out).
-pub(crate) const EDIT_POINT_TYPES: &[(&str, &str, &str, filmcraft_edit::Edge)] = &[
-    ("Ripple Trim In", "rippleIn", "ripple", filmcraft_edit::Edge::In),
-    ("Ripple Trim Out", "rippleOut", "ripple", filmcraft_edit::Edge::Out),
-    ("Roll Edit", "roll", "roll", filmcraft_edit::Edge::Out),
-    ("Trim In", "trimIn", "trim", filmcraft_edit::Edge::In),
-    ("Trim Out", "trimOut", "trim", filmcraft_edit::Edge::Out),
+pub(crate) const EDIT_POINT_TYPES: &[(&str, &str, &str, jilo_edit::Edge)] = &[
+    ("Ripple Trim In", "rippleIn", "ripple", jilo_edit::Edge::In),
+    ("Ripple Trim Out", "rippleOut", "ripple", jilo_edit::Edge::Out),
+    ("Roll Edit", "roll", "roll", jilo_edit::Edge::Out),
+    ("Trim In", "trimIn", "trim", jilo_edit::Edge::In),
+    ("Trim Out", "trimOut", "trim", jilo_edit::Edge::Out),
 ];
 
 /// The edit point context menu (#219).
-fn edit_point_menu(app: &mut FilmcraftApp, ctx: &egui::Context, ui: &mut egui::Ui, seq: &Sequence, target: EditPointTarget) {
+fn edit_point_menu(app: &mut JiloApp, ctx: &egui::Context, ui: &mut egui::Ui, seq: &Sequence, target: EditPointTarget) {
     let selected = app.session.state.edit_points.first().copied();
     for &(label, id, kind, edge) in EDIT_POINT_TYPES {
         let clip = match edge {
-            filmcraft_edit::Edge::In => target.right,
-            filmcraft_edit::Edge::Out => target.left,
+            jilo_edit::Edge::In => target.right,
+            jilo_edit::Edge::Out => target.left,
         };
         // a roll needs a clip on both sides of the cut
         let clip = clip.filter(|_| kind != "roll" || (target.left.is_some() && target.right.is_some()));
-        let out = edge == filmcraft_edit::Edge::Out;
+        let out = edge == jilo_edit::Edge::Out;
         let current = selected.is_some_and(|ep| Some(ep.clip) == clip && ep.out == out && serde_json::to_value(ep.kind).ok() == Some(json!(kind)));
         let label = crate::i18n::t(label);
         let text = if current { format!("✓ {label}") } else { label.to_string() };
@@ -1768,7 +1768,7 @@ fn edit_point_menu(app: &mut FilmcraftApp, ctx: &egui::Context, ui: &mut egui::U
         ui.close();
     }
     // only this cut (and its linked partners), and only when it is a through edit
-    let through = filmcraft_edit::through::through_edits(seq).iter().any(|e| Some(e.left) == target.left && Some(e.right) == target.right);
+    let through = jilo_edit::through::through_edits(seq).iter().any(|e| Some(e.left) == target.left && Some(e.right) == target.right);
     let label = tl!("Join Through Edits");
     let r = ui.add_enabled(through, egui::Button::new(label));
     app.auto.add("timeline.editPointMenu.joinThroughEdits", r.rect, label);
@@ -1784,7 +1784,7 @@ fn edit_point_menu(app: &mut FilmcraftApp, ctx: &egui::Context, ui: &mut egui::U
 
 /// The clip menu's Multi-Camera submenu: Enable, Flatten, and the cameras of the selected nested
 /// sequence clips (greyed out when none of the selected clips is a nested sequence).
-fn multicam_menu(app: &mut FilmcraftApp, ui: &mut egui::Ui, picked: &[&TrackItem]) {
+fn multicam_menu(app: &mut JiloApp, ui: &mut egui::Ui, picked: &[&TrackItem]) {
     let nests: Vec<&TrackItem> = picked.iter().copied().filter(|it| app.session.project.sequence(it.item).is_some()).collect();
     let enabled = !nests.is_empty() && nests.iter().all(|it| it.multicam.is_some_and(|m| m.enabled));
     // camera names of the first selected nest, and the angle it shows
@@ -1866,7 +1866,7 @@ fn wheel_input(ctx: &egui::Context) -> WheelInput {
     })
 }
 
-fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &Layout, rect: Rect) {
+fn interact(app: &mut JiloApp, ui: &mut egui::Ui, seq: &Sequence, layout: &Layout, rect: Rect) {
     let ctx = ui.ctx().clone();
     let area = Rect::from_min_max(pos2(layout.content.min.x, layout.ruler.min.y), layout.content.max);
     let resp = ui.interact(area, egui::Id::new("timeline-area"), Sense::click_and_drag());
@@ -2024,7 +2024,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                 // the captions on that side too, so the subtitles go with the clips (#3388); Shift keeps
                 // to the clicked track, and a locked caption track keeps its captions
                 if !mods.shift {
-                    let picked = |c: &&filmcraft_project::Caption| if fwd { c.end() > t } else { c.start < t };
+                    let picked = |c: &&jilo_project::Caption| if fwd { c.end() > t } else { c.start < t };
                     let captions: Vec<u64> =
                         seq.caption_tracks.iter().filter(|tr| !tr.locked).flat_map(|tr| tr.captions.iter()).filter(picked).map(|c| c.id.0).collect();
                     if !captions.is_empty() {
@@ -2045,7 +2045,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                         selection_trim_kind(roll_ripple, mods.command, mods.shift, dist, neighbour)
                     }
                 };
-                let e = if edge == filmcraft_edit::Edge::In { "in" } else { "out" };
+                let e = if edge == jilo_edit::Edge::In { "in" } else { "out" };
                 let r = app.session.execute("trim.selectEditPoint", json!({"clip": clip.0, "edge": e, "kind": kind, "add": mods.shift && !mods.command}));
                 if let Err(e) = r {
                     app.ui.status = e.to_string();
@@ -2053,8 +2053,8 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                 None
             }
             (_, Grab::Edge { clip, edge, kind, .. }) => Some(match kind {
-                EdgeKind::Trim => Drag::Trim { clip, edge, mode: filmcraft_edit::TrimMode::Regular, delta: Tick::ZERO, from: t },
-                EdgeKind::Ripple => Drag::Trim { clip, edge, mode: filmcraft_edit::TrimMode::Ripple, delta: Tick::ZERO, from: t },
+                EdgeKind::Trim => Drag::Trim { clip, edge, mode: jilo_edit::TrimMode::Regular, delta: Tick::ZERO, from: t },
+                EdgeKind::Ripple => Drag::Trim { clip, edge, mode: jilo_edit::TrimMode::Ripple, delta: Tick::ZERO, from: t },
                 EdgeKind::Roll { left, right } => Drag::Roll { left, right, delta: Tick::ZERO, from: t },
                 EdgeKind::Stretch => Drag::Stretch { clip, edge, delta: Tick::ZERO, from: t },
                 EdgeKind::Remix => Drag::Remix { clip, delta: Tick::ZERO, from: t },
@@ -2204,7 +2204,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                 Some(Drag::Move { clips, grab_tick, start_track, offset, track_delta })
             }
             Drag::Trim { clip, edge, mode, from, .. } => seq.find_item(clip).map(|(_, it)| {
-                let base = if edge == filmcraft_edit::Edge::In { it.start } else { it.end() };
+                let base = if edge == jilo_edit::Edge::In { it.start } else { it.end() };
                 let target = snap_away(app, seq, layout, rate.snap_nearest(base + (t_here - from)), &[clip], &[base]);
                 // the edge goes only as far as the trim will: a regular trim stops at the next
                 // clip and every trim at the end of the media; the preview holds there and says why
@@ -2212,11 +2212,11 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                 let delta = app.session.clamp_trim(clip, edge, mode, wanted).unwrap_or(wanted);
                 if delta != wanted {
                     app.tl.stop_x = Some(layout.x_of(base + delta));
-                    let outward = (edge == filmcraft_edit::Edge::In) == (wanted < Tick::ZERO);
+                    let outward = (edge == jilo_edit::Edge::In) == (wanted < Tick::ZERO);
                     let blocked_by_clip = outward
-                        && mode == filmcraft_edit::TrimMode::Regular
+                        && mode == jilo_edit::TrimMode::Regular
                         && seq.find_item(clip).and_then(|(tid, _)| seq.track(tid)).is_some_and(|tr| {
-                            tr.items.iter().any(|x| if edge == filmcraft_edit::Edge::In { x.end() == base + delta } else { x.start == base + delta })
+                            tr.items.iter().any(|x| if edge == jilo_edit::Edge::In { x.end() == base + delta } else { x.start == base + delta })
                         });
                     app.ui.status = if blocked_by_clip {
                         tl!("The edge stops at the next clip. Hold ⌘ to ripple trim, ⌘⇧ to roll the cut.").to_string()
@@ -2233,7 +2233,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                 Drag::Remix { clip, delta: target - it.end(), from }
             }),
             Drag::Stretch { clip, edge, from, .. } => seq.find_item(clip).map(|(_, it)| {
-                let base = if edge == filmcraft_edit::Edge::In { it.start } else { it.end() };
+                let base = if edge == jilo_edit::Edge::In { it.start } else { it.end() };
                 let target = snap_away(app, seq, layout, rate.snap_nearest(base + (t_here - from)), &[clip], &[base]);
                 Drag::Stretch { clip, edge, delta: target - base, from }
             }),
@@ -2241,7 +2241,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                 let target = snap_away(app, seq, layout, rate.snap_nearest(l.end() + (t_here - from)), &[left, right], &[l.end()]);
                 // stop where the roll on release stops: the media, a frame left in each clip and linked
                 // cuts
-                let delta = filmcraft_engine::commands::roll_delta(&app.session, left, right, target - l.end()).unwrap_or(target - l.end());
+                let delta = jilo_engine::commands::roll_delta(&app.session, left, right, target - l.end()).unwrap_or(target - l.end());
                 Drag::Roll { left, right, delta, from }
             }),
             Drag::Slip { clip, .. } => {
@@ -2256,7 +2256,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             Drag::Transition { id, edge, from, start, duration } => {
                 let delta = rate.snap_nearest(t_here - from);
                 let span = seq.all_tracks().find_map(|tr| {
-                    tr.transitions.iter().find(|x| x.id == id).and_then(|x| filmcraft_edit::transitions::drag_span(tr, x, edge, delta, rate.frame_duration()))
+                    tr.transitions.iter().find(|x| x.id == id).and_then(|x| jilo_edit::transitions::drag_span(tr, x, edge, delta, rate.frame_duration()))
                 });
                 let (start, duration) = span.unwrap_or((start, duration));
                 Some(Drag::Transition { id, edge, from, start, duration })
@@ -2303,9 +2303,9 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             }
             Drag::Trim { clip, edge, mode, delta, .. } if delta != Tick::ZERO => Some(app.session.execute(
                 "timeline.trim",
-                json!({"clip": clip.0, "edge": if edge == filmcraft_edit::Edge::In {"in"} else {"out"}, "mode": if mode == filmcraft_edit::TrimMode::Ripple {"ripple"} else {"regular"}, "delta": delta.0}),
+                json!({"clip": clip.0, "edge": if edge == jilo_edit::Edge::In {"in"} else {"out"}, "mode": if mode == jilo_edit::TrimMode::Ripple {"ripple"} else {"regular"}, "delta": delta.0}),
             )),
-            Drag::Stretch { clip, edge, delta, .. } if delta != Tick::ZERO => Some(app.session.execute("timeline.rateStretch", json!({"clip": clip.0, "edge": if edge == filmcraft_edit::Edge::In {"in"} else {"out"}, "delta": delta.0}))),
+            Drag::Stretch { clip, edge, delta, .. } if delta != Tick::ZERO => Some(app.session.execute("timeline.rateStretch", json!({"clip": clip.0, "edge": if edge == jilo_edit::Edge::In {"in"} else {"out"}, "delta": delta.0}))),
             Drag::Remix { clip, delta, .. } if delta != Tick::ZERO => {
                 let d = seq.find_item(clip).map(|(_, it)| it.duration + delta).unwrap_or(Tick::ZERO);
                 Some(app.session.execute("clip.remix", json!({"clip": clip.0, "duration": d.0})))
@@ -2397,7 +2397,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
                         selection_trim_kind(app.session.prefs.trim.selection_tool_roll_ripple, false, false, dist, neighbour)
                     }
                 };
-                let edge = if e == filmcraft_edit::Edge::In { "in" } else { "out" };
+                let edge = if e == jilo_edit::Edge::In { "in" } else { "out" };
                 let _ = app.session.execute("trim.selectEditPoint", json!({"clip": clip.0, "edge": edge, "kind": kind}));
             }
         } else if !app.session.state.selection.contains(&clip) {
@@ -2434,7 +2434,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             return;
         }
         let sel = app.session.state.selection.clone();
-        let picked: Vec<&filmcraft_project::TrackItem> = sel.iter().filter_map(|c| seq.find_item(*c).map(|(_, it)| it)).collect();
+        let picked: Vec<&jilo_project::TrackItem> = sel.iter().filter_map(|c| seq.find_item(*c).map(|(_, it)| it)).collect();
         let all_enabled = !picked.is_empty() && picked.iter().all(|it| it.enabled);
         let linked = picked.iter().any(|it| it.link.is_some());
         let mut first = true;
@@ -2445,7 +2445,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             for &(label, cmd) in *group {
                 if cmd == "edit.label" {
                     ui.menu_button(crate::i18n::t(label), |ui| {
-                        for l in filmcraft_project::Label::ALL {
+                        for l in jilo_project::Label::ALL {
                             if ui.button(crate::i18n::t(l.name())).clicked() {
                                 let _ = app.session.execute("edit.label", json!({"label": l.name()}));
                                 ui.close();
@@ -2499,7 +2499,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
         });
         let t = snap(app, seq, layout, rate.snap_nearest(layout.tick_at(p.x).max(Tick::ZERO)), &[]);
         let still = app.session.prefs.timeline.still_duration(rate);
-        let is_still = app.session.project.item(item).and_then(|i| i.as_media()).is_some_and(|m| m.info.kind == filmcraft_media::MediaKind::Still);
+        let is_still = app.session.project.item(item).and_then(|i| i.as_media()).is_some_and(|m| m.info.kind == jilo_media::MediaKind::Still);
         let dur = source
             .map(|s| s.range.duration)
             .unwrap_or_else(|| app.session.project.item(item).map(|i| i.duration()).filter(|d| d.0 > 0 && !is_still).unwrap_or(still));
@@ -2580,15 +2580,15 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
         && let Some(row) = layout.rows.iter().find(|r| r.track == tid)
     {
         {
-            let transition_kind = filmcraft_project::find_effect(&effect).and_then(|d| match d.kind {
-                filmcraft_project::EffectKind::VideoTransition => Some(TrackKind::Video),
-                filmcraft_project::EffectKind::AudioTransition => Some(TrackKind::Audio),
+            let transition_kind = jilo_project::find_effect(&effect).and_then(|d| match d.kind {
+                jilo_project::EffectKind::VideoTransition => Some(TrackKind::Video),
+                jilo_project::EffectKind::AudioTransition => Some(TrackKind::Audio),
                 _ => None,
             });
             let edge = if p.x - layout.x_of(it.start) < layout.x_of(it.end()) - p.x { "in" } else { "out" };
             let params = json!({"effect": effect, "clip": clip.0, "edge": edge});
             if let Some(kind) = transition_kind {
-                if let Ok((_, tr)) = filmcraft_engine::commands::preview_transition(&app.session, &params, kind) {
+                if let Ok((_, tr)) = jilo_engine::commands::preview_transition(&app.session, &params, kind) {
                     let r = Rect::from_min_max(pos2(layout.x_of(tr.start), row.rect.min.y + 1.0), pos2(layout.x_of(tr.end()), row.rect.max.y - 1.0));
                     let painter = ui.painter().with_clip_rect(layout.content);
                     painter.rect_filled(r, 2.0, app.tokens.accent.gamma_multiply(0.35));
@@ -2641,7 +2641,7 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             let durations: Vec<Tick> = items
                 .iter()
                 .map(|&item| {
-                    let is_still = app.session.project.item(item).and_then(|i| i.as_media()).is_some_and(|m| m.info.kind == filmcraft_media::MediaKind::Still);
+                    let is_still = app.session.project.item(item).and_then(|i| i.as_media()).is_some_and(|m| m.info.kind == jilo_media::MediaKind::Still);
                     app.session.project.item(item).map(|i| i.duration()).filter(|d| d.0 > 0 && !is_still).unwrap_or(still)
                 })
                 .collect();
@@ -2711,8 +2711,8 @@ mod waveform_tests {
 #[cfg(test)]
 mod stream_peak_tests {
     use super::media_peaks;
-    use filmcraft_frame::{AudioBuffer, VideoFrame};
-    use filmcraft_media::{FrameRequest, MediaError, MediaInfo, MediaSource};
+    use jilo_frame::{AudioBuffer, VideoFrame};
+    use jilo_media::{FrameRequest, MediaError, MediaInfo, MediaSource};
     use std::sync::Arc;
 
     /// Two audio streams: stream 0 silent, stream 1 at full scale.
@@ -2742,8 +2742,8 @@ mod stream_peak_tests {
     fn peaks_come_from_the_clips_stream() {
         let info = MediaInfo {
             name: "two.mp4".into(),
-            kind: filmcraft_media::MediaKind::AudioOnly,
-            duration: filmcraft_time::Tick::from_units(48_000, 48_000),
+            kind: jilo_media::MediaKind::AudioOnly,
+            duration: jilo_time::Tick::from_units(48_000, 48_000),
             video: None,
             audio_streams: Vec::new(),
             container: "MP4".into(),
@@ -2762,7 +2762,7 @@ mod stream_peak_tests {
 #[cfg(test)]
 mod chain_starts_tests {
     use super::chain_starts;
-    use filmcraft_time::Tick;
+    use jilo_time::Tick;
 
     #[test]
     fn empty_list_has_no_starts() {

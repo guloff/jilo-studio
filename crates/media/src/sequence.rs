@@ -10,8 +10,8 @@
 
 use std::sync::Arc;
 
-use filmcraft_frame::{AudioBuffer, VideoFrame};
-use filmcraft_time::FrameRate;
+use jilo_frame::{AudioBuffer, VideoFrame};
+use jilo_time::FrameRate;
 
 use crate::{FrameCache, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, Result, VideoStreamInfo};
 
@@ -142,7 +142,7 @@ impl ImageSequenceSource {
                 par: (1, 1),
                 codec: format!("{ext} sequence"),
                 pixel_format: if has_alpha { "RGBA 8-bit".into() } else { "RGB 8-bit".into() },
-                color: filmcraft_color::ColorInfo::SRGB_FULL,
+                color: jilo_color::ColorInfo::SRGB_FULL,
                 has_alpha,
                 bitrate: None,
                 hdr: None,
@@ -191,7 +191,7 @@ impl MediaSource for ImageSequenceSource {
 
     fn video_frame(&self, req: FrameRequest) -> Result<Arc<VideoFrame>> {
         let n = self.frames.len();
-        let want = self.info.frame_rate().frame_at(req.time.max(filmcraft_time::Tick::ZERO)).clamp(0, n as i64 - 1) as usize;
+        let want = self.info.frame_rate().frame_at(req.time.max(jilo_time::Tick::ZERO)).clamp(0, n as i64 - 1) as usize;
         // the wanted frame, else the nearest earlier present frame, else the nearest later one
         let candidates = (0..=want).rev().chain(want + 1..n);
         let mut last_err = None;
@@ -271,7 +271,7 @@ mod tests {
         let s = ImageSequenceSource::new("w1.webp", vec![Some("w1.webp".into()), Some("w2.webp".into())], FrameRate::FPS_24, loader).unwrap();
         for (i, want) in [a, b].iter().enumerate() {
             match &s.video_frame(FrameRequest::full(FrameRate::FPS_24.tick_of(i as i64))).unwrap().data {
-                filmcraft_frame::PixelData::Rgba8(p) => assert_eq!(&p[..], &want[..]),
+                jilo_frame::PixelData::Rgba8(p) => assert_eq!(&p[..], &want[..]),
                 _ => panic!(),
             }
         }
@@ -292,7 +292,7 @@ mod tests {
         assert_eq!(s.info().duration, FrameRate::FPS_25.tick_of(4));
         assert_eq!(s.missing_frames(), vec![2]);
         let px = |i: i64| match &s.video_frame(FrameRequest::full(FrameRate::FPS_25.tick_of(i))).unwrap().data {
-            filmcraft_frame::PixelData::Rgba8(p) => p[0],
+            jilo_frame::PixelData::Rgba8(p) => p[0],
             _ => panic!(),
         };
         assert_eq!(px(0), 10);

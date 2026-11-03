@@ -76,7 +76,7 @@ fn russian_fillers_are_found_and_hesitations_removed_by_default() {
     s.execute("file.newSequence", json!({"name": "ru", "audio": 1, "video": 1})).unwrap();
     let item = crate::commands::import_bytes(&mut s, "/ru.wav", wav(), None).unwrap();
     s.execute("timeline.place", json!({"item": item.0, "audioTrack": "A1", "seconds": 0.0})).unwrap();
-    let tick = |x: f64| filmcraft_time::Tick::from_seconds_f64(x).0;
+    let tick = |x: f64| jilo_time::Tick::from_seconds_f64(x).0;
     let words: Vec<_> = ["Сегодня", "э", "мы", "ну", "монтируем", "ээ,", "интервью"]
         .iter()
         .enumerate()

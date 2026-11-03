@@ -16,11 +16,11 @@
 //! `tts.voice.elevenlabs:<id>` (an ElevenLabs voice in the open voice list).
 
 use egui::{Align2, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
-use filmcraft_project::{ClipId, VocalPitch};
+use jilo_project::{ClipId, VocalPitch};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::icons::{self, Icon};
 use crate::theme::Tokens;
 
@@ -68,7 +68,7 @@ impl Default for TtsDraft {
         TtsDraft {
             text: String::new(),
             language: "en-US".into(),
-            voice: if natural_installed() { "kokoro-heart".into() } else { filmcraft_tts::default_voice_id().into() },
+            voice: if natural_installed() { "kokoro-heart".into() } else { jilo_tts::default_voice_id().into() },
             pitch: VocalPitch::Default,
             pace: 1.0,
             advanced_open: true,
@@ -90,11 +90,11 @@ impl TtsDraft {
 
 /// The natural voice package is downloaded.
 fn natural_installed() -> bool {
-    filmcraft_engine::transcript::models_dir().as_deref().is_some_and(filmcraft_tts::catalog::installed)
+    jilo_engine::transcript::models_dir().as_deref().is_some_and(jilo_tts::catalog::installed)
 }
 
 /// State of job `id`: `None` while running, else its result.
-fn job_outcome(app: &FilmcraftApp, id: u64) -> Option<Result<(), String>> {
+fn job_outcome(app: &JiloApp, id: u64) -> Option<Result<(), String>> {
     use std::sync::atomic::Ordering;
     let Some(j) = app.session.jobs.iter().find(|j| j.id == id) else { return Some(Err("the job disappeared".into())) };
     if !j.progress.finished.load(Ordering::Relaxed) {
@@ -108,7 +108,7 @@ fn job_outcome(app: &FilmcraftApp, id: u64) -> Option<Result<(), String>> {
 }
 
 /// Start an action: synthesize in the background (or reuse the cache), then run `cmd`.
-fn start(app: &mut FilmcraftApp, cmd: &str, params: serde_json::Value, play: bool) {
+fn start(app: &mut JiloApp, cmd: &str, params: serde_json::Value, play: bool) {
     let mut render = params.clone();
     if let Some(o) = render.as_object_mut() {
         o.remove("dir");
@@ -126,7 +126,7 @@ fn start(app: &mut FilmcraftApp, cmd: &str, params: serde_json::Value, play: boo
     }
 }
 
-fn run_now(app: &mut FilmcraftApp, cmd: &str, params: serde_json::Value, play: bool) {
+fn run_now(app: &mut JiloApp, cmd: &str, params: serde_json::Value, play: bool) {
     match app.session.execute(cmd, params) {
         Ok(r) => {
             if play {
@@ -145,7 +145,7 @@ fn run_now(app: &mut FilmcraftApp, cmd: &str, params: serde_json::Value, play: b
 }
 
 /// Finish a pending action whose synthesis job is done.
-fn poll(app: &mut FilmcraftApp) {
+fn poll(app: &mut JiloApp) {
     if let Some(p) = app.ui.tts.pending.clone() {
         match job_outcome(app, p.job) {
             None => {}
@@ -179,11 +179,11 @@ fn poll(app: &mut FilmcraftApp) {
 }
 
 /// An ElevenLabs key is set (looked up at most once a second: the key file is read).
-fn cloud_key(app: &mut FilmcraftApp, now: f64) -> bool {
+fn cloud_key(app: &mut JiloApp, now: f64) -> bool {
     match app.ui.tts.cloud_key {
         Some((at, has)) if now - at < 1.0 && now >= at => has,
         _ => {
-            let has = filmcraft_engine::ai::key(&app.session, filmcraft_ai::Provider::ElevenLabs).is_some();
+            let has = jilo_engine::ai::key(&app.session, jilo_ai::Provider::ElevenLabs).is_some();
             app.ui.tts.cloud_key = Some((now, has));
             has
         }
@@ -191,21 +191,21 @@ fn cloud_key(app: &mut FilmcraftApp, now: f64) -> bool {
 }
 
 /// The selected narration clip and its item, if any.
-fn selected_narration(app: &FilmcraftApp) -> Option<(ClipId, u64)> {
-    let clip = filmcraft_engine::narration::target_clip(&app.session, &serde_json::Value::Null)?;
+fn selected_narration(app: &JiloApp) -> Option<(ClipId, u64)> {
+    let clip = jilo_engine::narration::target_clip(&app.session, &serde_json::Value::Null)?;
     let item = app.session.active_sequence()?.find_item(clip)?.1.item;
     Some((clip, item.0))
 }
 
 /// Load the selected narration clip into the draft when the selection moves to a different one,
 /// and bring the panel forward. Runs every frame, also when the panel is hidden.
-pub fn follow_selection(app: &mut FilmcraftApp) {
+pub fn follow_selection(app: &mut JiloApp) {
     poll(app);
     let sel = selected_narration(app);
     match sel {
         Some((clip, item)) if app.ui.tts.loaded_from != Some((clip.0, item)) => {
             let first_time = app.ui.tts.loaded_from.map(|(c, _)| c) != Some(clip.0);
-            if let Some(n) = app.session.project.narrations.get(&filmcraft_project::ItemId(item)).cloned() {
+            if let Some(n) = app.session.project.narrations.get(&jilo_project::ItemId(item)).cloned() {
                 let d = &mut app.ui.tts;
                 d.text = n.text;
                 // an ElevenLabs voice speaks any language: keep the one chosen
@@ -238,13 +238,13 @@ enum Action {
     AllowCloud,
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let painter = ui.painter().clone();
     painter.rect_filled(rect, 0.0, t.panel_bg);
-    let models = filmcraft_engine::transcript::models_dir();
-    let voices = filmcraft_tts::voices_in(models.as_deref());
-    let installed = models.as_deref().is_some_and(filmcraft_tts::catalog::installed);
+    let models = jilo_engine::transcript::models_dir();
+    let voices = jilo_tts::voices_in(models.as_deref());
+    let installed = models.as_deref().is_some_and(jilo_tts::catalog::installed);
     let busy = app.ui.tts.pending.is_some();
     let download = app
         .ui
@@ -255,7 +255,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let editing = app.ui.tts.loaded_from.map(|(c, _)| c);
     let has_key = cloud_key(app, ui.input(|i| i.time));
     let cloud_list = app.session.cloud_voices.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
-    let cloud_allowed = app.session.prefs.ai.confirmed(filmcraft_ai::Provider::ElevenLabs);
+    let cloud_allowed = app.session.prefs.ai.confirmed(jilo_ai::Provider::ElevenLabs);
     let cloud_loading = app.ui.tts.cloud_job.is_some();
     let mut actions: Vec<Action> = Vec::new();
     let auto = &mut app.auto;
@@ -282,9 +282,9 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         });
         ui.add_space(6.0);
         label(ui, &t, tl!("Language"));
-        let lang_name = filmcraft_tts::LANGUAGES.iter().find(|(id, _)| *id == d.language).map_or(d.language.as_str(), |(_, n)| crate::i18n::t(n));
+        let lang_name = jilo_tts::LANGUAGES.iter().find(|(id, _)| *id == d.language).map_or(d.language.as_str(), |(_, n)| crate::i18n::t(n));
         let cb = egui::ComboBox::from_id_salt("tts-language").selected_text(lang_name).width(w).show_ui(ui, |ui| {
-            for (id, name) in filmcraft_tts::LANGUAGES {
+            for (id, name) in jilo_tts::LANGUAGES {
                 if ui.selectable_label(d.language == *id, crate::i18n::t(name)).clicked() {
                     d.language = id.to_string();
                 }
@@ -293,7 +293,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         auto.add("tts.language", visible(ui, cb.response.rect), "Language");
         ui.add_space(10.0);
         label(ui, &t, tl!("Voice"));
-        let cloud_id = filmcraft_engine::narration::cloud_voice(&d.voice).map(str::to_string);
+        let cloud_id = jilo_engine::narration::cloud_voice(&d.voice).map(str::to_string);
         let voice_name = match &cloud_id {
             Some(id) => cloud_list.iter().flatten().find(|v| v.id == *id).map_or_else(|| tl!("ElevenLabs voice").to_string(), |v| format!("{} · ElevenLabs", v.name)),
             None => voices.iter().find(|v| v.id == d.voice).map_or(d.voice.clone(), |v| v.name.to_string()),
@@ -303,7 +303,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             if let Some(list) = &cloud_list {
                 ui.label(egui::RichText::new(tl!("ElevenLabs voices (cloud, any language)")).color(t.text_faint).size(11.0));
                 for v in list {
-                    let id = format!("{}{}", filmcraft_engine::narration::CLOUD_VOICE_PREFIX, v.id);
+                    let id = format!("{}{}", jilo_engine::narration::CLOUD_VOICE_PREFIX, v.id);
                     let hint: Vec<&str> = v.gender.as_deref().into_iter().chain(v.language.as_deref()).collect();
                     let r = ui.selectable_label(d.voice == id, &v.name);
                     auto.add(&format!("tts.voice.{id}"), visible(ui, r.rect), &v.name);
@@ -355,7 +355,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 ui.label(egui::RichText::new(tl!("Spoken by ElevenLabs in the cloud. Vocal pitch and pace don't apply.")).color(t.text_dim).size(11.0));
             }
         }
-        let natural = filmcraft_tts::catalog::find(&d.voice).is_some();
+        let natural = jilo_tts::catalog::find(&d.voice).is_some();
         if natural && !installed {
             ui.add_space(6.0);
             egui::Frame::new().fill(t.field_bg).stroke(egui::Stroke::new(1.0, t.field_border)).corner_radius(4.0).inner_margin(8.0).show(ui, |ui| {
@@ -371,13 +371,13 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         }
                     }
                     None if d.confirm_download => {
-                        let mb = filmcraft_tts::catalog::size() as f64 / 1e6;
+                        let mb = jilo_tts::catalog::size() as f64 / 1e6;
                         ui.label(egui::RichText::new(tlf!("Download the natural voices? {mb} MB, once.", mb = format!("{mb:.0}"))).color(t.text).size(12.0).strong());
                         ui.label(
                             egui::RichText::new(tlf!(
                                 "From {source} and github.com/cmusphinx/cmudict (pronunciations). Licence: {license}. Every file is checked against a pinned SHA-256.",
-                                source = filmcraft_tts::catalog::SOURCE,
-                                license = filmcraft_tts::catalog::LICENSE
+                                source = jilo_tts::catalog::SOURCE,
+                                license = jilo_tts::catalog::LICENSE
                             ))
                             .color(t.text_dim)
                             .size(11.0),
@@ -396,7 +396,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     }
                     None => {
                         ui.label(egui::RichText::new(tl!("Natural voices need a one-time download.")).color(t.text).size(11.5));
-                        let b = ui.button(tlf!("Download natural voices ({mb} MB)…", mb = format!("{:.0}", filmcraft_tts::catalog::size() as f64 / 1e6)));
+                        let b = ui.button(tlf!("Download natural voices ({mb} MB)…", mb = format!("{:.0}", jilo_tts::catalog::size() as f64 / 1e6)));
                         auto.add("tts.download", visible(ui, b.rect), "Download natural voices");
                         if b.clicked() {
                             d.confirm_download = true;
@@ -433,7 +433,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             ui.add_space(10.0);
             label(ui, &t, tl!("Pace"));
             ui.spacing_mut().slider_width = w - 56.0;
-            let s = ui.add(egui::Slider::new(&mut d.pace, filmcraft_tts::MIN_PACE..=filmcraft_tts::MAX_PACE).step_by(0.05).fixed_decimals(2).suffix("×"));
+            let s = ui.add(egui::Slider::new(&mut d.pace, jilo_tts::MIN_PACE..=jilo_tts::MAX_PACE).step_by(0.05).fixed_decimals(2).suffix("×"));
             auto.add("tts.pace", visible(ui, s.rect), "Pace");
             let (r, _) = ui.allocate_exact_size(vec2(w - 56.0, 14.0), Sense::hover());
             for (x, l) in [(0.0, "0.5×"), (1.0 / 3.0, "1×"), (1.0, "2×")] {
@@ -454,7 +454,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     if !d.text.is_empty() && !d.text.ends_with(' ') {
                         d.text.push(' ');
                     }
-                    d.text.push_str(filmcraft_tts::script::PAUSE_MARKER);
+                    d.text.push_str(jilo_tts::script::PAUSE_MARKER);
                     d.text.push(' ');
                 }
             });
@@ -464,7 +464,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             .hint_text(tl!("Type what you want the voice to say"))
             .desired_width(w)
             .desired_rows(8)
-            .char_limit(filmcraft_tts::MAX_TEXT_BYTES);
+            .char_limit(jilo_tts::MAX_TEXT_BYTES);
         let r = ui.add(te);
         auto.add("tts.text", visible(ui, r.rect), "Text");
     });
@@ -472,9 +472,9 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     // footer: Preview | Save
     let fy = rect.max.y - FOOTER_H + 10.0;
     let half = (rect.width() - PAD * 2.0 - 10.0) / 2.0;
-    let natural = filmcraft_tts::catalog::find(&d.voice).is_some();
-    let cloud_ready = filmcraft_engine::narration::cloud_voice(&d.voice).is_none() || (has_key && cloud_allowed);
-    let can_say = filmcraft_tts::check_text(&d.text).is_ok() && (!natural || installed) && cloud_ready && !busy;
+    let natural = jilo_tts::catalog::find(&d.voice).is_some();
+    let cloud_ready = jilo_engine::narration::cloud_voice(&d.voice).is_none() || (has_key && cloud_allowed);
+    let can_say = jilo_tts::check_text(&d.text).is_ok() && (!natural || installed) && cloud_ready && !busy;
     let pr = Rect::from_min_size(pos2(rect.min.x + PAD, fy), vec2(half, 28.0));
     if button(ui, &t, pr, Icon::Play, if busy { tl!("Synthesizing…") } else { tl!("Preview") }, false, can_say, "tts-preview").clicked() && can_say {
         actions.push(Action::Run("tts.preview", d.params(), true));
@@ -517,7 +517,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             Action::AllowCloud => {
                 // the user's consent, once per provider (as the other cloud features)
                 let mut list = app.session.prefs.ai.confirmed_providers.clone();
-                list.push(filmcraft_ai::Provider::ElevenLabs.id().to_string());
+                list.push(jilo_ai::Provider::ElevenLabs.id().to_string());
                 if let Err(e) = app.session.execute("prefs.set", json!({"key": "ai.confirmedProviders", "value": list})) {
                     app.ui.status = e.to_string();
                 }

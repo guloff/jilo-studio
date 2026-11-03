@@ -1,11 +1,11 @@
-//! Graphics templates (`.fcgt`): FilmCraft's own format for reusable graphics with editable
+//! Graphics templates (`.fcgt`): Jilo Studio's own format for reusable graphics with editable
 //! properties, the counterpart of motion graphics templates in other editors.
 //!
 //! A template file is UTF-8 JSON ([`GraphicsTemplate`]):
 //!
 //! ```json
 //! {
-//!   "format": "filmcraft.graphicsTemplate",
+//!   "format": "jilo.graphicsTemplate",
 //!   "version": 1,
 //!   "id": "user:my-lower-third",
 //!   "name": "My Lower Third",
@@ -29,7 +29,7 @@
 //! - `resources.fonts` optionally embeds font files (base64) that the template needs; installing
 //!   the template registers them. Only embed fonts whose licence allows redistribution.
 //!
-//! FilmCraft never reads Adobe `.mogrt` files (or any other application's template format);
+//! Jilo Studio never reads Adobe `.mogrt` files (or any other application's template format);
 //! [`GraphicsTemplate::from_bytes`] rejects ZIP archives with a message saying so.
 //!
 //! The built-in templates ([`builtin_templates`]) are original designs made for FilmCraft in code
@@ -37,8 +37,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use filmcraft_geom::Vec2;
-use filmcraft_time::{TICKS_PER_SECOND, Tick};
+use jilo_geom::Vec2;
+use jilo_time::{TICKS_PER_SECOND, Tick};
 use serde::{Deserialize, Serialize};
 
 use crate::effect::EffectInstance;
@@ -46,9 +46,21 @@ use crate::graphic::{self, new_shape_layer, new_text_layer};
 use crate::graphic_design::{GraphicMeta, LayerExtra, Pin, PinTarget, Roll, RollMode};
 use crate::keyframe::{Param, ParamValue};
 
-pub const TEMPLATE_FORMAT: &str = "filmcraft.graphicsTemplate";
+pub const TEMPLATE_FORMAT: &str = "jilo.graphicsTemplate";
+/// The format id of templates saved before Jilo Studio named its own format (still read).
+pub const LEGACY_TEMPLATE_FORMAT: &str = "filmcraft.graphicsTemplate";
 pub const TEMPLATE_VERSION: u32 = 1;
-pub const TEMPLATE_EXTENSION: &str = "fcgt";
+pub const TEMPLATE_EXTENSION: &str = "jstpl";
+/// The extension of templates saved before 1.0 (still read).
+pub const LEGACY_TEMPLATE_EXTENSION: &str = "fcgt";
+
+/// Whether `path` names a graphics template file (either extension, any case).
+pub fn is_template_path(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case(TEMPLATE_EXTENSION) || e.eq_ignore_ascii_case(LEGACY_TEMPLATE_EXTENSION))
+}
 
 /// Kind of an editable template property.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -212,12 +224,12 @@ impl Default for GraphicsTemplate {
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum TemplateError {
     #[error(
-        "this file is a ZIP archive (an Adobe .mogrt or another application's package?): FilmCraft does not read motion graphics templates from other applications, only its own .fcgt graphics templates"
+        "this file is a ZIP archive (an Adobe .mogrt or another application's package?): Jilo Studio does not read motion graphics templates from other applications, only its own .fcgt graphics templates"
     )]
     ForeignPackage,
-    #[error("not a FilmCraft graphics template: {0}")]
+    #[error("not a Jilo Studio graphics template: {0}")]
     NotTemplate(String),
-    #[error("this graphics template was made by a newer FilmCraft (format version {0}; this build reads up to {TEMPLATE_VERSION})")]
+    #[error("this graphics template was made by a newer Jilo Studio (format version {0}; this build reads up to {TEMPLATE_VERSION})")]
     TooNew(u32),
     #[error("invalid graphics template: {0}")]
     Invalid(String),
@@ -252,7 +264,7 @@ impl GraphicsTemplate {
         let text =
             std::str::from_utf8(bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(bytes)).map_err(|_| TemplateError::NotTemplate("not UTF-8 text".into()))?;
         let v: serde_json::Value = serde_json::from_str(text).map_err(|e| TemplateError::NotTemplate(e.to_string()))?;
-        if v.get("format").and_then(|f| f.as_str()) != Some(TEMPLATE_FORMAT) {
+        if !matches!(v.get("format").and_then(|f| f.as_str()), Some(TEMPLATE_FORMAT | LEGACY_TEMPLATE_FORMAT)) {
             return Err(TemplateError::NotTemplate(format!("`format` is not \"{TEMPLATE_FORMAT}\"")));
         }
         let ver = v.get("version").and_then(|x| x.as_u64()).unwrap_or(0) as u32;
@@ -596,7 +608,7 @@ pub fn builtin_templates() -> Vec<GraphicsTemplate> {
         let mut heading = text(1, "Heading", "CREDITS", (960.0, 160.0), 72.0, "Bold");
         set(&mut heading, "align", ParamValue::Choice(1));
         set(&mut heading, "tracking", ParamValue::Float(120.0));
-        let body = "Directed by\nJordan Lee\n\nWritten by\nPriya Natarajan\n\nEdited by\nMarco Bianchi\n\nMusic by\nHana Kobayashi\n\nMade with FilmCraft";
+        let body = "Directed by\nJordan Lee\n\nWritten by\nPriya Natarajan\n\nEdited by\nMarco Bianchi\n\nMusic by\nHana Kobayashi\n\nMade with Jilo Studio";
         let mut credits = text(2, "Credits", body, (960.0, 300.0), 46.0, "Regular");
         set(&mut credits, "align", ParamValue::Choice(1));
         set(&mut credits, "leading", ParamValue::Float(10.0));

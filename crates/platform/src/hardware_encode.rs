@@ -1,4 +1,4 @@
-//! The VideoToolbox H.264 and HEVC encoders behind `filmcraft_export::VideoEncoder` (macOS; safe code
+//! The VideoToolbox H.264 and HEVC encoders behind `jilo_export::VideoEncoder` (macOS; safe code
 //! around [`crate::videotoolbox_encode`]).
 //!
 //! H.264 hardware encoding is per export (`ExportSettings::hardware_encoding`, `Auto`, the default): its
@@ -19,9 +19,9 @@
 
 use std::sync::{Once, OnceLock};
 
-use filmcraft_export::{BitrateMode, EncodedPacket, EncoderFrame, ExportError, ExportSettings, Format, H264Pass, H264Profile, HardwareEncoding, VideoEncoder};
-use filmcraft_isobmff::{AvcConfig, HevcConfig, SampleEntry};
-use filmcraft_time::FrameRate;
+use jilo_export::{BitrateMode, EncodedPacket, EncoderFrame, ExportError, ExportSettings, Format, H264Pass, H264Profile, HardwareEncoding, VideoEncoder};
+use jilo_isobmff::{AvcConfig, HevcConfig, SampleEntry};
+use jilo_time::FrameRate;
 
 use crate::videotoolbox_encode::{ParamSets, VtCodec, VtConfig, VtEncoder, VtPacket, VtProfile, VtRate};
 use crate::videotoolbox_prores_encode::{ProResConfig, ProResPacket, ProResSignal, VtProResEncoder};
@@ -139,7 +139,7 @@ pub fn hevc_probed() -> bool {
 pub fn warm_hevc_probe() {
     static STARTED: Once = Once::new();
     STARTED.call_once(|| {
-        let spawned = std::thread::Builder::new().name("filmcraft-hevc-probe".into()).spawn(|| {
+        let spawned = std::thread::Builder::new().name("jilo-hevc-probe".into()).spawn(|| {
             let _ = std::panic::catch_unwind(hevc_available);
         });
         if let Err(why) = spawned {
@@ -151,13 +151,7 @@ pub fn warm_hevc_probe() {
 /// The encoder factory `register` puts in front of the built-in ones: a hardware encoder when the
 /// export asks for one (H.264 with `hardware_encoding`; HEVC always) and the OS takes the
 /// configuration, `None` (the built-in encoder, if there is one) otherwise.
-pub fn videotoolbox_encoder_factory(
-    format: Format,
-    w: u32,
-    h: u32,
-    rate: FrameRate,
-    s: &ExportSettings,
-) -> Option<filmcraft_export::Result<Box<dyn VideoEncoder>>> {
+pub fn videotoolbox_encoder_factory(format: Format, w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option<jilo_export::Result<Box<dyn VideoEncoder>>> {
     let name = match format {
         Format::ProRes if s.hardware_encoding == HardwareEncoding::Auto => return prores_factory(w, h, rate, s),
         Format::H264 if s.hardware_encoding == HardwareEncoding::Auto => "H.264",
@@ -168,14 +162,14 @@ pub fn videotoolbox_encoder_factory(
         Ok(c) => c,
         Err(why) => {
             log::info!("hardware {name} encoding declined: {why}");
-            filmcraft_export::note_hw_encode_declined();
+            jilo_export::note_hw_encode_declined();
             return None;
         }
     };
     match VtEncoder::new(config) {
         Ok(vt) => Some(Ok({
             // `perf.stats` and the export report count hardware sessions and frames, as for NVENC
-            filmcraft_export::note_hw_encode_session();
+            jilo_export::note_hw_encode_session();
             Box::new(HardwareEncoder {
                 vt,
                 signal: s.signal,
@@ -190,17 +184,17 @@ pub fn videotoolbox_encoder_factory(
         })),
         Err(why) => {
             log::info!("hardware {name} encoding declined: {why}");
-            filmcraft_export::note_hw_encode_declined();
+            jilo_export::note_hw_encode_declined();
             None
         }
     }
 }
 
 /// The hardware ProRes encoder for an export, `None` (the built-in encoder) when declined.
-fn prores_factory(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option<filmcraft_export::Result<Box<dyn VideoEncoder>>> {
+fn prores_factory(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option<jilo_export::Result<Box<dyn VideoEncoder>>> {
     let decline = |why: String| {
         log::info!("hardware ProRes encoding declined: {why}");
-        filmcraft_export::note_hw_encode_declined();
+        jilo_export::note_hw_encode_declined();
         None
     };
     let signal = match (s.signal.is_hdr(), s.signal.transfer) {
@@ -210,13 +204,13 @@ fn prores_factory(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option
         (true, _) => return decline(format!("the colour signal {:?}", s.signal)),
     };
     let (Ok(timescale), Ok(frame_duration)) = (u32::try_from(rate.num), u32::try_from(rate.den)) else { return decline("frame rate".into()) };
-    let profile = filmcraft_export::prores_profile(&s.prores_profile);
+    let profile = jilo_export::prores_profile(&s.prores_profile);
     // alpha only from straight RGBA (an HDR export carries none), as the built-in encoder
-    let alpha = s.alpha && filmcraft_export::prores_4444(s) && signal == ProResSignal::Bt709;
+    let alpha = s.alpha && jilo_export::prores_4444(s) && signal == ProResSignal::Bt709;
     let config = ProResConfig { width: w, height: h, timescale, frame_duration, fourcc: profile.fourcc(), alpha, signal };
     match VtProResEncoder::new(config) {
         Ok(vt) if vt.uses_hardware() => {
-            filmcraft_export::note_hw_encode_session();
+            jilo_export::note_hw_encode_session();
             Some(Ok(Box::new(HardwareProResEncoder { vt, signal: s.signal, y: Vec::new(), u: Vec::new(), v: Vec::new(), a: Vec::new(), encoded: 0 })))
         }
         Ok(_) => decline("the session is not on the hardware encoder".into()),
@@ -227,7 +221,7 @@ fn prores_factory(w: u32, h: u32, rate: FrameRate, s: &ExportSettings) -> Option
 /// [`VtProResEncoder`] as a `VideoEncoder`: RGBA (or HDR) pictures in, MOV samples out.
 pub struct HardwareProResEncoder {
     vt: VtProResEncoder,
-    signal: filmcraft_export::ColorSignal,
+    signal: jilo_export::ColorSignal,
     y: Vec<u16>,
     u: Vec<u16>,
     v: Vec<u16>,
@@ -239,7 +233,7 @@ pub struct HardwareProResEncoder {
 impl HardwareProResEncoder {
     /// MOV samples from compressed frames: every one a sync sample at `n × duration` (a frame at
     /// another time is an error, never a file with wrong times).
-    fn samples(&mut self, packets: Vec<ProResPacket>) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+    fn samples(&mut self, packets: Vec<ProResPacket>) -> jilo_export::Result<Vec<EncodedPacket>> {
         let duration = self.vt.config().frame_duration;
         let mut out = Vec::with_capacity(packets.len());
         for p in packets {
@@ -257,7 +251,7 @@ impl HardwareProResEncoder {
 impl VideoEncoder for HardwareProResEncoder {
     fn sample_entry(&self) -> SampleEntry {
         let c = self.vt.config();
-        let mut e = SampleEntry::prores(filmcraft_isobmff::FourCc(c.fourcc), c.width.min(u32::from(u16::MAX)) as u16, c.height.min(u32::from(u16::MAX)) as u16);
+        let mut e = SampleEntry::prores(jilo_isobmff::FourCc(c.fourcc), c.width.min(u32::from(u16::MAX)) as u16, c.height.min(u32::from(u16::MAX)) as u16);
         self.signal.apply_to(&mut e, true);
         e
     }
@@ -266,7 +260,7 @@ impl VideoEncoder for HardwareProResEncoder {
         self.vt.config().timescale
     }
 
-    fn encode(&mut self, f: &EncoderFrame) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+    fn encode(&mut self, f: &EncoderFrame) -> jilo_export::Result<Vec<EncodedPacket>> {
         let c = self.vt.config().clone();
         if (f.width, f.height) != (c.width, c.height) {
             return Err(ExportError::Encode(format!("picture is {}x{}, the encoder was created for {}x{}", f.width, f.height, c.width, c.height)));
@@ -287,9 +281,9 @@ impl VideoEncoder for HardwareProResEncoder {
             self.a.resize(if c.alpha { n } else { 0 }, 0);
             let (y, u, v) = (&mut self.y, &mut self.u, &mut self.v);
             let a = (!self.a.is_empty()).then_some(self.a.as_mut_slice());
-            filmcraft_export::timed(filmcraft_export::Stage::Convert, || match f.hdr {
-                Some(rgb) => filmcraft_export::rgbf_to_yuv444_12(rgb, w, h, kr, kb, y, u, v),
-                None => filmcraft_export::rgba_to_yuv444_12(f.rgba, w, h, y, u, v, a),
+            jilo_export::timed(jilo_export::Stage::Convert, || match f.hdr {
+                Some(rgb) => jilo_export::rgbf_to_yuv444_12(rgb, w, h, kr, kb, y, u, v),
+                None => jilo_export::rgba_to_yuv444_12(f.rgba, w, h, y, u, v, a),
             });
             let a = c.alpha.then_some(self.a.as_slice());
             self.vt.encode_4444(f.index, &self.y, &self.u, &self.v, a).map_err(ExportError::Encode)?
@@ -299,17 +293,17 @@ impl VideoEncoder for HardwareProResEncoder {
             self.u.resize(cw * h, 0);
             self.v.resize(cw * h, 0);
             let (y, u, v) = (&mut self.y, &mut self.u, &mut self.v);
-            filmcraft_export::timed(filmcraft_export::Stage::Convert, || match f.hdr {
-                Some(rgb) => filmcraft_export::rgbf_to_yuv422_10(rgb, w, h, kr, kb, y, u, v),
-                None => filmcraft_export::rgba_to_yuv422_10(f.rgba, w, h, y, u, v),
+            jilo_export::timed(jilo_export::Stage::Convert, || match f.hdr {
+                Some(rgb) => jilo_export::rgbf_to_yuv422_10(rgb, w, h, kr, kb, y, u, v),
+                None => jilo_export::rgba_to_yuv422_10(f.rgba, w, h, y, u, v),
             });
             self.vt.encode_422(f.index, &self.y, &self.u, &self.v).map_err(ExportError::Encode)?
         };
-        filmcraft_export::note_hw_encode_frame();
+        jilo_export::note_hw_encode_frame();
         self.samples(packets)
     }
 
-    fn flush(&mut self) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+    fn flush(&mut self) -> jilo_export::Result<Vec<EncodedPacket>> {
         let packets = self.vt.flush().map_err(ExportError::Encode)?;
         self.samples(packets)
     }
@@ -330,7 +324,7 @@ pub struct HardwareEncoder {
     vt: VtEncoder,
     /// The export's colour signal: BT.709, or BT.2020 PQ / HLG for Main 10 (written as `colr`,
     /// and for PQ `mdcv` / `clli`, in the sample entry).
-    signal: filmcraft_export::ColorSignal,
+    signal: jilo_export::ColorSignal,
     y: Vec<u8>,
     u: Vec<u8>,
     v: Vec<u8>,
@@ -345,7 +339,7 @@ impl HardwareEncoder {
     /// MP4 samples from compressed frames. Without frame reordering every frame is presented at
     /// its decode time, so composition offsets are 0; a frame whose time is not `n × duration`
     /// after the first (a dropped or reordered frame) is an error, never a file with wrong times.
-    fn samples(&mut self, packets: Vec<VtPacket>) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+    fn samples(&mut self, packets: Vec<VtPacket>) -> jilo_export::Result<Vec<EncodedPacket>> {
         let duration = self.vt.config().frame_duration;
         let mut out = Vec::with_capacity(packets.len());
         for p in packets {
@@ -390,7 +384,7 @@ impl VideoEncoder for HardwareEncoder {
         self.vt.config().timescale
     }
 
-    fn encode(&mut self, f: &EncoderFrame) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+    fn encode(&mut self, f: &EncoderFrame) -> jilo_export::Result<Vec<EncodedPacket>> {
         let c = self.vt.config();
         let codec = c.profile.codec();
         if (f.width, f.height) != (c.width, c.height) {
@@ -401,8 +395,8 @@ impl VideoEncoder for HardwareEncoder {
             // Main 10 takes the encoded R'G'B' floats: 10-bit limited-range BT.2020 NCL
             (true, Some(rgb)) => {
                 let (kr, kb) = self.signal.kr_kb();
-                filmcraft_export::timed(filmcraft_export::Stage::Convert, || {
-                    filmcraft_export::rgbf_to_yuv420_10(rgb, w, h, kr, kb, &mut self.y16, &mut self.u16, &mut self.v16)
+                jilo_export::timed(jilo_export::Stage::Convert, || {
+                    jilo_export::rgbf_to_yuv420_10(rgb, w, h, kr, kb, &mut self.y16, &mut self.u16, &mut self.v16)
                 })?;
                 self.vt.encode_10(f.index, &self.y16, &self.u16, &self.v16).map_err(ExportError::Encode)?
             }
@@ -412,13 +406,11 @@ impl VideoEncoder for HardwareEncoder {
                 if f.rgba.len() < w.saturating_mul(h).saturating_mul(4) {
                     return Err(ExportError::Encode("the RGBA picture is smaller than its size".into()));
                 }
-                filmcraft_export::timed(filmcraft_export::Stage::Convert, || {
-                    filmcraft_export::rgba_to_yuv420_8(f.rgba, w, h, &mut self.y, &mut self.u, &mut self.v)
-                });
+                jilo_export::timed(jilo_export::Stage::Convert, || jilo_export::rgba_to_yuv420_8(f.rgba, w, h, &mut self.y, &mut self.u, &mut self.v));
                 self.vt.encode(f.index, &self.y, &self.u, &self.v).map_err(ExportError::Encode)?
             }
         };
-        filmcraft_export::note_hw_encode_frame();
+        jilo_export::note_hw_encode_frame();
         // the muxer needs the parameter sets after the first group of pictures
         if f.index == 0 {
             let params = self.vt.parameter_sets().ok_or_else(|| ExportError::Encode("VideoToolbox returned no parameter sets for the first frame".into()))?;
@@ -429,7 +421,7 @@ impl VideoEncoder for HardwareEncoder {
         self.samples(packets)
     }
 
-    fn flush(&mut self) -> filmcraft_export::Result<Vec<EncodedPacket>> {
+    fn flush(&mut self) -> jilo_export::Result<Vec<EncodedPacket>> {
         let packets = self.vt.flush().map_err(ExportError::Encode)?;
         self.samples(packets)
     }

@@ -1,6 +1,6 @@
-# filmcraft-ai
+# jilo-ai
 
-Cloud AI providers for FilmCraft's AI features (Settings ▸ AI): Google Gemini and OpenAI.
+Cloud AI providers for Jilo Studio's AI features (Settings ▸ AI): Google Gemini and OpenAI.
 
 - `Transport`: every request goes through it. `FakeTransport` answers from a script and records
   requests, so tests never use the network; `HttpTransport` (feature `net`) sends them over HTTPS

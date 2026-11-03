@@ -9,8 +9,8 @@ mod graph;
 mod presets;
 mod project;
 
-use filmcraft_project::EffectInstance;
-use filmcraft_time::Tick;
+use jilo_project::EffectInstance;
+use jilo_time::Tick;
 
 pub use presets::import_presets;
 pub use project::import_project;

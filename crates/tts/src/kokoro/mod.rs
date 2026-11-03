@@ -5,7 +5,7 @@
 //! `config.json` and the tensor names and shapes in the checkpoint. No reference code was read.
 //! Weights (Apache-2.0, hexgrad) are downloaded on first use and never bundled.
 //!
-//! [`Kokoro::speak`] takes Kokoro phonemes (from `filmcraft-tts-text`), at most
+//! [`Kokoro::speak`] takes Kokoro phonemes (from `jilo-tts-text`), at most
 //! [`MAX_PHONEMES`] per call, and a voice pack.
 
 mod dsp;
@@ -20,10 +20,10 @@ use crate::TtsError;
 pub use model::SAMPLE_RATE as KOKORO_RATE;
 
 /// Where the model runs: Apple's GPU (Metal) in builds with the `metal` feature, unless
-/// `FILMCRAFT_TTS_DEVICE=cpu`; the CPU otherwise, and whenever no Metal device can be opened.
+/// `JILO_TTS_DEVICE=cpu`; the CPU otherwise, and whenever no Metal device can be opened.
 fn device() -> candle_core::Device {
     #[cfg(feature = "metal")]
-    if std::env::var("FILMCRAFT_TTS_DEVICE").map_or(true, |v| v != "cpu")
+    if std::env::var("JILO_TTS_DEVICE").map_or(true, |v| v != "cpu")
         && let Ok(d) = candle_core::Device::new_metal(0)
     {
         return d;
@@ -85,14 +85,14 @@ impl Kokoro {
     }
 }
 
-/// Tests with the real model run when `FILMCRAFT_KOKORO_DIR` names a directory holding
+/// Tests with the real model run when `JILO_KOKORO_DIR` names a directory holding
 /// `config.json`, `kokoro-v1_0.pth` and `af_heart.pt` (the downloaded package); they skip otherwise.
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn model() -> Option<(Kokoro, VoicePack)> {
-        let dir = std::path::PathBuf::from(std::env::var_os("FILMCRAFT_KOKORO_DIR")?);
+        let dir = std::path::PathBuf::from(std::env::var_os("JILO_KOKORO_DIR")?);
         let voice = [dir.join("af_heart.pt"), dir.join("voices/af_heart.pt")].into_iter().find(|p| p.exists())?;
         Some((Kokoro::load(&dir).unwrap(), VoicePack::load(&voice).unwrap()))
     }

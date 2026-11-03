@@ -13,8 +13,8 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use filmcraft_project::{ClipId, Sequence};
-use filmcraft_time::Tick;
+use jilo_project::{ClipId, Sequence};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, always, bad};
@@ -89,7 +89,7 @@ fn check(s: &mut Session, _p: &Value) -> Result<Value> {
     // the media: offline, or used past its end
     let missing: HashSet<u64> =
         s.execute("media.findMissing", json!({}))?["missing"].as_array().into_iter().flatten().filter_map(|m| m["item"].as_u64()).collect();
-    let tracks: Vec<(String, &filmcraft_project::Track)> =
+    let tracks: Vec<(String, &jilo_project::Track)> =
         q.video_tracks.iter().enumerate().map(|(i, t)| (vlabel(i), t)).chain(q.audio_tracks.iter().enumerate().map(|(i, t)| (alabel(i), t))).collect();
     let mut offline_items: BTreeMap<u64, usize> = BTreeMap::new();
     for (label, t) in &tracks {
@@ -149,7 +149,7 @@ fn check(s: &mut Session, _p: &Value) -> Result<Value> {
     // captions
     for (ci, ct) in q.caption_tracks.iter().enumerate() {
         let label = format!("C{}", ci + 1);
-        let mut caps: Vec<&filmcraft_project::Caption> = ct.captions.iter().collect();
+        let mut caps: Vec<&jilo_project::Caption> = ct.captions.iter().collect();
         caps.sort_by_key(|c| c.start);
         for w in caps.windows(2) {
             if w[1].start < w[0].start + w[0].duration {
@@ -268,10 +268,10 @@ fn render_frames(s: &mut Session, p: &Value) -> Result<Value> {
         None => {
             static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
             let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            std::env::temp_dir().join(format!("filmcraft-frames-{}-{n}.png", std::process::id()))
+            std::env::temp_dir().join(format!("jilo-frames-{}-{n}.png", std::process::id()))
         }
     };
-    let png = filmcraft_export::encode_png(sheet, sw, sh).map_err(|e| EngineError::Other(e.to_string()))?;
+    let png = jilo_export::encode_png(sheet, sw, sh).map_err(|e| EngineError::Other(e.to_string()))?;
     std::fs::write(&path, png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
     Ok(json!({"path": path.to_string_lossy(), "width": sw, "height": sh, "columns": cols, "frames": placed}))
 }

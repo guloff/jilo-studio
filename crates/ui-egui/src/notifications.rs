@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use web_time::Instant;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// A job that ran at least this long (seconds) is worth a notification.
 pub const MIN_SECONDS: f64 = 8.0;
@@ -36,7 +36,7 @@ pub fn message(label: &str, error: Option<&str>) -> (String, String) {
 }
 
 /// Note running jobs; notify about the ones that ended (call once a frame).
-pub fn watch(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn watch(app: &mut JiloApp, ctx: &egui::Context) {
     let now = Instant::now();
     let mut ended: Vec<(String, Option<String>)> = Vec::new();
     for j in &app.session.jobs {

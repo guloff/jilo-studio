@@ -9,10 +9,10 @@
 //! `recipes.recordName`, `recipes.step.<n>.enabled|up|down|remove`, `recipes.rec` (the badge).
 
 use egui::{Color32, RichText, vec2};
-use filmcraft_engine::recipes::Recipe;
+use jilo_engine::recipes::Recipe;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The window's state.
 #[derive(Clone, Debug, Default)]
@@ -29,17 +29,17 @@ pub struct RecipesUi {
     pub message: String,
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     app.ui.recipes.open = true;
     if app.ui.recipes.draft.is_none() {
-        app.ui.recipes.draft = filmcraft_engine::recipes::all().into_iter().next();
+        app.ui.recipes.draft = jilo_engine::recipes::all().into_iter().next();
     }
     Ok(json!({"window": "recipes"}))
 }
 
 /// The label of a step's command, as the menus show it.
 fn step_label(command: &str) -> String {
-    filmcraft_engine::find_command(command).map_or_else(|| command.to_string(), |c| crate::i18n::t(c.label).trim_end_matches('…').to_string())
+    jilo_engine::find_command(command).map_or_else(|| command.to_string(), |c| crate::i18n::t(c.label).trim_end_matches('…').to_string())
 }
 
 /// A short form of a step's parameters (empty for none).
@@ -53,7 +53,7 @@ fn params_text(p: &Value) -> String {
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     // the outcome of a run, once it ends
     if let Some(id) = app.ui.recipes.job
         && app.session.jobs.iter().find(|j| j.id == id).is_none_or(|j| j.to_json()["finished"] == true)
@@ -76,7 +76,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let t = app.tokens;
     let mut open = true;
     let mut actions: Vec<(String, Value)> = Vec::new();
-    let all = filmcraft_engine::recipes::all();
+    let all = jilo_engine::recipes::all();
     crate::dialog_style::Window::new(tl!("Recipes"))
         .id(egui::Id::new("recipes-window"))
         .open(&mut open)
@@ -242,13 +242,13 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                     app.ui.recipes.message = tl!("Saved.").into();
                 }
                 "recipes.delete" => {
-                    app.ui.recipes.draft = filmcraft_engine::recipes::all().into_iter().next();
+                    app.ui.recipes.draft = jilo_engine::recipes::all().into_iter().next();
                     app.ui.recipes.dirty = false;
                     app.ui.recipes.message = tl!("Deleted.").into();
                 }
                 "recipes.recordStop" if v["name"].is_string() => {
                     let name = v["name"].as_str().unwrap_or_default().to_string();
-                    app.ui.recipes.draft = filmcraft_engine::recipes::find(&name);
+                    app.ui.recipes.draft = jilo_engine::recipes::find(&name);
                     app.ui.recipes.dirty = false;
                     app.ui.recipes.message = tlf!("Recorded {name}.", name);
                 }
@@ -260,7 +260,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
 }
 
 /// "● REC" at the top right while a recipe is being recorded with the window closed.
-fn badge(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn badge(app: &mut JiloApp, ctx: &egui::Context) {
     let n = app.session.recording.as_ref().map_or(0, Vec::len);
     egui::Area::new(egui::Id::new("recipes-rec-badge")).anchor(egui::Align2::RIGHT_TOP, vec2(-16.0, 56.0)).show(ctx, |ui| {
         let r = ui.add(egui::Button::new(RichText::new(tlf!("● REC {n}", n)).color(Color32::WHITE).strong()).fill(Color32::from_rgb(200, 40, 40)));

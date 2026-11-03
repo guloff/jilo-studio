@@ -10,9 +10,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use filmcraft_media::DemoScene;
-use filmcraft_project::{ItemId, Marker, MarkerId, MarkerKind, MulticamAudio, Sequence, TrackItem};
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND, Tick};
+use jilo_media::DemoScene;
+use jilo_project::{ItemId, Marker, MarkerId, MarkerKind, MulticamAudio, Sequence, TrackItem};
+use jilo_time::{FrameRate, TICKS_PER_SECOND, Tick};
 use serde_json::{Value, json};
 
 use crate::Session;
@@ -41,10 +41,10 @@ fn mic_filter(start: i64, secs: f64, gain: f64, noise: f64, seed: u32) -> String
 
 /// (camera A .mov, camera B .mov, recorder .wav), or None without ffmpeg.
 fn fixtures() -> Option<(PathBuf, PathBuf, PathBuf)> {
-    let ffmpeg = filmcraft_testkit::ffmpeg_or_skip("multicam fixtures")?;
-    let dir = filmcraft_testkit::fixtures_dir("multicam");
+    let ffmpeg = jilo_testkit::ffmpeg_or_skip("multicam fixtures")?;
+    let dir = jilo_testkit::fixtures_dir("multicam");
     let cam = |name: &str, src: &str, start: i64, secs: f64, gain: f64, noise: f64, seed: u32, tc: &str| {
-        filmcraft_testkit::fixtures::generate(&dir.join(name), |tmp| {
+        jilo_testkit::fixtures::generate(&dir.join(name), |tmp| {
             let t = tmp.to_string_lossy();
             let video = format!("{src}=s=320x180:r=24:d={secs}");
             ff(
@@ -80,7 +80,7 @@ fn fixtures() -> Option<(PathBuf, PathBuf, PathBuf)> {
     };
     let a = cam("camA.mov", "testsrc2", START_A, 12.0, 1.0, 0.02, 11, "01:00:00:00")?;
     let b = cam("camB.mov", "smptebars", START_B, 10.0, 0.25, 0.05, 12, "01:00:02:12")?;
-    let rec = filmcraft_testkit::fixtures::generate(&dir.join("recorder.wav"), |tmp| {
+    let rec = jilo_testkit::fixtures::generate(&dir.join("recorder.wav"), |tmp| {
         let t = tmp.to_string_lossy();
         ff(
             &ffmpeg,
@@ -156,7 +156,7 @@ fn audio_sync_multicam_sample_accurate() {
     assert_eq!(s.project.item(seq_id).unwrap().type_label(), "Multi-Camera Source Sequence");
     // processed clips moved into their bin
     let bin = s.project.root.children.iter().find_map(|c| match c {
-        filmcraft_project::BinEntry::Bin(b) if b.name == "Processed Clips" => Some(b.clone()),
+        jilo_project::BinEntry::Bin(b) if b.name == "Processed Clips" => Some(b.clone()),
         _ => None,
     });
     assert_eq!(bin.map(|b| b.children.len()), Some(3));
@@ -225,7 +225,7 @@ fn timecode_marker_and_in_point_sync_within_one_frame() {
             name: "clap".into(),
             comment: String::new(),
             kind: MarkerKind::Comment,
-            color: filmcraft_project::Label::Rose,
+            color: jilo_project::Label::Rose,
         });
     }
     s.project = std::sync::Arc::new(p);
@@ -273,18 +273,18 @@ fn timeline_synchronize_by_audio_and_timecode() {
     let items = import(&mut s, &[&a, &b, &rec]);
     let mut p = (*s.project).clone();
     let rate = FrameRate::FPS_24;
-    let seq = p.new_sequence("Edit", filmcraft_project::SequenceSettings { width: 320, height: 180, frame_rate: rate, ..Default::default() }, 2, 3, None);
+    let seq = p.new_sequence("Edit", jilo_project::SequenceSettings { width: 320, height: 180, frame_rate: rate, ..Default::default() }, 2, 3, None);
     // camera B on V2/A2 at 20 s, recorder on A3 at 1 s, camera A on V1/A1 at 5 s
-    let place = |p: &mut filmcraft_project::Project, it: ItemId, at: i64, v: Option<usize>, a: usize| {
+    let place = |p: &mut jilo_project::Project, it: ItemId, at: i64, v: Option<usize>, a: usize| {
         let d = p.item(it).unwrap().duration();
-        let range = filmcraft_time::TimeRange::new(Tick::ZERO, d);
+        let range = jilo_time::TimeRange::new(Tick::ZERO, d);
         let link = p.alloc_id();
         if let Some(vt) = v {
-            let mut vi = p.make_track_item(it, filmcraft_project::TrackKind::Video, rate.tick_of(at), range, rate).unwrap();
+            let mut vi = p.make_track_item(it, jilo_project::TrackKind::Video, rate.tick_of(at), range, rate).unwrap();
             vi.link = Some(link);
             p.sequence_mut(seq).unwrap().video_tracks[vt].items.push(vi);
         }
-        let mut ai = p.make_track_item(it, filmcraft_project::TrackKind::Audio, rate.tick_of(at), range, rate).unwrap();
+        let mut ai = p.make_track_item(it, jilo_project::TrackKind::Audio, rate.tick_of(at), range, rate).unwrap();
         ai.link = Some(link);
         p.sequence_mut(seq).unwrap().audio_tracks[a].items.push(ai);
     };
@@ -340,8 +340,7 @@ fn mc_session(audio: &str) -> (Session, Vec<ItemId>, ItemId, ItemId) {
     let r = on_items(&mut s, "clip.createMulticam", &items, json!({"method": "in", "audio": audio, "cameraNames": "track"})).unwrap();
     let src = ItemId(r["sequence"].as_u64().unwrap());
     let mut p = (*s.project).clone();
-    let edit =
-        p.new_sequence("Cut", filmcraft_project::SequenceSettings { width: W, height: H, frame_rate: FrameRate::FPS_24, ..Default::default() }, 2, 2, None);
+    let edit = p.new_sequence("Cut", jilo_project::SequenceSettings { width: W, height: H, frame_rate: FrameRate::FPS_24, ..Default::default() }, 2, 2, None);
     s.project = std::sync::Arc::new(p);
     s.state.active_sequence = Some(edit);
     s.execute("source.open", json!({"item": src.0})).unwrap();
@@ -371,7 +370,7 @@ fn frame(s: &mut Session, f: i64) -> Vec<u8> {
 /// The frame of camera `item` at its media frame `f`, rendered alone.
 fn camera_frame(s: &Session, item: ItemId, f: i64) -> Vec<u8> {
     let provider = s.media.provider(s.project.clone(), s.services.clone());
-    filmcraft_render::render_item(&s.project, item, FrameRate::FPS_24.tick_of(f), 1.0, &provider).unwrap().over_black_rgba8()
+    jilo_render::render_item(&s.project, item, FrameRate::FPS_24.tick_of(f), 1.0, &provider).unwrap().over_black_rgba8()
 }
 
 #[test]
@@ -405,21 +404,21 @@ fn multicam_clip_structure_and_render() {
     let provider = s.media.provider(s.project.clone(), s.services.clone());
     let edit_id = s.state.active_sequence.unwrap();
     let t10 = FrameRate::FPS_24.tick_of(10);
-    let plan = filmcraft_render::plan::plan_frame(&s.project, edit_id, t10, filmcraft_render::RenderOptions::default(), &provider);
+    let plan = jilo_render::plan::plan_frame(&s.project, edit_id, t10, jilo_render::RenderOptions::default(), &provider);
     match &plan {
-        filmcraft_render::plan::FramePlan::Layers { layers, .. } => {
+        jilo_render::plan::FramePlan::Layers { layers, .. } => {
             assert_eq!(layers.len(), 1);
-            assert!(!matches!(layers[0].frame.data, filmcraft_frame::PixelData::RgbaF32(_)), "a decoded frame, not a CPU render");
+            assert!(!matches!(layers[0].frame.data, jilo_frame::PixelData::RgbaF32(_)), "a decoded frame, not a CPU render");
         }
         _ => panic!("expected layers"),
     }
-    let via_plan = filmcraft_render::plan::execute_cpu(&plan);
+    let via_plan = jilo_render::plan::execute_cpu(&plan);
     s.set_playhead(t10);
     let reference = s.render_program(1.0).unwrap();
     assert!(psnr(&via_plan.over_black_rgba8(), &reference.over_black_rgba8()) > 40.0);
     // grid of the angles
     let provider = s.media.provider(s.project.clone(), s.services.clone());
-    let (grid, angles) = filmcraft_render::multicam::render_grid(&s.project, src, Tick::ZERO, 0.25, &provider).unwrap();
+    let (grid, angles) = jilo_render::multicam::render_grid(&s.project, src, Tick::ZERO, 0.25, &provider).unwrap();
     assert_eq!(angles, [0, 1, 2]);
     assert_eq!((grid.w, grid.h), (2 * 40, 2 * 23));
 }
@@ -444,8 +443,8 @@ fn switch_audio_follows_video() {
     assert_eq!(on, q.multicam.as_ref().unwrap().cameras[1].audio_tracks);
     let provider = s.media.provider(s.project.clone(), s.services.clone());
     let edit_seq = s.active_sequence().unwrap().clone();
-    let mix = filmcraft_render::audio::mix_sequence(&s.project, &edit_seq, 24_000, 4_800, &provider);
-    let only_b = filmcraft_render::audio::mix_sequence(&s.project, &q.with_angle_audio(Some(1)), 24_000, 4_800, &provider);
+    let mix = jilo_render::audio::mix_sequence(&s.project, &edit_seq, 24_000, 4_800, &provider);
+    let only_b = jilo_render::audio::mix_sequence(&s.project, &q.with_angle_audio(Some(1)), 24_000, 4_800, &provider);
     let err = mix.channels[0].iter().zip(&only_b.channels[0]).map(|(a, b)| (a - b).abs()).fold(0.0f32, f32::max);
     assert!(err < 1e-4, "multi-camera audio = camera 2's track ({err})");
     assert!(mix.channels[0].iter().any(|v| v.abs() > 1e-3), "audible");
@@ -545,11 +544,11 @@ fn edit_cameras_and_save_load() {
     assert_eq!(v1(&s), [(0, 2)]);
     assert!(s.execute("multicam.switchAngle", json!({"camera": 3})).is_err());
     let dir = tmp_dir("mc-save");
-    let path = dir.join("mc.fcproj").to_string_lossy().into_owned();
+    let path = dir.join("mc.jsproj").to_string_lossy().into_owned();
     s.execute("file.save", json!({"path": path})).unwrap();
     let bytes = std::fs::read(&path).unwrap();
     let doc: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(doc["schema_version"], filmcraft_format::SCHEMA_VERSION);
+    assert_eq!(doc["schema_version"], jilo_format::SCHEMA_VERSION);
     let mut t = Session::default();
     t.execute("file.open", json!({"path": path})).unwrap();
     assert_eq!(*t.project, *s.project, "multi-camera data survives save/load");
@@ -562,22 +561,19 @@ fn any_nest_can_be_multicam() {
     let (mut s, items, _, _) = mc_session("camera1");
     let mut p = (*s.project).clone();
     let rate = FrameRate::FPS_24;
-    let nest = p.new_sequence("Nest", filmcraft_project::SequenceSettings { width: W, height: H, frame_rate: rate, ..Default::default() }, 2, 0, None);
+    let nest = p.new_sequence("Nest", jilo_project::SequenceSettings { width: W, height: H, frame_rate: rate, ..Default::default() }, 2, 0, None);
     for (k, it) in items[..2].iter().enumerate() {
-        let mut v = p
-            .make_track_item(*it, filmcraft_project::TrackKind::Video, Tick::ZERO, filmcraft_time::TimeRange::new(Tick::ZERO, rate.tick_of(48)), rate)
-            .unwrap();
+        let mut v = p.make_track_item(*it, jilo_project::TrackKind::Video, Tick::ZERO, jilo_time::TimeRange::new(Tick::ZERO, rate.tick_of(48)), rate).unwrap();
         for e in &mut v.effects {
-            filmcraft_project::resolve_auto_points(e, (W, H), (W, H));
+            jilo_project::resolve_auto_points(e, (W, H), (W, H));
         }
         p.sequence_mut(nest).unwrap().video_tracks[k].items.push(v);
     }
     let edit = s.state.active_sequence.unwrap();
-    let mut v =
-        p.make_track_item(nest, filmcraft_project::TrackKind::Video, Tick::ZERO, filmcraft_time::TimeRange::new(Tick::ZERO, rate.tick_of(48)), rate).unwrap();
+    let mut v = p.make_track_item(nest, jilo_project::TrackKind::Video, Tick::ZERO, jilo_time::TimeRange::new(Tick::ZERO, rate.tick_of(48)), rate).unwrap();
     assert!(v.multicam.is_none(), "plain nests start as plain nests");
     for e in &mut v.effects {
-        filmcraft_project::resolve_auto_points(e, (W, H), (W, H));
+        jilo_project::resolve_auto_points(e, (W, H), (W, H));
     }
     let clip = v.id;
     let q = p.sequence_mut(edit).unwrap();
@@ -635,8 +631,7 @@ fn many_angles(n: usize) -> (Session, ItemId) {
     let r = on_items(&mut s, "clip.createMulticam", &items, json!({"method": "in", "cameraNames": "clip"})).unwrap();
     let src = ItemId(r["sequence"].as_u64().unwrap());
     let mut p = (*s.project).clone();
-    let edit =
-        p.new_sequence("Cut", filmcraft_project::SequenceSettings { width: 64, height: 36, frame_rate: FrameRate::FPS_24, ..Default::default() }, 2, 2, None);
+    let edit = p.new_sequence("Cut", jilo_project::SequenceSettings { width: 64, height: 36, frame_rate: FrameRate::FPS_24, ..Default::default() }, 2, 2, None);
     s.project = std::sync::Arc::new(p);
     s.state.active_sequence = Some(edit);
     s.execute("source.open", json!({"item": src.0})).unwrap();
@@ -647,19 +642,19 @@ fn many_angles(n: usize) -> (Session, ItemId) {
 
 /// A media source that records the scale of every frame request.
 struct Recording {
-    inner: filmcraft_media::SharedSource,
+    inner: jilo_media::SharedSource,
     scales: std::sync::Arc<std::sync::Mutex<Vec<f32>>>,
 }
 
-impl filmcraft_media::MediaSource for Recording {
-    fn info(&self) -> &filmcraft_media::MediaInfo {
+impl jilo_media::MediaSource for Recording {
+    fn info(&self) -> &jilo_media::MediaInfo {
         self.inner.info()
     }
-    fn video_frame(&self, req: filmcraft_media::FrameRequest) -> filmcraft_media::Result<std::sync::Arc<filmcraft_frame::VideoFrame>> {
+    fn video_frame(&self, req: jilo_media::FrameRequest) -> jilo_media::Result<std::sync::Arc<jilo_frame::VideoFrame>> {
         self.scales.lock().unwrap().push(req.scale);
         self.inner.video_frame(req)
     }
-    fn audio(&self, start: i64, frames: usize, sample_rate: u32) -> filmcraft_media::Result<filmcraft_frame::AudioBuffer> {
+    fn audio(&self, start: i64, frames: usize, sample_rate: u32) -> jilo_media::Result<jilo_frame::AudioBuffer> {
         self.inner.audio(start, frames, sample_rate)
     }
 }
@@ -722,12 +717,12 @@ fn grid_pages_decode_only_their_angles_at_reduced_resolution() {
     let recording = {
         let scales = scales.clone();
         move |item: ItemId| {
-            use filmcraft_render::SourceProvider;
-            provider.source(item).map(|inner| std::sync::Arc::new(Recording { inner, scales: scales.clone() }) as filmcraft_media::SharedSource)
+            use jilo_render::SourceProvider;
+            provider.source(item).map(|inner| std::sync::Arc::new(Recording { inner, scales: scales.clone() }) as jilo_media::SharedSource)
         }
     };
     let t = FrameRate::FPS_24.tick_of(10);
-    let (img, angles) = filmcraft_render::multicam::render_grid_page(&s.project, src, t, 0.25, None, 1, &recording).unwrap();
+    let (img, angles) = jilo_render::multicam::render_grid_page(&s.project, src, t, 0.25, None, 1, &recording).unwrap();
     assert_eq!(angles, [16, 17, 18, 19]);
     // 4×4 cells of 16×9 (¼ of 64×36): only the page's four angles decoded, each at ¼ scale
     assert_eq!((img.w, img.h), (64, 36));
@@ -788,17 +783,17 @@ fn process_cpu() -> f64 {
 
 /// Multi-Camera view cost: a 2×2 grid of four 1080p H.264 angles at ¼ scale per cell, played
 /// sequentially, against the program (one angle at ½ scale). Run with
-/// `cargo test --release -p filmcraft-engine --lib multicam_tests::perf -- --ignored --nocapture`.
+/// `cargo test --release -p jilo-engine --lib multicam_tests::perf -- --ignored --nocapture`.
 #[test]
 #[ignore]
 fn perf_grid_of_four_1080p_angles() {
-    let Some(ffmpeg) = filmcraft_testkit::ffmpeg_or_skip("multicam perf") else { return };
-    let dir = filmcraft_testkit::fixtures_dir("multicam");
+    let Some(ffmpeg) = jilo_testkit::ffmpeg_or_skip("multicam perf") else { return };
+    let dir = jilo_testkit::fixtures_dir("multicam");
     let srcs = ["testsrc2", "smptehdbars", "mandelbrot", "rgbtestsrc"];
     let files: Vec<PathBuf> = srcs
         .iter()
         .map(|src| {
-            filmcraft_testkit::fixtures::generate(&dir.join(format!("perf-{src}.mp4")), |tmp| {
+            jilo_testkit::fixtures::generate(&dir.join(format!("perf-{src}.mp4")), |tmp| {
                 let v = format!("{src}=s=1920x1080:r=24");
                 ff(
                     &ffmpeg,
@@ -823,8 +818,8 @@ fn perf_grid_of_four_1080p_angles() {
     let q = s.project.sequence(src).unwrap().clone();
     let t0 = std::time::Instant::now();
     for f in 0..frames {
-        let opts = filmcraft_render::RenderOptions { scale: 0.5, ..Default::default() };
-        let _ = filmcraft_render::multicam::render_angle(&s.project, &q, 0, rate.tick_of(f), opts, &provider);
+        let opts = jilo_render::RenderOptions { scale: 0.5, ..Default::default() };
+        let _ = jilo_render::multicam::render_angle(&s.project, &q, 0, rate.tick_of(f), opts, &provider);
     }
     let one_ms = t0.elapsed().as_secs_f64() * 1000.0 / frames as f64;
     let (s, src) = setup();
@@ -832,7 +827,7 @@ fn perf_grid_of_four_1080p_angles() {
     let cpu0 = crate::multicam_tests::process_cpu();
     let t0 = std::time::Instant::now();
     for f in 0..frames {
-        let (g, _) = filmcraft_render::multicam::render_grid(&s.project, src, rate.tick_of(f), 0.25, &provider).unwrap();
+        let (g, _) = jilo_render::multicam::render_grid(&s.project, src, rate.tick_of(f), 0.25, &provider).unwrap();
         assert_eq!((g.w, g.h), (960, 540));
     }
     let grid_ms = t0.elapsed().as_secs_f64() * 1000.0 / frames as f64;

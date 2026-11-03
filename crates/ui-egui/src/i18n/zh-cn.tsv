@@ -2,7 +2,7 @@
 #
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Chinese video-editing vocabulary. No proprietary localisation resource, string table or product UI
-# was consulted or copied; add entries the same way. Product and technology names (FilmCraft, ArtCraft,
+# was consulted or copied; add entries the same way. Product and technology names (Jilo Studio, ArtCraft,
 # Lumetri, ProRes, LUFS…) keep their spelling.
 
 	(empty)	(空)
@@ -35,7 +35,7 @@
 	A title on a rounded card with a soft shadow.	带有柔和阴影的圆角卡片标题。
 	A white pill asking to like and follow.	请求点赞和关注的白色胶囊。
 	AAF…	AAF…
-	About FilmCraft	关于 FilmCraft
+	About Jilo Studio	关于 Jilo Studio
 	Adaptive	自适应
 	Add Audio Submix Track	添加音频子混音轨道
 	Add audio submix tracks	添加音频子混合轨道
@@ -572,8 +572,8 @@
 	Film Dissolve (Legacy)	胶片溶解(旧版)
 	Film Emulation	胶片模拟
 	Film Roll	胶卷滚动
-	FilmCraft Help…	FilmCraft 帮助…
-	FilmCraft on GitHub	GitHub 上的 FilmCraft
+	Jilo Studio Help…	Jilo Studio 帮助…
+	Jilo Studio on GitHub	GitHub 上的 Jilo Studio
 	Filter and EQ	滤波与均衡
 	Final Cut Pro XML…	Final Cut Pro XML…
 	Find Edges	查找边缘
@@ -716,7 +716,7 @@
 	Insert and overwrite sequences as nests or individual clips	将序列作为嵌套或单独剪辑插入和覆盖
 	Insert Frame Hold Segment	插入定格片段
 	Inset	插入
-	Install Motion Graphics Template (.fcgt)	安装动态图形模板 (.fcgt)
+	Install Motion Graphics Template (.jstpl)	安装动态图形模板 (.jstpl)
 	Install Motion Graphics Template…	安装动态图形模板…
 	Install…	安装…
 	Interpret Footage	解释素材
@@ -966,7 +966,7 @@
 	Normalize Max Peak to:	将最大峰值规格化为：
 	Normalize Mix Track…	标准化混音轨道…
 	Not Now	暂不
-	Not supported by FilmCraft's encoders yet	FilmCraft 编码器暂不支持
+	Not supported by Jilo Studio's encoders yet	Jilo Studio 编码器暂不支持
 	Notch Filter	陷波滤波器
 	Number	编号
 	Number of Audio Clips:	音频剪辑数量：
@@ -1282,7 +1282,7 @@
 	Select Previous Layer	选择上一图层
 	Select Zoom Level	选择缩放级别
 	Selected	已选择
-	Selection as FilmCraft Project…	将所选另存为 FilmCraft 项目…
+	Selection as Jilo Studio Project…	将所选另存为 Jilo Studio 项目…
 	Selection Follows Playhead	所选跟随播放头
 	Selection Tool	选择工具
 	Selection…	所选…
@@ -1649,9 +1649,9 @@
 	Export Markers as CSV…	将标记导出为 CSV…
 	Text to Speech	文本转语音
 # Jilo Studio: the website and the credit to FilmCraft (ArtCraft links are not in this build)
-	FilmCraft Website	FilmCraft 网站
+	Jilo Studio Website	Jilo Studio 网站
 	Based on FilmCraft by the ArtCraft Team	基于 ArtCraft 团队的 FilmCraft
-	A non-linear video editor for the Mac, written in Rust.	用 Rust 编写的 Mac 非线性视频编辑器。
+	An AI-first video editor for the Mac, written in Rust.	以 AI 为核心的 Mac 视频编辑器，用 Rust 编写。
 	Based on {upstream} by the ArtCraft team. Not made or endorsed by the ArtCraft team.	基于 ArtCraft 团队的 {upstream}。并非由 ArtCraft 团队制作或认可。
 	The name and icon of this app belong to Rustam Gulov.	本应用的名称和图标归 Rustam Gulov 所有。
 # Sequence ▸ Remove Silent Pauses
@@ -1662,8 +1662,8 @@
 	Peak Amplitude: {peak}	峰值振幅：{peak}
 	After {name}	在 {name} 之后
 	MIT OR Apache-2.0. Fonts: Inter, Noto Serif and JetBrains Mono (SIL OFL 1.1).	MIT 或 Apache-2.0。字体：Inter、Noto Serif 与 JetBrains Mono（SIL OFL 1.1）。
-	FilmCraft was closed while “{name}” had unsaved changes.	FilmCraft 在“{name}”存在未保存的更改时被关闭。
-	FilmCraft quit unexpectedly while “{name}” had unsaved changes.	FilmCraft 在“{name}”存在未保存的更改时意外退出。
+	Jilo Studio was closed while “{name}” had unsaved changes.	Jilo Studio 在“{name}”存在未保存的更改时被关闭。
+	Jilo Studio quit unexpectedly while “{name}” had unsaved changes.	Jilo Studio 在“{name}”存在未保存的更改时意外退出。
 	Recover unsaved changes from {when}?	恢复 {when} 的未保存更改吗？
 	{n} sessions have unsaved changes:	{n} 个会话存在未保存的更改：
 	Are you sure you want to discard your changes to '{file}'?	确定要放弃对“{file}”的更改吗？
@@ -1986,7 +1986,7 @@
 	Font family	字体族
 	Label Colors	标签颜色
 	Decoded frames held for the monitors and thumbnails: {used} of {budget}.	为监视器和缩略图保留的解码帧：{used} / {budget}。
-	FilmCraft keeps the rest of the RAM free for other applications.	FilmCraft 将剩余内存留给其他应用程序。
+	Jilo Studio keeps the rest of the RAM free for other applications.	Jilo Studio 将剩余内存留给其他应用程序。
 	not available in this session	在当前会话中不可用
 	Currently: {loc} — {files} file(s), {size}	当前：{loc} — {files} 个文件，{size}
 	 ({ch} output channels)	 （{ch} 个输出通道）
@@ -2021,7 +2021,7 @@
 	{category} · My Template	{category} · 我的模板
 	{n} editable properties	{n} 个可编辑属性
 	   Template: {name}	模板：{name}
-	FilmCraft Graphics Template	FilmCraft 图形模板
+	Jilo Studio Graphics Template	Jilo Studio 图形模板
 	{n} Font	{n} 字体
 	{n} Size	{n} 大小
 	{n} Color	{n} 颜色
@@ -2031,7 +2031,7 @@
 	Export As Motion Graphics Template	导出为动态图形模板
 	Category:	分类：
 	Editable properties:	可编辑属性：
-	Saved as a FilmCraft graphics template (.fcgt) in your templates folder.	已作为 FilmCraft 图形模板（.fcgt）保存到你的模板文件夹。
+	Saved as a Jilo Studio graphics template (.jstpl) in your templates folder.	已作为 Jilo Studio 图形模板（.jstpl）保存到你的模板文件夹。
 	Exported graphics template to {path}	已将图形模板导出到 {path}
 	Replace Fonts in Projects	替换项目中的字体
 	Fonts used in the project:	项目中使用的字体：
@@ -2255,7 +2255,7 @@
 	Center Point (Longitude)	中心点（经度）
 	Center of Sphere	球体中心
 	Cents	音分
-	Changes are copied in the background a moment after each edit. If FilmCraft quits unexpectedly, they are offered the next time it starts.	每次编辑后，更改会在后台稍后复制。如果 FilmCraft 意外退出，下次启动时会提示恢复。
+	Changes are copied in the background a moment after each edit. If Jilo Studio quits unexpectedly, they are offered the next time it starts.	每次编辑后，更改会在后台稍后复制。如果 Jilo Studio 意外退出，下次启动时会提示恢复。
 	Channel	通道
 	Channel Blur	通道模糊
 	Channel Mix	通道混合
@@ -2523,7 +2523,7 @@
 	Hard	硬
 	Hard Clip	硬削波
 	Hardware decoding	硬件解码
-	Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API for H.264 and HEVC on Linux) for the streams it supports, and FilmCraft's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.	硬件解码：自动模式对支持的流使用系统视频解码器（macOS 上为 VideoToolbox，Windows 上为 Media Foundation，Linux 上对 H.264 和 HEVC 使用 VA-API），其余情况或硬件失败时回退到 FilmCraft 自带的解码器。已打开的媒体会保留其解码器，直到重新打开。
+	Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API for H.264 and HEVC on Linux) for the streams it supports, and Jilo Studio's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.	硬件解码：自动模式对支持的流使用系统视频解码器（macOS 上为 VideoToolbox，Windows 上为 Media Foundation，Linux 上对 H.264 和 HEVC 使用 VA-API），其余情况或硬件失败时回退到 Jilo Studio 自带的解码器。已打开的媒体会保留其解码器，直到重新打开。
 	Head Size	头部大小
 	Heart	心形
 	Height	高度
@@ -2729,7 +2729,7 @@
 	Night	夜景
 	No Motion	无运动
 	No Scroll	不滚动
-	No plugins are installed. Changes will take effect the next time you start FilmCraft.	未安装任何插件。更改将在下次启动 FilmCraft 时生效。
+	No plugins are installed. Changes will take effect the next time you start Jilo Studio.	未安装任何插件。更改将在下次启动 Jilo Studio 时生效。
 	Noise (Legacy)	噪点（旧版）
 	Noise Level	噪点级别
 	Noise Type	噪点类型
@@ -3073,7 +3073,7 @@
 	Telephone	电话
 	Teletext	图文电视
 	Text Color	文本颜色
-	The media cache holds render previews of unsaved projects and other files FilmCraft can recreate. Deleting them is always safe; FilmCraft rebuilds them as needed.	媒体缓存保存未保存项目的渲染预览，以及其他 FilmCraft 可重建的文件。删除它们始终安全；FilmCraft 会在需要时重新构建。
+	The media cache holds render previews of unsaved projects and other files Jilo Studio can recreate. Deleting them is always safe; Jilo Studio rebuilds them as needed.	媒体缓存保存未保存项目的渲染预览，以及其他 Jilo Studio 可重建的文件。删除它们始终安全；Jilo Studio 会在需要时重新构建。
 	Thickness	厚度
 	Tile Gradient	平铺渐变
 	Tilt	倾斜
@@ -3226,8 +3226,8 @@
 	System Compatibility Report	系统兼容性报告
 	no GPU adapter: the CPU compositor is used	无 GPU 适配器：使用 CPU 合成器
 	Avid Log Exchange	Avid Log Exchange
-	FilmCraft Project	FilmCraft 项目
-	{name} Selection.fcproj	{name} Selection.fcproj
+	Jilo Studio Project	Jilo Studio 项目
+	{name} Selection.jsproj	{name} Selection.jsproj
 	{name} (Simplified)	{name}（简化）
 	Find in:	查找位置：
 	Find:	查找：
@@ -3368,7 +3368,7 @@
 	Quick Export: open a sequence first	快速导出：请先打开一个序列
 	Quick Export: {path}	快速导出：{path}
 	Graphics problem: switched to software compositing	图形问题：已切换至软件合成
-	FilmCraft hit an error	FilmCraft 遇到错误
+	Jilo Studio hit an error	Jilo Studio 遇到错误
 	Details: {path}	详细信息：{path}
 	Opened {url}	已打开 {url}
 	Step Back 1 Frame	后退 1 帧
@@ -3559,7 +3559,7 @@
 	QuickTime, ProRes 422 LT, 24-bit 48 kHz PCM	QuickTime，ProRes 422 LT，24 位 48 kHz PCM
 	QuickTime, ProRes 422 Proxy, 24-bit 48 kHz PCM	QuickTime，ProRes 422 Proxy，24 位 48 kHz PCM
 	QuickTime, ProRes 422, 24-bit 48 kHz PCM	QuickTime，ProRes 422，24 位 48 kHz PCM
-	Quit FilmCraft	退出 FilmCraft
+	Quit Jilo Studio	退出 Jilo Studio
 	Right align text	文本右对齐
 	Ripple Trim Next Edit to Playhead	波纹修剪：将下一个编辑点修剪至播放头
 	Ripple Trim Previous Edit to Playhead	波纹修剪：将上一个编辑点修剪至播放头
@@ -3764,8 +3764,8 @@
 	Composite in Linear Color	在线性色彩中合成
 	Auto Tone Map Media (HDR and log into SDR)	自动色调映射媒体（HDR 与 log 映射至 SDR）
 	Configure…	配置…
-	Not supported in FilmCraft yet	FilmCraft 尚不支持
-	FilmCraft always composites in linear light	FilmCraft 始终在线性光中合成
+	Not supported in Jilo Studio yet	Jilo Studio 尚不支持
+	Jilo Studio always composites in linear light	Jilo Studio 始终在线性光中合成
 	Loop marked range	循环标记范围
 	Play Source	播放源
 	Source Play/Stop	源播放/停止
@@ -3998,7 +3998,7 @@
 	The report is copied	报告已复制
 # Settings ▸ General ▸ daily update check
 	Check for updates once a day	每天检查一次更新
-	The check asks GitHub for the latest FilmCraft release and sends nothing else; a newer one is offered once.	检查只会向 GitHub 查询 FilmCraft 的最新版本，不发送其他内容；每个新版本只提示一次。
+	The check asks GitHub for the latest Jilo Studio release and sends nothing else; a newer one is offered once.	检查只会向 GitHub 查询 Jilo Studio 的最新版本，不发送其他内容；每个新版本只提示一次。
 # Settings ▸ AI: Claude, ElevenLabs, image generation; File ▸ New ▸ Generate Image
 	A lighthouse on a cliff at dawn, soft mist, wide shot	黎明时分悬崖上的灯塔，薄雾，远景
 	Anthropic Claude (cloud)	Anthropic Claude（云端）
@@ -4014,7 +4014,7 @@
 	Image added: {name}	已添加图片：{name}
 	Put it on the timeline at the playhead	放到时间轴的播放指示器处
 	Voices	语音
-	Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; FilmCraft says so before the first time.	Whisper 在本机运行，不发送任何内容。只有在你使用云端引擎运行 AI 功能时，才会把音频、文字或图片描述发送给 Google、OpenAI、Anthropic 或 ElevenLabs；FilmCraft 会在第一次时提示。
+	Whisper runs on this computer and sends nothing. The cloud engines send audio, text or a picture prompt to Google, OpenAI, Anthropic or ElevenLabs only when you run an AI feature with them; Jilo Studio says so before the first time.	Whisper 在本机运行，不发送任何内容。只有在你使用云端引擎运行 AI 功能时，才会把音频、文字或图片描述发送给 Google、OpenAI、Anthropic 或 ElevenLabs；Jilo Studio 会在第一次时提示。
 	The description goes to {provider}. The picture is saved with the project's media and imported as a still; undo removes it.	描述将发送到 {provider}。图片会与项目媒体一起保存并作为静帧导入；撤销即可移除。
 	Generating an image	正在生成图片
 	the picture's description	图片描述
@@ -4034,16 +4034,16 @@
 	Couldn't load the ElevenLabs voices: {e}	无法加载 ElevenLabs 语音：{e}
 	Loading ElevenLabs voices…	正在加载 ElevenLabs 语音…
 	1. Open the disk image.	1. 打开磁盘映像。
-	2. Drag FilmCraft to Applications and choose Replace.	2. 将 Jilo Studio 拖到“应用程序”并选择“替换”。
-	3. Quit this version and open FilmCraft again.	3. 退出此版本，然后重新打开 Jilo Studio。
+	2. Drag Jilo Studio to Applications and choose Replace.	2. 将 Jilo Studio 拖到“应用程序”并选择“替换”。
+	3. Quit this version and open Jilo Studio again.	3. 退出此版本，然后重新打开 Jilo Studio。
 	Checking the new version's signature…	正在检查新版本的签名…
 	Download and Install	下载并安装
-	Download and Install fetches the new version, checks its signature and installs it when you restart FilmCraft.	“下载并安装”会获取新版本、检查其签名，并在重新启动 Jilo Studio 时安装。
+	Download and Install fetches the new version, checks its signature and installs it when you restart Jilo Studio.	“下载并安装”会获取新版本、检查其签名，并在重新启动 Jilo Studio 时安装。
 	Downloading the new version…	正在下载新版本…
 	Hide	隐藏
 	Install When I Quit	退出时安装
 	It can't install itself here: {why}.	此处无法自动安装：{why}。
-	It will be installed when you quit FilmCraft; the next launch opens the new version.	退出 Jilo Studio 时将安装新版本；下次启动时打开的就是新版本。
+	It will be installed when you quit Jilo Studio; the next launch opens the new version.	退出 Jilo Studio 时将安装新版本；下次启动时打开的就是新版本。
 	Open Disk Image	打开磁盘映像
 	Open Release Page	打开发布页面
 	Release page on GitHub	GitHub 上的发布页面
@@ -4501,7 +4501,7 @@
 	The frame at the playhead with a big title, 1280×720.	播放头处的帧加大标题，1280×720。
 	Tips	提示
 	Tip {n} of {total}	提示 {n}/{total}
-	Show tips when FilmCraft starts	启动 Jilo Studio 时显示提示
+	Show tips when Jilo Studio starts	启动 Jilo Studio 时显示提示
 	Next Tip	下一条
 	Previous	上一条
 	Drop a video on the home screen: a vertical short with captions, or a clean talking head, in one click.	把视频拖到主屏幕：一键生成带字幕的竖屏短视频或干净的口播。
@@ -4523,10 +4523,10 @@
 	{n} item	{n} 项
 	{total} item	{total} 项
 	AI Assistants	AI 助手
-	Added to Claude Code. Start a new Claude Code session to use FilmCraft there.	已添加到 Claude Code。新建一个 Claude Code 会话即可在其中使用 FilmCraft。
-	Added to Claude Desktop. Quit and reopen Claude to use FilmCraft there.	已添加到 Claude Desktop。退出并重新打开 Claude 即可在其中使用 FilmCraft。
-	Allow AI assistants (Claude and other MCP clients) to control FilmCraft on this computer	允许 AI 助手（Claude 和其他 MCP 客户端）在本机上控制 FilmCraft
-	An assistant connected to FilmCraft can open, edit, save and export your projects as you would. Nothing is sent anywhere by FilmCraft: the assistant talks to it on this computer only.	连接到 FilmCraft 的助手可以像你一样打开、编辑、保存和导出你的项目。FilmCraft 不会向任何地方发送内容：助手只在本机上与它通信。
+	Added to Claude Code. Start a new Claude Code session to use Jilo Studio there.	已添加到 Claude Code。新建一个 Claude Code 会话即可在其中使用 Jilo Studio。
+	Added to Claude Desktop. Quit and reopen Claude to use Jilo Studio there.	已添加到 Claude Desktop。退出并重新打开 Claude 即可在其中使用 Jilo Studio。
+	Allow AI assistants (Claude and other MCP clients) to control Jilo Studio on this computer	允许 AI 助手（Claude 和其他 MCP 客户端）在本机上控制 Jilo Studio
+	An assistant connected to Jilo Studio can open, edit, save and export your projects as you would. Nothing is sent anywhere by Jilo Studio: the assistant talks to it on this computer only.	连接到 Jilo Studio 的助手可以像你一样打开、编辑、保存和导出你的项目。Jilo Studio 不会向任何地方发送内容：助手只在本机上与它通信。
 	Connect Again	重新连接
 	Connect an Assistant	连接助手
 	Connect to Claude Code	连接到 Claude Code
@@ -4534,12 +4534,12 @@
 	Connected	已连接
 	Copy Command	复制命令
 	Could not open the channel: {error}	无法打开通道：{error}
-	Off: no assistant can reach FilmCraft.	已关闭：任何助手都无法访问 FilmCraft。
+	Off: no assistant can reach Jilo Studio.	已关闭：任何助手都无法访问 Jilo Studio。
 	On.	已开启。
 	On: assistants connect on this computer (port {port}).	已开启：助手在本机上连接（端口 {port}）。
 	The command is copied: paste it in Terminal.	命令已复制：请粘贴到“终端”中。
 	Turns on when you press OK.	按“确定”后开启。
-	Other MCP clients: run FilmCraft itself as the server, with this command:	其他 MCP 客户端：用下面的命令把 FilmCraft 本身作为服务器运行：
+	Other MCP clients: run Jilo Studio itself as the server, with this command:	其他 MCP 客户端：用下面的命令把 Jilo Studio 本身作为服务器运行：
 	Edit Text…	编辑文本…
 	Split at Playhead	在播放指示器处拆分
 	Select All on Track	选择轨道上的全部

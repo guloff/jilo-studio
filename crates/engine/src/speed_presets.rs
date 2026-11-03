@@ -6,8 +6,8 @@
 //! |---|---|
 //! | `clip.speedPreset` | `{preset: "0.25"…"4" \| "slowMoment" \| "freeze", clip?, seconds?}` |
 
-use filmcraft_project::ClipId;
-use filmcraft_time::Tick;
+use jilo_project::ClipId;
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, f64_p, has_seq, str_p, u64_p};

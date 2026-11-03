@@ -8,8 +8,8 @@ use crate::Session;
 /// Decoder / GOP-cache counters since the process started (they only grow: diff two readings to
 /// measure an interval).
 pub fn decode_json() -> Value {
-    let g = filmcraft_codecs::gop_stats();
-    let hw = filmcraft_codecs::hw::hw_stats();
+    let g = jilo_codecs::gop_stats();
+    let hw = jilo_codecs::hw::hw_stats();
     json!({
         "requests": g.hits + g.misses,
         "cacheHits": g.hits,
@@ -19,26 +19,26 @@ pub fn decode_json() -> Value {
         "samplesDecoded": g.decoded,
         "samplesSkipped": g.skipped,
         "draftFrames": g.draft,
-        "h264Threads": filmcraft_codecs::video::h264_threads(),
+        "h264Threads": jilo_codecs::video::h264_threads(),
         "evicted": g.evicted,
         // sources that hold a decoder right now (idle ones give theirs up beyond a cap)
-        "liveDecoders": filmcraft_codecs::live_decoders(),
+        "liveDecoders": jilo_codecs::live_decoders(),
         // decoded frames all sources hold, and the budget idle sources are trimmed to
-        "cacheMB": filmcraft_codecs::cached_bytes() as f64 / 1e6,
-        "cacheBudgetMB": filmcraft_codecs::FRAME_BUDGET as f64 / 1e6,
+        "cacheMB": jilo_codecs::cached_bytes() as f64 / 1e6,
+        "cacheBudgetMB": jilo_codecs::FRAME_BUDGET as f64 / 1e6,
         // plane buffers of evicted frames waiting for the next decoded pictures, and how many
         // planes were decoded into a recycled buffer
-        "planePoolMB": filmcraft_frame::pool::stats().idle_bytes as f64 / 1e6,
-        "planesReused": filmcraft_frame::pool::stats().reused,
+        "planePoolMB": jilo_frame::pool::stats().idle_bytes as f64 / 1e6,
+        "planesReused": jilo_frame::pool::stats().reused,
         "decodeMs": g.decode_ns as f64 / 1e6,
         "decodeMsPerSample": g.decode_ms_per_sample(),
         "framesDecoded": g.frames,
         // Settings ▸ Playback ▸ Hardware decoding: pictures from OS hardware decoders vs ours,
         // hardware decoders created, streams handed to software up front, mid-stream fallbacks.
         "hardware": {
-            "enabled": filmcraft_codecs::hw::hardware_decoding(),
+            "enabled": jilo_codecs::hw::hardware_decoding(),
             // the OS decoder backend registered at startup (null where there is none)
-            "backend": filmcraft_codecs::hw::hw_backend(),
+            "backend": jilo_codecs::hw::hw_backend(),
             "frames": hw.frames,
             "softwareFrames": g.frames.saturating_sub(hw.frames),
             "sessions": hw.sessions,
@@ -59,17 +59,17 @@ pub fn decode_json() -> Value {
 /// (`busyMs`, planning and drawing the frame), both summed over the threads, and the size of the
 /// last export's pool (`renderers`, 0 when it rendered on the CPU).
 pub fn export_json() -> Value {
-    let hw = filmcraft_export::hw_encode_stats();
-    let gpu = filmcraft_export::gpu_render_stats();
+    let hw = jilo_export::hw_encode_stats();
+    let gpu = jilo_export::gpu_render_stats();
     let stages: serde_json::Map<String, Value> =
-        filmcraft_export::stage_times().into_iter().map(|(s, ns)| (format!("{}Ms", s.name()), json!(ns as f64 / 1e6))).collect();
+        jilo_export::stage_times().into_iter().map(|(s, ns)| (format!("{}Ms", s.name()), json!(ns as f64 / 1e6))).collect();
     json!({
         "hardware": {"frames": hw.frames, "sessions": hw.sessions, "declined": hw.declined},
         "gpu": {
             "frames": gpu.frames,
             "fallbacks": gpu.fallbacks,
             "cpuFrames": gpu.cpu_frames,
-            "lockWaitMs": filmcraft_export::export_lock_wait().as_secs_f64() * 1e3,
+            "lockWaitMs": jilo_export::export_lock_wait().as_secs_f64() * 1e3,
             "busyMs": gpu.busy.as_secs_f64() * 1e3,
             "renderers": gpu.renderers,
         },

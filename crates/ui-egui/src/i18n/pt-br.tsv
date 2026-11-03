@@ -5,7 +5,7 @@
 # product UI was consulted or copied. This catalog covers the menus; anything else is shown in
 # English.
 
-	About FilmCraft	Sobre o FilmCraft
+	About Jilo Studio	Sobre o Jilo Studio
 	Add Audio Submix Track	Adicionar faixa de submixagem de áudio
 	Add Caption at Playhead	Adicionar legenda no cursor de reprodução
 	Add Chapter Marker…	Adicionar marcador de capítulo…
@@ -133,8 +133,8 @@
 	File	Arquivo
 	File…	Arquivo…
 	Fill frame	Preencher quadro
-	FilmCraft Help…	Ajuda do FilmCraft…
-	FilmCraft on GitHub	FilmCraft no GitHub
+	Jilo Studio Help…	Ajuda do Jilo Studio…
+	Jilo Studio on GitHub	Jilo Studio no GitHub
 	Find Next	Localizar próximo
 	Find…	Localizar…
 	Fit	Ajustar
@@ -302,7 +302,7 @@
 	Select Previous Graphic	Selecionar gráfico anterior
 	Select Previous Layer	Selecionar camada anterior
 	Selection Follows Playhead	A seleção segue o cursor de reprodução
-	Selection as FilmCraft Project…	Seleção como projeto do FilmCraft…
+	Selection as Jilo Studio Project…	Seleção como projeto do Jilo Studio…
 	Selection…	Seleção…
 	Send Backward	Enviar para trás
 	Send to Back	Enviar para o fundo
@@ -367,7 +367,7 @@
 # System appearance mode menu command.
 	Next Appearance Mode	Próximo modo de aparência
 # Jilo Studio: the website and the credit to FilmCraft (ArtCraft links are not in this build)
-	FilmCraft Website	Site do FilmCraft
+	Jilo Studio Website	Site do Jilo Studio
 	Based on FilmCraft by the ArtCraft Team	Baseado no FilmCraft, da equipe ArtCraft
 # File ▸ Export ▸ Export in All Formats (16.5)
 	Export in All Formats…	Exportar em todos os formatos…

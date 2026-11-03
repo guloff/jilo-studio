@@ -1,5 +1,5 @@
 [package]
-name = "filmcraft-platform"
+name = "jilo-platform"
 description = "OS media integration: hardware video decoding through the operating system's codecs (VideoToolbox on macOS, Media Foundation on Windows, VA-API and NVDEC on Linux), with transparent fallback to the pure-Rust decoders"
 version.workspace = true
 edition.workspace = true
@@ -21,15 +21,15 @@ type_complexity = "allow"
 undocumented_unsafe_blocks = "deny"
 
 [dependencies]
-filmcraft-bitstream = { workspace = true }
-filmcraft-codecs = { workspace = true }
-filmcraft-color = { workspace = true }
-filmcraft-export = { workspace = true }
-filmcraft-frame = { workspace = true }
-filmcraft-h264 = { workspace = true }
-filmcraft-hevc = { workspace = true }
-filmcraft-isobmff = { workspace = true }
-filmcraft-time = { workspace = true }
+jilo-bitstream = { workspace = true }
+jilo-codecs = { workspace = true }
+jilo-color = { workspace = true }
+jilo-export = { workspace = true }
+jilo-frame = { workspace = true }
+jilo-h264 = { workspace = true }
+jilo-hevc = { workspace = true }
+jilo-isobmff = { workspace = true }
+jilo-time = { workspace = true }
 log = { workspace = true }
 
 # The open-file limit (`open_files`): safe getrlimit / setrlimit. Already in the lockfile.
@@ -75,8 +75,8 @@ windows = { version = "0.62", features = [
 libloading = "0.8"
 
 [dev-dependencies]
-filmcraft-testkit = { workspace = true }
-filmcraft-media = { workspace = true }
-filmcraft-frame = { workspace = true }
-filmcraft-project = { workspace = true }
-filmcraft-render = { workspace = true }
+jilo-testkit = { workspace = true }
+jilo-media = { workspace = true }
+jilo-frame = { workspace = true }
+jilo-project = { workspace = true }
+jilo-render = { workspace = true }

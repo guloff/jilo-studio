@@ -7,16 +7,16 @@
 //! `metadata.label`, `metadata.section.<Clip|File>`.
 
 use egui::{Rect, RichText, Sense, vec2};
-use filmcraft_engine::panels::{Field, metadata_fields, metadata_target};
-use filmcraft_project::{ItemId, Label};
+use jilo_engine::panels::{Field, metadata_fields, metadata_target};
+use jilo_project::{ItemId, Label};
 use serde_json::json;
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::dock::PanelKind;
 use crate::theme::Tokens;
 
 /// The item the panel shows.
-pub fn target(app: &FilmcraftApp) -> Option<ItemId> {
+pub fn target(app: &JiloApp) -> Option<ItemId> {
     let s = &app.session;
     if app.ui.focused == PanelKind::Timeline
         && let Some(c) = s.state.selection.first()
@@ -30,7 +30,7 @@ pub fn field_id(name: &str) -> String {
     format!("metadata.field.{}", name.replace(' ', ""))
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     let t = app.tokens;
     let Some(item) = target(app) else {
         crate::dock::placeholder(ui, rect, &t, tl!("Select a clip to view its metadata."));

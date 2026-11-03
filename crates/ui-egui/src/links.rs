@@ -19,11 +19,10 @@ pub const ISSUES: &str = "https://github.com/guloff/jilo-studio/issues";
 /// The project Jilo Studio is a fork of.
 pub const UPSTREAM: &str = "https://github.com/storytold/filmcraft";
 
-/// (command id, label, url) for every link, in menu order. Labels say "FilmCraft" as upstream's
-/// do; the interface shows them as Jilo Studio (`brand::rebrand`), except the credit.
+/// (command id, label, url) for every link, in menu order.
 pub const ALL: [(&str, &str, &str); 4] = [
-    ("help.website", "FilmCraft Website", WEBSITE),
-    ("help.github", "FilmCraft on GitHub", GITHUB),
+    ("help.website", "Jilo Studio Website", WEBSITE),
+    ("help.github", "Jilo Studio on GitHub", GITHUB),
     ("help.reportIssue", "Report an Issue…", ISSUES),
     ("help.upstream", "Based on FilmCraft by the ArtCraft Team", UPSTREAM),
 ];

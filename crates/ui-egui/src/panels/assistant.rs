@@ -11,7 +11,7 @@
 use egui::{Align, Layout, Rect, RichText, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// One message of the conversation.
 #[derive(Clone, Debug)]
@@ -34,7 +34,7 @@ pub struct AssistantUi {
 }
 
 /// Show the panel and, with `request`, send it.
-pub fn ask(app: &mut FilmcraftApp, request: Option<String>) -> Result<Value, String> {
+pub fn ask(app: &mut JiloApp, request: Option<String>) -> Result<Value, String> {
     app.show_panel(crate::dock::PanelKind::Assistant);
     if let Some(r) = request.map(|r| r.trim().to_string()).filter(|r| !r.is_empty()) {
         send(app, r);
@@ -42,7 +42,7 @@ pub fn ask(app: &mut FilmcraftApp, request: Option<String>) -> Result<Value, Str
     Ok(json!({"panel": "Assistant"}))
 }
 
-fn send(app: &mut FilmcraftApp, request: String) {
+fn send(app: &mut JiloApp, request: String) {
     if app.ui.ai_task.is_some() || app.ui.assistant.pending {
         app.ui.status = tl!("Another AI task is running; wait for it to finish.").into();
         return;
@@ -53,7 +53,7 @@ fn send(app: &mut FilmcraftApp, request: String) {
 }
 
 /// Take a finished plan, or note that the request stopped (refused consent, an error).
-fn collect(app: &mut FilmcraftApp) {
+fn collect(app: &mut JiloApp) {
     if app.ui.ai_task_result.as_ref().is_some_and(|(cmd, _)| cmd == "assistant.plan")
         && let Some((_, r)) = app.ui.ai_task_result.take()
     {
@@ -69,7 +69,7 @@ fn collect(app: &mut FilmcraftApp) {
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+pub fn show(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect) {
     collect(app);
     let t = app.tokens;
     ui.painter().rect_filled(rect, 0.0, t.panel_bg);
@@ -122,7 +122,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     for k in 0..e.steps.len() {
                         let st = &mut app.ui.assistant.history[i].steps[k];
                         let cmd = st["command"].as_str().unwrap_or_default().to_string();
-                        let label = filmcraft_engine::find_command(&cmd).map_or(cmd.clone(), |c| crate::i18n::t(c.label).trim_end_matches('…').to_string());
+                        let label = jilo_engine::find_command(&cmd).map_or(cmd.clone(), |c| crate::i18n::t(c.label).trim_end_matches('…').to_string());
                         let mut on = st["enabled"].as_bool().unwrap_or(true);
                         let r = ui.add_enabled(!e.ran, egui::Checkbox::new(&mut on, format!("{}. {label}", k + 1)));
                         app.auto.add(&format!("assistant.plan.{i}.step.{k}"), r.rect, &cmd);

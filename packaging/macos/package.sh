@@ -2,7 +2,7 @@
 # Build, sign and (optionally) notarize the macOS release artifacts:
 #
 #   $DIST/jilo-studio-<version>-macos-<arch>.dmg        Jilo Studio.app on a drag-to-Applications DMG
-#   $DIST/jilo-studio-cli-<version>-macos-<arch>.zip    the headless CLI (`filmcraft-cli`)
+#   $DIST/jilo-studio-cli-<version>-macos-<arch>.zip    the headless CLI (`jilo-cli`)
 #
 # Usage: packaging/macos/package.sh [--arch universal|aarch64|x86_64] [--skip-build]
 #
@@ -43,7 +43,7 @@ export MACOSX_DEPLOYMENT_TARGET=15.0
 IDENTITY="${MACOS_SIGN_IDENTITY:--}"
 SHORT_VERSION="${VERSION%%-*}"
 WORK="$CARGO_TARGET_DIR/macos-package"
-# Jilo Studio: the owner's name and icon (assets/brand/jilo/) on a fork of FilmCraft.
+# Jilo Studio: the owner's name and icon (assets/brand/jilo/).
 APP_NAME="Jilo Studio"
 APP="$WORK/$APP_NAME.app"
 DMG="$DIST/jilo-studio-$VERSION-macos-$ARCH.dmg"
@@ -75,12 +75,12 @@ if [ "$SKIP_BUILD" = 0 ]; then
   sep=$'\x1f'
   flags="--remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}/registry/src=/cargo/registry/src${sep}--remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}/git/checkouts=/cargo/git${sep}--remap-path-prefix=$ROOT=/jilo-studio"
   if [ -n "${RUSTFLAGS:-}" ]; then flags="$(printf '%s' "$RUSTFLAGS" | tr ' ' "$sep")$sep$flags"; fi
-  (cd "$ROOT" && env -u RUSTFLAGS CARGO_ENCODED_RUSTFLAGS="$flags" cargo build --release --locked -p filmcraft -p filmcraft-cli "${args[@]}")
+  (cd "$ROOT" && env -u RUSTFLAGS CARGO_ENCODED_RUSTFLAGS="$flags" cargo build --release --locked -p jilo-studio -p jilo-cli "${args[@]}")
 fi
 
 rm -rf "$WORK"
 mkdir -p "$WORK/bin"
-for bin in filmcraft filmcraft-cli; do
+for bin in jilo-studio jilo-cli; do
   inputs=()
   for t in "${TARGETS[@]}"; do inputs+=("$CARGO_TARGET_DIR/$t/release/$bin"); done
   lipo -create -output "$WORK/bin/$bin" "${inputs[@]}"
@@ -126,10 +126,10 @@ notarize() {
 echo "==> assembling $APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Executable and icon carry the display name (CFBundleExecutable / CFBundleIconFile).
-cp "$WORK/bin/filmcraft" "$APP/Contents/MacOS/$APP_NAME"
+cp "$WORK/bin/jilo-studio" "$APP/Contents/MacOS/$APP_NAME"
 cp "$ROOT/assets/brand/jilo/jilo-studio.icns" "$APP/Contents/Resources/JiloStudio.icns"
 sed -e "s/@VERSION@/$VERSION/g" -e "s/@SHORT_VERSION@/$SHORT_VERSION/g" \
-  -e "s/@BUILD_SHA@/${FILMCRAFT_BUILD_SHA:-unknown}/g" \
+  -e "s/@BUILD_SHA@/${JILO_BUILD_SHA:-unknown}/g" \
   "$HERE/Info.plist.in" >"$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist"
 printf 'APPL????' >"$APP/Contents/PkgInfo"
@@ -187,16 +187,16 @@ fi
 echo "==> building $CLI_ZIP"
 CLI_DIR="$WORK/jilo-studio-cli-$VERSION-macos-$ARCH"
 mkdir -p "$CLI_DIR"
-cp "$WORK/bin/filmcraft-cli" "$CLI_DIR/"
+cp "$WORK/bin/jilo-cli" "$CLI_DIR/"
 copy_docs "$CLI_DIR"
-sign --options runtime "$CLI_DIR/filmcraft-cli"
-codesign --verify --strict --verbose=2 "$CLI_DIR/filmcraft-cli"
+sign --options runtime "$CLI_DIR/jilo-cli"
+codesign --verify --strict --verbose=2 "$CLI_DIR/jilo-cli"
 rm -f "$CLI_ZIP"
 # without extended attributes or AppleDouble (._*) files: only what the archive is meant to hold
 ditto -c -k --keepParent --norsrc --noextattr --noqtn --noacl "$CLI_DIR" "$CLI_ZIP"
 # A bare Mach-O can't carry a stapled ticket; Gatekeeper looks the notarization up online.
 if [ "$NOTARIZE" = 1 ]; then notarize "$CLI_ZIP"; fi
 
-"$WORK/bin/filmcraft-cli" --version
+"$WORK/bin/jilo-cli" --version
 echo "==> done"
 ls -lh "$DMG" "$CLI_ZIP"

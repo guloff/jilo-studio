@@ -1,26 +1,26 @@
 //! Headless UI test of the start from a video: clips offered on the home screen get "What do you
 //! want to make?"; without a Whisper model the choices that transcribe say so and Just Edit opens
 //! a sequence from the clips; with one, a choice starts the batch for it.
-//! `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` writes `start-dialog.png` (`FILMCRAFT_UI_LANG=ru`: Russian).
+//! `JILO_UI_SNAPSHOT_DIR=<dir>` writes `start-dialog.png` (`JILO_UI_LANG=ru`: Russian).
 
 #![allow(dead_code)]
 
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
-use filmcraft_ui_egui::state::Mode;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
+use jilo_ui_egui::state::Mode;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
 fn snapshot(d: &mut Driver, name: &str) {
-    let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
+    let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) else { return };
     d.frames(2);
     match d.harness.render() {
         Ok(img) => {
@@ -34,7 +34,7 @@ fn snapshot(d: &mut Driver, name: &str) {
 impl Driver {
     fn new(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
+        let app = JiloApp::new(session).with_control(rx);
         let harness = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
         let mut d = Driver { harness, tx };
         d.frames(4);
@@ -76,7 +76,7 @@ impl Driver {
         let v = self.ok("ui.elements", json!({"prefix": id}));
         v.as_array().unwrap().iter().any(|e| e["id"] == json!(id))
     }
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 }
@@ -92,12 +92,12 @@ fn session() -> (Session, u64) {
 fn just_edit_opens_a_sequence_from_the_clips() {
     let (s, ocean) = session();
     let mut d = Driver::new(s);
-    if std::env::var("FILMCRAFT_UI_LANG").as_deref() == Ok("ru") {
+    if std::env::var("JILO_UI_LANG").as_deref() == Ok("ru") {
         d.ok("ui.menu.invoke", json!({"id": "app.language.russian"}));
     }
     d.app().ui.mode = Mode::Import;
     d.app().ui.start.speech_ready = Some(false);
-    filmcraft_ui_egui::panels::start::offer(d.app(), vec![ocean]);
+    jilo_ui_egui::panels::start::offer(d.app(), vec![ocean]);
     d.frames(3);
     assert!(d.has("start.dialog"));
     snapshot(&mut d, "start-dialog");
@@ -119,7 +119,7 @@ fn a_choice_starts_its_batch() {
     let mut d = Driver::new(s);
     d.app().ui.mode = Mode::Import;
     d.app().ui.start.speech_ready = Some(true);
-    filmcraft_ui_egui::panels::start::offer(d.app(), vec![ocean]);
+    jilo_ui_egui::panels::start::offer(d.app(), vec![ocean]);
     d.frames(3);
     d.click("start.choice.short");
     let app = d.app();
@@ -129,9 +129,9 @@ fn a_choice_starts_its_batch() {
         Ok(st) => assert_eq!(st["steps"], json!(["transcribe", "pauses", "captions", "formats"]), "{st}"),
         Err(_) => assert!(!app.ui.status.is_empty(), "the reason is shown"),
     }
-    let p = filmcraft_ui_egui::panels::start::steps("short").unwrap();
+    let p = jilo_ui_egui::panels::start::steps("short").unwrap();
     assert_eq!((p["formats"].clone(), p["aspects"].clone(), p["captionPreset"].clone()), (json!(true), json!(["9:16"]), json!("karaoke-yellow")));
-    let p = filmcraft_ui_egui::panels::start::steps("talk").unwrap();
+    let p = jilo_ui_egui::panels::start::steps("talk").unwrap();
     assert_eq!((p["fillers"].clone(), p["formats"].clone()), (json!(true), Value::Null));
-    assert!(filmcraft_ui_egui::panels::start::steps("edit").is_none());
+    assert!(jilo_ui_egui::panels::start::steps("edit").is_none());
 }

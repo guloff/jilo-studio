@@ -1,7 +1,7 @@
 use crate::{Session, keyboard};
-use filmcraft_media::{DemoScene, Generator, generators::GeneratorSource};
-use filmcraft_project::{ItemId, Label};
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND, Tick};
+use jilo_media::{DemoScene, Generator, generators::GeneratorSource};
+use jilo_project::{ItemId, Label};
+use jilo_time::{FrameRate, TICKS_PER_SECOND, Tick};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -29,21 +29,20 @@ fn frame_export_selects_the_correct_monitor_time_and_original_media() {
     let proxy = dir.join("proxy.png");
     image::RgbaImage::from_pixel(16, 9, image::Rgba([255, 0, 0, 255])).save(&proxy).unwrap();
     Arc::make_mut(&mut s.project).item_mut(item).unwrap().as_media_mut().unwrap().proxy =
-        Some(filmcraft_project::MediaRef::File { path: proxy.to_string_lossy().into_owned() });
+        Some(jilo_project::MediaRef::File { path: proxy.to_string_lossy().into_owned() });
     s.media.set_use_proxies(true);
     s.state.source_playhead = FrameRate::FPS_24.tick_of(20);
     s.set_playhead(FrameRate::FPS_24.tick_of(35));
     let before = s.project.to_json();
     let revision = s.revision;
     let provider = s.media.full_res_provider(s.project.clone(), s.services.clone());
-    let expected_source = filmcraft_render::render_item(&s.project, item, s.state.source_playhead, 1.0, &provider).unwrap().to_rgba8();
+    let expected_source = jilo_render::render_item(&s.project, item, s.state.source_playhead, 1.0, &provider).unwrap().to_rgba8();
     let preview_provider = s.media.provider(s.project.clone(), s.services.clone());
-    let preview = filmcraft_render::render_item(&s.project, item, s.state.source_playhead, 1.0, &preview_provider).unwrap().to_rgba8();
+    let preview = jilo_render::render_item(&s.project, item, s.state.source_playhead, 1.0, &preview_provider).unwrap().to_rgba8();
     assert_ne!(preview, expected_source, "the preview really uses the red proxy");
     let seq = s.state.active_sequence.unwrap();
     let expected_program =
-        filmcraft_render::render_sequence(&s.project, seq, s.playhead(), filmcraft_render::RenderOptions { captions: true, ..Default::default() }, &provider)
-            .to_rgba8();
+        jilo_render::render_sequence(&s.project, seq, s.playhead(), jilo_render::RenderOptions { captions: true, ..Default::default() }, &provider).to_rgba8();
     assert_ne!(expected_source, expected_program);
     for (target, time, expected) in [("source", s.state.source_playhead, expected_source), ("program", s.playhead(), expected_program)] {
         let path = dir.join(format!("{target}.png"));

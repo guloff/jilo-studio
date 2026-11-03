@@ -5,7 +5,7 @@
 //! by (target, frame, scale, revision); the UI shows the exact frame when ready and otherwise holds
 //! the nearest frame it already has, so scrubbing never flashes black and never blocks the UI.
 //! Sequence frames inside a rendered segment come from its render preview instead of the live
-//! render (see `filmcraft_engine::previews`).
+//! render (see `jilo_engine::previews`).
 
 use std::cell::Cell;
 use std::collections::{HashMap, VecDeque};
@@ -15,10 +15,10 @@ use std::time::Duration;
 
 use web_time::Instant;
 
-use filmcraft_engine::previews::PreviewStore;
-use filmcraft_engine::{MediaPool, Services};
-use filmcraft_project::{ItemId, Project};
-use filmcraft_time::Tick;
+use jilo_engine::previews::PreviewStore;
+use jilo_engine::{MediaPool, Services};
+use jilo_project::{ItemId, Project};
+use jilo_time::Tick;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Target {
@@ -37,7 +37,7 @@ pub enum Target {
 
 /// Item jobs at this priority or a larger number are background work: thumbnails of the Project
 /// panel and the timeline (50) and the Media Browser (40). Monitors and playback use 0..=3. Their
-/// decoders are small and are not kept (`filmcraft_media::cancel::with_background`).
+/// decoders are small and are not kept (`jilo_media::cancel::with_background`).
 pub const BACKGROUND_PRIO: u32 = 40;
 
 /// Whether a job is a thumbnail: a single item at a background priority. Sequence frames are never
@@ -60,7 +60,7 @@ pub struct FrameKey {
     pub revision: u64,
     /// Draft decoding (reduced-resolution playback with Settings ▸ Playback ▸ Draft decoding):
     /// sources may decode approximate non-reference pictures
-    /// ([`filmcraft_media::cancel::with_draft`]). Draft frames have their own keys, so a paused
+    /// ([`jilo_media::cancel::with_draft`]). Draft frames have their own keys, so a paused
     /// monitor, an export or a render never shows one.
     pub draft: bool,
 }
@@ -76,7 +76,7 @@ pub struct Rgba {
     pub h: usize,
     pub px: Vec<u8>,
     /// The same picture for an EDR monitor (macOS extended dynamic range): half-float RGBA,
-    /// extended-sRGB encoded, HDR highlights above 1.0 (`filmcraft_render::colorman::to_edr`). Set
+    /// extended-sRGB encoded, HDR highlights above 1.0 (`jilo_render::colorman::to_edr`). Set
     /// only while the monitors run in EDR mode; `px` stays the SDR picture (scopes, eyedropper).
     pub hdr: Option<Arc<[u16]>>,
 }
@@ -84,13 +84,13 @@ pub struct Rgba {
 struct Job {
     key: FrameKey,
     queued: Instant,
-    /// Set when the job is no longer wanted; sources poll it (`filmcraft_media::cancel`).
+    /// Set when the job is no longer wanted; sources poll it (`jilo_media::cancel`).
     cancel: Arc<std::sync::atomic::AtomicBool>,
     /// Queued by playback prefetch (dropped when playback stops).
     prefetch: bool,
     /// While playing: how far before this frame the frames are late (the playhead's distance;
     /// zero for the frame due now), so a decoder catching up may skip pictures only late frames
-    /// need (`filmcraft_media::cancel::with_catch_up`).
+    /// need (`jilo_media::cancel::with_catch_up`).
     catch_up: Option<Tick>,
     time: Tick,
     /// Output scale relative to the target's frame size.
@@ -117,7 +117,7 @@ struct Shared {
     /// Always-on counters for `perf.stats`.
     stats: Mutex<FrameStats>,
     /// EDR monitors (macOS): when set, sequence and item frames also carry a half-float picture.
-    edr: Mutex<Option<filmcraft_render::colorman::Edr>>,
+    edr: Mutex<Option<jilo_render::colorman::Edr>>,
 }
 
 /// Cumulative frame-job statistics (`perf.stats`): cheap enough to keep on all the time.
@@ -244,19 +244,19 @@ fn timed_source<R>(f: impl FnOnce() -> R) -> R {
 }
 
 /// A media source that times its `video_frame` calls (see [`JobRecord::source_wall`]).
-struct TimedSource(filmcraft_media::SharedSource);
+struct TimedSource(jilo_media::SharedSource);
 
-impl filmcraft_media::MediaSource for TimedSource {
-    fn info(&self) -> &filmcraft_media::MediaInfo {
+impl jilo_media::MediaSource for TimedSource {
+    fn info(&self) -> &jilo_media::MediaInfo {
         self.0.info()
     }
-    fn video_frame(&self, req: filmcraft_media::FrameRequest) -> filmcraft_media::Result<Arc<filmcraft_frame::VideoFrame>> {
+    fn video_frame(&self, req: jilo_media::FrameRequest) -> jilo_media::Result<Arc<jilo_frame::VideoFrame>> {
         timed_source(|| self.0.video_frame(req))
     }
-    fn audio(&self, start: i64, frames: usize, sample_rate: u32) -> filmcraft_media::Result<filmcraft_frame::AudioBuffer> {
+    fn audio(&self, start: i64, frames: usize, sample_rate: u32) -> jilo_media::Result<jilo_frame::AudioBuffer> {
         self.0.audio(start, frames, sample_rate)
     }
-    fn audio_stream(&self, stream: usize, start: i64, frames: usize, sample_rate: u32) -> filmcraft_media::Result<filmcraft_frame::AudioBuffer> {
+    fn audio_stream(&self, stream: usize, start: i64, frames: usize, sample_rate: u32) -> jilo_media::Result<jilo_frame::AudioBuffer> {
         self.0.audio_stream(stream, start, frames, sample_rate)
     }
 }
@@ -264,11 +264,11 @@ impl filmcraft_media::MediaSource for TimedSource {
 /// The job's source provider: the pool, with source fetches timed (the time feeds
 /// [`FrameServer::render_cost`] and, while profiling, [`JobRecord`]).
 struct JobProvider {
-    inner: filmcraft_engine::media_pool::PoolProvider,
+    inner: jilo_engine::media_pool::PoolProvider,
 }
 
-impl filmcraft_render::SourceProvider for JobProvider {
-    fn source(&self, item: ItemId) -> Option<filmcraft_media::SharedSource> {
+impl jilo_render::SourceProvider for JobProvider {
+    fn source(&self, item: ItemId) -> Option<jilo_media::SharedSource> {
         let s = self.inner.source(item)?;
         Some(Arc::new(TimedSource(s)))
     }
@@ -276,8 +276,8 @@ impl filmcraft_render::SourceProvider for JobProvider {
 
 /// A GPU frame plan with its layers' texel conversions already done (off the UI thread).
 pub struct GpuPlan {
-    pub plan: filmcraft_render::plan::FramePlan,
-    pub prepared: filmcraft_gpu::PreparedPlan,
+    pub plan: jilo_render::plan::FramePlan,
+    pub prepared: jilo_gpu::PreparedPlan,
 }
 
 impl GpuPlan {
@@ -438,7 +438,7 @@ impl FrameServer {
             let services = services.clone();
             let rp = repaint.clone();
             let pv = previews.clone();
-            std::thread::Builder::new().name(format!("filmcraft-frames-{i}")).spawn(move || worker(sh, pool, services, pv, rp)).ok();
+            std::thread::Builder::new().name(format!("jilo-frames-{i}")).spawn(move || worker(sh, pool, services, pv, rp)).ok();
         }
         #[cfg(target_arch = "wasm32")]
         let _ = workers;
@@ -460,11 +460,11 @@ impl FrameServer {
 
     /// Render frames for EDR monitors too (`Rgba::hdr`), with the display's current headroom;
     /// `None` keeps SDR only. Frames already cached keep what they were rendered with.
-    pub fn set_edr(&self, edr: Option<filmcraft_render::colorman::Edr>) {
+    pub fn set_edr(&self, edr: Option<jilo_render::colorman::Edr>) {
         *self.shared.edr.lock().unwrap_or_else(|e| e.into_inner()) = edr;
     }
 
-    pub fn edr(&self) -> Option<filmcraft_render::colorman::Edr> {
+    pub fn edr(&self) -> Option<jilo_render::colorman::Edr> {
         *self.shared.edr.lock().unwrap_or_else(|e| e.into_inner())
     }
 
@@ -593,7 +593,7 @@ impl FrameServer {
     /// When frames cost more to render than the frame interval (CPU effects), frames that could
     /// not be ready in time are not started and the workers get evenly spaced frames they can
     /// finish ([`playback_plan`]). While `preroll` (clock not started yet) every frame is wanted.
-    pub fn schedule_playback(&self, key: FrameKey, rate: filmcraft_time::FrameRate, scale: f32, project: &Arc<Project>, speed: f64, preroll: bool) {
+    pub fn schedule_playback(&self, key: FrameKey, rate: jilo_time::FrameRate, scale: f32, project: &Arc<Project>, speed: f64, preroll: bool) {
         let dir = if speed < 0.0 { -1 } else { 1 };
         let step = speed.abs().max(1.0) as i64;
         let fps = rate.as_f64() * speed.abs().max(1.0) / step as f64;
@@ -837,25 +837,25 @@ fn run_job(sh: &Shared, job: &Job, pool: &Arc<MediaPool>, services: &Arc<dyn Ser
     // A cancelled job may have missed layers (its source gave up): its result is not cached.
     // A job whose media bytes were still loading (web) rendered with missing layers: like a
     // cancelled one, its result is not cached (the caller retries it).
-    let _ = filmcraft_media::pending::take();
+    let _ = jilo_media::pending::take();
     let mut loading = false;
-    let preview = filmcraft_media::cancel::with_cancel(&job.cancel, || {
-        filmcraft_media::cancel::with_catch_up(job.catch_up, || {
-            filmcraft_media::cancel::with_draft(job.key.draft, || {
-                filmcraft_media::cancel::with_background(is_background(job), || {
+    let preview = jilo_media::cancel::with_cancel(&job.cancel, || {
+        jilo_media::cancel::with_catch_up(job.catch_up, || {
+            jilo_media::cancel::with_draft(job.key.draft, || {
+                jilo_media::cancel::with_background(is_background(job), || {
                     if let Target::SequencePlan(seq) = job.key.target {
                         let (plan, pv) = plan_job(job, seq, pool, services, previews);
-                        loading = filmcraft_media::pending::take();
+                        loading = jilo_media::pending::take();
                         if !job.cancel.load(Ordering::Relaxed) && !loading {
                             // Convert texels for upload here, not on the UI thread when the frame is shown.
-                            let prepared = filmcraft_gpu::prepare(&plan);
+                            let prepared = jilo_gpu::prepare(&plan);
                             sh.plans.lock().unwrap_or_else(|e| e.into_inner()).insert(job.key, GpuPlan { plan, prepared });
                         }
                         pv
                     } else {
                         let edr = *sh.edr.lock().unwrap_or_else(|e| e.into_inner());
                         let (img, pv) = render_job(job, pool, services, previews, edr);
-                        loading = filmcraft_media::pending::take();
+                        loading = jilo_media::pending::take();
                         if !job.cancel.load(Ordering::Relaxed) && !loading {
                             sh.done.lock().unwrap_or_else(|e| e.into_inner()).insert(job.key, Arc::new(img));
                         }
@@ -914,7 +914,7 @@ fn run_job(sh: &Shared, job: &Job, pool: &Arc<MediaPool>, services: &Arc<dyn Ser
 }
 
 /// The preview frame for a sequence job, when its segment has been rendered.
-fn preview_frame(job: &Job, seq: ItemId, pool: &MediaPool, previews: &PreviewStore) -> Option<Arc<filmcraft_frame::VideoFrame>> {
+fn preview_frame(job: &Job, seq: ItemId, pool: &MediaPool, previews: &PreviewStore) -> Option<Arc<jilo_frame::VideoFrame>> {
     let rate = job.project.sequence(seq)?.settings.frame_rate;
     timed_source(|| previews.frame(pool, &job.project, seq, rate.frame_at(job.time), job.scale))
 }
@@ -923,28 +923,28 @@ fn provider(job: &Job, pool: &Arc<MediaPool>, services: &Arc<dyn Services>) -> J
     JobProvider { inner: pool.provider(job.project.clone(), services.clone()) }
 }
 
-fn plan_job(job: &Job, seq: ItemId, pool: &Arc<MediaPool>, services: &Arc<dyn Services>, previews: &PreviewStore) -> (filmcraft_render::plan::FramePlan, bool) {
-    let opts = filmcraft_render::RenderOptions { scale: job.scale, captions: true, ..Default::default() };
+fn plan_job(job: &Job, seq: ItemId, pool: &Arc<MediaPool>, services: &Arc<dyn Services>, previews: &PreviewStore) -> (jilo_render::plan::FramePlan, bool) {
+    let opts = jilo_render::RenderOptions { scale: job.scale, captions: true, ..Default::default() };
     if let Some(frame) = preview_frame(job, seq, pool, previews)
         && let Some(q) = job.project.sequence(seq)
     {
         // One full-frame layer: the preview scaled to the output size. Previews never contain
         // captions (they are not part of the preview hash), so captions are layered on live.
-        let (w, h) = filmcraft_render::output_size(q, job.scale);
-        let matrix = filmcraft_geom::Affine::scale(w as f64 / frame.width.max(1) as f64, h as f64 / frame.height.max(1) as f64);
-        let mut layers = vec![filmcraft_render::plan::PlanLayer::new(frame, matrix, 1.0, filmcraft_render::Blend::Normal)];
-        for o in filmcraft_render::caption_overlays(q, job.time, w, h) {
-            layers.push(filmcraft_render::plan::PlanLayer::new(
-                Arc::new(filmcraft_frame::VideoFrame::rgba_f32(o.w as u32, o.h as u32, o.px)),
-                filmcraft_geom::Affine::translate(o.x as f64, o.y as f64),
+        let (w, h) = jilo_render::output_size(q, job.scale);
+        let matrix = jilo_geom::Affine::scale(w as f64 / frame.width.max(1) as f64, h as f64 / frame.height.max(1) as f64);
+        let mut layers = vec![jilo_render::plan::PlanLayer::new(frame, matrix, 1.0, jilo_render::Blend::Normal)];
+        for o in jilo_render::caption_overlays(q, job.time, w, h) {
+            layers.push(jilo_render::plan::PlanLayer::new(
+                Arc::new(jilo_frame::VideoFrame::rgba_f32(o.w as u32, o.h as u32, o.px)),
+                jilo_geom::Affine::translate(o.x as f64, o.y as f64),
                 1.0,
-                filmcraft_render::Blend::Normal,
+                jilo_render::Blend::Normal,
             ));
         }
-        return (filmcraft_render::plan::FramePlan::Layers { width: w, height: h, layers }, true);
+        return (jilo_render::plan::FramePlan::Layers { width: w, height: h, layers }, true);
     }
     let provider = provider(job, pool, services);
-    (filmcraft_render::plan::plan_frame(&job.project, seq, job.time, opts, &provider), false)
+    (jilo_render::plan::plan_frame(&job.project, seq, job.time, opts, &provider), false)
 }
 
 /// Render a job to RGBA8; the flag says whether it came from a render preview.
@@ -953,21 +953,21 @@ fn render_job(
     pool: &Arc<MediaPool>,
     services: &Arc<dyn Services>,
     previews: &PreviewStore,
-    edr: Option<filmcraft_render::colorman::Edr>,
+    edr: Option<jilo_render::colorman::Edr>,
 ) -> (Rgba, bool) {
     if let Target::Sequence(seq) | Target::SequencePlan(seq) = job.key.target
         && let Some(f) = preview_frame(job, seq, pool, previews)
         && let Some(q) = job.project.sequence(seq)
     {
-        let (w, h) = filmcraft_render::output_size(q, job.scale);
-        let img = filmcraft_render::Image { w: f.width as usize, h: f.height as usize, px: f.to_linear_f32() };
+        let (w, h) = jilo_render::output_size(q, job.scale);
+        let img = jilo_render::Image { w: f.width as usize, h: f.height as usize, px: f.to_linear_f32() };
         let mut img = if img.w == w && img.h == h {
             img
         } else {
-            img.transformed(w, h, &filmcraft_geom::Affine::scale(w as f64 / img.w.max(1) as f64, h as f64 / img.h.max(1) as f64))
+            img.transformed(w, h, &jilo_geom::Affine::scale(w as f64 / img.w.max(1) as f64, h as f64 / img.h.max(1) as f64))
         };
         if matches!(job.key.target, Target::Sequence(_)) {
-            for o in filmcraft_render::caption_overlays(q, job.time, w, h) {
+            for o in jilo_render::caption_overlays(q, job.time, w, h) {
                 o.composite_onto(&mut img.px, w, h);
             }
         }
@@ -978,22 +978,20 @@ fn render_job(
         && let Some((img, pipe)) = render_edr(job, &provider)
     {
         // the SDR picture (scopes, eyedropper, SDR fallback) from the same working image
-        let hdr: Arc<[u16]> = filmcraft_render::colorman::to_edr(&img, &pipe, edr).into();
+        let hdr: Arc<[u16]> = jilo_render::colorman::to_edr(&img, &pipe, edr).into();
         let mut sdr = img;
-        filmcraft_render::colorman::to_display(&mut sdr, &pipe);
+        jilo_render::colorman::to_display(&mut sdr, &pipe);
         return (Rgba { w: sdr.w, h: sdr.h, px: sdr.over_black_rgba8(), hdr: Some(hdr) }, false);
     }
-    let opts = filmcraft_render::RenderOptions { scale: job.scale, captions: true, ..Default::default() };
+    let opts = jilo_render::RenderOptions { scale: job.scale, captions: true, ..Default::default() };
     let img = match job.key.target {
-        Target::Sequence(seq) | Target::SequencePlan(seq) => Some(filmcraft_render::render_sequence(&job.project, seq, job.time, opts, &provider)),
-        Target::Item(item) => filmcraft_render::render_item(&job.project, item, job.time, job.scale, &provider),
+        Target::Sequence(seq) | Target::SequencePlan(seq) => Some(jilo_render::render_sequence(&job.project, seq, job.time, opts, &provider)),
+        Target::Item(item) => jilo_render::render_item(&job.project, item, job.time, job.scale, &provider),
         Target::MulticamGrid(item, side, page) => {
             let side = (side > 0).then_some(side as usize);
-            filmcraft_render::multicam::render_grid_page(&job.project, item, job.time, job.scale, side, page as usize, &provider).map(|(img, _)| img)
+            jilo_render::multicam::render_grid_page(&job.project, item, job.time, job.scale, side, page as usize, &provider).map(|(img, _)| img)
         }
-        Target::MulticamAngle(item, angle) => {
-            filmcraft_render::multicam::render_angle_thumbnail(&job.project, item, angle as usize, job.time, job.scale, &provider)
-        }
+        Target::MulticamAngle(item, angle) => jilo_render::multicam::render_angle_thumbnail(&job.project, item, angle as usize, job.time, job.scale, &provider),
     };
     let rgba = match img {
         Some(img) => Rgba { w: img.w, h: img.h, px: img.over_black_rgba8(), hdr: None },
@@ -1003,14 +1001,14 @@ fn render_job(
 }
 
 /// A sequence or item frame in its working space (with the pipeline it is in), for EDR monitors.
-fn render_edr(job: &Job, provider: &dyn filmcraft_render::SourceProvider) -> Option<(filmcraft_render::Image, filmcraft_color::ColorPipeline)> {
+fn render_edr(job: &Job, provider: &dyn jilo_render::SourceProvider) -> Option<(jilo_render::Image, jilo_color::ColorPipeline)> {
     match job.key.target {
         Target::Sequence(seq) | Target::SequencePlan(seq) => {
             let pipe = job.project.sequence(seq)?.settings.color;
-            let opts = filmcraft_render::RenderOptions { scale: job.scale, captions: true, working_output: true, ..Default::default() };
-            Some((filmcraft_render::render_sequence(&job.project, seq, job.time, opts, provider), pipe))
+            let opts = jilo_render::RenderOptions { scale: job.scale, captions: true, working_output: true, ..Default::default() };
+            Some((jilo_render::render_sequence(&job.project, seq, job.time, opts, provider), pipe))
         }
-        Target::Item(item) => filmcraft_render::render_item_edr(&job.project, item, job.time, job.scale, provider),
+        Target::Item(item) => jilo_render::render_item_edr(&job.project, item, job.time, job.scale, provider),
         Target::MulticamGrid(..) | Target::MulticamAngle(..) => None,
     }
 }
@@ -1018,7 +1016,7 @@ fn render_edr(job: &Job, provider: &dyn filmcraft_render::SourceProvider) -> Opt
 #[cfg(test)]
 mod tests {
     use super::{PlaybackMeter, Target, background_work, playback_plan};
-    use filmcraft_project::ItemId;
+    use jilo_project::ItemId;
 
     #[test]
     fn only_item_thumbnails_are_background_work() {
@@ -1040,7 +1038,7 @@ mod tests {
         assert!(!draft_playback(true, 1.0, true), "full resolution is never draft");
         assert!(!draft_playback(false, 0.5, true), "a paused frame is never draft");
         assert!(!draft_playback(true, 0.5, false), "off unless enabled");
-        assert!(!filmcraft_engine::autosave::Preferences::default().playback.draft_decode, "off by default");
+        assert!(!jilo_engine::autosave::Preferences::default().playback.draft_decode, "off by default");
     }
 
     #[test]

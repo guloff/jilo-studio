@@ -1,36 +1,36 @@
 //! The wgpu compositor.
 //!
-//! Executes a [`FramePlan`](filmcraft_render::plan::FramePlan) on the GPU: every layer's source is
+//! Executes a [`FramePlan`](jilo_render::plan::FramePlan) on the GPU: every layer's source is
 //! uploaded as textures (Y/Cb/Cr planes stay YUV — conversion to linear RGB happens per pixel in
 //! the shader), drawn as a transformed quad with premultiplied "over" blending into a Rgba16Float
 //! accumulator, then resolved over black into an sRGB `Rgba8UnormSrgb` texture that the UI
 //! registers as a native texture. Uploads are cached by pixel-buffer identity, so a paused frame or
 //! a still costs nothing.
 //!
-//! Every blend mode of [`filmcraft_render::Blend`] runs here. Normal and Dissolve (whose per-pixel
+//! Every blend mode of [`jilo_render::Blend`] runs here. Normal and Dissolve (whose per-pixel
 //! pattern is the CPU's 64-bit hash, reproduced in WGSL) use fixed-function "over" blending. The
 //! other 25 modes need the colour under the layer: before such a layer is drawn, the accumulator
 //! region under its quad is copied into a backdrop texture, and the fragment shader composites
-//! with the CPU reference's math (`filmcraft_render::blend::composite`: sRGB-encoded straight
+//! with the CPU reference's math (`jilo_render::blend::composite`: sRGB-encoded straight
 //! colour, W3C formulas, back to linear) and writes the result. Only those layers pay the copy.
 //!
-//! A layer carrying standard effects ([`filmcraft_render::plan::LayerFx`]) goes through the
+//! A layer carrying standard effects ([`jilo_render::plan::LayerFx`]) goes through the
 //! effect stage ([`fx`]) first: its source is drawn into an `Rgba32Float` working image, the
 //! effects run as compute passes in WGSL with the CPU reference's math
-//! (`filmcraft_render::gpufx::FxOp::apply`), and the result is drawn like any RGBA layer. Layers
+//! (`jilo_render::gpufx::FxOp::apply`), and the result is drawn like any RGBA layer. Layers
 //! without effects take the single draw above.
 //!
 //! A layer of log / HDR / wide-gamut Y'CbCr video without effects carries its input transform
-//! ([`filmcraft_render::plan::PlanLayer::color`]): the shader decodes each sample through the
+//! ([`jilo_render::plan::PlanLayer::color`]): the shader decodes each sample through the
 //! transform's tables (curve, tone mapping; one `R32Float` texture per transform) and its pixel
 //! stage (HLG OOTF, gamut matrix, tone mapping, gamut compression or desaturation), the math of
-//! `filmcraft_color::InputTransform`, instead of the frame's own transfer curve.
+//! `jilo_color::InputTransform`, instead of the frame's own transfer curve.
 //!
 //! Layers that need converting before upload (linear f32 RGBA from CPU-rendered layers, 16-bit
 //! YUV such as ProRes) are converted to half floats by [`prepare`], which frame workers run off the
 //! UI thread; [`GpuCompositor::composite_prepared`] then only copies bytes into textures.
 //!
-//! The CPU plan executor (`filmcraft_render::plan::execute_cpu`) is the oracle; tests compare.
+//! The CPU plan executor (`jilo_render::plan::execute_cpu`) is the oracle; tests compare.
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
 
@@ -39,10 +39,10 @@ use std::sync::Arc;
 
 use rayon::prelude::*;
 
-use filmcraft_color::{Matrix, Range, Transfer};
-use filmcraft_frame::{Chroma, PixelData, VideoFrame};
-use filmcraft_render::Blend;
-use filmcraft_render::plan::{FramePlan, PlanLayer, PlanStep};
+use jilo_color::{Matrix, Range, Transfer};
+use jilo_frame::{Chroma, PixelData, VideoFrame};
+use jilo_render::Blend;
+use jilo_render::plan::{FramePlan, PlanLayer, PlanStep};
 
 pub mod export_renderer;
 pub mod fx;
@@ -93,7 +93,7 @@ pub struct GpuCompositor {
     /// The tables of the input transforms of colour-managed layers (row 0: the curve's decode
     /// table, row 1: the tone map's), by transform; the transform is kept alive while cached
     /// because the key is its address.
-    color_tables: HashMap<usize, (Arc<filmcraft_color::InputTransform>, wgpu::TextureView)>,
+    color_tables: HashMap<usize, (Arc<jilo_color::InputTransform>, wgpu::TextureView)>,
     /// The effect stage (None on devices without compute shaders or storage textures: layers
     /// with effects are then rendered on the CPU here).
     fx: Option<fx::FxStage>,
@@ -289,7 +289,7 @@ fn prepare_layers(layers: &[PlanLayer]) -> PreparedPlan {
 impl GpuCompositor {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("filmcraft-composite"),
+            label: Some("jilo-composite"),
             source: wgpu::ShaderSource::Wgsl(include_str!("composite.wgsl").into()),
         });
         let layer_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -440,7 +440,7 @@ impl GpuCompositor {
             return s.1.clone();
         }
         let t = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("filmcraft-target"),
+            label: Some("jilo-target"),
             size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
             mip_level_count: 1,
             sample_count: 1,
@@ -456,7 +456,7 @@ impl GpuCompositor {
 
     fn plane_texture(&mut self, w: u32, h: u32, format: wgpu::TextureFormat, bytes: &[u8], bpp: u32) -> wgpu::TextureView {
         let t = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("filmcraft-plane"),
+            label: Some("jilo-plane"),
             size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
             mip_level_count: 1,
             sample_count: 1,
@@ -604,7 +604,7 @@ impl GpuCompositor {
         })
     }
 
-    fn uniforms(src: &SrcInfo, m: &filmcraft_geom::Affine, opacity: f32, blend: Blend, out: (u32, u32)) -> [f32; U_LEN] {
+    fn uniforms(src: &SrcInfo, m: &jilo_geom::Affine, opacity: f32, blend: Blend, out: (u32, u32)) -> [f32; U_LEN] {
         let (kr, kb) = src.color.matrix.kr_kb();
         let bits_scale = src.code_levels / 256.0; // 2^(bits - 8), independent of texture encoding
         let (yo, ys, co, cs) = match (src.color.range, src.kind) {
@@ -662,7 +662,7 @@ impl GpuCompositor {
 
     /// Decode the layer's Y'CbCr samples through input transform `t` (the shader's
     /// `input_transform`; `U.p4`–`U.p11`).
-    fn color_uniforms(u: &mut [f32; U_LEN], t: &filmcraft_color::InputTransform) {
+    fn color_uniforms(u: &mut [f32; U_LEN], t: &jilo_color::InputTransform) {
         let st = t.stage();
         let flag = |b: bool| if b { 1.0 } else { 0.0 };
         let (luma, k) = st.hlg.unwrap_or(([0.0; 3], 0.0));
@@ -695,7 +695,7 @@ impl GpuCompositor {
             t.table.values.len() as f32,
             tone.map_or(0.0, |t| t.src_peak_nits as f32),
             tone.map_or(0.0, |t| t.table().values.len() as f32),
-            tone.map_or(0.0, |t| (t.dst_peak_nits / filmcraft_color::REFERENCE_WHITE_NITS) as f32),
+            tone.map_or(0.0, |t| (t.dst_peak_nits / jilo_color::REFERENCE_WHITE_NITS) as f32),
             tone.map_or(0.0, |t| t.table().lo),
             tone.map_or(0.0, |t| t.table().hi),
             desat[0],
@@ -707,7 +707,7 @@ impl GpuCompositor {
     }
 
     /// The table texture of input transform `t` (uploaded on first use).
-    fn color_table_view(&mut self, t: &Arc<filmcraft_color::InputTransform>) -> wgpu::TextureView {
+    fn color_table_view(&mut self, t: &Arc<jilo_color::InputTransform>) -> wgpu::TextureView {
         let key = Arc::as_ptr(t) as usize;
         if let Some((_, v)) = self.color_tables.get(&key) {
             return v.clone();
@@ -765,7 +765,7 @@ impl GpuCompositor {
                     },
                     None => VideoFrame::rgba_f32(img.w as u32, img.h as u32, img.px.clone()),
                 };
-                owned = [PlanLayer::new(Arc::new(frame), filmcraft_geom::Affine::IDENTITY, 1.0, Blend::Normal)];
+                owned = [PlanLayer::new(Arc::new(frame), jilo_geom::Affine::IDENTITY, 1.0, Blend::Normal)];
                 (img.w as u32, img.h as u32, &owned[..])
             }
             FramePlan::Composite { width, height, steps } => return self.composite_steps(*width, *height, steps, prep),
@@ -788,7 +788,7 @@ impl GpuCompositor {
                 if self.fx.is_some() && lfx.size.0.max(lfx.size.1) <= max_side {
                     return None;
                 }
-                let img = filmcraft_render::plan::effect_image(&l.frame, lfx);
+                let img = jilo_render::plan::effect_image(&l.frame, lfx);
                 Some(PlanLayer::new(Arc::new(VideoFrame::rgba_f32(img.w as u32, img.h as u32, img.px)), l.matrix, l.opacity, l.blend))
             })
             .collect();
@@ -828,8 +828,7 @@ impl GpuCompositor {
                 Some(lfx) => {
                     // the source drawn onto the working image (box-decimated by n, as the CPU decodes)
                     let n = lfx.decimation.max(1) as f64;
-                    let mut su =
-                        Self::uniforms(&src, &filmcraft_geom::Affine::scale(1.0 / n, 1.0 / n), 1.0, Blend::Normal, (lfx.size.0.max(1), lfx.size.1.max(1)));
+                    let mut su = Self::uniforms(&src, &jilo_geom::Affine::scale(1.0 / n, 1.0 / n), 1.0, Blend::Normal, (lfx.size.0.max(1), lfx.size.1.max(1)));
                     // Effect sources use the working pixel center, avoiding interpolated vertex coordinates.
                     su[26] = n as f32;
                     let sbuf = self.uniform_buffer(&su);
@@ -866,7 +865,7 @@ impl GpuCompositor {
                     let m = match &l.fx {
                         Some(lfx) => {
                             let n = 1.0 / lfx.decimation.max(1) as f64;
-                            l.matrix.then_apply(&filmcraft_geom::Affine::scale(n, n))
+                            l.matrix.then_apply(&jilo_geom::Affine::scale(n, n))
                         }
                         None => l.matrix,
                     };
@@ -906,7 +905,7 @@ impl GpuCompositor {
             layout: &self.final_bgl,
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&accum_view) }],
         });
-        let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("filmcraft-composite") });
+        let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("jilo-composite") });
         // Runs of fixed-function layers draw in one pass. A layer that reads the destination
         // ends it, copies the accumulator under its quad into the backdrop and draws on its own.
         let accum_tex = self.accum.as_ref().map(|a| a.0.clone());
@@ -978,7 +977,7 @@ impl GpuCompositor {
         if steps.iter().any(|s| matches!(s, PlanStep::Transition { effect, .. } if effect.effect != "push")) {
             self.cpu_transitions += 1;
             let plan = FramePlan::Composite { width, height, steps: steps.to_vec() };
-            return self.composite_prepared(&FramePlan::Image(filmcraft_render::plan::execute_cpu(&plan)), None);
+            return self.composite_prepared(&FramePlan::Image(jilo_render::plan::execute_cpu(&plan)), None);
         }
         let empty = FramePlan::Layers { width, height, layers: Vec::new() };
         let (canvas, dims) = self.render_plan(&empty, None, true, false);
@@ -1017,7 +1016,7 @@ impl GpuCompositor {
         // `render_plan`, which leaves the linear result in the accumulator; skipping the sRGB
         // resolve, only the copy to the staging buffer is a second submission.
         self.render_plan(plan, prep, true, false);
-        let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("filmcraft-composite-export") });
+        let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("jilo-composite-export") });
         let size = self.copy_accumulator(&mut enc)?;
         self.queue.submit([enc.finish()]);
         export_renderer::timing::add_submit(t.elapsed());
@@ -1027,13 +1026,13 @@ impl GpuCompositor {
     /// Run the effect stage of a layer alone: `frame` decoded into its working image and `fx`
     /// applied, read back as linear premultiplied RGBA f32 (what `LayerFx` ops produce on the
     /// CPU from the same frame). None when the working image does not fit in a texture.
-    pub fn effect_image(&mut self, frame: &VideoFrame, fx: &filmcraft_render::plan::LayerFx) -> Option<(u32, u32, Vec<f32>)> {
+    pub fn effect_image(&mut self, frame: &VideoFrame, fx: &jilo_render::plan::LayerFx) -> Option<(u32, u32, Vec<f32>)> {
         let key = self.upload(frame, None);
         let src = self.src_info(frame, key)?;
         let views = self.uploads.get(&key)?.views.clone();
         let n = fx.decimation.max(1) as f64;
         let (w, h) = (fx.size.0.max(1), fx.size.1.max(1));
-        let mut su = Self::uniforms(&src, &filmcraft_geom::Affine::scale(1.0 / n, 1.0 / n), 1.0, Blend::Normal, (w, h));
+        let mut su = Self::uniforms(&src, &jilo_geom::Affine::scale(1.0 / n, 1.0 / n), 1.0, Blend::Normal, (w, h));
         // Same integer source-grid mapping as the composited effect path.
         su[26] = n as f32;
         let sbuf = self.uniform_buffer(&su);
@@ -1151,7 +1150,7 @@ impl GpuCompositor {
         export_renderer::timing::add_map_wait(t.elapsed());
         let t = std::time::Instant::now();
         let (width, row) = (w as usize, row as usize);
-        let mut out = filmcraft_frame::pool::take_f32_overwritten(width.checked_mul(h as usize)?.checked_mul(4)?);
+        let mut out = jilo_frame::pool::take_f32_overwritten(width.checked_mul(h as usize)?.checked_mul(4)?);
         let data = slice.get_mapped_range().ok()?;
         // every row must be there: the pooled output holds stale values until written
         let converted = out.chunks_exact_mut(width * 4).enumerate().all(|(y, dst)| {
@@ -1238,7 +1237,7 @@ struct SrcInfo {
     alpha: f32,
     chroma: (u32, u32),
     size: (u32, u32),
-    color: filmcraft_color::ColorInfo,
+    color: jilo_color::ColorInfo,
 }
 
 /// A render pass drawing into the accumulator.

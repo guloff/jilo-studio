@@ -23,7 +23,7 @@ use crate::commands::{CommandSpec, always, bad, str_p};
 use crate::{Result, Session};
 
 /// The port the app listens on for AI assistants when Settings ▸ AI ▸ Allow AI assistants is on
-/// (`--mcp` and `filmcraft-cli mcp --app` connect to it). Fixed, so a client registered once finds the app
+/// (`--mcp` and `jilo-cli mcp --app` connect to it). Fixed, so a client registered once finds the app
 /// after every restart.
 pub const ASSISTANT_PORT: u16 = 47821;
 
@@ -37,9 +37,9 @@ pub fn server_command() -> Option<PathBuf> {
 }
 
 /// The arguments that make `command` serve MCP to the open app: `--mcp` for the app, `mcp --app`
-/// for the command-line tool (`filmcraft-cli`).
+/// for the command-line tool (`jilo-cli`).
 pub fn server_args(command: &Path) -> Vec<&'static str> {
-    if command.file_stem().is_some_and(|n| n == "filmcraft-cli") { vec!["mcp", "--app"] } else { vec!["--mcp"] }
+    if command.file_stem().is_some_and(|n| n == "jilo-cli") { vec!["mcp", "--app"] } else { vec!["--mcp"] }
 }
 
 fn home() -> Option<PathBuf> {
@@ -217,7 +217,7 @@ mod tests {
     use super::*;
 
     fn tmp(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("filmcraft-assistants-{}-{name}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("jilo-assistants-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -255,13 +255,13 @@ mod tests {
     fn connecting_a_client_turns_the_channel_on_and_status_says_so() {
         let d = tmp("connect");
         let cfg = d.join("claude_desktop_config.json");
-        let cli = d.join("filmcraft-cli");
+        let cli = d.join("jilo-cli");
         let mut s = Session::default();
         assert!(!s.prefs.ai.allow_assistants, "off until the user turns it on");
         let p = json!({"command": cli.to_string_lossy(), "config": cfg.to_string_lossy()});
         let st = s.execute("ai.assistants.status", p.clone()).unwrap();
         assert_eq!((st["allowed"].clone(), st["port"].clone(), st["claudeDesktop"]["connected"].clone()), (json!(false), json!(47821), json!(false)));
-        assert!(st["claudeCode"]["setup"].as_str().unwrap().ends_with("filmcraft-cli mcp --app"), "{st}");
+        assert!(st["claudeCode"]["setup"].as_str().unwrap().ends_with("jilo-cli mcp --app"), "{st}");
         let r =
             s.execute("ai.assistants.connect", json!({"client": "claudeDesktop", "command": cli.to_string_lossy(), "config": cfg.to_string_lossy()})).unwrap();
         assert_eq!((r["changed"].clone(), r["restart"].clone()), (json!(true), json!(true)));
@@ -285,10 +285,7 @@ mod tests {
         let c = claude_code_setup(Path::new("/Applications/Jilo Studio.app/Contents/MacOS/Jilo Studio"));
         assert_eq!(c, "claude mcp add --scope user jilo-studio -- '/Applications/Jilo Studio.app/Contents/MacOS/Jilo Studio' --mcp");
         // the command-line tool serves MCP with its own subcommand
-        assert_eq!(
-            claude_code_setup(Path::new("/usr/local/bin/filmcraft-cli")),
-            "claude mcp add --scope user jilo-studio -- /usr/local/bin/filmcraft-cli mcp --app"
-        );
+        assert_eq!(claude_code_setup(Path::new("/usr/local/bin/jilo-cli")), "claude mcp add --scope user jilo-studio -- /usr/local/bin/jilo-cli mcp --app");
         assert_eq!(sh_quote("it's"), r"'it'\''s'");
     }
 }

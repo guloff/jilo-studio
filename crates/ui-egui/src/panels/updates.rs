@@ -17,11 +17,11 @@
 use egui::RichText;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// Start a check (refused while one is running). While an update is downloading or ready, the
 /// window shows it instead of checking again.
-pub fn start(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn start(app: &mut JiloApp) -> Result<Value, String> {
     if app.ui.updates.job.is_some() {
         return Err("updates are already being checked".into());
     }
@@ -38,12 +38,12 @@ pub fn start(app: &mut FilmcraftApp) -> Result<Value, String> {
 }
 
 /// The update's phase (`downloading`, `verifying`, `ready`, `manual`, `failed`, `cancelled`).
-fn phase(app: &FilmcraftApp) -> Option<String> {
+fn phase(app: &JiloApp) -> Option<String> {
     app.session.update_download.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_ref().map(|d| d.phase.clone())
 }
 
 /// The daily check: looked at once at startup and then hourly; runs when a day has passed.
-fn daily(app: &mut FilmcraftApp) {
+fn daily(app: &mut JiloApp) {
     let now = web_time::Instant::now();
     if !app.ui.updates.host || app.ui.updates.job.is_some() || app.ui.updates.next_look.is_some_and(|t| now < t) {
         return;
@@ -53,7 +53,7 @@ fn daily(app: &mut FilmcraftApp) {
         return;
     }
     let unix = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
-    if !filmcraft_engine::updates::daily_check_due(&app.session.prefs.general, unix) {
+    if !jilo_engine::updates::daily_check_due(&app.session.prefs.general, unix) {
         return;
     }
     // recorded before the check, so a failing network is not asked again for a day
@@ -65,7 +65,7 @@ fn daily(app: &mut FilmcraftApp) {
 }
 
 /// At launch: an update was being installed when the app last quit — say whether it took.
-fn after_restart(app: &mut FilmcraftApp) {
+fn after_restart(app: &mut JiloApp) {
     if !app.ui.updates.host || app.ui.updates.launch_seen {
         return;
     }
@@ -78,12 +78,12 @@ fn after_restart(app: &mut FilmcraftApp) {
     let current = env!("CARGO_PKG_VERSION");
     let installed = pending == current;
     if installed {
-        filmcraft_engine::updater::clean_up(&app.session);
+        jilo_engine::updater::clean_up(&app.session);
     }
     app.ui.updates.result = Some(json!({"current": current, "afterRestart": true, "installed": installed, "installedVersion": pending}));
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     after_restart(app);
     daily(app);
     if let Some(id) = app.ui.updates.job
@@ -117,7 +117,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
 
 /// The quit was cancelled at the unsaved-changes question: Restart and Install is undone (the
 /// update stays ready) and the window comes back.
-pub fn quit_cancelled(app: &mut FilmcraftApp) {
+pub fn quit_cancelled(app: &mut JiloApp) {
     let armed_restart =
         app.session.update_download.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_ref().is_some_and(|d| d.install_on_quit && d.relaunch);
     if armed_restart {
@@ -137,7 +137,7 @@ enum Action {
     OpenPage,
 }
 
-fn window(app: &mut FilmcraftApp, ctx: &egui::Context) {
+fn window(app: &mut JiloApp, ctx: &egui::Context) {
     let t = app.tokens;
     let Some(v) = app.ui.updates.result.clone() else { return };
     let d = app.session.update_download.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
@@ -216,7 +216,7 @@ fn window(app: &mut FilmcraftApp, ctx: &egui::Context) {
                         ui.add_space(4.0);
                         ui.label(RichText::new(tlf!("{app} {version} is downloaded and checked.", app = app_name, version = latest)).strong());
                         if d.as_ref().is_some_and(|d| d.install_on_quit) {
-                            ui.add(egui::Label::new(dim(tl!("It will be installed when you quit FilmCraft; the next launch opens the new version."))).wrap());
+                            ui.add(egui::Label::new(dim(tl!("It will be installed when you quit Jilo Studio; the next launch opens the new version."))).wrap());
                         } else {
                             ui.add(egui::Label::new(dim(&tlf!(
                                 "Restart and Install quits {app} (asking first about unsaved changes), puts {version} in place of this version and opens it again. It takes a few seconds.",
@@ -234,8 +234,8 @@ fn window(app: &mut FilmcraftApp, ctx: &egui::Context) {
                         ui.label(RichText::new(tl!("To install it:")).strong());
                         for step in [
                             tl!("1. Open the disk image."),
-                            tl!("2. Drag FilmCraft to Applications and choose Replace."),
-                            tl!("3. Quit this version and open FilmCraft again."),
+                            tl!("2. Drag Jilo Studio to Applications and choose Replace."),
+                            tl!("3. Quit this version and open Jilo Studio again."),
                         ] {
                             ui.label(step);
                         }
@@ -255,7 +255,7 @@ fn window(app: &mut FilmcraftApp, ctx: &egui::Context) {
                             });
                         }
                         let note = if v["asset"].is_object() {
-                            tl!("Download and Install fetches the new version, checks its signature and installs it when you restart FilmCraft.")
+                            tl!("Download and Install fetches the new version, checks its signature and installs it when you restart Jilo Studio.")
                         } else {
                             tl!("This release has no disk image for this Mac: its page on GitHub opens instead.")
                         };
@@ -345,7 +345,7 @@ fn window(app: &mut FilmcraftApp, ctx: &egui::Context) {
         }
         Some(Action::OpenPage) => {
             // the engine keeps the page to this repository's releases
-            crate::links::open(ctx, v["url"].as_str().unwrap_or(filmcraft_engine::updates::RELEASES_PAGE));
+            crate::links::open(ctx, v["url"].as_str().unwrap_or(jilo_engine::updates::RELEASES_PAGE));
         }
         Some(Action::Close | Action::Hide) => app.ui.updates.result = None,
         // closing while it downloads hides it: the download goes on

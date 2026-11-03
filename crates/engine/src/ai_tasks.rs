@@ -12,7 +12,7 @@
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use filmcraft_ai::{AiError, Ctx, JsonRequest, Provider, Secret, Transport};
+use jilo_ai::{AiError, Ctx, JsonRequest, Provider, Secret, Transport};
 use serde_json::{Value, json};
 
 use crate::commands::{bool_p, str_p};
@@ -28,7 +28,7 @@ pub struct TextEngine {
     pub model: String,
     key: Secret,
     transport: Arc<dyn Transport>,
-    sleep: Option<filmcraft_ai::SleepFn>,
+    sleep: Option<jilo_ai::SleepFn>,
 }
 
 impl TextEngine {
@@ -60,7 +60,7 @@ impl TextEngine {
     /// One JSON answer (a retired model is replaced for this call).
     pub fn json(&self, ctx: &Ctx, system: &str, user: &str, schema: Option<&Value>, temperature: f32) -> std::result::Result<Value, AiError> {
         let req = JsonRequest { system, user, schema, temperature };
-        filmcraft_ai::generate_json(ctx, self.provider, &self.key, &self.model, &req).map(|a| a.value)
+        jilo_ai::generate_json(ctx, self.provider, &self.key, &self.model, &req).map(|a| a.value)
     }
 }
 
@@ -104,7 +104,7 @@ pub fn run(s: &mut Session, p: &Value, cmd: &str, label: &str, inputs: &Value, w
         let job = crate::narration::new_job(s, label.to_string());
         job.progress.total.store(1000, Ordering::Relaxed);
         let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.ai_task_cache.clone());
-        let id = crate::narration::spawn(s, job, false, "filmcraft-ai-task", move || {
+        let id = crate::narration::spawn(s, job, false, "jilo-ai-task", move || {
             let t0 = web_time::Instant::now();
             let stop = prog.clone();
             let ctx = engine.ctx(move || stop.cancel.load(Ordering::Relaxed));

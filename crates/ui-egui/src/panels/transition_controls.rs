@@ -13,19 +13,19 @@
 //! `transitionDuration.value`, `.ok`, `.cancel`.
 
 use egui::{Rect, RichText, vec2};
-use filmcraft_edit::transitions::{self as trn, Alignment};
-use filmcraft_project::{ParamKind, ParamValue, Transition, TransitionId};
-use filmcraft_time::FrameRate;
+use jilo_edit::transitions::{self as trn, Alignment};
+use jilo_project::{ParamKind, ParamValue, Transition, TransitionId};
+use jilo_time::FrameRate;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 use crate::state::TransitionDurationDraft;
 
 type Elems = Vec<(String, Rect, String)>;
 
 /// The selected transition, when it still exists, with its alignment and how many frames it may
 /// last at most (the clips it joins).
-fn lookup(app: &FilmcraftApp, id: TransitionId) -> Option<(Transition, Alignment, i64)> {
+fn lookup(app: &JiloApp, id: TransitionId) -> Option<(Transition, Alignment, i64)> {
     let seq = app.session.active_sequence()?;
     let rate = seq.settings.frame_rate.sane();
     seq.all_tracks().find_map(|tr| {
@@ -37,12 +37,12 @@ fn lookup(app: &FilmcraftApp, id: TransitionId) -> Option<(Transition, Alignment
 }
 
 /// The first selected transition that still exists.
-pub fn selected(app: &FilmcraftApp) -> Option<TransitionId> {
+pub fn selected(app: &JiloApp) -> Option<TransitionId> {
     app.session.state.transition_selection.iter().copied().find(|id| lookup(app, *id).is_some())
 }
 
 fn timecode(frames: f64, rate: FrameRate, drop_frame: bool) -> String {
-    filmcraft_time::format_timecode_frames(frames.round() as i64, rate, drop_frame)
+    jilo_time::format_timecode_frames(frames.round() as i64, rate, drop_frame)
 }
 
 /// A duration field in frames that reads and takes timecode (or a plain frame count).
@@ -50,13 +50,13 @@ fn duration_field(ui: &mut egui::Ui, frames: &mut i64, max: i64, rate: FrameRate
     ui.add(egui::DragValue::new(frames).range(1..=max.max(1)).speed(0.25).custom_formatter(move |v, _| timecode(v, rate, drop_frame)).custom_parser(move |s| {
         match s.trim().parse::<i64>() {
             Ok(n) => Some(n as f64),
-            Err(_) => filmcraft_time::parse_timecode(s, rate, drop_frame, 0).ok().map(|n| n as f64),
+            Err(_) => jilo_time::parse_timecode(s, rate, drop_frame, 0).ok().map(|n| n as f64),
         }
     }))
 }
 
 /// Effect Controls for a selected transition. `rect` is the panel.
-pub fn effect_controls(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, id: TransitionId) {
+pub fn effect_controls(app: &mut JiloApp, ui: &mut egui::Ui, rect: Rect, id: TransitionId) {
     let t = app.tokens;
     let Some((x, align, max_frames)) = lookup(app, id) else {
         crate::dock::placeholder(ui, rect, &t, tl!("(no clip selected)"));
@@ -230,7 +230,7 @@ fn param_widget(ui: &mut egui::Ui, elems: &mut Elems, pid: &str, kind: &ParamKin
 }
 
 /// Double-click a transition in the Timeline: Set Transition Duration.
-pub fn open_duration(app: &mut FilmcraftApp, id: TransitionId) {
+pub fn open_duration(app: &mut JiloApp, id: TransitionId) {
     let Some((x, ..)) = lookup(app, id) else { return };
     let rate = app.session.active_sequence().map(|q| q.settings.frame_rate.sane()).unwrap_or_default();
     app.ui.transition_duration = TransitionDurationDraft { transition: id.0, frames: rate.frame_at(x.duration).max(1) };
@@ -239,7 +239,7 @@ pub fn open_duration(app: &mut FilmcraftApp, id: TransitionId) {
 }
 
 /// The Set Transition Duration dialog. Returns whether it stays open.
-pub fn duration_dialog(app: &mut FilmcraftApp, ctx: &egui::Context) -> bool {
+pub fn duration_dialog(app: &mut JiloApp, ctx: &egui::Context) -> bool {
     let mut d = app.ui.transition_duration.clone();
     let id = TransitionId(d.transition);
     let Some((_, _, max_frames)) = lookup(app, id) else { return false };

@@ -181,8 +181,8 @@ pub fn daily_check_due(prefs: &crate::settings::GeneralPrefs, now: i64) -> bool 
 }
 
 /// Ask GitHub (in the calling thread).
-fn check(transport: &dyn filmcraft_ai::transport::Transport, current: &str) -> UpdateCheck {
-    let mut req = filmcraft_ai::transport::Request::get(RELEASES_API);
+fn check(transport: &dyn jilo_ai::transport::Transport, current: &str) -> UpdateCheck {
+    let mut req = jilo_ai::transport::Request::get(RELEASES_API);
     req.headers.push(("Accept".into(), "application/vnd.github+json".into()));
     // GitHub refuses requests without one
     req.headers.push(("User-Agent".into(), format!("JiloStudio/{current}")));
@@ -202,7 +202,7 @@ fn check_updates(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let job = crate::narration::new_job(s, "Checking for updates".into());
     let (prog, res, state) = (job.progress.clone(), job.result.clone(), s.update_check.clone());
-    let id = crate::narration::spawn(s, job, false, "filmcraft-updates", move || {
+    let id = crate::narration::spawn(s, job, false, "jilo-updates", move || {
         let t0 = web_time::Instant::now();
         let c = check(&*transport, current);
         let status = match (&c.error, c.newer) {
@@ -257,8 +257,8 @@ pub fn commands() -> Vec<CommandSpec> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_ai::Response;
-    use filmcraft_ai::transport::FakeTransport;
+    use jilo_ai::Response;
+    use jilo_ai::transport::FakeTransport;
 
     #[test]
     fn versions_compare_by_their_numbers() {

@@ -7,11 +7,11 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use filmcraft_color::ColorInfo;
-use filmcraft_frame::{AudioBuffer, Region, VideoFrame};
-use filmcraft_isobmff::{CleanAperture, CodecConfig, Mp4File, TrackKind};
-use filmcraft_media::{AudioStreamInfo, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, SharedSource, VideoStreamInfo};
-use filmcraft_time::{FrameRate, Tick};
+use jilo_color::ColorInfo;
+use jilo_frame::{AudioBuffer, Region, VideoFrame};
+use jilo_isobmff::{CleanAperture, CodecConfig, Mp4File, TrackKind};
+use jilo_media::{AudioStreamInfo, FrameRequest, MediaError, MediaInfo, MediaKind, MediaSource, SharedSource, VideoStreamInfo};
+use jilo_time::{FrameRate, Tick};
 
 use crate::audio::{PacketDecoder, decode_pcm};
 use crate::gop::{GopCache, VideoSamples};
@@ -91,12 +91,12 @@ fn audio_starts(file: &Mp4File, bytes: &crate::Src, ti: usize, rate: u32) -> Vec
 }
 
 /// HDR static metadata from the sample entry's `mdcv` / `clli` boxes (0 = unknown).
-fn hdr_metadata(md: Option<&filmcraft_isobmff::MasteringDisplay>, cll: Option<(u16, u16)>) -> Option<filmcraft_color::HdrMetadata> {
+fn hdr_metadata(md: Option<&jilo_isobmff::MasteringDisplay>, cll: Option<(u16, u16)>) -> Option<jilo_color::HdrMetadata> {
     if md.is_none() && cll.is_none() {
         return None;
     }
     let nz = |v: f32| (v > 0.0).then_some(v);
-    Some(filmcraft_color::HdrMetadata {
+    Some(jilo_color::HdrMetadata {
         mastering_max_nits: md.and_then(|m| nz(m.max_nits() as f32)),
         mastering_min_nits: md.map(|m| m.min_luminance as f32 / 10_000.0),
         max_cll: cll.and_then(|c| nz(c.0 as f32)),
@@ -130,9 +130,9 @@ fn clean_aperture(c: CleanAperture, (w, h): (u32, u32)) -> Option<Region> {
 /// unspecified, or all of it when there is none (ffmpeg writes MP4 without `colr` by default),
 /// comes from the stream's own description: `vpcC` / `apvC`, or the SPS VUI in `avcC` / `hvcC`
 /// and the sequence header in `av1C`. The rest defaults by frame size.
-fn color_from(entry: &filmcraft_isobmff::SampleEntry, w: u32, h: u32) -> ColorInfo {
+fn color_from(entry: &jilo_isobmff::SampleEntry, w: u32, h: u32) -> ColorInfo {
     use crate::stream_color::ColorCodes;
-    use filmcraft_isobmff::ColorInfo as Colr;
+    use jilo_isobmff::ColorInfo as Colr;
     let colr = match entry.video.as_ref().and_then(|v| v.color.as_ref()) {
         Some(Colr::Nclx { primaries, transfer, matrix, full_range }) => {
             Some(ColorCodes::from_wide((*primaries).into(), (*transfer).into(), (*matrix).into(), Some(*full_range)))
@@ -164,20 +164,20 @@ fn color_from(entry: &filmcraft_isobmff::SampleEntry, w: u32, h: u32) -> ColorIn
 
 impl Mp4Source {
     pub fn open(name: &str, bytes: Arc<[u8]>) -> crate::Result<Self> {
-        Self::open_reader(name, Arc::new(filmcraft_media::reader::MemReader(bytes)))
+        Self::open_reader(name, Arc::new(jilo_media::reader::MemReader(bytes)))
     }
 
     /// Open from a random-access reader: only the index is read now, samples on demand.
-    pub fn open_reader(name: &str, reader: filmcraft_media::SharedReader) -> crate::Result<Self> {
+    pub fn open_reader(name: &str, reader: jilo_media::SharedReader) -> crate::Result<Self> {
         let bytes = crate::Src(reader);
-        let file = filmcraft_isobmff::open(&bytes).map_err(|e| CodecError::Container(e.to_string()))?;
+        let file = jilo_isobmff::open(&bytes).map_err(|e| CodecError::Container(e.to_string()))?;
         // A track needs samples, a sample description and a timescale to be playable (damaged
         // files can lack them: indexing `entries[0]` or dividing by the timescale used to panic).
-        let playable = |t: &&filmcraft_isobmff::Track, kind| t.kind == kind && !t.samples.is_empty() && !t.entries.is_empty() && t.timescale > 0;
+        let playable = |t: &&jilo_isobmff::Track, kind| t.kind == kind && !t.samples.is_empty() && !t.entries.is_empty() && t.timescale > 0;
         let vtrack = file.tracks.iter().position(|t| playable(&t, TrackKind::Video));
         // every audio track is a stream (the track count comes from the file: capped)
         let atracks: Vec<usize> =
-            file.tracks.iter().enumerate().filter(|(_, t)| playable(t, TrackKind::Audio)).map(|(i, _)| i).take(filmcraft_media::MAX_AUDIO_STREAMS).collect();
+            file.tracks.iter().enumerate().filter(|(_, t)| playable(t, TrackKind::Audio)).map(|(i, _)| i).take(jilo_media::MAX_AUDIO_STREAMS).collect();
         if vtrack.is_none() && atracks.is_empty() {
             return Err(CodecError::Unsupported("no playable tracks".into()));
         }
@@ -208,11 +208,7 @@ impl Mp4Source {
             // A rate that rounds to zero (one sample per huge duration) can't be divided by.
             let rate = if rate.num > 0 && rate.den > 0 { rate } else { FrameRate::default() };
             color = color_from(entry, w, h);
-            if entry
-                .video
-                .as_ref()
-                .is_some_and(|v| matches!(v.color, Some(filmcraft_isobmff::ColorInfo::Nclx { .. } | filmcraft_isobmff::ColorInfo::Nclc { .. })))
-            {
+            if entry.video.as_ref().is_some_and(|v| matches!(v.color, Some(jilo_isobmff::ColorInfo::Nclx { .. } | jilo_isobmff::ColorInfo::Nclc { .. }))) {
                 explicit_color = Some(color);
             }
             let bitrate = (t.samples.iter().map(|s| s.size as u64).sum::<u64>() * 8 * t.timescale as u64).checked_div(t.duration);
@@ -236,12 +232,12 @@ impl Mp4Source {
             if matches!(entry.codec, CodecConfig::Dnx { .. }) {
                 // the sample entry doesn't say which VC-3 compression ID it is: read the first frame header
                 let s0 = &t.samples[0];
-                if let Some(h) = filmcraft_media::reader::read_range(&*bytes.0, s0.offset, s0.size as usize).ok().and_then(|d| filmcraft_dnx::probe(&d).ok()) {
-                    info.codec = filmcraft_dnx::cid_name(h.cid);
+                if let Some(h) = jilo_media::reader::read_range(&*bytes.0, s0.offset, s0.size as usize).ok().and_then(|d| jilo_dnx::probe(&d).ok()) {
+                    info.codec = jilo_dnx::cid_name(h.cid);
                     let sub = match h.chroma {
-                        filmcraft_dnx::ChromaFormat::Yuv420 => "YUV 4:2:0",
-                        filmcraft_dnx::ChromaFormat::Yuv422 => "YUV 4:2:2",
-                        filmcraft_dnx::ChromaFormat::Yuv444 => "4:4:4",
+                        jilo_dnx::ChromaFormat::Yuv420 => "YUV 4:2:0",
+                        jilo_dnx::ChromaFormat::Yuv422 => "YUV 4:2:2",
+                        jilo_dnx::ChromaFormat::Yuv444 => "4:4:4",
                     };
                     info.pixel_format = format!("{sub} {}-bit", h.bit_depth);
                     info.has_alpha = h.alpha;
@@ -250,12 +246,11 @@ impl Mp4Source {
             if matches!(entry.codec, CodecConfig::ProRes { .. }) {
                 // a 4444 fourcc doesn't mean the frames carry alpha (alpha_channel_type does): read the first frame header
                 let s0 = &t.samples[0];
-                if let Some(h) = filmcraft_media::reader::read_range(&*bytes.0, s0.offset, s0.size as usize).ok().and_then(|d| filmcraft_prores::probe(&d).ok())
-                {
-                    info.has_alpha = h.alpha != filmcraft_prores::AlphaType::None;
+                if let Some(h) = jilo_media::reader::read_range(&*bytes.0, s0.offset, s0.size as usize).ok().and_then(|d| jilo_prores::probe(&d).ok()) {
+                    info.has_alpha = h.alpha != jilo_prores::AlphaType::None;
                     let sub = match h.chroma {
-                        filmcraft_prores::ChromaFormat::Yuv422 => "4:2:2 10-bit",
-                        filmcraft_prores::ChromaFormat::Yuv444 => "4:4:4 12-bit",
+                        jilo_prores::ChromaFormat::Yuv422 => "4:2:2 10-bit",
+                        jilo_prores::ChromaFormat::Yuv444 => "4:4:4 12-bit",
                     };
                     info.pixel_format = format!("{} {sub}", if info.has_alpha { "YUVA" } else { "YUV" });
                 }
@@ -312,7 +307,7 @@ impl Mp4Source {
         let ts = self.file.tracks[ti].timescale as i64;
         // Nearest, not floor: with a coarse timescale (1000) sample times are rounded, and a
         // floored lookup lands one unit short of every frame whose time was rounded up.
-        let late = filmcraft_media::cancel::catch_up().map(|m| (t - m).to_rational_round(1, ts));
+        let late = jilo_media::cancel::catch_up().map(|m| (t - m).to_rational_round(1, ts));
         self.video.frame_late(&Mp4Video { src: self, track: ti }, t.to_rational_round(1, ts), late)
     }
 
@@ -473,7 +468,7 @@ impl MediaSource for Mp4Source {
 }
 
 /// What the file says about one audio track (`None`: the track has no sample description).
-fn audio_stream_info(t: &filmcraft_isobmff::Track, bytes: &crate::Src) -> Option<AudioStreamInfo> {
+fn audio_stream_info(t: &jilo_isobmff::Track, bytes: &crate::Src) -> Option<AudioStreamInfo> {
     let entry = t.entries.first()?;
     let ap = entry.audio.clone().unwrap_or_default();
     let (rate, ch, bits) = match &entry.codec {
@@ -485,7 +480,7 @@ fn audio_stream_info(t: &filmcraft_isobmff::Track, bytes: &crate::Src) -> Option
                     .samples
                     .iter()
                     .take(8)
-                    .filter_map(|x| filmcraft_media::reader::read_range(&*bytes.0, x.offset, (x.size as usize).min(MAX_AAC_PROBE_UNIT)).ok());
+                    .filter_map(|x| jilo_media::reader::read_range(&*bytes.0, x.offset, (x.size as usize).min(MAX_AAC_PROBE_UNIT)).ok());
                 let units: Vec<Vec<u8>> = units.collect();
                 match crate::audio::aac_output_rate(&a.asc, units.iter().map(Vec::as_slice)) {
                     Some(r) => r,
@@ -501,8 +496,8 @@ fn audio_stream_info(t: &filmcraft_isobmff::Track, bytes: &crate::Src) -> Option
         CodecConfig::Opus(o) => (crate::audio::OPUS_RATE, (o.output_channels as u32).max(1), None),
         _ => (if ap.sample_rate > 0.0 { ap.sample_rate as u32 } else { t.timescale }, ap.channels.max(1), None),
     };
-    // advertised dimensions out of range: no stream at all (see filmcraft_media::bounded_audio_dimensions)
-    let (rate, ch) = filmcraft_media::bounded_audio_dimensions(rate, ch).ok()?;
+    // advertised dimensions out of range: no stream at all (see jilo_media::bounded_audio_dimensions)
+    let (rate, ch) = jilo_media::bounded_audio_dimensions(rate, ch).ok()?;
     Some(AudioStreamInfo { sample_rate: rate, channels: ch, codec: codec_label(&entry.codec), bits_per_sample: bits })
 }
 
@@ -523,7 +518,7 @@ fn codec_label(c: &CodecConfig) -> String {
         CodecConfig::Hevc(_) => "HEVC".into(),
         CodecConfig::Vp9(c) => format!("VP9 (Profile {})", c.profile),
         CodecConfig::Av1(c) => format!("AV1 ({} Profile)", ["Main", "High", "Professional"].get(c.seq_profile as usize).unwrap_or(&"Main")),
-        CodecConfig::Apv(a) => match filmcraft_apv::Profile::from_idc(a.profile_idc) {
+        CodecConfig::Apv(a) => match jilo_apv::Profile::from_idc(a.profile_idc) {
             Some(p) => p.name().into(),
             None => "APV".into(),
         },
@@ -565,7 +560,7 @@ fn yuv_label(chroma_format_idc: u32, bits: u32) -> String {
 /// `chroma_format_idc` and luma bit depth of an H.264 track: from the `avcC` High-profile extension
 /// (ISO/IEC 14496-15 §5.3.3), else from its first SPS. The profile alone can't say (High 4:2:2 is
 /// 8 or 10-bit, High 10 can be 8-bit).
-fn avc_format(a: &filmcraft_isobmff::AvcConfig) -> Option<(u32, u32)> {
+fn avc_format(a: &jilo_isobmff::AvcConfig) -> Option<(u32, u32)> {
     // reserved bits set: '111111' chroma_format, '11111' bit_depth_luma_minus8 (else not an extension)
     if !matches!(a.profile, 66 | 77 | 88)
         && let &[chroma, depth, ..] = a.ext.as_slice()
@@ -574,7 +569,7 @@ fn avc_format(a: &filmcraft_isobmff::AvcConfig) -> Option<(u32, u32)> {
     {
         return Some(((chroma & 3) as u32, (depth & 7) as u32 + 8));
     }
-    let sps = filmcraft_h264::params::Sps::parse(&filmcraft_bitstream::unescape_rbsp(a.sps.first()?.get(1..)?)).ok()?;
+    let sps = jilo_h264::params::Sps::parse(&jilo_bitstream::unescape_rbsp(a.sps.first()?.get(1..)?)).ok()?;
     Some((sps.chroma_format_idc, sps.bit_depth_luma))
 }
 
@@ -591,7 +586,7 @@ fn pixfmt_label(c: &CodecConfig) -> String {
             format!("YUV {sub} {}-bit", c.bit_depth.max(8))
         }
         CodecConfig::Apv(a) => {
-            let chroma = filmcraft_apv::ChromaFormat::from_idc(a.chroma_format_idc).unwrap_or(filmcraft_apv::ChromaFormat::Yuv422);
+            let chroma = jilo_apv::ChromaFormat::from_idc(a.chroma_format_idc).unwrap_or(jilo_apv::ChromaFormat::Yuv422);
             crate::apv::apv_pixfmt_label(chroma, a.bit_depth_minus8.saturating_add(8))
         }
         // 4444 until the first frame header says whether it codes alpha (`open_reader`)
@@ -615,21 +610,21 @@ pub fn opener(name: &str, bytes: Arc<[u8]>) -> Option<Result<SharedSource, Media
 /// extra frame on every ffmpeg / x264 MP4 with B-frames) and shorter by a leading empty edit (the last
 /// frame of a delayed video track was never shown). Fragmented files, and edit lists that add up to
 /// nothing or to more than a [`Tick`] holds, keep the media duration.
-fn presentation_duration(file: &Mp4File, t: &filmcraft_isobmff::Track) -> Tick {
+fn presentation_duration(file: &Mp4File, t: &jilo_isobmff::Track) -> Tick {
     let media = Tick::from_rational(t.duration as i64, 1, t.timescale as i64);
     if file.fragmented || t.edits.is_empty() || file.timescale == 0 {
         return media;
     }
     let edits = t.edits.iter().fold(0u128, |a, e| a.saturating_add(e.segment_duration as u128));
-    let ticks = edits.saturating_mul(filmcraft_time::TICKS_PER_SECOND as u128) / file.timescale as u128;
+    let ticks = edits.saturating_mul(jilo_time::TICKS_PER_SECOND as u128) / file.timescale as u128;
     match i64::try_from(ticks) {
         Ok(t) if t > 0 => Tick(t),
         _ => media,
     }
 }
 
-/// [`filmcraft_media::ReaderOpener`] for MP4/MOV.
-pub fn reader_opener(name: &str, head: &[u8], reader: &filmcraft_media::SharedReader) -> Option<Result<SharedSource, MediaError>> {
+/// [`jilo_media::ReaderOpener`] for MP4/MOV.
+pub fn reader_opener(name: &str, head: &[u8], reader: &jilo_media::SharedReader) -> Option<Result<SharedSource, MediaError>> {
     if !sniff(head) {
         return None;
     }
@@ -639,18 +634,18 @@ pub fn reader_opener(name: &str, head: &[u8], reader: &filmcraft_media::SharedRe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_isobmff::{Brand, FourCc, Mp4Writer, SampleEntry, TrackConfig, WriteSample, WriterOptions};
-    use filmcraft_media::FrameRequest;
+    use jilo_isobmff::{Brand, FourCc, Mp4Writer, SampleEntry, TrackConfig, WriteSample, WriterOptions};
+    use jilo_media::FrameRequest;
 
     /// A one-frame 64×32 ProRes MOV (bright left half, dark right half) whose `tkhd` matrix is
     /// replaced by `matrix` — built here, no media files.
     fn rotated_mov(matrix: [i32; 9]) -> Arc<[u8]> {
         let (w, h) = (64u32, 32u32);
-        let mut fr = filmcraft_prores::Frame::new(w, h, filmcraft_prores::ChromaFormat::Yuv422, 10, false);
+        let mut fr = jilo_prores::Frame::new(w, h, jilo_prores::ChromaFormat::Yuv422, 10, false);
         for (i, y) in fr.y.iter_mut().enumerate() {
             *y = if (i as u32 % w) < w / 2 { 800 } else { 100 };
         }
-        let data = filmcraft_prores::Encoder::new(filmcraft_prores::Profile::Hq, w, h).encode(&fr).expect("encode");
+        let data = jilo_prores::Encoder::new(jilo_prores::Profile::Hq, w, h).encode(&fr).expect("encode");
         let mut mux = Mp4Writer::new(std::io::Cursor::new(Vec::new()), WriterOptions::new(Brand::Mov)).expect("writer");
         let t = mux.add_track(TrackConfig::new(SampleEntry::prores(FourCc(*b"apch"), w as u16, h as u16), 25)).expect("track");
         mux.write_sample(t, WriteSample { data: &data, duration: 1, composition_offset: 0, is_sync: true }).expect("sample");
@@ -666,9 +661,9 @@ mod tests {
     }
 
     /// A four-frame 25 fps ProRes MOV (64×32) whose video track carries `edits`.
-    fn mov_with_edits(edits: Vec<filmcraft_isobmff::Edit>) -> Arc<[u8]> {
-        let fr = filmcraft_prores::Frame::new(64, 32, filmcraft_prores::ChromaFormat::Yuv422, 10, false);
-        let data = filmcraft_prores::Encoder::new(filmcraft_prores::Profile::Hq, 64, 32).encode(&fr).expect("encode");
+    fn mov_with_edits(edits: Vec<jilo_isobmff::Edit>) -> Arc<[u8]> {
+        let fr = jilo_prores::Frame::new(64, 32, jilo_prores::ChromaFormat::Yuv422, 10, false);
+        let data = jilo_prores::Encoder::new(jilo_prores::Profile::Hq, 64, 32).encode(&fr).expect("encode");
         let mut mux = Mp4Writer::new(std::io::Cursor::new(Vec::new()), WriterOptions::new(Brand::Mov)).expect("writer");
         let mut cfg = TrackConfig::new(SampleEntry::prores(FourCc(*b"apch"), 64, 32), 25);
         cfg.edits = edits;
@@ -684,7 +679,7 @@ mod tests {
     /// frame too long; a video track delayed by an empty edit lost its last frame.
     #[test]
     fn duration_follows_the_edit_list() {
-        use filmcraft_isobmff::Edit;
+        use jilo_isobmff::Edit;
         let frames = |s: &Mp4Source| s.info().duration.to_rational_floor(1, 25);
         // no edit list: the media duration
         assert_eq!(frames(&Mp4Source::open("plain.mov", mov_with_edits(Vec::new())).expect("open")), 4);
@@ -772,13 +767,13 @@ mod tests {
     }
 
     /// A one-frame 25 fps ProRes MOV (64×32, left half bright) with clean aperture `clap`.
-    fn clap_mov(clap: filmcraft_isobmff::CleanAperture) -> Arc<[u8]> {
+    fn clap_mov(clap: jilo_isobmff::CleanAperture) -> Arc<[u8]> {
         let (w, h) = (64u32, 32u32);
-        let mut fr = filmcraft_prores::Frame::new(w, h, filmcraft_prores::ChromaFormat::Yuv422, 10, false);
+        let mut fr = jilo_prores::Frame::new(w, h, jilo_prores::ChromaFormat::Yuv422, 10, false);
         for (i, y) in fr.y.iter_mut().enumerate() {
             *y = if (i as u32 % w) < w / 2 { 800 } else { 100 };
         }
-        let data = filmcraft_prores::Encoder::new(filmcraft_prores::Profile::Hq, w, h).encode(&fr).expect("encode");
+        let data = jilo_prores::Encoder::new(jilo_prores::Profile::Hq, w, h).encode(&fr).expect("encode");
         let mut entry = SampleEntry::prores(FourCc(*b"apch"), w as u16, h as u16);
         entry.video.as_mut().expect("video").clean_aperture = Some(clap);
         let mut mux = Mp4Writer::new(std::io::Cursor::new(Vec::new()), WriterOptions::new(Brand::Mov)).expect("writer");
@@ -789,7 +784,7 @@ mod tests {
 
     #[test]
     fn clean_aperture_crops_frames_and_reported_size() {
-        use filmcraft_isobmff::CleanAperture;
+        use jilo_isobmff::CleanAperture;
         let clap = |w: (u32, u32), h: (u32, u32), dx: (i32, u32), dy: (i32, u32)| CleanAperture { width: w, height: h, horiz_offset: dx, vert_offset: dy };
         // 32x16 moved 8 left of centre: columns 8..40 (24 bright, then 8 dark), rows 8..24
         let s = Mp4Source::open("clap.mov", clap_mov(clap((32, 1), (16, 1), (-8, 1), (0, 1)))).expect("open");
@@ -845,14 +840,14 @@ mod tests {
     #[test]
     fn hevc_pixel_format_comes_from_hvcc() {
         for (chroma, bits, want) in [(1, 8, "YUV 4:2:0 8-bit"), (1, 10, "YUV 4:2:0 10-bit"), (2, 8, "YUV 4:2:2 8-bit"), (2, 10, "YUV 4:2:2 10-bit")] {
-            let c = filmcraft_isobmff::HevcConfig { general_profile_idc: 1, chroma_format_idc: chroma, bit_depth_luma: bits, ..Default::default() };
+            let c = jilo_isobmff::HevcConfig { general_profile_idc: 1, chroma_format_idc: chroma, bit_depth_luma: bits, ..Default::default() };
             assert_eq!(pixfmt_label(&CodecConfig::Hevc(c)), want);
         }
     }
 
     /// A High-profile SPS NAL unit (ITU-T H.264 §7.3.2.1.1) with the given chroma format and bit depth, 16×16.
     fn high_sps(profile: u8, chroma: u32, bits: u32) -> Vec<u8> {
-        let mut w = filmcraft_bitstream::BitWriter::new();
+        let mut w = jilo_bitstream::BitWriter::new();
         w.write_bits(0x67, 8);
         w.write_bits(profile as u32, 8);
         w.write_bits(0, 8); // constraint flags
@@ -879,8 +874,7 @@ mod tests {
 
     #[test]
     fn avc_pixel_format_comes_from_avcc_not_the_profile() {
-        let avc =
-            |profile: u8, sps: Vec<u8>, ext: Vec<u8>| CodecConfig::Avc(filmcraft_isobmff::AvcConfig { profile, sps: vec![sps], ext, ..Default::default() });
+        let avc = |profile: u8, sps: Vec<u8>, ext: Vec<u8>| CodecConfig::Avc(jilo_isobmff::AvcConfig { profile, sps: vec![sps], ext, ..Default::default() });
         // High 4:2:2 at 10 and 8 bits, from the avcC extension (chroma_format 2, bit_depth_luma_minus8)
         assert_eq!(pixfmt_label(&avc(122, high_sps(122, 2, 10), vec![0xFE, 0xFA, 0xFA, 0])), "YUV 4:2:2 10-bit");
         assert_eq!(pixfmt_label(&avc(122, high_sps(122, 2, 8), vec![0xFE, 0xF8, 0xF8, 0])), "YUV 4:2:2 8-bit");
@@ -893,10 +887,10 @@ mod tests {
     }
 
     /// A one-frame 32×16 ProRes MOV with the given profile, chroma format and fourcc.
-    fn prores_mov(profile: filmcraft_prores::Profile, fourcc: &[u8; 4], chroma: filmcraft_prores::ChromaFormat, alpha: bool) -> Arc<[u8]> {
+    fn prores_mov(profile: jilo_prores::Profile, fourcc: &[u8; 4], chroma: jilo_prores::ChromaFormat, alpha: bool) -> Arc<[u8]> {
         let (w, h) = (32u32, 16u32);
-        let fr = filmcraft_prores::Frame::new(w, h, chroma, if chroma == filmcraft_prores::ChromaFormat::Yuv444 { 12 } else { 10 }, alpha);
-        let data = filmcraft_prores::Encoder::new(profile, w, h).encode(&fr).expect("encode");
+        let fr = jilo_prores::Frame::new(w, h, chroma, if chroma == jilo_prores::ChromaFormat::Yuv444 { 12 } else { 10 }, alpha);
+        let data = jilo_prores::Encoder::new(profile, w, h).encode(&fr).expect("encode");
         let mut mux = Mp4Writer::new(std::io::Cursor::new(Vec::new()), WriterOptions::new(Brand::Mov)).expect("writer");
         let t = mux.add_track(TrackConfig::new(SampleEntry::prores(FourCc(*fourcc), w as u16, h as u16), 25)).expect("track");
         mux.write_sample(t, WriteSample { data: &data, duration: 1, composition_offset: 0, is_sync: true }).expect("sample");
@@ -906,7 +900,7 @@ mod tests {
     /// `ap4h` / `ap4x` don't imply alpha: the frame header's alpha_channel_type does.
     #[test]
     fn prores_alpha_comes_from_the_frame_header() {
-        use filmcraft_prores::{ChromaFormat, Profile};
+        use jilo_prores::{ChromaFormat, Profile};
         for (profile, fourcc, chroma, alpha, want) in [
             (Profile::P4444, b"ap4h", ChromaFormat::Yuv444, false, "YUV 4:4:4 12-bit"),
             (Profile::P4444, b"ap4h", ChromaFormat::Yuv444, true, "YUVA 4:4:4 12-bit"),
@@ -922,8 +916,8 @@ mod tests {
 
 #[cfg(test)]
 mod multi_audio_tests {
-    use filmcraft_isobmff::{Brand, Mp4Writer, PcmConfig, SampleEntry, TrackConfig, WriteSample, WriterOptions};
-    use filmcraft_media::MediaSource;
+    use jilo_isobmff::{Brand, Mp4Writer, PcmConfig, SampleEntry, TrackConfig, WriteSample, WriterOptions};
+    use jilo_media::MediaSource;
 
     /// Two mono PCM tracks with different rates and samples. Stream indices follow file order;
     /// decoder caches, sample timing and resampling must not cross streams.
@@ -949,8 +943,8 @@ mod multi_audio_tests {
 
 #[cfg(test)]
 mod he_aac_tests {
-    use filmcraft_isobmff::{Brand, Mp4Writer, SampleEntry, TrackConfig, WriteSample, WriterOptions};
-    use filmcraft_media::MediaSource;
+    use jilo_isobmff::{Brand, Mp4Writer, SampleEntry, TrackConfig, WriteSample, WriterOptions};
+    use jilo_media::MediaSource;
 
     /// #108: an HE-AAC MP4 (explicit SBR signalling, core 22.05 kHz, output 44.1 kHz, timescale
     /// 44.1 kHz) built here from our AAC-LC encoder: the stream has no SBR data, which only the
@@ -961,7 +955,7 @@ mod he_aac_tests {
         let core = 22_050u32;
         let n = core as usize * 2;
         let tone: Vec<f32> = (0..n).map(|i| 0.25 * (2.0 * std::f32::consts::PI * 1000.0 * i as f32 / core as f32).sin()).collect();
-        let mut enc = filmcraft_aac::Encoder::new(filmcraft_aac::EncoderConfig::cbr(core, 2, 64_000)).unwrap();
+        let mut enc = jilo_aac::Encoder::new(jilo_aac::EncoderConfig::cbr(core, 2, 64_000)).unwrap();
         let mut aus = enc.encode(&[&tone, &tone]);
         aus.extend(enc.flush());
         // AOT 5, core 22.05 kHz, stereo, extension 44.1 kHz, core AOT 2
@@ -987,10 +981,10 @@ mod he_aac_tests {
     /// rate, scaled the offset to the source rate in i64 and overflowed. It reads as silence now.
     #[test]
     fn hostile_audio_edit_offset_never_overflows() {
-        use filmcraft_isobmff::Edit;
+        use jilo_isobmff::Edit;
         let rate = 32_000u32;
         let tone: Vec<f32> = (0..rate as usize / 2).map(|i| 0.25 * (i as f32 * 0.05).sin()).collect();
-        let mut enc = filmcraft_aac::Encoder::new(filmcraft_aac::EncoderConfig::cbr(rate, 1, 64_000)).unwrap();
+        let mut enc = jilo_aac::Encoder::new(jilo_aac::EncoderConfig::cbr(rate, 1, 64_000)).unwrap();
         let mut aus = enc.encode(&[&tone]);
         aus.extend(enc.flush());
         // AOT 2 (AAC-LC), 32 kHz (index 5), mono

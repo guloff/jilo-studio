@@ -7,10 +7,10 @@
 //! `autoMix.go`, `autoMix.every`, `autoMix.markBeats`, `autoMix.cutToBeat`, `autoMix.close`.
 
 use egui::RichText;
-use filmcraft_engine::automix::PLATFORMS;
+use jilo_engine::automix::PLATFORMS;
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 const STEPS: [(&str, &str); 4] = [
     ("tag", "Tell speech from music (audio types)"),
@@ -35,8 +35,8 @@ impl Default for AutoMixUi {
     }
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
-    filmcraft_engine::find_command("audio.autoMix").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
+    jilo_engine::find_command("audio.autoMix").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
     app.ui.auto_mix.dialog = true;
     app.ui.auto_mix.message.clear();
     Ok(json!({"dialog": "autoMix"}))
@@ -58,7 +58,7 @@ fn mix_message(r: &Value) -> String {
     format!("{} {}", tl!("Mixed:"), parts.join("; "))
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.auto_mix.dialog {
         return;
     }

@@ -2,8 +2,8 @@
 //! resolution (scale-aware effects and Motion), attach checks, export ignores proxies, toggling
 //! doesn't dirty the project, ingest copies on import.
 
-use filmcraft_media::DemoScene;
-use filmcraft_project::{ParamValue, find_effect};
+use jilo_media::DemoScene;
+use jilo_project::{ParamValue, find_effect};
 use serde_json::json;
 
 use crate::Session;
@@ -44,7 +44,7 @@ fn create_attach_toggle_renders_the_same_picture() {
     let job = s.execute("jobs.list", json!({})).unwrap();
     assert_eq!(job[0]["finished"], json!(true), "{job}");
     let m = s.project.item(items[0]).unwrap().as_media().unwrap().clone();
-    assert_eq!(m.proxy, Some(filmcraft_project::MediaRef::File { path: out.clone() }), "attached when the job finished");
+    assert_eq!(m.proxy, Some(jilo_project::MediaRef::File { path: out.clone() }), "attached when the job finished");
     // proxies off: unchanged
     assert_eq!(frame_rgba(&mut s, 5, 1.0), full);
     let rev = s.revision;
@@ -106,7 +106,7 @@ fn ingest_copies_and_creates_proxies_on_import() {
     )
     .unwrap();
     let r = s.execute("file.import", json!({"paths": [a.to_string_lossy()]})).unwrap();
-    let item = filmcraft_project::ItemId(r["items"][0].as_u64().unwrap());
+    let item = jilo_project::ItemId(r["items"][0].as_u64().unwrap());
     let job = r["ingest"]["job"]["job"].as_u64().unwrap_or_else(|| panic!("{r}"));
     // wait for the background proxy job, then let the session apply it
     for _ in 0..600 {
@@ -118,21 +118,21 @@ fn ingest_copies_and_creates_proxies_on_import() {
     s.poll_persistence();
     let m = s.project.item(item).unwrap().as_media().unwrap();
     let copy = dest.join("A001.mov").to_string_lossy().into_owned();
-    assert_eq!(m.media, filmcraft_project::MediaRef::File { path: copy.clone() }, "the clip uses the verified copy");
+    assert_eq!(m.media, jilo_project::MediaRef::File { path: copy.clone() }, "the clip uses the verified copy");
     assert_eq!(m.identity, Some(crate::relink::identity_of(&crate::FsServices, &a.to_string_lossy()).unwrap()));
-    assert_eq!(m.proxy, Some(filmcraft_project::MediaRef::File { path: dest.join("A001_Proxy.mp4").to_string_lossy().into_owned() }));
+    assert_eq!(m.proxy, Some(jilo_project::MediaRef::File { path: dest.join("A001_Proxy.mp4").to_string_lossy().into_owned() }));
     let _ = std::fs::remove_dir_all(&root);
 }
 
 /// Measure: Program-monitor playback cost of 4K H.264 with and without proxies (sequential frames
 /// at ½ resolution). Run with `RAYON_NUM_THREADS=1` so wall time ≈ CPU time:
-/// `cargo test --release -p filmcraft-engine proxy_playback_perf_4k -- --ignored --nocapture`.
+/// `cargo test --release -p jilo-engine proxy_playback_perf_4k -- --ignored --nocapture`.
 #[test]
 #[ignore = "benchmark: 4K fixture via ffmpeg"]
 fn proxy_playback_perf_4k() {
-    let Some(ffmpeg) = filmcraft_testkit::oracle::ffmpeg_or_skip("proxy_playback_perf_4k") else { return };
-    let out = filmcraft_testkit::fixtures_dir("proxies").join("uhd_h264.mp4");
-    let src = filmcraft_testkit::fixtures::generate(&out, |tmp| {
+    let Some(ffmpeg) = jilo_testkit::oracle::ffmpeg_or_skip("proxy_playback_perf_4k") else { return };
+    let out = jilo_testkit::fixtures_dir("proxies").join("uhd_h264.mp4");
+    let src = jilo_testkit::fixtures::generate(&out, |tmp| {
         std::process::Command::new(&ffmpeg)
             .args([
                 "-y",
@@ -165,10 +165,10 @@ fn proxy_playback_perf_4k() {
     let measure = |s: &mut Session| {
         let rate = s.sequence_rate();
         let src = s.source(items[0]).unwrap();
-        let _ = src.video_frame(filmcraft_media::FrameRequest { time: rate.tick_of(0), scale: 0.5 });
+        let _ = src.video_frame(jilo_media::FrameRequest { time: rate.tick_of(0), scale: 0.5 });
         let t0 = std::time::Instant::now();
         for f in 1..n {
-            let _ = src.video_frame(filmcraft_media::FrameRequest { time: rate.tick_of(f), scale: 0.5 }).unwrap();
+            let _ = src.video_frame(jilo_media::FrameRequest { time: rate.tick_of(f), scale: 0.5 }).unwrap();
         }
         let decode = t0.elapsed().as_secs_f64() * 1000.0 / (n - 1) as f64;
         let mut comp = [0.0; 2];

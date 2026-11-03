@@ -2,20 +2,20 @@
 //! (Import) screen. The ArtCraft Discord button and links are not in this build (Jilo Studio may
 //! not carry the ArtCraft marks).
 //!
-//! Set `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` to also render the window offscreen with wgpu and write
+//! Set `JILO_UI_SNAPSHOT_DIR=<dir>` to also render the window offscreen with wgpu and write
 //! `links-*.png` there; without it no GPU is needed.
 
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
-use filmcraft_ui_egui::links;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
+use jilo_ui_egui::links;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
     snapshots: Option<std::path::PathBuf>,
 }
@@ -25,8 +25,8 @@ impl Driver {
         let mut session = Session::default();
         session.execute("file.openDemoProject", json!({})).expect("demo project");
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
-        let snapshots = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
+        let app = JiloApp::new(session).with_control(rx);
+        let snapshots = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
         let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
         if snapshots.is_some() {
             b = b.wgpu();
@@ -89,7 +89,7 @@ fn community_links_everywhere() {
     let menu = d.ok("ui.menu.list", json!({}));
     let text = menu.to_string();
     for (id, label, _) in links::ALL {
-        let shown = filmcraft_ui_egui::i18n::t(label);
+        let shown = jilo_ui_egui::i18n::t(label);
         assert!(text.contains(id) && text.contains(shown), "Help menu lists {id} as {shown}");
     }
     assert!(text.contains("Jilo Studio on GitHub"), "the menus show the product name");

@@ -1,4 +1,4 @@
-# Contributing to FilmCraft
+# Contributing to Jilo Studio
 
 Thanks for helping. Before you start:
 

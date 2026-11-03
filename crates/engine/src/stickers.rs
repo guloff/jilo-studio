@@ -20,8 +20,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use filmcraft_project::{ClipId, ItemId, TrackKind};
-use filmcraft_time::Tick;
+use jilo_project::{ClipId, ItemId, TrackKind};
+use jilo_time::Tick;
 
 use crate::commands::{CommandSpec, always, bad, bool_p, f64_p, has_seq, str_p, u64_p};
 use crate::{EngineError, Result, Session};
@@ -190,11 +190,11 @@ fn emoji_png(s: &Session, e: &str) -> Result<std::path::PathBuf> {
     if rgba.len() != (w as usize) * (h as usize) * 4 {
         return Err(EngineError::Other("the emoji picture is the wrong size".into()));
     }
-    let png = filmcraft_export::encode_png(rgba, w, h).map_err(|e| EngineError::Other(e.to_string()))?;
+    let png = jilo_export::encode_png(rgba, w, h).map_err(|e| EngineError::Other(e.to_string()))?;
     std::fs::create_dir_all(&dir).map_err(|e| EngineError::Other(e.to_string()))?;
     // through a temp file: a sticker added while the same emoji is being drawn for another (the
     // file is shared) never reads a half-written picture
-    filmcraft_format::atomic_write(&path, &png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
+    jilo_format::atomic_write(&path, &png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
     Ok(path)
 }
 
@@ -202,7 +202,7 @@ fn emoji_png(s: &Session, e: &str) -> Result<std::path::PathBuf> {
 fn stickers_bin(s: &mut Session) -> Option<u64> {
     let find = |s: &Session| {
         s.project.root.children.iter().find_map(|e| match e {
-            filmcraft_project::BinEntry::Bin(b) if b.name == "Stickers" => Some(b.id.0),
+            jilo_project::BinEntry::Bin(b) if b.name == "Stickers" => Some(b.id.0),
             _ => None,
         })
     };
@@ -454,7 +454,7 @@ fn from_clip(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let src = s.source(item).ok_or_else(|| bad(cmd, "no picture for that item"))?;
     let vw = src.info().video.as_ref().map_or(1024, |v| v.width).max(1);
-    let f = src.video_frame(filmcraft_media::FrameRequest { time: mt, scale: (1280.0 / vw as f32).min(1.0) }).map_err(|e| EngineError::Other(e.to_string()))?;
+    let f = src.video_frame(jilo_media::FrameRequest { time: mt, scale: (1280.0 / vw as f32).min(1.0) }).map_err(|e| EngineError::Other(e.to_string()))?;
     let (w, h, rgba) = cut(&f.to_rgba8(), f.width as usize, f.height as usize).map_err(EngineError::Other)?;
     let name = str_p(p, "name").map(str::to_string).unwrap_or_else(|| {
         let base = s.project.item(item).map(|i| i.name.rsplit_once('.').map_or(i.name.clone(), |x| x.0.to_string())).unwrap_or_else(|| "Sticker".into());
@@ -465,8 +465,8 @@ fn from_clip(s: &mut Session, p: &Value) -> Result<Value> {
     let dir = stickers_dir(s).join("mine");
     std::fs::create_dir_all(&dir).map_err(|e| EngineError::Other(e.to_string()))?;
     let path = dir.join(format!("{}.png", safe.trim()));
-    let png = filmcraft_export::encode_png(rgba, w, h).map_err(|e| EngineError::Other(e.to_string()))?;
-    filmcraft_format::atomic_write(&path, &png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
+    let png = jilo_export::encode_png(rgba, w, h).map_err(|e| EngineError::Other(e.to_string()))?;
+    jilo_format::atomic_write(&path, &png).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
     let id = format!("file:{}", path.to_string_lossy());
     if bool_p(p, "place").unwrap_or(true) && s.active_sequence().is_some() {
         let r = s.execute("stickers.add", json!({"id": id, "animation": str_p(p, "animation").unwrap_or("pop"), "size": f64_p(p, "size").unwrap_or(0.4)}))?;
@@ -515,7 +515,7 @@ fn follow_face(s: &mut Session, p: &Value) -> Result<Value> {
     let mut samples = Vec::with_capacity(n);
     for k in 0..n {
         let t = rate.snap(Tick::from_seconds_f64((t0 + k as f64 * every).min(t1 - 1e-3).max(t0)));
-        let img = filmcraft_render::render_sequence(&below, seq_id, t, filmcraft_render::RenderOptions { scale, ..Default::default() }, &provider);
+        let img = jilo_render::render_sequence(&below, seq_id, t, jilo_render::RenderOptions { scale, ..Default::default() }, &provider);
         let faces = detector(&img.over_black_rgba8(), img.w, img.h).map_err(EngineError::Other)?;
         samples.push(crate::reframe::FaceSample { time: t.seconds(), faces });
     }
@@ -531,19 +531,19 @@ fn follow_face(s: &mut Session, p: &Value) -> Result<Value> {
     let track = crate::reframe::smooth_track(&track, f64_p(p, "smoothing").unwrap_or(0.4).clamp(0.0, 3.0), 0.004);
     let start_face = track.iter().find(|x| x.found).ok_or_else(|| bad(cmd, "no face was found under the sticker"))?;
     let offset = (pos0.x - start_face.x * fw, pos0.y - start_face.y * fh);
-    let keys: Vec<filmcraft_project::Keyframe> = track
+    let keys: Vec<jilo_project::Keyframe> = track
         .iter()
         .map(|x| {
             let et = it.effect_time_at(Tick::from_seconds_f64(x.time).clamp(it.start, it.end() - Tick(1)));
-            let v = filmcraft_geom::Vec2::new(((x.x * fw + offset.0) * 10.0).round() / 10.0, ((x.y * fh + offset.1) * 10.0).round() / 10.0);
-            let mut k = filmcraft_project::Keyframe::new(et, filmcraft_project::ParamValue::Vec2(v));
-            k.interp = filmcraft_project::Interpolation::Linear;
+            let v = jilo_geom::Vec2::new(((x.x * fw + offset.0) * 10.0).round() / 10.0, ((x.y * fh + offset.1) * 10.0).round() / 10.0);
+            let mut k = jilo_project::Keyframe::new(et, jilo_project::ParamValue::Vec2(v));
+            k.interp = jilo_project::Interpolation::Linear;
             k
         })
         .collect();
     let nkeys = keys.len();
     s.edit_sequence("Attach Sticker to Face", |q, _, _| {
-        let (_, it) = q.find_item_mut(clip).ok_or(filmcraft_edit::EditError::NoItem(clip))?;
+        let (_, it) = q.find_item_mut(clip).ok_or(jilo_edit::EditError::NoItem(clip))?;
         let m = it.effect_mut("motion").ok_or_else(|| bad(cmd, "the sticker has no Motion"))?;
         let pp = m.params.get_mut("position").ok_or_else(|| bad(cmd, "the sticker has no Position"))?;
         if let Some(k) = keys.first() {
@@ -793,11 +793,11 @@ mod tests {
         let mut s = Session::default();
         s.execute("file.openDemoProject", json!({})).unwrap();
         fake(&mut s);
-        let anim = |s: &mut Session, how: &str, seconds: f64| -> filmcraft_project::TrackItem {
+        let anim = |s: &mut Session, how: &str, seconds: f64| -> jilo_project::TrackItem {
             let r = s.execute("stickers.add", json!({"id": "builtin:sticker-star", "animation": how, "seconds": seconds})).unwrap();
             s.active_sequence().unwrap().find_item(ClipId(r["clip"].as_u64().unwrap())).unwrap().1.clone()
         };
-        let keys = |it: &filmcraft_project::TrackItem, e: &str, p: &str| it.effect(e).and_then(|x| x.param(p)).map_or(0, |p| p.keyframes.len());
+        let keys = |it: &jilo_project::TrackItem, e: &str, p: &str| it.effect(e).and_then(|x| x.param(p)).map_or(0, |p| p.keyframes.len());
         let it = anim(&mut s, "bounce", 2.0);
         assert!(keys(&it, "motion", "position") >= 4 && keys(&it, "opacity", "opacity") == 2);
         let it = anim(&mut s, "spin", 2.0);
@@ -809,7 +809,7 @@ mod tests {
         assert_eq!(anim(&mut s, "none", 4.0).duration, s.sequence_rate().snap_nearest(Tick::from_seconds_f64(4.0)));
         let it = anim(&mut s, "zoom", 2.0);
         assert!(keys(&it, "motion", "scale") == 2 && keys(&it, "opacity", "opacity") == 2);
-        let all: Vec<String> = filmcraft_project::gtemplate::builtin_templates().into_iter().filter(|t| t.category == "Stickers").map(|t| t.id).collect();
+        let all: Vec<String> = jilo_project::gtemplate::builtin_templates().into_iter().filter(|t| t.category == "Stickers").map(|t| t.id).collect();
         assert!(all.len() >= 24, "{all:?}");
         for id in &all {
             assert!(s.execute("stickers.add", json!({"id": id, "animation": "none"})).is_ok(), "{id}");
@@ -825,7 +825,7 @@ mod tests {
             Ok((size, size, [10u8, 200, 30, 255].repeat((size * size) as usize)))
         }
         let (w, h, rgba) = render(e, 512).unwrap();
-        let want = filmcraft_export::encode_png(rgba, w, h).unwrap();
+        let want = jilo_export::encode_png(rgba, w, h).unwrap();
         for _ in 0..4 {
             let _ = std::fs::remove_file(stickers_dir(&Session::default()).join("emoji").join(emoji_file_name(e)));
             let got: Vec<Vec<u8>> = std::thread::scope(|sc| {

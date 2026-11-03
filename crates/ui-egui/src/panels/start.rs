@@ -10,7 +10,7 @@
 use egui::{RichText, Sense, vec2};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The ways to go on: (id, name, what happens).
 pub const CHOICES: [(&str, &str, &str); 4] = [
@@ -31,14 +31,14 @@ pub struct StartUi {
 }
 
 /// Show the dialog for imported `items` (media only).
-pub fn offer(app: &mut FilmcraftApp, items: Vec<u64>) {
+pub fn offer(app: &mut JiloApp, items: Vec<u64>) {
     let media: Vec<u64> = items
         .into_iter()
         .filter(|i| {
             app.session
                 .project
-                .item(filmcraft_project::ItemId(*i))
-                .is_some_and(|x| matches!(x.kind, filmcraft_project::ItemKind::Media(_)) && (x.has_video() || x.has_audio()))
+                .item(jilo_project::ItemId(*i))
+                .is_some_and(|x| matches!(x.kind, jilo_project::ItemKind::Media(_)) && (x.has_video() || x.has_audio()))
         })
         .collect();
     if !media.is_empty() {
@@ -47,8 +47,8 @@ pub fn offer(app: &mut FilmcraftApp, items: Vec<u64>) {
 }
 
 /// The "Start from a Video…" card: pick files, import them, offer the choices.
-pub fn pick(app: &mut FilmcraftApp) {
-    let exts: Vec<&str> = filmcraft_media::VIDEO_EXTENSIONS.iter().chain(filmcraft_media::AUDIO_EXTENSIONS).copied().collect();
+pub fn pick(app: &mut JiloApp) {
+    let exts: Vec<&str> = jilo_media::VIDEO_EXTENSIONS.iter().chain(jilo_media::AUDIO_EXTENSIONS).copied().collect();
     let paths = app.hooks.pick_files.as_mut().map(|f| f(&exts)).unwrap_or_default();
     if paths.is_empty() {
         return;
@@ -87,7 +87,7 @@ pub fn steps(choice: &str) -> Option<Value> {
     Some(p)
 }
 
-fn choose(app: &mut FilmcraftApp, choice: &str) {
+fn choose(app: &mut JiloApp, choice: &str) {
     let items = std::mem::take(&mut app.ui.start.items);
     match steps(choice) {
         None => match app.session.execute("file.newSequenceFromClip", json!({"items": items})) {
@@ -113,7 +113,7 @@ fn choose(app: &mut FilmcraftApp, choice: &str) {
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     // the batch of a choice: open what it made
     if let Some((job, vertical)) = app.ui.start.job
         && app.session.jobs.iter().find(|j| j.id == job).is_none_or(|j| j.to_json()["finished"] == true)
@@ -138,7 +138,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     }
     let t = app.tokens;
     let w = 520.0;
-    let ready = app.ui.start.speech_ready.unwrap_or_else(filmcraft_engine::transcript::whisper_ready);
+    let ready = app.ui.start.speech_ready.unwrap_or_else(jilo_engine::transcript::whisper_ready);
     let mut chosen: Option<&str> = None;
     let mut cancel = false;
     let n = app.ui.start.items.len();

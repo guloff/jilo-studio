@@ -26,9 +26,9 @@ use std::panic::AssertUnwindSafe;
 use std::ptr::NonNull;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use filmcraft_codecs::hw::{NalCodec, NalStreamInfo};
-use filmcraft_codecs::{CodecError, DecodedFrame, Result, VideoDecoder};
-use filmcraft_frame::{Chroma, PixelData, VideoFrame, pool};
+use jilo_codecs::hw::{NalCodec, NalStreamInfo};
+use jilo_codecs::{CodecError, DecodedFrame, Result, VideoDecoder};
+use jilo_frame::{Chroma, PixelData, VideoFrame, pool};
 use objc2_core_foundation::{CFBoolean, CFDictionary, CFNumber, CFRetained, CFString, CFType};
 use objc2_core_media::{
     CMBlockBuffer, CMFormatDescription, CMSampleBuffer, CMSampleTimingInfo, CMTime, CMTimeFlags, CMVideoFormatDescriptionCreate,
@@ -77,7 +77,7 @@ struct Layout {
     chroma: Chroma,
     /// Significant bits per sample (8 = `Yuv8`).
     bits: u32,
-    color: filmcraft_color::ColorInfo,
+    color: jilo_color::ColorInfo,
     par: (u32, u32),
 }
 
@@ -252,7 +252,7 @@ fn copy_out_y416(pb: &CVImageBuffer, l: &Layout) -> std::result::Result<VideoFra
     }
     drop(lock);
     let data = PixelData::Yuv16 { planes: [Arc::new(yp), Arc::new(cb), Arc::new(cr)], chroma: l.chroma, bits: l.bits, alpha: Some(Arc::new(a)) };
-    Ok(VideoFrame { width: w as u32, height: h as u32, data, color: l.color, par: l.par, pts: filmcraft_time::Tick::ZERO })
+    Ok(VideoFrame { width: w as u32, height: h as u32, data, color: l.color, par: l.par, pts: jilo_time::Tick::ZERO })
 }
 
 /// Copy a decoded biplanar buffer into a planar frame (deinterleaving chroma, cropping to the
@@ -318,11 +318,11 @@ fn copy_out(pb: &CVImageBuffer, l: &Layout) -> std::result::Result<VideoFrame, S
         PixelData::Yuv16 { planes: [Arc::new(yp), Arc::new(u), Arc::new(v)], chroma: l.chroma, bits: l.bits, alpha: None }
     };
     drop(lock);
-    Ok(VideoFrame { width: w as u32, height: h as u32, data, color: l.color, par: l.par, pts: filmcraft_time::Tick::ZERO })
+    Ok(VideoFrame { width: w as u32, height: h as u32, data, color: l.color, par: l.par, pts: jilo_time::Tick::ZERO })
 }
 
-/// Streams FilmCraft's own decoders cannot decode at all (`filmcraft-h264` is progressive 4:2:0
-/// 8-bit; `filmcraft-hevc` is 4:2:0): for these VideoToolbox's software decoder is the only one.
+/// Streams Jilo Studio's own decoders cannot decode at all (`jilo-h264` is progressive 4:2:0
+/// 8-bit; `jilo-hevc` is 4:2:0): for these VideoToolbox's software decoder is the only one.
 fn software_lacks(info: &NalStreamInfo) -> bool {
     !lacks_what(info).is_empty()
 }
@@ -345,7 +345,7 @@ fn layout(info: &NalStreamInfo) -> std::result::Result<Layout, String> {
     if info.bit_depth_luma != info.bit_depth_chroma || !matches!(info.bit_depth_luma, 8 | 10) {
         return Err(format!("{}-bit luma / {}-bit chroma", info.bit_depth_luma, info.bit_depth_chroma));
     }
-    let full = info.color.range == filmcraft_color::Range::Full;
+    let full = info.color.range == jilo_color::Range::Full;
     let ten = info.bit_depth_luma == 10;
     let (chroma, pixel_format) = match (info.chroma_format_idc, ten, full) {
         (1, false, false) => (Chroma::C420, NV12_VIDEO),
@@ -556,7 +556,7 @@ impl VtDecoder {
             Ok(s) => (s, true),
             Err(why) if software_lacks(&info) => {
                 let s = Session::new(format_description(&info)?, layout.clone(), false).map_err(|e| format!("{why}; software VideoToolbox: {e}"))?;
-                log::info!("{why}: decoding in VideoToolbox's software decoder (FilmCraft's own has no {})", lacks_what(&info));
+                log::info!("{why}: decoding in VideoToolbox's software decoder (Jilo Studio's own has no {})", lacks_what(&info));
                 (s, false)
             }
             Err(why) => return Err(why),
@@ -730,7 +730,7 @@ impl VtProResDecoder {
             return Err("no hardware ProRes decoder".into());
         }
         let layout =
-            Layout { pixel_format, coded: (width, height), crop: (0, 0, width, height), chroma, bits, color: filmcraft_color::ColorInfo::REC709, par: (1, 1) };
+            Layout { pixel_format, coded: (width, height), crop: (0, 0, width, height), chroma, bits, color: jilo_color::ColorInfo::REC709, par: (1, 1) };
         let session = Session::new(prores_format_description(fourcc, width, height)?, layout.clone(), true)?;
         Ok(Self { fourcc, layout, session: Some(session), fail_after: None, fed: 0 })
     }
@@ -749,7 +749,7 @@ impl VideoDecoder for VtProResDecoder {
         }
         // what our decoder would report for this frame: a frame of another size or chroma format
         // than the session's is an error, and the hybrid decoder hands it to ours
-        let info = filmcraft_codecs::video::prores_frame_info(sample)?;
+        let info = jilo_codecs::video::prores_frame_info(sample)?;
         let (_, _, w, h) = self.layout.crop;
         if (info.width, info.height) != (w, h) || info.chroma != self.layout.chroma {
             return Err(CodecError::Decode(format!(

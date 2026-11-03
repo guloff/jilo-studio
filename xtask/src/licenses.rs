@@ -1,5 +1,5 @@
 //! `cargo xtask licenses [--out FILE]`: the third-party crates the desktop app is built from (the
-//! `filmcraft` and `filmcraft-cli` binaries for macOS on Apple silicon), each with its version,
+//! `jilo-studio` and `jilo-cli` binaries for macOS on Apple silicon), each with its version,
 //! licence expression, source and the licence texts it ships, plus what the app downloads on
 //! request (speech models, voices, caption fonts) — the `THIRD-PARTY-LICENSES.md` the package
 //! puts in the app's Resources/Licenses. Uses `cargo metadata` (from the lock file; nothing is
@@ -12,7 +12,7 @@ use std::process::Command;
 use serde_json::Value;
 
 const TARGET: &str = "aarch64-apple-darwin";
-const ROOTS: [&str; 2] = ["filmcraft", "filmcraft-cli"];
+const ROOTS: [&str; 2] = ["jilo-studio", "jilo-cli"];
 
 /// What the app fetches on request, with its licence (not built into the binaries).
 const DOWNLOADS: [(&str, &str, &str); 4] = [

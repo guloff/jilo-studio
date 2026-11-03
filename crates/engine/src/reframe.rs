@@ -21,9 +21,9 @@ use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use filmcraft_geom::Vec2;
-use filmcraft_project::{ClipId, Interpolation, Keyframe, ParamValue, TrackKind};
-use filmcraft_time::Tick;
+use jilo_geom::Vec2;
+use jilo_project::{ClipId, Interpolation, Keyframe, ParamValue, TrackKind};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, bool_p, f64_p, str_p};
@@ -268,7 +268,7 @@ pub type FaceCache = Arc<Mutex<HashMap<(u64, i64, i64), Arc<Vec<FaceSample>>>>>;
 struct Work {
     key: (u64, i64, i64),
     name: String,
-    src: filmcraft_media::SharedSource,
+    src: jilo_media::SharedSource,
     scale: f32,
     times: Vec<f64>,
 }
@@ -286,7 +286,7 @@ fn targets(s: &Session, p: &Value) -> Vec<ClipId> {
 }
 
 /// The media range a clip shows, in media milliseconds (sorted for reversed clips).
-fn media_range(it: &filmcraft_project::TrackItem) -> (i64, i64) {
+fn media_range(it: &jilo_project::TrackItem) -> (i64, i64) {
     let a = it.source_time_at(it.start).seconds();
     let b = it.source_time_at(it.end() - Tick(1)).seconds();
     let (a, b) = (a.min(b), a.max(b));
@@ -315,7 +315,7 @@ fn work_for(s: &Session, clips: &[ClipId]) -> Vec<Work> {
 }
 
 /// Analyse `work` (in the calling thread), reporting to `prog`; the results go to `cache`.
-fn analyse(work: Vec<Work>, detector: FaceDetector, cache: FaceCache, prog: &filmcraft_export::Progress) -> std::result::Result<String, String> {
+fn analyse(work: Vec<Work>, detector: FaceDetector, cache: FaceCache, prog: &jilo_export::Progress) -> std::result::Result<String, String> {
     let total: usize = work.iter().map(|w| w.times.len()).sum();
     prog.total.store(total.max(1) as u64, Ordering::Relaxed);
     let (mut done, mut found) = (0u64, 0usize);
@@ -325,10 +325,7 @@ fn analyse(work: Vec<Work>, detector: FaceDetector, cache: FaceCache, prog: &fil
             if prog.cancel.load(Ordering::Relaxed) {
                 return Err("stopped".into());
             }
-            let f = w
-                .src
-                .video_frame(filmcraft_media::FrameRequest { time: Tick::from_seconds_f64(*t), scale: w.scale })
-                .map_err(|e| format!("{}: {e}", w.name))?;
+            let f = w.src.video_frame(jilo_media::FrameRequest { time: Tick::from_seconds_f64(*t), scale: w.scale }).map_err(|e| format!("{}: {e}", w.name))?;
             let faces = detector(&f.to_rgba8(), f.width as usize, f.height as usize)?;
             found += faces.len();
             samples.push(FaceSample { time: *t, faces });
@@ -362,7 +359,7 @@ fn reframe(s: &mut Session, p: &Value) -> Result<Value> {
         let job = crate::narration::new_job(s, "Finding faces".into());
         let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.face_cache.clone());
         let background = bool_p(p, "background").unwrap_or(false);
-        let id = crate::narration::spawn(s, job, !background, "filmcraft-faces", move || {
+        let id = crate::narration::spawn(s, job, !background, "jilo-faces", move || {
             let t0 = web_time::Instant::now();
             let r = analyse(work, detector, cache, &prog);
             crate::narration::finish(&prog, &res, r, t0);
@@ -480,7 +477,7 @@ fn faces_here(s: &mut Session, p: &Value) -> Result<Value> {
     let w = src.info().video.as_ref().map_or(1920, |v| v.width).max(1);
     let time = it.source_time_at(at);
     let f = src
-        .video_frame(filmcraft_media::FrameRequest { time, scale: (ANALYSIS_WIDTH / w as f64).min(1.0) as f32 })
+        .video_frame(jilo_media::FrameRequest { time, scale: (ANALYSIS_WIDTH / w as f64).min(1.0) as f32 })
         .map_err(|e| EngineError::Other(e.to_string()))?;
     let faces = detector(&f.to_rgba8(), f.width as usize, f.height as usize).map_err(EngineError::Other)?;
     Ok(json!({

@@ -9,8 +9,8 @@
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 
-use filmcraft_project::{ClipId, ItemId};
-use filmcraft_time::Tick;
+use jilo_project::{ClipId, ItemId};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, bad, bool_p, has_seq, u64_p};
@@ -62,7 +62,7 @@ fn remove(s: &mut Session, p: &Value) -> Result<Value> {
     let job = crate::narration::new_job(s, format!("Removing the background of {}", it.name));
     job.progress.total.store(frames as u64, Ordering::Relaxed);
     let (prog, res, cache) = (job.progress.clone(), job.result.clone(), s.ai_task_cache.clone());
-    let id = crate::narration::spawn(s, job, !background, "filmcraft-matte", move || {
+    let id = crate::narration::spawn(s, job, !background, "jilo-matte", move || {
         let t0 = web_time::Instant::now();
         let r = (|| -> std::result::Result<String, String> {
             std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -70,10 +70,10 @@ fn remove(s: &mut Session, p: &Value) -> Result<Value> {
                 if prog.cancel.load(Ordering::Relaxed) {
                     return Err("stopped".into());
                 }
-                let f = src.video_frame(filmcraft_media::FrameRequest { time: *t, scale: 1.0 }).map_err(|e| e.to_string())?;
+                let f = src.video_frame(jilo_media::FrameRequest { time: *t, scale: 1.0 }).map_err(|e| e.to_string())?;
                 let (w, h) = (f.width as usize, f.height as usize);
                 let rgba = matte(&f.to_rgba8(), w, h)?;
-                let png = filmcraft_export::encode_png(rgba, w as u32, h as u32).map_err(|e| e.to_string())?;
+                let png = jilo_export::encode_png(rgba, w as u32, h as u32).map_err(|e| e.to_string())?;
                 let path = dir.join(format!("frame_{:06}.png", k + 1));
                 std::fs::write(&path, png).map_err(|e| format!("{}: {e}", path.display()))?;
                 prog.done.store(k as u64 + 1, Ordering::Relaxed);
@@ -102,7 +102,7 @@ fn apply(s: &mut Session, clip: ClipId, first: &str) -> Result<Value> {
     let r = (|| -> Result<ItemId> {
         let (item, _, _) = crate::commands::import_image_sequence_at(s, first, None, Some(rate))?;
         s.edit_sequence("Remove Background", |q, _, _| {
-            let (_, it) = q.find_item_mut(clip).ok_or(filmcraft_edit::EditError::NoItem(clip))?;
+            let (_, it) = q.find_item_mut(clip).ok_or(jilo_edit::EditError::NoItem(clip))?;
             it.item = item;
             it.source_in = Tick::ZERO;
             (it.speed, it.reverse, it.frame_hold) = (1.0, false, None);
@@ -163,7 +163,7 @@ mod tests {
         let after = s.active_sequence().unwrap().find_item(clip).unwrap().1.clone();
         assert_ne!(after.item, before.item, "a new picture");
         assert_eq!((after.start, after.duration, after.link), (start, before.duration, before.link), "same place, length and sound");
-        let f = s.source(after.item).unwrap().video_frame(filmcraft_media::FrameRequest { time: Tick::ZERO, scale: 1.0 }).unwrap();
+        let f = s.source(after.item).unwrap().video_frame(jilo_media::FrameRequest { time: Tick::ZERO, scale: 1.0 }).unwrap();
         let rgba = f.to_rgba8();
         let w = f.width as usize;
         assert_eq!(rgba[3], 255, "the left stays");

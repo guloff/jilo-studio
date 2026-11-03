@@ -4,10 +4,10 @@
 
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// Start on the selected clip (or `params`' clip).
-pub fn start(app: &mut FilmcraftApp, params: Value) -> Result<Value, String> {
+pub fn start(app: &mut JiloApp, params: Value) -> Result<Value, String> {
     let mut bg = params.clone();
     bg["background"] = json!(true);
     match app.session.execute("clip.removeBackground", bg) {
@@ -32,7 +32,7 @@ pub fn start(app: &mut FilmcraftApp, params: Value) -> Result<Value, String> {
 }
 
 /// Put the result in when the job ends.
-pub fn show(app: &mut FilmcraftApp) {
+pub fn show(app: &mut JiloApp) {
     let Some((id, params)) = app.ui.bg_removal.clone() else { return };
     match app.session.jobs.iter().find(|j| j.id == id).map(|j| j.to_json()) {
         Some(j) if j["finished"] != true => {}

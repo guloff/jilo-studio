@@ -1,9 +1,9 @@
 use super::*;
-use filmcraft_media::generators::GeneratorSource;
-use filmcraft_media::{FrameRequest, Generator, MediaSource};
-use filmcraft_project::{ItemKind, Label, MediaClip, MediaRef, SequenceSettings, TrackKind};
-use filmcraft_render::SourceMap;
-use filmcraft_time::TICKS_PER_SECOND;
+use jilo_media::generators::GeneratorSource;
+use jilo_media::{FrameRequest, Generator, MediaSource};
+use jilo_project::{ItemKind, Label, MediaClip, MediaRef, SequenceSettings, TrackKind};
+use jilo_render::SourceMap;
+use jilo_time::TICKS_PER_SECOND;
 
 pub(crate) fn project() -> (Arc<Project>, ItemId, SourceMap) {
     let mut p = Project::new("x");
@@ -57,7 +57,7 @@ fn mjpeg_mov_roundtrip() {
     assert_eq!(r.frames, 24);
     assert!(prog.finished.load(Ordering::Relaxed));
     let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-    let src = filmcraft_codecs::open_bytes("out.mov", bytes).unwrap();
+    let src = jilo_codecs::open_bytes("out.mov", bytes).unwrap();
     let info = src.info();
     assert_eq!(info.video.as_ref().unwrap().width, 320);
     assert!((info.duration.seconds() - 1.0).abs() < 0.05, "{}", info.duration.seconds());
@@ -66,7 +66,7 @@ fn mjpeg_mov_roundtrip() {
     let a = src.audio(0, 24_000, 48_000).unwrap();
     let pk = a.peaks()[0];
     assert!((pk - 0.5).abs() < 0.05, "tone at -6 dB: {pk}");
-    if let Some(ffprobe) = filmcraft_testkit::ffprobe_or_skip("export mjpeg frame count") {
+    if let Some(ffprobe) = jilo_testkit::ffprobe_or_skip("export mjpeg frame count") {
         let out = std::process::Command::new(ffprobe)
             .args(["-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", &path])
             .output()
@@ -95,7 +95,7 @@ fn prores_export_roundtrip() {
     let path = tmp("pr.mov");
     export(&p, seq, &ExportSettings { format: Format::ProRes, path: path.clone(), ..Default::default() }, &m, &Progress::default()).unwrap();
     let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-    let src = filmcraft_codecs::open_bytes("pr.mov", bytes).unwrap();
+    let src = jilo_codecs::open_bytes("pr.mov", bytes).unwrap();
     assert!(src.info().video.as_ref().unwrap().codec.contains("ProRes 422 HQ"));
     let f = src.video_frame(FrameRequest::full(Tick(TICKS_PER_SECOND / 3))).unwrap().to_rgba8();
     assert!(f[0] > 240 && f[1] < 15 && f[2] < 15, "{:?}", &f[..4]);
@@ -108,7 +108,7 @@ fn prores_4444_export_keeps_alpha() {
     let (p, seq, m) = project();
     let mut p = (*p).clone();
     if let Some(m) = p.sequence_mut(seq).unwrap().video_tracks[0].items[0].effect_mut("motion") {
-        m.param_mut("scale").unwrap().value = filmcraft_project::ParamValue::Float(50.0);
+        m.param_mut("scale").unwrap().value = jilo_project::ParamValue::Float(50.0);
     }
     let p = Arc::new(p);
     for (profile, label, alpha) in [("4444", "ProRes 4444", true), ("4444", "ProRes 4444", false), ("4444xq", "ProRes 4444 XQ", true)] {
@@ -116,12 +116,12 @@ fn prores_4444_export_keeps_alpha() {
         let s = ExportSettings { format: Format::ProRes, path: path.clone(), prores_profile: profile.into(), alpha, ..Default::default() };
         export(&p, seq, &s, &m, &Progress::default()).unwrap();
         let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-        let src = filmcraft_codecs::open_bytes("pr.mov", bytes).unwrap();
+        let src = jilo_codecs::open_bytes("pr.mov", bytes).unwrap();
         let codec = src.info().video.as_ref().unwrap().codec.clone();
         assert!(codec.contains(label), "{profile}: {codec}");
         let f = src.video_frame(FrameRequest::full(Tick(TICKS_PER_SECOND / 3))).unwrap();
-        let filmcraft_frame::PixelData::Yuv16 { chroma, bits, alpha: a, .. } = &f.data else { panic!("{profile}: {}", f.format_label()) };
-        assert_eq!((*chroma, *bits), (filmcraft_frame::Chroma::C444, 12), "{profile}");
+        let jilo_frame::PixelData::Yuv16 { chroma, bits, alpha: a, .. } = &f.data else { panic!("{profile}: {}", f.format_label()) };
+        assert_eq!((*chroma, *bits), (jilo_frame::Chroma::C444, 12), "{profile}");
         assert_eq!(a.is_some(), alpha, "{profile}: alpha plane");
         if let Some(a) = a {
             let (w, h) = (f.width as usize, f.height as usize);
@@ -131,7 +131,7 @@ fn prores_4444_export_keeps_alpha() {
         let px = f.to_rgba8();
         let c = ((f.height as usize / 2) * f.width as usize + f.width as usize / 2) * 4;
         assert!(px[c] > 240 && px[c + 1] < 15 && px[c + 2] < 15, "{profile}: {:?}", &px[c..c + 4]);
-        if let Some(ffprobe) = filmcraft_testkit::ffprobe_or_skip("export prores 4444") {
+        if let Some(ffprobe) = jilo_testkit::ffprobe_or_skip("export prores 4444") {
             let out = std::process::Command::new(ffprobe)
                 .args(["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=profile,pix_fmt", "-of", "default=nw=1"])
                 .arg(&path)
@@ -160,7 +160,7 @@ fn dnxhr_export_roundtrip() {
         let s = ExportSettings { format: Format::DnxHr, path: path.clone(), dnx_profile: profile.into(), ..Default::default() };
         export(&p, seq, &s, &m, &Progress::default()).unwrap();
         let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-        let src = filmcraft_codecs::open_bytes("dnx.mov", bytes).unwrap();
+        let src = jilo_codecs::open_bytes("dnx.mov", bytes).unwrap();
         let info = src.info().video.clone().unwrap();
         assert_eq!(info.codec, label);
         let f = src.video_frame(FrameRequest::full(Tick(TICKS_PER_SECOND / 3))).unwrap();
@@ -202,11 +202,11 @@ fn caption_burn_in_h264_ffmpeg_oracle() {
     let r = FrameRate::FPS_24;
     let seq = p.new_sequence("s", SequenceSettings { width: w, height: h, frame_rate: r, ..Default::default() }, 1, 0, None);
     let v = p.make_track_item(matte, TrackKind::Video, Tick::ZERO, TimeRange::new(Tick::ZERO, r.tick_of(24)), r).unwrap();
-    let tid = filmcraft_project::TrackId(p.alloc_id());
-    let cid = filmcraft_project::ClipId(p.alloc_id());
-    let mut ct = filmcraft_project::CaptionTrack::new(tid, "Subtitle".into(), filmcraft_project::CaptionFormat::Subtitle);
+    let tid = jilo_project::TrackId(p.alloc_id());
+    let cid = jilo_project::ClipId(p.alloc_id());
+    let mut ct = jilo_project::CaptionTrack::new(tid, "Subtitle".into(), jilo_project::CaptionFormat::Subtitle);
     ct.style.background = false;
-    ct.captions.push(filmcraft_project::Caption {
+    ct.captions.push(jilo_project::Caption {
         id: cid,
         start: Tick::ZERO,
         duration: r.tick_of(24),
@@ -254,7 +254,7 @@ fn caption_burn_in_h264_ffmpeg_oracle() {
 /// picture survives the round trip.
 #[test]
 fn hdr_exports_signal_pq_and_hlg() {
-    use filmcraft_color::{ColorPipeline, Transfer, WorkingSpace};
+    use jilo_color::{ColorPipeline, Transfer, WorkingSpace};
     for (ws, fmt, ext, transfer, ff_transfer) in [
         (WorkingSpace::Rec2100Pq, Format::ProRes, "mov", Transfer::Pq, "smpte2084"),
         (WorkingSpace::Rec2100Pq, Format::H264, "mp4", Transfer::Pq, "smpte2084"),
@@ -270,11 +270,11 @@ fn hdr_exports_signal_pq_and_hlg() {
         export(&p, seq, &s, &m, &Progress::default()).unwrap();
         // our demuxer/decoder sees the signalling
         let bytes: Arc<[u8]> = std::fs::read(&path).unwrap().into();
-        let src = filmcraft_codecs::open_bytes(&path, bytes).unwrap();
+        let src = jilo_codecs::open_bytes(&path, bytes).unwrap();
         let v = src.info().video.clone().unwrap();
         assert_eq!(v.color.transfer, transfer, "{path}");
-        assert_eq!(v.color.primaries, filmcraft_color::Primaries::Bt2020, "{path}");
-        assert_eq!(v.color.matrix, filmcraft_color::Matrix::Bt2020Ncl, "{path}");
+        assert_eq!(v.color.primaries, jilo_color::Primaries::Bt2020, "{path}");
+        assert_eq!(v.color.matrix, jilo_color::Matrix::Bt2020Ncl, "{path}");
         // PQ exports carry mastering metadata (1000 cd/m² peak; MaxCLL 0 = unknown), which sets
         // the tone-mapping peak when the file is used again
         if transfer == Transfer::Pq {
@@ -283,11 +283,11 @@ fn hdr_exports_signal_pq_and_hlg() {
         }
         // 709 red matte → BT.2020 HDR → decoded back into Rec. 709 (tone mapped) stays red
         let f = src.video_frame(FrameRequest::full(Tick::ZERO)).unwrap();
-        let back = filmcraft_render::colorman::decode(&Project::new("x"), ItemId(0), &f, 1, &ColorPipeline::REC709);
-        let c = filmcraft_render::Image::unpremul(back.get(160, 90));
+        let back = jilo_render::colorman::decode(&Project::new("x"), ItemId(0), &f, 1, &ColorPipeline::REC709);
+        let c = jilo_render::Image::unpremul(back.get(160, 90));
         assert!(c[0] > 0.6 && c[1] < 0.05 && c[2] < 0.05, "{path}: {c:?}");
         // ffprobe agrees
-        let Some(ffprobe) = filmcraft_testkit::ffprobe_or_skip("hdr export signalling") else { continue };
+        let Some(ffprobe) = jilo_testkit::ffprobe_or_skip("hdr export signalling") else { continue };
         let out = std::process::Command::new(&ffprobe)
             .args([
                 "-v",
@@ -456,7 +456,7 @@ fn gpu_hook_scenarios() {
     crate::register_frame_renderer(|| FAKES.with(std::cell::Cell::get).then(|| Box::new(PlanRenderer) as Box<dyn FrameRenderer>));
     let (plain, seq, m) = project();
     let mut fx = (*plain).clone();
-    fx.sequence_mut(seq).unwrap().video_tracks[0].items[0].effects.push(filmcraft_project::find_effect("proc_amp").unwrap().instance());
+    fx.sequence_mut(seq).unwrap().video_tracks[0].items[0].effects.push(jilo_project::find_effect("proc_amp").unwrap().instance());
     let fx = Arc::new(fx);
     let mk2 = |p: &Arc<Project>, path: &String, gpu: crate::GpuRendering| {
         let mut s = ExportSettings { format: Format::PngSequence, path: path.clone(), ..Default::default() };
@@ -487,18 +487,18 @@ impl FrameRenderer for PlanRenderer {
         _project: &Project,
         _seq: ItemId,
         _t: Tick,
-        _opts: filmcraft_render::RenderOptions,
+        _opts: jilo_render::RenderOptions,
         _sources: &dyn SourceProvider,
-    ) -> Option<filmcraft_render::Image> {
+    ) -> Option<jilo_render::Image> {
         panic!("a renderer that draws plans is given plans");
     }
     fn draws_plans(&self) -> bool {
         true
     }
-    fn render_plan(&mut self, plan: &filmcraft_render::plan::FramePlan) -> Option<filmcraft_render::Image> {
-        assert!(!matches!(plan, filmcraft_render::plan::FramePlan::Image(_)), "a finished picture needs no renderer");
+    fn render_plan(&mut self, plan: &jilo_render::plan::FramePlan) -> Option<jilo_render::Image> {
+        assert!(!matches!(plan, jilo_render::plan::FramePlan::Image(_)), "a finished picture needs no renderer");
         PLAN_CALLS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Some(filmcraft_render::Image::new(320, 180))
+        Some(jilo_render::Image::new(320, 180))
     }
 }
 
@@ -513,9 +513,9 @@ impl FrameRenderer for RayonRenderer {
         project: &Project,
         seq: ItemId,
         t: Tick,
-        opts: filmcraft_render::RenderOptions,
+        opts: jilo_render::RenderOptions,
         sources: &dyn SourceProvider,
-    ) -> Option<filmcraft_render::Image> {
+    ) -> Option<jilo_render::Image> {
         let n: u64 = (0..16u64)
             .into_par_iter()
             .map(|i| {
@@ -523,7 +523,7 @@ impl FrameRenderer for RayonRenderer {
                 i
             })
             .sum();
-        (n == 120).then(|| filmcraft_render::render_sequence(project, seq, t, opts, sources))
+        (n == 120).then(|| jilo_render::render_sequence(project, seq, t, opts, sources))
     }
 }
 
@@ -537,9 +537,9 @@ impl FrameRenderer for PanickingRenderer {
         _project: &Project,
         _seq: ItemId,
         _t: Tick,
-        _opts: filmcraft_render::RenderOptions,
+        _opts: jilo_render::RenderOptions,
         _sources: &dyn SourceProvider,
-    ) -> Option<filmcraft_render::Image> {
+    ) -> Option<jilo_render::Image> {
         PANICS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         panic!("GPU renderer failure (test)");
     }
@@ -553,9 +553,9 @@ impl FrameRenderer for FakeRenderer {
         _project: &Project,
         _seq: ItemId,
         _t: Tick,
-        _opts: filmcraft_render::RenderOptions,
+        _opts: jilo_render::RenderOptions,
         _sources: &dyn SourceProvider,
-    ) -> Option<filmcraft_render::Image> {
-        Some(filmcraft_render::Image::new(320, 180))
+    ) -> Option<jilo_render::Image> {
+        Some(jilo_render::Image::new(320, 180))
     }
 }

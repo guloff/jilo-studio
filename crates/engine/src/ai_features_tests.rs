@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use filmcraft_ai::Response;
-use filmcraft_ai::transport::FakeTransport;
+use jilo_ai::Response;
+use jilo_ai::transport::FakeTransport;
 use serde_json::{Value, json};
 
 use super::*;
@@ -123,7 +123,7 @@ fn transcribed(name: &str) -> (Session, Arc<FakeTransport>, std::path::PathBuf) 
 
 /// Ten sentences of five one-second words ("слово00 … слово04."), a 1 s pause after each.
 fn sentence_words() -> Vec<Value> {
-    let tick = |x: f64| filmcraft_time::Tick::from_seconds_f64(x).0;
+    let tick = |x: f64| jilo_time::Tick::from_seconds_f64(x).0;
     let mut words = Vec::new();
     for sentence in 0..10 {
         for w in 0..5 {
@@ -145,13 +145,13 @@ fn cues_break_at_pauses_phrase_ends_and_seven_seconds() {
     let text = crate::highlights::transcript_text(&cues[..1]);
     assert_eq!(text, "[0.0-4.9] слово00 слово01 слово02 слово03 слово04.");
     // a long run without pauses or phrase ends is cut every seven seconds
-    let long: Vec<filmcraft_edit::transcript::SeqWord> = crate::transcript::sequence_words(&s)
+    let long: Vec<jilo_edit::transcript::SeqWord> = crate::transcript::sequence_words(&s)
         .into_iter()
         .enumerate()
         .map(|(i, mut w)| {
             w.text = format!("w{i}");
-            w.start = filmcraft_time::Tick::from_seconds_f64(i as f64 * 0.5);
-            w.end = filmcraft_time::Tick::from_seconds_f64(i as f64 * 0.5 + 0.4);
+            w.start = jilo_time::Tick::from_seconds_f64(i as f64 * 0.5);
+            w.end = jilo_time::Tick::from_seconds_f64(i as f64 * 0.5 + 0.4);
             w
         })
         .collect();
@@ -214,10 +214,10 @@ fn highlights_become_range_markers_in_one_undo_step() {
     let q = s.active_sequence().unwrap();
     assert_eq!(q.markers.len(), 2);
     let m = &q.markers[0];
-    assert_eq!((m.name.as_str(), m.comment.as_str(), m.color), ("Первый", "90/100 · потому что", filmcraft_project::Label::Mango));
-    assert_eq!(m.start, filmcraft_time::Tick::ZERO);
-    assert_eq!(m.duration, filmcraft_time::Tick::from_seconds_f64(16.9), "ends with its cue");
-    assert_eq!(q.markers[1].start, filmcraft_time::Tick::from_seconds_f64(24.0));
+    assert_eq!((m.name.as_str(), m.comment.as_str(), m.color), ("Первый", "90/100 · потому что", jilo_project::Label::Mango));
+    assert_eq!(m.start, jilo_time::Tick::ZERO);
+    assert_eq!(m.duration, jilo_time::Tick::from_seconds_f64(16.9), "ends with its cue");
+    assert_eq!(q.markers[1].start, jilo_time::Tick::from_seconds_f64(24.0));
     s.undo();
     assert!(s.active_sequence().unwrap().markers.is_empty());
     let _ = std::fs::remove_dir_all(&dir);
@@ -267,13 +267,13 @@ fn highlights_assemble_into_subsequences_a_sequence_or_the_export_queue() {
     assert_eq!(r["sequences"].as_array().unwrap().len(), 2);
     assert_eq!(s.project.items.len(), before + 2);
     assert_eq!(s.history.undo.len(), undo + 1, "one undo step for all");
-    let sub = s.project.sequence(filmcraft_project::ItemId(r["sequences"][1].as_u64().unwrap())).unwrap();
-    assert_eq!(sub.duration(), filmcraft_time::Tick::from_seconds_f64(10.9));
-    assert_eq!(s.project.item(filmcraft_project::ItemId(r["sequences"][1].as_u64().unwrap())).unwrap().name, "s · Two/2");
+    let sub = s.project.sequence(jilo_project::ItemId(r["sequences"][1].as_u64().unwrap())).unwrap();
+    assert_eq!(sub.duration(), jilo_time::Tick::from_seconds_f64(10.9));
+    assert_eq!(s.project.item(jilo_project::ItemId(r["sequences"][1].as_u64().unwrap())).unwrap().name, "s · Two/2");
     assert_eq!(s.state.active_sequence, Some(seq), "the edited sequence stays active");
     let r = s.execute("highlights.assemble", json!({"markers": ids, "as": "sequence"})).unwrap();
-    let all = s.project.sequence(filmcraft_project::ItemId(r["sequences"][0].as_u64().unwrap())).unwrap();
-    assert_eq!(all.duration(), filmcraft_time::Tick::from_seconds_f64(21.8), "both, end to end");
+    let all = s.project.sequence(jilo_project::ItemId(r["sequences"][0].as_u64().unwrap())).unwrap();
+    assert_eq!(all.duration(), jilo_time::Tick::from_seconds_f64(21.8), "both, end to end");
     assert_eq!(all.audio_tracks[0].items.len(), 2);
     let out = dir.join("out");
     std::fs::create_dir_all(&out).unwrap();
@@ -282,7 +282,7 @@ fn highlights_assemble_into_subsequences_a_sequence_or_the_export_queue() {
     let paths: Vec<String> = s.export_queue.items.iter().map(|i| i.settings.path.clone()).collect();
     assert!(paths[0].ends_with("s 01 One.mp4") && paths[1].ends_with("s 02 Two_2.mp4"), "{paths:?}");
     let r0 = s.export_queue.items[1].settings.range.unwrap();
-    assert_eq!((r0.start, r0.duration), (filmcraft_time::Tick::from_seconds_f64(30.0), filmcraft_time::Tick::from_seconds_f64(10.9)));
+    assert_eq!((r0.start, r0.duration), (jilo_time::Tick::from_seconds_f64(30.0), jilo_time::Tick::from_seconds_f64(10.9)));
     // hostile parameters
     for bad in [json!({}), json!({"markers": []}), json!({"markers": [999999]}), json!({"markers": ids, "as": "zip"})] {
         assert!(s.execute("highlights.assemble", bad.clone()).is_err(), "{bad}");
@@ -312,8 +312,7 @@ fn talking_head(name: &str) -> (Session, Arc<FakeTransport>, std::path::PathBuf,
     image::RgbaImage::from_pixel(64, 36, image::Rgba([40, 120, 200, 255])).save(&png).unwrap();
     let r = s.execute("file.import", json!({"paths": [png.to_string_lossy()]})).unwrap();
     let pic = r["items"][0].as_u64().unwrap();
-    let r =
-        s.execute("timeline.place", json!({"item": pic, "track": "V1", "seconds": 0.0, "duration": filmcraft_time::Tick::from_seconds_f64(60.0).0})).unwrap();
+    let r = s.execute("timeline.place", json!({"item": pic, "track": "V1", "seconds": 0.0, "duration": jilo_time::Tick::from_seconds_f64(60.0).0})).unwrap();
     let clip = r["clips"][0].as_u64().unwrap();
     s.state.selection.clear();
     (s, fake, dir, clip)
@@ -321,9 +320,9 @@ fn talking_head(name: &str) -> (Session, Arc<FakeTransport>, std::path::PathBuf,
 
 /// The clip's Scale at sequence second `t`, and its keyframe count.
 fn scale_at(s: &Session, clip: u64, t: f64) -> (f64, usize) {
-    let (_, it) = s.active_sequence().unwrap().find_item(filmcraft_project::ClipId(clip)).unwrap();
+    let (_, it) = s.active_sequence().unwrap().find_item(jilo_project::ClipId(clip)).unwrap();
     let p = &it.effect("motion").unwrap().params["scale"];
-    (p.f64_at(it.effect_time_at(filmcraft_time::Tick::from_seconds_f64(t))), p.keyframes.len())
+    (p.f64_at(it.effect_time_at(jilo_time::Tick::from_seconds_f64(t))), p.keyframes.len())
 }
 
 #[test]
@@ -370,8 +369,8 @@ fn a_quoted_phrase_is_found_in_the_words_of_its_cue() {
 #[test]
 fn zoom_keys_cut_or_ease_in_and_out() {
     use crate::autozoom::{Style, zoom_keys};
-    use filmcraft_project::Interpolation::{Bezier, Hold};
-    let t = filmcraft_time::Tick::from_seconds_f64;
+    use jilo_project::Interpolation::{Bezier, Hold};
+    let t = jilo_time::Tick::from_seconds_f64;
     let cut = zoom_keys(100.0, 115.0, &[(t(2.0), t(4.0))], t(0.0), t(10.0), Style::Cut);
     let shape: Vec<(f64, f64, _)> = cut.iter().map(|k| (k.time.seconds(), k.value.as_f64().unwrap(), k.interp)).collect();
     assert_eq!(shape, [(0.0, 100.0, Hold), (2.0, 115.0, Hold), (4.0, 100.0, Hold)]);
@@ -505,12 +504,12 @@ fn youtube_texts_are_written_kept_and_chapters_become_markers() {
     assert_eq!(r["problems"], json!([]));
     assert_eq!(r["description"], "Первый абзац.\n\nВторой абзац.\n\n0:00 Вступление\n0:12 Почти сразу\n0:30 Середина\n\n#монтаж #видео #rust");
     let q = s.active_sequence().unwrap();
-    let names: Vec<&str> = q.markers.iter().filter(|m| m.kind == filmcraft_project::MarkerKind::Chapter).map(|m| m.name.as_str()).collect();
+    let names: Vec<&str> = q.markers.iter().filter(|m| m.kind == jilo_project::MarkerKind::Chapter).map(|m| m.name.as_str()).collect();
     assert_eq!(names, ["Вступление", "Почти сразу", "Середина"], "the old chapter marker is replaced");
     // the texts stay with the sequence; a moved chapter marker moves the chapter
     let id = q.markers.iter().find(|m| m.name == "Середина").unwrap().id;
     s.edit_sequence("move", |q, _, _| {
-        q.markers.iter_mut().find(|m| m.id == id).unwrap().start = filmcraft_time::Tick::from_seconds_f64(41.5);
+        q.markers.iter_mut().find(|m| m.id == id).unwrap().start = jilo_time::Tick::from_seconds_f64(41.5);
         Ok(())
     })
     .unwrap();
@@ -569,7 +568,7 @@ fn a_batch_runs_its_steps_over_every_item_and_survives_a_failing_one() {
     let second = s.state.active_sequence.unwrap().0;
     s.execute("timeline.place", json!({"item": item, "audioTrack": "A1", "seconds": 0.0})).unwrap();
     let clip = tone_clip(&mut s, "raw");
-    s.state.active_sequence = Some(filmcraft_project::ItemId(first));
+    s.state.active_sequence = Some(jilo_project::ItemId(first));
     let out = dir.join("out");
     std::fs::create_dir_all(&out).unwrap();
     // a cloud step needs the consent first
@@ -595,7 +594,7 @@ fn a_batch_runs_its_steps_over_every_item_and_survives_a_failing_one() {
     assert!(s.export_queue.running, "the queue starts at the end");
     // the editor keeps its sequence; the texts are with each sequence
     assert_eq!(s.state.active_sequence.map(|i| i.0), Some(first));
-    assert!(crate::youtube::texts_of(&s, filmcraft_project::ItemId(second)).is_some());
+    assert!(crate::youtube::texts_of(&s, jilo_project::ItemId(second)).is_some());
     let job = s.jobs.iter().find(|j| j.id == r["job"].as_u64().unwrap()).unwrap().to_json();
     assert_eq!(job["status"], "Batch done: 2 of 3", "{job}");
     // hostile parameters
@@ -638,7 +637,7 @@ fn a_batch_makes_styled_captions_and_exports_every_format() {
     // the default format is 9:16; the copy is exported with the sequence
     let copies: Vec<u64> = item["formats"].as_array().unwrap().iter().filter_map(serde_json::Value::as_u64).collect();
     assert_eq!(copies.len(), 1);
-    let c = s.project.sequence(filmcraft_project::ItemId(copies[0])).unwrap();
+    let c = s.project.sequence(jilo_project::ItemId(copies[0])).unwrap();
     assert_eq!((c.settings.width, c.settings.height), (1080, 1920));
     assert_eq!(s.export_queue.items.len(), 2, "the sequence and its copy");
     assert_eq!(s.state.active_sequence, Some(first), "the editor keeps its sequence");
@@ -656,7 +655,7 @@ fn a_batch_transcribes_what_has_no_transcript_and_can_be_stopped() {
     assert_eq!(r["items"][0]["done"], json!(["transcribe"]), "{r}");
     assert_eq!(r["items"][1]["status"], "done");
     for id in [a, b] {
-        let words: Vec<String> = s.project.transcripts.get(&filmcraft_project::ItemId(id)).unwrap().words.iter().map(|w| w.text.clone()).collect();
+        let words: Vec<String> = s.project.transcripts.get(&jilo_project::ItemId(id)).unwrap().words.iter().map(|w| w.text.clone()).collect();
         assert_eq!(words, ["Привет,", "мир."]);
     }
     // again: nothing left to transcribe, nothing is sent
@@ -700,10 +699,10 @@ fn vertical_talk() -> (Session, u64, Arc<std::sync::atomic::AtomicUsize>) {
 }
 
 /// The clip's Motion at sequence second `t`: (position, scale, position keys).
-fn motion_at(s: &Session, clip: u64, t: f64) -> (filmcraft_geom::Vec2, f64, usize) {
-    let (_, it) = s.active_sequence().unwrap().find_item(filmcraft_project::ClipId(clip)).unwrap();
+fn motion_at(s: &Session, clip: u64, t: f64) -> (jilo_geom::Vec2, f64, usize) {
+    let (_, it) = s.active_sequence().unwrap().find_item(jilo_project::ClipId(clip)).unwrap();
     let m = it.effect("motion").unwrap();
-    let mt = it.effect_time_at(filmcraft_time::Tick::from_seconds_f64(t));
+    let mt = it.effect_time_at(jilo_time::Tick::from_seconds_f64(t));
     (m.vec2_at("position", mt), m.f64_at("scale", mt), m.params["position"].keyframes.len())
 }
 
@@ -712,7 +711,7 @@ fn a_clip_is_reframed_on_its_speaker_in_one_undo_step() {
     use std::sync::atomic::Ordering;
     let (mut s, clip, calls) = vertical_talk();
     let before = motion_at(&s, clip, 5.0);
-    let fit = if s.active_sequence().unwrap().find_item(filmcraft_project::ClipId(clip)).unwrap().1.scale_to_frame { 0.5625 } else { 1.0 };
+    let fit = if s.active_sequence().unwrap().find_item(jilo_project::ClipId(clip)).unwrap().1.scale_to_frame { 0.5625 } else { 1.0 };
     let cover: f64 = 1920.0 / 1080.0;
     let undo = s.history.undo.len();
     let r = s.execute("clip.reframeToFace", json!({"clips": [clip]})).unwrap();
@@ -732,7 +731,7 @@ fn a_clip_is_reframed_on_its_speaker_in_one_undo_step() {
     assert_eq!(calls.load(Ordering::SeqCst), 21);
     assert!((motion_at(&s, clip, 5.0).1 - (cover * 2.0 / fit * 1000.0).round() / 10.0).abs() < 1e-9);
     // the face picked at the right edge: held there, the layer's right edge on the frame's
-    s.set_playhead(filmcraft_time::Tick::ZERO);
+    s.set_playhead(jilo_time::Tick::ZERO);
     s.execute("clip.reframeToFace", json!({"clips": [clip], "target": "face", "x": 0.85, "y": 0.5})).unwrap();
     // (until the speaker walks up to where it was, at 6.5 s)
     let (pos, _, _) = motion_at(&s, clip, 3.0);
@@ -742,7 +741,7 @@ fn a_clip_is_reframed_on_its_speaker_in_one_undo_step() {
     s.undo();
     assert_eq!(motion_at(&s, clip, 5.0), before);
     // the faces under the playhead, for picking
-    s.set_playhead(filmcraft_time::Tick::from_seconds_f64(1.0));
+    s.set_playhead(jilo_time::Tick::from_seconds_f64(1.0));
     let r = s.execute("clip.facesAt", json!({"clips": [clip]})).unwrap();
     assert_eq!(r["clip"].as_u64(), Some(clip));
     assert_eq!(r["faces"].as_array().map(Vec::len), Some(1), "{r}");
@@ -777,7 +776,7 @@ fn reframing_without_faces_or_a_face_finder_says_why() {
 #[test]
 fn a_custom_image_service_draws_at_its_address_with_consent_per_host() {
     let (mut s, fake, dir) = session("imagegen-custom");
-    let b64 = filmcraft_ai::base64::encode(&png_bytes(32, 32));
+    let b64 = jilo_ai::base64::encode(&png_bytes(32, 32));
     fake.route(|r| r.url.ends_with("/images/generations"), move |_| Ok(Response::json(200, &json!({"data": [{"b64_json": b64}]}))));
     let p = json!({"prompt": "a lighthouse", "engine": "custom", "dir": dir.to_string_lossy(), "place": false});
     // no address yet
@@ -819,7 +818,7 @@ fn png_bytes(w: u32, h: u32) -> Vec<u8> {
 fn a_generated_image_is_imported_and_placed_after_consent() {
     let (mut s, fake, dir) = session("imagegen");
     s.execute("ai.setKey", json!({"provider": "openai", "key": "k2"})).unwrap();
-    let b64 = filmcraft_ai::base64::encode(&png_bytes(64, 36));
+    let b64 = jilo_ai::base64::encode(&png_bytes(64, 36));
     fake.route(|r| r.url.ends_with("/images/generations"), move |_| Ok(Response::json(200, &json!({"data": [{"b64_json": b64}]}))));
     let p = json!({"prompt": "a lighthouse at dawn", "dir": dir.to_string_lossy(), "place": true});
     let e = s.execute("ai.generateImage", p.clone()).unwrap_err().to_string();
@@ -844,7 +843,7 @@ fn a_generated_image_is_imported_and_placed_after_consent() {
     assert_eq!((body["model"].as_str(), body["size"].as_str()), (Some("gpt-image-1"), Some("1536x1024")), "the sequence is landscape");
     let path = r["path"].as_str().unwrap();
     assert!(path.ends_with(".png") && std::path::Path::new(path).exists(), "{r}");
-    let item = filmcraft_project::ItemId(r["item"].as_u64().unwrap());
+    let item = jilo_project::ItemId(r["item"].as_u64().unwrap());
     assert!(s.project.item(item).is_some_and(|i| i.has_video()));
     assert_eq!(r["clips"].as_array().map(Vec::len), Some(1), "placed at the playhead: {r}");
     assert!(s.history.undo.len() > undo);
@@ -962,7 +961,7 @@ fn an_animated_sticker_plays_on_the_timeline() {
 fn a_sticker_is_drawn_cut_out_and_placed() {
     let (mut s, fake, dir) = session("sticker-draw");
     s.execute("ai.setKey", json!({"provider": "openai", "key": "k2"})).unwrap();
-    let b64 = filmcraft_ai::base64::encode(&png_bytes(64, 64));
+    let b64 = jilo_ai::base64::encode(&png_bytes(64, 64));
     fake.route(|r| r.url.ends_with("/images/generations"), move |_| Ok(Response::json(200, &json!({"data": [{"b64_json": b64}]}))));
     s.cutout = Some(Arc::new(|rgba: &[u8], w: usize, h: usize| Ok((w as u32, h as u32, rgba.to_vec()))));
     let p = json!({"prompt": "a happy cat", "dir": dir.to_string_lossy()});

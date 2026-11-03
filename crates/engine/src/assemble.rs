@@ -16,8 +16,8 @@
 
 use std::collections::HashMap;
 
-use filmcraft_project::{ClipId, ItemId, Label};
-use filmcraft_time::Tick;
+use jilo_project::{ClipId, ItemId, Label};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, always, bad};

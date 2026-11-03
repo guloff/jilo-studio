@@ -1,4 +1,4 @@
-//! `.fcproj` save/open through the command interface: schema envelope, legacy upgrade, Save a Copy,
+//! `.jsproj` save/open through the command interface: schema envelope, legacy upgrade, Save a Copy,
 //! Revert.
 
 use super::*;
@@ -20,15 +20,15 @@ fn temp_dir(tag: &str) -> std::path::PathBuf {
 #[test]
 fn saved_file_is_versioned_and_save_copy_keeps_state() {
     let d = temp_dir("schema");
-    let path = d.join("p.fcproj").to_string_lossy().to_string();
+    let path = d.join("p.jsproj").to_string_lossy().to_string();
     let mut s = demo();
     s.execute("file.saveAs", json!({"path": path})).unwrap();
     let v: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(v["schema_version"], filmcraft_format::SCHEMA_VERSION);
-    assert_eq!(v["format"], "filmcraft.project");
+    assert_eq!(v["schema_version"], jilo_format::SCHEMA_VERSION);
+    assert_eq!(v["format"], "jilo.project");
     s.execute("sequence.addEdit", json!({"seconds": 1.0})).unwrap();
     assert!(s.is_dirty());
-    let copy = d.join("copy.fcproj").to_string_lossy().to_string();
+    let copy = d.join("copy.jsproj").to_string_lossy().to_string();
     s.execute("file.saveCopy", json!({"path": copy})).unwrap();
     assert!(s.is_dirty(), "Save a Copy leaves the project unsaved");
     assert_eq!(s.path.as_deref(), Some(path.as_str()));
@@ -64,15 +64,15 @@ fn legacy_project_opens_and_first_save_keeps_a_backup() {
     assert!(backup.ends_with("old (schema v1 backup).fcproj"), "{backup}");
     assert_eq!(std::fs::read(&backup).unwrap(), std::fs::read(&fixture).unwrap());
     let v: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(v["schema_version"], filmcraft_format::SCHEMA_VERSION);
+    assert_eq!(v["schema_version"], jilo_format::SCHEMA_VERSION);
     // Second save: no new backup.
     assert!(s.execute("file.save", json!({})).unwrap()["backup"].is_null());
     // A file from the future is refused clearly.
     let mut v = v;
-    v["schema_version"] = json!(filmcraft_format::SCHEMA_VERSION + 1);
+    v["schema_version"] = json!(jilo_format::SCHEMA_VERSION + 1);
     std::fs::write(&path, serde_json::to_vec(&v).unwrap()).unwrap();
     let e = Session::default().execute("file.open", json!({"path": p})).unwrap_err().to_string();
-    assert!(e.contains("newer version of FilmCraft"), "{e}");
+    assert!(e.contains("newer version of Jilo Studio"), "{e}");
     let _ = std::fs::remove_dir_all(&d);
 }
 
@@ -80,13 +80,13 @@ fn legacy_project_opens_and_first_save_keeps_a_backup() {
 fn project_is_named_after_its_file() {
     let d = temp_dir("name");
     let mut s = demo();
-    let a = d.join("Apollo 11 - Tranquility.fcproj").to_string_lossy().to_string();
+    let a = d.join("Apollo 11 - Tranquility.jsproj").to_string_lossy().to_string();
     s.execute("file.saveAs", json!({"path": a})).unwrap();
     assert_eq!(s.project.name, "Apollo 11 - Tranquility");
     assert_eq!(s.project.root.name, "Apollo 11 - Tranquility");
     assert!(!s.is_dirty(), "renaming on Save As is not an edit");
     // Save a Copy keeps the current name.
-    let c = d.join("Backup copy.fcproj").to_string_lossy().to_string();
+    let c = d.join("Backup copy.jsproj").to_string_lossy().to_string();
     s.execute("file.saveCopy", json!({"path": c})).unwrap();
     assert_eq!(s.project.name, "Apollo 11 - Tranquility");
     s.execute("file.open", json!({"path": c})).unwrap();

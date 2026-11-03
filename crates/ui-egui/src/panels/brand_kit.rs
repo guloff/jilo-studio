@@ -9,10 +9,10 @@
 //! `brandKit.part.<part>`, `brandKit.apply`, `brandKit.ltText`, `brandKit.ltRole`, `brandKit.addLowerThird`.
 
 use egui::{Color32, RichText, vec2};
-use filmcraft_engine::brand_kit::{BrandKit, PARTS};
+use jilo_engine::brand_kit::{BrandKit, PARTS};
 use serde_json::{Value, json};
 
-use crate::FilmcraftApp;
+use crate::JiloApp;
 
 /// The window's state.
 #[derive(Clone, Debug)]
@@ -34,7 +34,7 @@ impl Default for BrandKitUi {
     }
 }
 
-pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
+pub fn open(app: &mut JiloApp) -> Result<Value, String> {
     app.ui.brand_kit.open = true;
     if app.ui.brand_kit.draft.name.is_empty()
         && let Some(k) = saved().into_iter().next()
@@ -45,7 +45,7 @@ pub fn open(app: &mut FilmcraftApp) -> Result<Value, String> {
 }
 
 fn saved() -> Vec<BrandKit> {
-    filmcraft_engine::brand_kit::dir().map(|d| filmcraft_engine::brand_kit::list_in(&d)).unwrap_or_default()
+    jilo_engine::brand_kit::dir().map(|d| jilo_engine::brand_kit::list_in(&d)).unwrap_or_default()
 }
 
 const CORNERS: [(&str, &str); 4] = [("topLeft", "Top Left"), ("topRight", "Top Right"), ("bottomLeft", "Bottom Left"), ("bottomRight", "Bottom Right")];
@@ -62,7 +62,7 @@ fn color_to_hex(c: Color32) -> String {
 }
 
 /// A file path row: the name, Browse… and a clear button.
-fn path_row(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: &str, value: &mut Option<String>, kinds: (&str, &[&str]), browse: &mut Option<String>) {
+fn path_row(app: &mut JiloApp, ui: &mut egui::Ui, id: &str, value: &mut Option<String>, kinds: (&str, &[&str]), browse: &mut Option<String>) {
     let t = app.tokens;
     let shown = value.as_deref().and_then(|p| std::path::Path::new(p).file_name()).map_or_else(|| tl!("None").to_string(), |n| n.to_string_lossy().to_string());
     ui.add(egui::Label::new(RichText::new(shown).color(if value.is_some() { t.text } else { t.text_dim })).truncate());
@@ -80,7 +80,7 @@ fn path_row(app: &mut FilmcraftApp, ui: &mut egui::Ui, id: &str, value: &mut Opt
     }
 }
 
-pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut JiloApp, ctx: &egui::Context) {
     if !app.ui.brand_kit.open {
         return;
     }
@@ -88,7 +88,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let mut open = true;
     let mut actions: Vec<(&str, Value)> = Vec::new();
     let kits = saved();
-    let presets = filmcraft_engine::caption_presets::builtin();
+    let presets = jilo_engine::caption_presets::builtin();
     let thirds: Vec<(String, String)> = app
         .session
         .execute("graphics.template.list", json!({"category": "Lower Thirds"}))
@@ -152,11 +152,11 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                 ui.end_row();
 
                 ui.label(tl!("Font"));
-                let fams = filmcraft_text::families();
+                let fams = jilo_text::families();
                 let cur = b.draft.font.clone().unwrap_or_else(|| tl!("Keep each style's font").to_string());
                 let r = egui::ComboBox::from_id_salt("brandKit.font").width(240.0).height(360.0).selected_text(cur).show_ui(ui, |ui| {
-                    if !filmcraft_text::fonts::system_scanned() {
-                        filmcraft_text::fonts::scan_system();
+                    if !jilo_text::fonts::system_scanned() {
+                        jilo_text::fonts::scan_system();
                     }
                     if ui.selectable_label(b.draft.font.is_none(), tl!("Keep each style's font")).clicked() {
                         b.draft.font = None;

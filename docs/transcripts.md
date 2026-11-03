@@ -1,17 +1,17 @@
 # Transcripts and text-based editing
 
-FilmCraft's Text panel ▸ **Transcript** tab shows the dialogue of the open sequence as text. Select
+Jilo Studio's Text panel ▸ **Transcript** tab shows the dialogue of the open sequence as text. Select
 words to mark In/Out, then extract or lift them; remove filler words and long pauses in one step;
 turn the transcript into captions. Every action is an engine command (`transcript.*`), so the CLI,
 the control channel and MCP agents can do the same.
 
 ## Model
 
-- A **transcript** belongs to a media item (`Project::transcripts`, saved in the `.fcproj` since
+- A **transcript** belongs to a media item (`Project::transcripts`, saved in the `.jsproj` since
   schema v9). It lists **words** with media-time bounds (`Tick`s), an optional speaker index and a
   confidence, plus the speaker names and the language. Because the times are media time, the
   transcript stays valid however the clip is trimmed, moved, sped up or reused.
-- The **sequence transcript** is derived, never stored (`filmcraft_edit::transcript::sequence_words`):
+- The **sequence transcript** is derived, never stored (`jilo_edit::transcript::sequence_words`):
   audio tracks are read top first; a word is heard through the first enabled clip whose range
   covers the word's midpoint (duplicates of the same dialogue on lower tracks read once); disabled,
   reversed and frame-hold clips contribute nothing.
@@ -40,12 +40,12 @@ the control channel and MCP agents can do the same.
 Recognition goes through the `Transcriber` trait (`crates/speech`). The built-in recogniser is
 OpenAI's Whisper, run in pure Rust on [candle](https://github.com/huggingface/candle) on the CPU,
 with timestamp decoding, language detection and word times from cross-attention alignment (see the
-`filmcraft_speech::whisper` module docs). Speakers are labelled by clustering per-chunk MFCC
-statistics (`filmcraft_speech::diarize`); no model is involved.
+`jilo_speech::whisper` module docs). Speakers are labelled by clustering per-chunk MFCC
+statistics (`jilo_speech::diarize`); no model is involved.
 
 Both are **optional features**, off by default and never built for the web:
 
-- `whisper` (on `filmcraft-speech`, `filmcraft-engine`, and the `filmcraft` / `filmcraft-cli`
+- `whisper` (on `jilo-speech`, `jilo-engine`, and the `jilo-studio` / `jilo-cli`
   apps, where it also enables downloads): candle inference.
 - `download` (`speech-download` on the engine): HTTPS downloads with rustls + RustCrypto and the
   operating system's certificate verifier.
@@ -61,7 +61,7 @@ install any recogniser in `Session::transcriber`, which enables transcription in
 ### Models
 
 Weights are **never** bundled or committed. They are downloaded on request into
-`<data dir>/models/<id>/` (see `filmcraft_engine::autosave::default_data_dir`), each file pinned to a
+`<data dir>/models/<id>/` (see `jilo_engine::autosave::default_data_dir`), each file pinned to a
 revision of OpenAI's Hugging Face repositories and checked against its SHA-256:
 
 | Id | Languages | Licence |
@@ -79,16 +79,16 @@ real time.
 
 Settings ▸ AI (or `engine` on `transcript.generate` / `transcript.recognize`) can choose Google
 Gemini, OpenAI or ElevenLabs (Scribe, `scribe_v1`: a time for every word and speaker labels) instead
-of Whisper (`filmcraft_engine::recognition`). Nothing is sent before the
+of Whisper (`jilo_engine::recognition`). Nothing is sent before the
 user agreed for that provider (the Text panel asks once; agents pass `confirm: true`); the panel says
 how much audio would go out. The recording goes window by window as 16-bit mono 16 kHz WAV
 (Gemini: 2 minutes, OpenAI `whisper-1`: 10 minutes) with 3 s of overlap, 3 windows at a time; every
 answer is checked against the sound (cut off, speech left without words, cues that do not align)
-and recognised again in halves when incomplete (`filmcraft_speech::chunked`). The model's cue text
-is the truth: its words take times from the model's word times (`filmcraft_speech::cues`), cues are
+and recognised again in halves when incomplete (`jilo_speech::chunked`). The model's cue text
+is the truth: its words take times from the model's word times (`jilo_speech::cues`), cues are
 kept to 84 characters / 7 s, and the result becomes an ordinary transcript (`source`
 `gemini:<model>` or `openai:<model>`), with word bounds tightened by level and speakers from the
-model's labels or FilmCraft's own labelling. `transcript.recognize` runs it as a background job
+model's labels or Jilo Studio's own labelling. `transcript.recognize` runs it as a background job
 (progress, Stop) and keeps the transcript until `transcript.generate` with the same settings adds it
 as one undo step; the report gives the windows, retries, uncovered seconds and seconds sent.
 
@@ -137,7 +137,7 @@ the narration's text goes to ElevenLabs (`confirm` on `tts.preview`, `tts.create
 
 Unit and engine tests use a fake `Transcriber` (`FixedTranscriber`), so CI needs no model. The
 end-to-end test `crates/speech/tests/whisper_model.rs` (feature `whisper`) runs only when weights are
-in `target/models/<id>/` (or `$FILMCRAFT_MODELS_DIR`) and speech samples (mono 16 kHz f32 with a
+in `target/models/<id>/` (or `$JILO_MODELS_DIR`) and speech samples (mono 16 kHz f32 with a
 reference `.txt`) are in `target/fixtures/speech/`; it reports the word error rate and otherwise
 prints SKIPPED. Measured on 2026-10-01: `whisper-tiny`, English, 12.2 % WER over 797 words of
 the local speech samples (LibriSpeech read speech and dialogue clips) (about 9.5 minutes for the run in a release build on an
@@ -146,7 +146,7 @@ Apple-silicon laptop CPU).
 ## Filler words
 
 Remove filler words (Text panel ▸ Transcript; `transcript.removeFillers`) knows Russian, Tajik and
-English (`filmcraft_edit::transcript::filler_words`, from Jilo Studio): hesitations ("э", "мм", "uh")
+English (`jilo_edit::transcript::filler_words`, from Jilo Studio): hesitations ("э", "мм", "uh")
 are safe to cut, discourse words ("ну", "типа", "яъне", "like", "you know") can carry meaning. The
 language is the transcript's (most of its words), or `language`. `transcript.fillers` lists what
 occurs with counts; the panel shows it with the hesitations chosen and the discourse words not, and
@@ -157,7 +157,7 @@ removes what stays chosen in one undo step. Without `fillers`, the command remov
 For footage without a transcript, AI ▸ Speech and Captions ▸ Remove Silent Pauses (`audio.removeSilences`;
 `audio.findSilences` only lists them) finds the pauses in the sequence mix by level: 10 ms RMS
 frames below `thresholdDb` (−35 dBFS by default, −70…−10) for at least `minSeconds` (0.6 s, 0.2…5),
-measured in 10-second blocks with FilmCraft's own detector (`filmcraft_audio_dsp::silence`), no
+measured in 10-second blocks with Jilo Studio's own detector (`jilo_audio_dsp::silence`), no
 ffmpeg. Each pause keeps `keepSeconds` (0.15 s) at both ends, is snapped to frames and ripple-deleted,
 all in one undo step; a sequence that is silent everywhere is left alone.
 
@@ -252,7 +252,7 @@ keys a clip already has (Auto Zoom) keep their zooms relative to the new scale.
 ## Retakes and stumbles
 
 AI ▸ Speech and Captions ▸ Remove Retakes and Stumbles… lists the failed takes the transcript
-shows (`transcript.findRetakes`, `filmcraft_edit::transcript::find_retakes`, on this computer):
+shows (`transcript.findRetakes`, `jilo_edit::transcript::find_retakes`, on this computer):
 a phrase of three words or more said again within 20 seconds (`maxSeconds`) — the earlier attempt,
 up to where it restarts, is cut and the last take stays; two words said again right away (a false
 start); a word said twice in a row (a stutter). Matching ignores case and punctuation and works in

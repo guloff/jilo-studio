@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use filmcraft_project::{ItemId, Label};
+use jilo_project::{ItemId, Label};
 use serde_json::{Value, json};
 
 use crate::Session;
@@ -72,8 +72,8 @@ fn metadata_edits_are_undoable_and_saved_in_the_project() {
     }
     assert_eq!(s.history.undo.len(), n);
     // saved in the project file and read back
-    let bytes = filmcraft_format::encode(&s.project, false);
-    let back = filmcraft_format::decode(&bytes).unwrap().project;
+    let bytes = jilo_format::encode(&s.project, false);
+    let back = jilo_format::decode(&bytes).unwrap().project;
     assert_eq!(back.item(id).unwrap().metadata["Scene"], "12");
 }
 
@@ -142,7 +142,7 @@ fn events_report_background_jobs() {
     s.poll_persistence();
     assert_eq!(s.log.entries.iter().filter(|e| e.message.starts_with("Started:")).count(), 3);
     *a.result.lock().unwrap() =
-        Some(Ok(filmcraft_export::Report { path: "a.mp4".into(), frames: 1, seconds: 0.1, bytes: 1, render_fps: 10.0, extra_files: Vec::new() }));
+        Some(Ok(jilo_export::Report { path: "a.mp4".into(), frames: 1, seconds: 0.1, bytes: 1, render_fps: 10.0, extra_files: Vec::new() }));
     *b.result.lock().unwrap() = Some(Err("disk full".into()));
     c.progress.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
     *c.result.lock().unwrap() = Some(Err("cancelled".into()));

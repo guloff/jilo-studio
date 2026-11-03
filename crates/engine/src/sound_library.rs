@@ -13,8 +13,8 @@
 
 use std::f32::consts::TAU;
 
-use filmcraft_project::{ItemId, TrackKind};
-use filmcraft_time::Tick;
+use jilo_project::{ItemId, TrackKind};
+use jilo_time::Tick;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, always, bad, has_seq, str_p};
@@ -330,7 +330,7 @@ pub fn path_of(s: &Session, id: &str) -> Result<std::path::PathBuf> {
         return Ok(path);
     }
     let pcm = render(id).ok_or_else(|| bad(cmd, format!("no sound `{id}` (sounds.list)")))?;
-    let wav = filmcraft_export::write_wav(&pcm, 2, RATE, 16).map_err(EngineError::Other)?;
+    let wav = jilo_export::write_wav(&pcm, 2, RATE, 16).map_err(EngineError::Other)?;
     std::fs::create_dir_all(&dir).map_err(|e| EngineError::Other(e.to_string()))?;
     std::fs::write(&path, wav).map_err(|e| EngineError::Other(format!("{}: {e}", path.display())))?;
     Ok(path)
@@ -353,7 +353,7 @@ fn render_cmd(s: &mut Session, p: &Value) -> Result<Value> {
 fn bin(s: &mut Session) -> Option<u64> {
     let find = |s: &Session| {
         s.project.root.children.iter().find_map(|e| match e {
-            filmcraft_project::BinEntry::Bin(b) if b.name == "Sounds" => Some(b.id.0),
+            jilo_project::BinEntry::Bin(b) if b.name == "Sounds" => Some(b.id.0),
             _ => None,
         })
     };

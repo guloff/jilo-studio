@@ -3,7 +3,7 @@
 //! presets keep loading), plus the derived values (output size, rate, bitrate) and the estimated
 //! file size.
 
-use filmcraft_time::{FrameRate, Tick};
+use jilo_time::{FrameRate, Tick};
 use serde::{Deserialize, Serialize};
 
 use crate::{ExportSettings, Format};
@@ -21,7 +21,7 @@ pub enum Scaling {
     StretchToFill,
 }
 
-/// Field order of the encoded video. FilmCraft's encoders write progressive frames.
+/// Field order of the encoded video. Jilo Studio's encoders write progressive frames.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FieldOrder {
@@ -63,7 +63,7 @@ impl H264Profile {
 
 /// Export ▸ Hardware encoding: whether H.264 (and ProRes on macOS) may be encoded by the system's
 /// hardware video encoder (VideoToolbox on macOS, NVENC on NVIDIA GPUs on Windows) instead of
-/// FilmCraft's own encoder. Auto by default (Jilo Studio; FilmCraft defaults to Off): on a 4K HLG
+/// Jilo Studio's own encoder. Auto by default (Jilo Studio; FilmCraft defaults to Off): on a 4K HLG
 /// edit the H.264 export is 1.5× faster (`docs/performance.md`), and whatever the hardware does not
 /// take (two-pass, CRF, HDR H.264, MXF, a machine without one) keeps the built-in encoder. Off =
 /// the built-in encoder, whose files are byte-identical from run to run and machine to machine;
@@ -78,7 +78,7 @@ pub enum HardwareEncoding {
     Auto,
 }
 
-/// Whether the picture of an export may be composited on the GPU (`filmcraft-gpu`'s off-screen
+/// Whether the picture of an export may be composited on the GPU (`jilo-gpu`'s off-screen
 /// compositor) instead of the CPU reference renderer. Auto = use the GPU when the app registered
 /// a GPU frame renderer and the machine has an adapter; the CPU result is the fallback either
 /// way. Auto is the default: on an effects-heavy edit it exports 2.4× (1080p) to 3.2× (4K)
@@ -359,7 +359,7 @@ impl ExportMetadata {
                 .filter(|(_, s)| !s.trim().is_empty())
                 .map(|(k, s)| (k.to_string(), s.trim().to_string()))
                 .collect();
-        v.push(("©too".into(), format!("FilmCraft {}", env!("CARGO_PKG_VERSION"))));
+        v.push(("©too".into(), format!("Jilo Studio {}", env!("CARGO_PKG_VERSION"))));
         v
     }
 }
@@ -480,9 +480,9 @@ impl ExportSettings {
             }
             Format::Apv => {
                 let bpp = match crate::apv_profile(&self.apv_profile) {
-                    filmcraft_apv::Profile::P422_12 => 3.6,
-                    filmcraft_apv::Profile::P444_10 => 4.2,
-                    filmcraft_apv::Profile::P444_12 | filmcraft_apv::Profile::P4444_10 | filmcraft_apv::Profile::P4444_12 => 5.0,
+                    jilo_apv::Profile::P422_12 => 3.6,
+                    jilo_apv::Profile::P444_10 => 4.2,
+                    jilo_apv::Profile::P444_12 | jilo_apv::Profile::P4444_10 | jilo_apv::Profile::P4444_12 => 5.0,
                     _ => 3.0,
                 };
                 px * fps * bpp
@@ -554,7 +554,7 @@ impl ExportSettings {
                     v += &format!(", keyframe every {} frames", r.keyint);
                 }
                 Format::ProRes => {
-                    use filmcraft_prores::Profile;
+                    use jilo_prores::Profile;
                     v += match crate::prores_profile(&self.prores_profile) {
                         Profile::Proxy => ", ProRes 422 Proxy",
                         Profile::Lt => ", ProRes 422 LT",

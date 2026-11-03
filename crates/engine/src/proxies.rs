@@ -15,10 +15,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use filmcraft_export::{ExportSettings, Format, Progress, Report};
-use filmcraft_media::{MediaKind, SharedSource};
-use filmcraft_project::{IngestAction, ItemId, ItemKind, MediaClip, MediaRef, Project, SequenceSettings, TrackKind};
-use filmcraft_time::{Tick, TimeRange};
+use jilo_export::{ExportSettings, Format, Progress, Report};
+use jilo_media::{MediaKind, SharedSource};
+use jilo_project::{IngestAction, ItemId, ItemKind, MediaClip, MediaRef, Project, SequenceSettings, TrackKind};
+use jilo_time::{Tick, TimeRange};
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -112,7 +112,7 @@ pub fn transcode(
     let mut c = clip.clone();
     c.offline = false;
     c.proxy = None;
-    let item = p.add_item(name, filmcraft_project::Label::Iris, ItemKind::Media(c), None);
+    let item = p.add_item(name, jilo_project::Label::Iris, ItemKind::Media(c), None);
     let has_v = info.video.is_some();
     let has_a = info.has_audio();
     let seq = p.new_sequence("transcode", st, usize::from(has_v), usize::from(has_a), None);
@@ -144,7 +144,7 @@ pub fn transcode(
     };
     let project = Arc::new(p);
     let provider = move |id: ItemId| (id == item).then(|| src.clone());
-    filmcraft_export::export(&project, seq, &settings, &provider, progress).map_err(|e| e.to_string())
+    jilo_export::export(&project, seq, &settings, &provider, progress).map_err(|e| e.to_string())
 }
 
 /// Frames a transcode of `clip` will write (for progress totals).
@@ -250,7 +250,7 @@ pub fn start_job(s: &mut Session, label: String, work: Vec<(ItemId, String, &'st
         run();
         poll(s);
     } else {
-        std::thread::Builder::new().name("filmcraft-proxies".into()).spawn(run).map_err(|e| EngineError::Other(e.to_string()))?;
+        std::thread::Builder::new().name("jilo-proxies".into()).spawn(run).map_err(|e| EngineError::Other(e.to_string()))?;
     }
     Ok(id)
 }
@@ -381,7 +381,7 @@ pub fn create(s: &mut Session, p: &Value) -> Result<Value> {
 /// Ingest freshly imported items per the project's ingest settings.
 /// Where Project Settings ▸ Ingest copies the file at `path`. `None`: ingest does not copy, or
 /// the file is already there.
-pub(crate) fn ingest_copy_path(ing: &filmcraft_project::IngestSettings, path: &str) -> Option<PathBuf> {
+pub(crate) fn ingest_copy_path(ing: &jilo_project::IngestSettings, path: &str) -> Option<PathBuf> {
     if !ing.enabled || !matches!(ing.action, IngestAction::Copy | IngestAction::CopyAndCreateProxies) {
         return None;
     }

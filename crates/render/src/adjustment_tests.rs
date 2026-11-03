@@ -3,10 +3,10 @@
 //! and nesting scopes them to their own sequence.
 
 use super::*;
-use filmcraft_media::generators::GeneratorSource;
-use filmcraft_media::{DemoScene, Generator, MediaSource};
-use filmcraft_project::{ClipId, Label, Mask, MaskPath, MediaClip, MediaRef, SequenceSettings, TrackKind, find_effect};
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND, TimeRange};
+use jilo_media::generators::GeneratorSource;
+use jilo_media::{DemoScene, Generator, MediaSource};
+use jilo_project::{ClipId, Label, Mask, MaskPath, MediaClip, MediaRef, SequenceSettings, TrackKind, find_effect};
+use jilo_time::{FrameRate, TICKS_PER_SECOND, TimeRange};
 
 const R: FrameRate = FrameRate::FPS_24;
 
@@ -115,8 +115,7 @@ fn opacity_and_blend_mode_mix_over_the_original() {
     // Multiply: red × cyan = black at 100 %
     let op = clip(&mut s, adj).effect_mut("opacity").unwrap();
     op.params.get_mut("opacity").unwrap().value = ParamValue::Float(100.0);
-    op.params.get_mut("blend").unwrap().value =
-        ParamValue::Choice(filmcraft_project::effect::BLEND_MODES.iter().position(|b| *b == "Multiply").unwrap() as u32);
+    op.params.get_mut("blend").unwrap().value = ParamValue::Choice(jilo_project::effect::BLEND_MODES.iter().position(|b| *b == "Multiply").unwrap() as u32);
     let c = render(&s).get(100, 100);
     assert!(near(c, [0.0, 0.0, 0.0], 1e-3), "{c:?}");
 }

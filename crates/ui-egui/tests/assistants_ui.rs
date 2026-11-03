@@ -7,13 +7,13 @@ use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::control::ControlRequest;
-use filmcraft_ui_egui::{AssistantChannel, FilmcraftApp};
+use jilo_engine::Session;
+use jilo_ui_egui::control::ControlRequest;
+use jilo_ui_egui::{AssistantChannel, JiloApp};
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     /// Requests "from an assistant", once the app opened the channel.
     assistant: Rc<std::cell::RefCell<Option<Sender<ControlRequest>>>>,
     opened: Rc<Cell<usize>>,
@@ -31,7 +31,7 @@ impl Driver {
     fn build(control: Option<Receiver<ControlRequest>>) -> Self {
         let assistant: Rc<std::cell::RefCell<Option<Sender<ControlRequest>>>> = Rc::default();
         let opened = Rc::new(Cell::new(0));
-        let mut app = FilmcraftApp::new(Session::default());
+        let mut app = JiloApp::new(Session::default());
         if let Some(rx) = control {
             app = app.with_control(rx);
         }
@@ -43,8 +43,8 @@ impl Driver {
             Ok(Some(rx))
         }));
         let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
-        // `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>`: render offscreen with wgpu and write the AI page there
-        if std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").is_some() {
+        // `JILO_UI_SNAPSHOT_DIR=<dir>`: render offscreen with wgpu and write the AI page there
+        if std::env::var_os("JILO_UI_SNAPSHOT_DIR").is_some() {
             b = b.wgpu();
         }
         let harness = b.build_eframe(move |_cc| app);
@@ -64,7 +64,7 @@ impl Driver {
         }
     }
 
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 
@@ -114,7 +114,7 @@ fn the_channel_opens_when_allowed_and_refuses_when_not() {
 
 #[test]
 fn a_channel_that_cannot_open_says_why() {
-    let mut app = FilmcraftApp::new(Session::default());
+    let mut app = JiloApp::new(Session::default());
     app.hooks.assistant_channel = Some(Box::new(|| Err("control server failed to bind 127.0.0.1:47821: Address already in use".into())));
     let mut h = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).build_eframe(move |_cc| app);
     h.step();
@@ -150,7 +150,7 @@ fn the_ai_page_shows_the_setting_and_the_channel() {
         .filter_map(|e| e["id"].as_str().map(str::to_string))
         .collect();
     assert!(ids.iter().any(|i| i == "settings.ai.allowAssistants"), "{ids:?}");
-    if let Some(dir) = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) {
+    if let Some(dir) = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from) {
         // the section is at the end of the page
         for _ in 0..6 {
             call(&mut d, "ui.scroll", json!({"x": 900.0, "y": 500.0, "dx": 0.0, "dy": -2000.0}));

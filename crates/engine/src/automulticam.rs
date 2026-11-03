@@ -7,9 +7,9 @@
 
 use serde_json::{Value, json};
 
-use filmcraft_edit as edit;
-use filmcraft_project::{ClipId, ItemId, Sequence, TrackItem};
-use filmcraft_time::Tick;
+use jilo_edit as edit;
+use jilo_project::{ClipId, ItemId, Sequence, TrackItem};
+use jilo_time::Tick;
 
 use crate::commands::{CommandSpec, bad, has_seq, str_p};
 use crate::{EngineError, Result, Session};
@@ -180,8 +180,8 @@ fn activity(s: &Session, source: ItemId, from: f64, n: usize, method: &str, spea
                 while w < n {
                     let k = chunk.min(n - w);
                     let start = ((from + w as f64 * WINDOW) * f64::from(rate)) as i64;
-                    let buf = filmcraft_render::audio::mix_sequence(&project, &solo, start, k * per, &provider);
-                    let mono = filmcraft_speech::downmix(&buf.channels);
+                    let buf = jilo_render::audio::mix_sequence(&project, &solo, start, k * per, &provider);
+                    let mono = jilo_speech::downmix(&buf.channels);
                     for j in 0..k {
                         let part = mono.get(j * per..((j + 1) * per).min(mono.len())).unwrap_or(&[]);
                         let sum: f64 = part.iter().map(|x| f64::from(*x) * f64::from(*x)).sum();

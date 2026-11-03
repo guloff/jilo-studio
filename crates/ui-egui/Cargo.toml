@@ -1,6 +1,6 @@
 [package]
-name = "filmcraft-ui-egui"
-description = "The FilmCraft egui frontend (swappable): panels, docking, timeline, monitors, control channel"
+name = "jilo-ui-egui"
+description = "The Jilo Studio egui frontend (swappable): panels, docking, timeline, monitors, control channel"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,23 +10,23 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-filmcraft-time = { workspace = true }
-filmcraft-geom = { workspace = true }
-filmcraft-color = { workspace = true }
-filmcraft-frame = { workspace = true }
-filmcraft-media = { workspace = true }
-filmcraft-project = { workspace = true }
-filmcraft-captions = { workspace = true }
-filmcraft-tts = { workspace = true }
-filmcraft-edit = { workspace = true }
-filmcraft-render = { workspace = true }
-filmcraft-text = { workspace = true }
-filmcraft-audio-dsp = { workspace = true }
-filmcraft-engine = { workspace = true }
-filmcraft-ai = { workspace = true }
-filmcraft-export = { workspace = true }
-filmcraft-gpu = { workspace = true }
-filmcraft-scopes = { workspace = true }
+jilo-time = { workspace = true }
+jilo-geom = { workspace = true }
+jilo-color = { workspace = true }
+jilo-frame = { workspace = true }
+jilo-media = { workspace = true }
+jilo-project = { workspace = true }
+jilo-captions = { workspace = true }
+jilo-tts = { workspace = true }
+jilo-edit = { workspace = true }
+jilo-render = { workspace = true }
+jilo-text = { workspace = true }
+jilo-audio-dsp = { workspace = true }
+jilo-engine = { workspace = true }
+jilo-ai = { workspace = true }
+jilo-export = { workspace = true }
+jilo-gpu = { workspace = true }
+jilo-scopes = { workspace = true }
 egui = { workspace = true }
 eframe = { workspace = true, features = ["default_fonts", "wgpu", "accesskit"] }
 serde = { workspace = true }
@@ -46,12 +46,12 @@ cpu-time = "1"
 
 [dev-dependencies]
 pollster = "0.4"
-filmcraft-codecs = { workspace = true }
+jilo-codecs = { workspace = true }
 # the bench registers OS hardware decoders as the desktop app does (dev-dependency only: ui-egui
 # itself stays OS-independent and web-portable)
-filmcraft-platform = { workspace = true }
-filmcraft-interchange = { workspace = true }
-filmcraft-speech = { workspace = true }
+jilo-platform = { workspace = true }
+jilo-interchange = { workspace = true }
+jilo-speech = { workspace = true }
 egui_kittest = { workspace = true, features = ["eframe", "wgpu"] }
 sha2 = "0.10"
 

@@ -150,7 +150,7 @@ mod tests {
     #[cfg(any(unix, windows))]
     #[test]
     fn file_reader_reads_ranges_in_place() {
-        let dir = std::env::temp_dir().join(format!("filmcraft-file-reader-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("jilo-file-reader-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("bytes.bin");
         std::fs::write(&path, b"0123456789").unwrap();

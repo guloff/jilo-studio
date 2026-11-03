@@ -1,0 +1,578 @@
+//! Jilo Studio desktop app.
+//!
+//! Usage: `jilo-studio [--control <port>] [--demo|--empty] [--recover|--no-recover] [--data-dir <dir>]
+//! [project.jsproj | media files…]`; `--help` prints the options, `--version` the version. An
+//! unknown option is an error (exit code 2), not a file to open.
+//!
+//! Without a project, `--demo` or `--empty`, Settings ▸ General ▸ At Startup decides: Show Home
+//! (Import, including Recent Projects), Open Most Recent, or an empty project.
+//!
+//! `--control <port>` (or `JILO_CONTROL_PORT`) starts a localhost JSON-lines control server;
+//! see `jilo_ui_egui::control` for the methods. A port that is not a number is an error from
+//! either source.
+//!
+//! Auto-save and the crash-recovery journal run in every session (data in `--data-dir`, else
+//! `JILO_DATA_DIR`, else the per-user application data folder). If a previous session died
+//! with unsaved changes the app asks to recover them; `--recover` recovers the newest without
+//! asking, `--no-recover` starts without asking (the changes stay available via File ▸ Recover
+//! Unsaved Changes…).
+//!
+//! `log` records go to standard error and `<data dir>/Logs/jilo-studio.log` (`RUST_LOG` sets the
+//! levels); see [`logging`].
+#![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
+
+mod app_nap;
+mod appearance;
+mod args;
+mod audio;
+mod audio_in;
+mod control_server;
+mod file_filters;
+#[cfg(any(target_os = "windows", test))]
+mod graphics;
+mod logging;
+#[cfg(target_os = "macos")]
+mod native_menu;
+mod process;
+mod window_raise;
+
+use args::{Cli, Launch};
+use chrono::TimeZone;
+use jilo_engine::Session;
+use jilo_engine::autosave::{AutosaveConfig, default_data_dir};
+use jilo_ui_egui::JiloApp;
+use serde_json::json;
+
+/// Reverse-DNS app id: Linux `.desktop` file, hicolor icon name and Wayland app id.
+const APP_ID: &str = "com.rustamguloff.jilostudio";
+
+/// The window, Dock and app-switcher icon: the Jilo Studio icon (`assets/brand/jilo/`, on Apple's
+/// icon grid so it matches the size of other Dock icons).
+fn app_icon() -> egui::IconData {
+    let png: &[u8] = include_bytes!("../../../assets/brand/jilo/jilo-studio-512.png");
+    eframe::icon_data::from_png_bytes(png).unwrap_or_default()
+}
+
+/// Print `text` (stdout, or stderr for an error). A Windows release build has no console
+/// (`windows_subsystem = "windows"`), so there it is also shown in a message box: otherwise `--help`
+/// would print nothing and a bad option would quit without a word.
+fn tell(text: &str, error: bool) {
+    if error {
+        eprint!("{text}");
+    } else {
+        print!("{text}");
+    }
+    #[cfg(all(target_os = "windows", not(debug_assertions)))]
+    {
+        let level = if error { rfd::MessageLevel::Error } else { rfd::MessageLevel::Info };
+        let _ = rfd::MessageDialog::new().set_level(level).set_title(jilo_ui_egui::brand::APP_NAME).set_description(text).show();
+    }
+}
+
+fn main() -> eframe::Result {
+    // First, so the panic hook and every start-up record are logged (`logging`).
+    let logger = logging::install();
+    // lossy, so a value that is not Unicode is reported like any other bad port instead of ignored
+    let env_port = jilo_engine::env_var("JILO_CONTROL_PORT").map(|p| p.to_string_lossy().into_owned());
+    let Launch { control_port, files, demo, startup_flag, recover, data_dir } = match args::parse(env_port, std::env::args().skip(1)) {
+        Ok(Cli::Run(l)) => l,
+        Ok(Cli::Help) => {
+            tell(args::USAGE, false);
+            return Ok(());
+        }
+        Ok(Cli::Process { params, files, data_dir }) => {
+            register_hardware_decoders();
+            std::process::exit(process::run(&params, &files, data_dir));
+        }
+        Ok(Cli::Mcp { addr, data_dir }) => std::process::exit(serve_mcp(&addr, data_dir)),
+        Ok(Cli::Version) => {
+            tell(&format!("jilo-studio {}\n", env!("CARGO_PKG_VERSION")), false);
+            return Ok(());
+        }
+        Err(e) => {
+            tell(&format!("jilo-studio: {e}\n\n{}", args::USAGE), true);
+            std::process::exit(2);
+        }
+    };
+    let log_dir = data_dir.clone().or_else(default_data_dir).map(|d| d.join(logging::LOG_DIR));
+    log::info!("Jilo Studio {} ({} {})", env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH);
+    // The log file lives next to the crash logs; opened after the arguments, so `--help`,
+    // `--version` and usage errors leave no file behind. Records logged until now go in first.
+    if let Some(logger) = logger {
+        match log_dir.as_deref().map(|d| logger.attach_dir(d)) {
+            Some(Ok(path)) => log::info!("log file {}", path.display()),
+            Some(Err(e)) => log::warn!("no log file: {e}"),
+            None => {
+                logger.stderr_only();
+                log::warn!("no log file: no data directory (set JILO_DATA_DIR or --data-dir)");
+            }
+        }
+    }
+    app_nap::disable();
+    // The app menu's title and its Hide / Quit items use the process name: the bundle's executable
+    // is "Jilo Studio", but a binary run straight from the build is "jilo-studio".
+    #[cfg(target_os = "macos")]
+    objc2_foundation::NSProcessInfo::processInfo().setProcessName(&objc2_foundation::NSString::from_str(jilo_ui_egui::brand::APP_NAME));
+    // Panics anywhere go to <data dir>/Logs/crash-<day>.log with a backtrace; the UI pass and
+    // frame workers catch them and keep running (see jilo_ui_egui::crash).
+    jilo_ui_egui::crash::install(log_dir);
+    // A run that ended without quitting (crash, forced quit) leaves its marker unlocked: the
+    // window offers its report once.
+    if jilo_ui_egui::crash::begin_session().is_some() {
+        log::warn!("the previous run ended without quitting");
+    }
+    // OS hardware video decoders (VideoToolbox on macOS) in front of our own; Settings ▸ Playback ▸
+    // Hardware decoding switches them off. Unsupported streams and failures use our decoders.
+    register_hardware_decoders();
+    // Every media source keeps its file open; launchd gives Finder-started apps only 256 (#67).
+    match jilo_platform::raise_open_file_limit() {
+        Ok(n) => log::info!("open-file limit {n}"),
+        Err(e) => log::warn!("{e}"),
+    }
+    // The control channel's access token (#163), made before the window so a client started right
+    // after the app finds it.
+    let control_token = match control_port.map(|port| control_auth(port, data_dir.clone().or_else(default_data_dir))) {
+        Some(Ok(t)) => t,
+        Some(Err(e)) => {
+            // No token means no control server: an open port without one is what #163 is about.
+            eprintln!("jilo-studio: control server not started: {e}");
+            log::warn!("control server not started: {e}");
+            None
+        }
+        None => None,
+    };
+    let control_port = control_port.filter(|_| control_token.is_some() || jilo_engine::control_token::auth_disabled());
+    register_gpu_frame_renderer();
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_title(jilo_ui_egui::brand::APP_NAME)
+            .with_inner_size([1600.0, 980.0])
+            .with_min_inner_size([900.0, 560.0])
+            .with_drag_and_drop(true)
+            .with_fullsize_content_view(true)
+            .with_titlebar_shown(false)
+            .with_title_shown(false)
+            // Started for an agent (`--control`): open without taking the user's keyboard focus.
+            .with_active(control_port.is_none())
+            .with_icon(app_icon())
+            .with_app_id(APP_ID),
+        event_loop_builder: agent_event_loop(control_port.is_some()),
+        ..Default::default()
+    };
+    // Settings ▸ Color ▸ Extended Dynamic Range Monitoring (macOS): a half-float extended-sRGB
+    // window surface, so the monitors can show HDR above SDR white. Read before the window exists
+    // (the surface format is fixed for the session): the setting applies after a restart.
+    #[cfg(target_os = "macos")]
+    let options = {
+        let mut options = options;
+        let prefs = data_dir.clone().or_else(default_data_dir).map(|d| jilo_engine::autosave::Preferences::load(&d.join("preferences.json")));
+        if prefs.is_some_and(|p| p.color.extended_dynamic_range) {
+            options.wgpu_options.hdr_surface = Some((eframe::wgpu::TextureFormat::Rgba16Float, eframe::wgpu::SurfaceColorSpace::ExtendedSrgb));
+        }
+        options
+    };
+    // Before eframe creates the wgpu instance: leave OpenGL out on Windows (see graphics.rs).
+    #[cfg(target_os = "windows")]
+    let options = {
+        let mut options = options;
+        graphics::configure(&mut options, eframe::wgpu::Backends::from_env());
+        options
+    };
+    // macOS: files opened from Finder / the Dock come as an Apple Event; catch the ones that launch
+    // Jilo Studio (installed again once the event loop runs, see the creator below).
+    jilo_platform::open_documents::install();
+    let started = eframe::run_native(
+        jilo_ui_egui::brand::APP_NAME,
+        options,
+        Box::new(move |cc| {
+            let mut session = Session::default();
+            session.face_detector = face_detector();
+            session.image_classifier = image_classifier();
+            session.emoji_renderer = emoji_renderer();
+            session.cutout = cutout();
+            session.matte = matte();
+            if let Some(dir) = data_dir.clone().or_else(default_data_dir) {
+                // updates download beside the app's other data (`--data-dir` included)
+                session.updates_dir = Some(dir.join("Updates"));
+                let mut cfg = AutosaveConfig::new(dir);
+                cfg.local_offset = local_offset;
+                if let Err(e) = session.start_autosave(cfg) {
+                    log::warn!("auto-save and crash recovery unavailable: {e}");
+                }
+            }
+            // voice-over recording reads the microphone through cpal
+            session.voiceover.input = Some(Box::new(audio_in::CpalIn::new(&session.prefs.audio_hardware.device_class)));
+            let show_home = files.is_empty()
+                && !startup_flag
+                && session.prefs.general.at_startup == "showHome"
+                && recover != Some(true)
+                && (recover == Some(false) || session.recovery_candidates().is_empty());
+            let project = files.iter().find(|f| jilo_engine::project_file::is_project_path(f)).cloned();
+            if let Some(p) = project {
+                if let Err(e) = session.execute("file.open", json!({"path": p})) {
+                    log::error!("{e}");
+                }
+            } else if !startup_flag && session.prefs.general.at_startup == "openMostRecent" {
+                // Settings ▸ General ▸ At Startup ▸ Open Most Recent
+                let recent = session.prefs.general.recent_projects.iter().find(|p| std::path::Path::new(p).exists()).cloned();
+                match recent {
+                    Some(p) => {
+                        if let Err(e) = session.execute("file.open", json!({"path": p})) {
+                            log::error!("{e}");
+                        }
+                    }
+                    None => {
+                        let _ = session.execute("file.openDemoProject", json!({}));
+                    }
+                }
+            } else if !startup_flag && session.prefs.general.at_startup == "emptyProject" {
+            } else if demo && !show_home {
+                let _ = session.execute("file.openDemoProject", json!({}));
+            }
+            let media: Vec<String> = files.iter().filter(|f| !jilo_engine::project_file::is_project_path(f)).cloned().collect();
+            if !media.is_empty() {
+                let _ = session.execute("file.import", json!({"paths": media}));
+            }
+            if recover == Some(true) && !session.recovery_candidates().is_empty() {
+                let id = session.recovery_candidates()[0].id.clone();
+                match session.execute("file.recover", json!({"id": id})) {
+                    Ok(r) => log::info!("recovered {r}"),
+                    Err(e) => log::error!("recovery failed: {e}"),
+                }
+            }
+            let mut app = JiloApp::new(session).with_daily_update_check();
+            if show_home {
+                app.ui.mode = jilo_ui_egui::state::Mode::Import;
+            }
+            if recover == Some(false) {
+                app.dialog = None;
+            }
+            // Help ▸ Tips… at start, until turned off (not over a recovery question)
+            if app.session.prefs.general.show_tips && app.dialog.is_none() {
+                app.ui.tips.open = true;
+                app.ui.tips.index = (app.session.prefs.general.last_update_check.unsigned_abs() as usize) % jilo_ui_egui::panels::tips::TIPS.len();
+            }
+            app.integrated_titlebar = cfg!(target_os = "macos");
+            // the quit is complete once `on_exit` has run: AppKit tearing the window down after it
+            // could only turn it into a crash report
+            app.exit_after_on_exit = cfg!(target_os = "macos");
+            if let Some(rs) = cc.wgpu_render_state.clone()
+                && std::env::var_os("JILO_CPU_COMPOSITE").is_none()
+            {
+                app.set_wgpu(rs);
+            }
+            // Keep device selection available even when the default device is unavailable.
+            // Settings ▸ Audio Hardware is applied on the first frame (`apply_prefs`).
+            app.audio = Some(Box::new(audio::CpalOut::new()));
+            app.hooks.pick_files = Some(Box::new(|exts: &[&str]| {
+                rfd::FileDialog::new()
+                    .add_filter(jilo_ui_egui::i18n::t("Media"), &file_filters::extensions(exts))
+                    .pick_files()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect()
+            }));
+            // Link Media ▸ Locate…, Attach Proxies, Reconnect Full Resolution: one path, not imported.
+            app.hooks.pick_file_for_relink = Some(Box::new(|exts: &[&str], _hint| {
+                rfd::FileDialog::new()
+                    .add_filter(jilo_ui_egui::i18n::t("Media"), &file_filters::extensions(exts))
+                    .pick_file()
+                    .map(|p| p.to_string_lossy().to_string())
+            }));
+            app.hooks.pick_save = Some(Box::new(|name: &str| {
+                rfd::FileDialog::new()
+                    .add_filter(jilo_ui_egui::i18n::t("Jilo Studio Project"), &file_filters::extensions(&[jilo_engine::project_file::PROJECT_EXTENSION]))
+                    .set_file_name(name)
+                    .save_file()
+                    .map(|p| p.to_string_lossy().to_string())
+            }));
+            app.hooks.pick_save_as = Some(Box::new(|filter: &str, exts: &[&str], name: &str| {
+                rfd::FileDialog::new()
+                    .add_filter(jilo_ui_egui::i18n::t(filter), &file_filters::extensions(exts))
+                    .set_file_name(name)
+                    .save_file()
+                    .map(|p| p.to_string_lossy().to_string())
+            }));
+            app.hooks.pick_folder = Some(Box::new(|| rfd::FileDialog::new().pick_folder().map(|p| p.to_string_lossy().to_string())));
+            app.hooks.pick_folder_at =
+                Some(Box::new(|dir: &str| rfd::FileDialog::new().set_directory(dir).pick_folder().map(|p| p.to_string_lossy().into_owned())));
+            app.hooks.open_path = Some(Box::new(open_path));
+            app.hooks.clipboard_media = Some(Box::new(clipboard_media));
+            // a notification when a long job ends in the background (the app bundle only)
+            if jilo_platform::notify::available() {
+                app.hooks.notify = Some(Box::new(|title: &str, body: &str| {
+                    if let Err(e) = jilo_platform::notify::send(title, body) {
+                        log::warn!("notification: {e}");
+                    }
+                }));
+            }
+            // Settings ▸ General ▸ Interface Language ▸ System Language (#218).
+            app.hooks.cursor_screen_position = Some(Box::new(jilo_platform::cursor::cursor_screen_position));
+            // Finder / Dock "open" requests and the system's recent documents (macOS).
+            jilo_platform::open_documents::install();
+            let repaint = cc.egui_ctx.clone();
+            jilo_platform::open_documents::set_waker(Box::new(move || repaint.request_repaint()));
+            app.hooks.opened_documents = Some(Box::new(jilo_platform::open_documents::take));
+            app.hooks.note_recent_document = Some(Box::new(jilo_platform::open_documents::note_recent));
+            app.hooks.edr_headroom = Some(Box::new(jilo_platform::display::edr_headroom));
+            app.hooks.system_languages = Some(Box::new(|| sys_locale::get_locales().collect()));
+            // Settings ▸ Appearance ▸ Appearance Mode ▸ Sync with system on Linux desktops whose
+            // compositor reports no theme to winit (no polling: see appearance.rs).
+            app.hooks.system_theme = appearance::service();
+            app.hooks.raise_without_focus = Some(Box::new(|| {
+                window_raise::raise_without_focus();
+            }));
+            app.hooks.pick_open_file = Some(Box::new(|filter: &str, exts: &[&str]| {
+                rfd::FileDialog::new()
+                    .add_filter(jilo_ui_egui::i18n::t(filter), &file_filters::extensions(exts))
+                    .pick_file()
+                    .map(|p| p.to_string_lossy().to_string())
+            }));
+            app.hooks.pick_open_project = Some(Box::new(|| {
+                rfd::FileDialog::new()
+                    .add_filter(jilo_ui_egui::i18n::t("Jilo Studio Project"), &file_filters::extensions(&jilo_engine::project_file::PROJECT_EXTENSIONS))
+                    .pick_file()
+                    .map(|p| p.to_string_lossy().to_string())
+            }));
+            #[cfg(target_os = "macos")]
+            {
+                let (rx, update) = native_menu::install(&app, cc.egui_ctx.clone());
+                app.command_inbox = Some(rx);
+                app.hooks.shortcuts_changed = Some(update);
+                app.ui.show_menu_bar = false;
+            }
+            if let Some(port) = control_port {
+                let rx = control_server::start(port, cc.egui_ctx.clone(), control_token.clone());
+                app = app.with_control(rx);
+            }
+            // Settings ▸ AI ▸ Allow AI assistants: the channel opens when the setting is on (at
+            // start, or later without a restart), on the port `jilo-cli mcp --app` connects to
+            let assistant_port = jilo_engine::control_token::ASSISTANT_PORT;
+            let served = control_port == Some(assistant_port);
+            let (ctx, dir) = (cc.egui_ctx.clone(), data_dir.clone().or_else(default_data_dir));
+            app.hooks.assistant_channel = Some(Box::new(move || {
+                if served {
+                    return Ok(None);
+                }
+                let listener = control_server::bind(assistant_port)?;
+                let token = control_auth(assistant_port, dir.clone())?;
+                log::info!("AI assistants can connect on 127.0.0.1:{assistant_port}");
+                Ok(Some(control_server::listen(listener, ctx.clone(), token)))
+            }));
+            Ok(Box::new(app))
+        }),
+    );
+    // The window could not be created (no usable GPU / graphics driver, no display): say so
+    // instead of exiting silently, and keep the reason in the crash log.
+    if let Err(e) = &started {
+        let msg = format!("{} could not start its window: {e}\n\nUpdating the graphics driver usually fixes this.", jilo_ui_egui::brand::APP_NAME);
+        log::error!("{msg}");
+        jilo_ui_egui::crash::record(&msg);
+        let _ = rfd::MessageDialog::new().set_title(jilo_ui_egui::brand::APP_NAME).set_description(&msg).set_level(rfd::MessageLevel::Error).show();
+    }
+    started
+}
+
+/// Files copied in the file manager, else an image, on the system clipboard (Paste, #611).
+fn clipboard_media() -> Option<jilo_ui_egui::ClipboardMedia> {
+    let mut clipboard = arboard::Clipboard::new().ok()?;
+    if let Ok(files) = clipboard.get().file_list()
+        && !files.is_empty()
+    {
+        return Some(jilo_ui_egui::ClipboardMedia::Files(files.iter().map(|p| p.to_string_lossy().into_owned()).collect()));
+    }
+    let image = clipboard.get_image().ok()?;
+    Some(jilo_ui_egui::ClipboardMedia::Image { width: image.width, height: image.height, rgba: image.bytes.into_owned() })
+}
+
+/// Open a file in its default application, or reveal it in the file manager (Edit Original,
+/// Reveal Log Files).
+fn open_path(path: &str, reveal: bool) -> Result<(), String> {
+    let mut cmd = if cfg!(target_os = "macos") {
+        let mut c = std::process::Command::new("open");
+        if reveal {
+            c.arg("-R");
+        }
+        c.arg(path);
+        c
+    } else if cfg!(target_os = "windows") {
+        let mut c = std::process::Command::new("explorer");
+        if reveal {
+            c.arg(format!("/select,{path}"));
+        } else {
+            c.arg(path);
+        }
+        c
+    } else {
+        let mut c = std::process::Command::new("xdg-open");
+        let p = std::path::Path::new(path);
+        c.arg(if reveal { p.parent().unwrap_or(p) } else { p });
+        c
+    };
+    cmd.spawn().map(|_| ()).map_err(|e| format!("can't open {path}: {e}"))
+}
+
+/// The GPU export frame renderer (jilo-gpu's off-screen compositor behind jilo-export's
+/// frame-renderer hook): exports with GPU rendering Auto composite on the GPU and fall back to the
+/// CPU reference renderer wherever it cannot.
+struct GpuFrameRenderer(jilo_gpu::ExportRenderer);
+
+impl jilo_export::FrameRenderer for GpuFrameRenderer {
+    fn render(
+        &mut self,
+        project: &jilo_project::Project,
+        seq: jilo_project::ItemId,
+        t: jilo_time::Tick,
+        opts: jilo_render::RenderOptions,
+        sources: &dyn jilo_render::SourceProvider,
+    ) -> Option<jilo_render::Image> {
+        self.0.render(project, seq, t, opts, sources)
+    }
+    fn draws_plans(&self) -> bool {
+        true
+    }
+    fn render_plan(&mut self, plan: &jilo_render::plan::FramePlan) -> Option<jilo_render::Image> {
+        self.0.render_plan(plan)
+    }
+}
+
+fn register_gpu_frame_renderer() {
+    jilo_export::register_frame_renderer(|| jilo_gpu::ExportRenderer::new().map(|r| Box::new(GpuFrameRenderer(r)) as Box<dyn jilo_export::FrameRenderer>));
+}
+
+/// Put the OS hardware video decoders in front of our own. Registered in a statement of its own:
+/// a log macro does not evaluate its arguments while no logger takes its level, which left the
+/// hardware decoders out of every run.
+/// The token clients of `--control <port>` must present (#163): `JILO_CONTROL_TOKEN`, else a
+/// new random one written to `<data dir>/control-<port>.token` (user-only permissions), where
+/// `jilo-cli --bridge` finds it. `Ok(None)` when `JILO_CONTROL_NO_AUTH=1` turns it off.
+/// `--mcp`: serve MCP on stdio, bridged to the app at `addr` (no window; stdout is the protocol, so
+/// every message goes to stderr). The exit code.
+fn serve_mcp(addr: &str, data_dir: Option<std::path::PathBuf>) -> i32 {
+    let server = match jilo_automation::JiloMcp::bridge_with_data_dir(addr, data_dir) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("jilo-studio --mcp: {e}");
+            return 2;
+        }
+    };
+    let rt = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("jilo-studio --mcp: {e}");
+            return 1;
+        }
+    };
+    match rt.block_on(server.serve_stdio()) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("jilo-studio --mcp: {e}");
+            1
+        }
+    }
+}
+
+fn control_auth(port: u16, data_dir: Option<std::path::PathBuf>) -> Result<Option<String>, String> {
+    use jilo_engine::control_token as ct;
+    if ct::auth_disabled() {
+        eprintln!("jilo-studio: control channel authentication is off ({}=1)", ct::NO_AUTH_ENV);
+        return Ok(None);
+    }
+    if let Some(t) = ct::token_from_env() {
+        return Ok(Some(t));
+    }
+    let dir = data_dir.ok_or("no data directory for the control token (set JILO_DATA_DIR, --data-dir or JILO_CONTROL_TOKEN)")?;
+    let token = ct::generate()?;
+    let path = ct::token_path(&dir, port);
+    ct::write(&path, &token)?;
+    eprintln!("jilo-studio: control token in {}", path.display());
+    Ok(Some(token))
+}
+
+/// Reframe to Face finds faces with Apple Vision where the system has it.
+fn face_detector() -> Option<jilo_engine::reframe::FaceDetector> {
+    jilo_platform::vision::available().then(|| {
+        let d: jilo_engine::reframe::FaceDetector = std::sync::Arc::new(|rgba: &[u8], w: usize, h: usize| {
+            jilo_platform::vision::detect_faces(rgba, w, h).map(|faces| {
+                faces
+                    .into_iter()
+                    .map(|f| jilo_engine::reframe::FaceBox { x: f.x.into(), y: f.y.into(), w: f.w.into(), h: f.h.into(), confidence: f.confidence.into() })
+                    .collect()
+            })
+        });
+        d
+    })
+}
+
+/// Auto B-roll labels footage with Apple Vision's scene classifier where the system has it.
+fn image_classifier() -> Option<jilo_engine::broll::ImageClassifier> {
+    jilo_platform::vision::available().then(|| {
+        let c: jilo_engine::broll::ImageClassifier =
+            std::sync::Arc::new(|rgba: &[u8], w: usize, h: usize| jilo_platform::vision::classify_image(rgba, w, h, 8, 0.1));
+        c
+    })
+}
+
+/// Stickers draw emoji from the system's colour emoji font where the system has it.
+fn matte() -> Option<jilo_engine::bg_removal::Matte> {
+    jilo_platform::vision::cut_out_available().then(|| {
+        let m: jilo_engine::bg_removal::Matte = std::sync::Arc::new(jilo_platform::vision::matte);
+        m
+    })
+}
+
+fn cutout() -> Option<jilo_engine::stickers::Cutout> {
+    jilo_platform::vision::cut_out_available().then(|| {
+        let c: jilo_engine::stickers::Cutout = std::sync::Arc::new(jilo_platform::vision::cut_out);
+        c
+    })
+}
+
+fn emoji_renderer() -> Option<jilo_engine::stickers::EmojiRenderer> {
+    jilo_platform::emoji::available().then(|| {
+        let r: jilo_engine::stickers::EmojiRenderer = std::sync::Arc::new(jilo_platform::emoji::render);
+        r
+    })
+}
+
+fn register_hardware_decoders() -> jilo_platform::Availability {
+    let hardware = jilo_platform::register();
+    log::info!("hardware decoding: {hardware:?}");
+    hardware
+}
+
+/// Local UTC offset at a unix time (auto-save file names and recovery times use local time).
+fn local_offset(unix: i64) -> i32 {
+    chrono::Local.timestamp_opt(unix, 0).single().map(|d| d.offset().local_minus_utc()).unwrap_or(0)
+}
+
+/// Driven by an agent (`--control`): don't activate the app on launch, so the user's keyboard
+/// focus stays where it is (macOS; winit activates ignoring other apps by default).
+fn agent_event_loop(agent: bool) -> Option<eframe::EventLoopBuilderHook> {
+    #[cfg(target_os = "macos")]
+    if agent {
+        return Some(Box::new(|b| {
+            use winit::platform::macos::EventLoopBuilderExtMacOS;
+            b.with_activate_ignoring_other_apps(false);
+        }));
+    }
+    let _ = agent;
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    /// Start-up registers the hardware decoders whether or not anything is logged (no logger is
+    /// installed here, as in a normal run).
+    #[test]
+    fn startup_registers_the_hardware_decoders_without_a_logger() {
+        assert!(!log::log_enabled!(log::Level::Info));
+        let hardware = super::register_hardware_decoders();
+        // always on macOS and Windows; on Linux when a VA-API driver or NVIDIA's driver (NVDEC) is there
+        let expected = cfg!(any(target_os = "macos", target_os = "windows"))
+            || (cfg!(target_os = "linux") && matches!(hardware, jilo_platform::Availability::Available(_)));
+        assert_eq!(jilo_platform::registered(), expected, "{hardware:?}");
+    }
+}

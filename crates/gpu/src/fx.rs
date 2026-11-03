@@ -15,9 +15,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use filmcraft_render::gpufx::FxOp;
-use filmcraft_render::mask::FlatMask;
-use filmcraft_render::plan::LayerFx;
+use jilo_render::gpufx::FxOp;
+use jilo_render::mask::FlatMask;
+use jilo_render::plan::LayerFx;
 
 /// Working texture format.
 pub(crate) const FX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba32Float;
@@ -361,10 +361,8 @@ impl FxStage {
     }
 
     pub(crate) fn new(device: &wgpu::Device, composite: &wgpu::ShaderModule, layer_bgl: &wgpu::BindGroupLayout) -> Self {
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("filmcraft-fx"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("fx.wgsl").into()),
-        });
+        let shader = device
+            .create_shader_module(wgpu::ShaderModuleDescriptor { label: Some("jilo-fx"), source: wgpu::ShaderSource::Wgsl(include_str!("fx.wgsl").into()) });
         let tex = |binding| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::COMPUTE,
@@ -472,7 +470,7 @@ impl FxStage {
         let v = self.pool.entry(size).or_default();
         while v.len() < n {
             let t = device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("filmcraft-fx"),
+                label: Some("jilo-fx"),
                 size: wgpu::Extent3d { width: size.0, height: size.1, depth_or_array_layers: 1 },
                 mip_level_count: 1,
                 sample_count: 1,

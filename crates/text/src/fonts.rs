@@ -563,11 +563,11 @@ pub fn fallback_for(c: char, prefer: FaceId) -> FaceId {
 mod tests {
 
     /// A variable font lists its named instances as faces that shape and draw at their own weight.
-    /// Needs a folder with Montserrat[wght].ttf from Google Fonts in `FILMCRAFT_TEST_FONTS_DIR`
+    /// Needs a folder with Montserrat[wght].ttf from Google Fonts in `JILO_TEST_FONTS_DIR`
     /// (the fonts are downloaded by the app, not kept in the repository).
     #[test]
     fn variable_font_instances_are_faces() {
-        let Some(dir) = std::env::var_os("FILMCRAFT_TEST_FONTS_DIR") else { return };
+        let Some(dir) = std::env::var_os("JILO_TEST_FONTS_DIR") else { return };
         add_dir(PathBuf::from(dir));
         let fams = families();
         let styles = &fams.iter().find(|(f, _)| f == "Montserrat").expect("Montserrat registered").1;
@@ -611,7 +611,7 @@ mod tests {
     /// Looking a font file through (coverage, a copy of its bytes) does not keep it in memory.
     #[test]
     fn a_font_file_is_checked_without_being_kept() {
-        let dir = std::env::temp_dir().join(format!("filmcraft-fonts-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("jilo-fonts-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("Inter.ttf");
         std::fs::write(&path, face(resolve("Inter", "Regular").face).data().unwrap()).unwrap();

@@ -15,7 +15,7 @@ fn roughness(x: &[f32], from: usize) -> f32 {
 
 #[test]
 fn matroska_audio_plays_without_holes() {
-    let ff = filmcraft_testkit::require_ffmpeg!();
+    let ff = jilo_testkit::require_ffmpeg!();
     let cases: [(&str, u32, &[&str]); 5] = [
         ("tone_aac_48k.mkv", 48_000, &["-c:a", "aac", "-b:a", "160k"]),
         ("tone_aac_44k.mkv", 44_100, &["-c:a", "aac", "-b:a", "160k"]),
@@ -30,7 +30,7 @@ fn matroska_audio_plays_without_holes() {
             eprintln!("SKIPPED ({name}): this ffmpeg can't encode it");
             continue;
         };
-        let src = filmcraft_codecs::open_bytes(name, bytes(&path)).unwrap();
+        let src = jilo_codecs::open_bytes(name, bytes(&path)).unwrap();
         assert_eq!(src.info().audio().map(|a| a.sample_rate), Some(rate), "{name}");
         let frames = rate as usize * 29 / 10;
         let mut ours = Vec::with_capacity(frames);

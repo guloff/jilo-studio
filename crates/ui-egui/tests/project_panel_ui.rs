@@ -4,7 +4,7 @@
 //! bins opened in place / in a tab / in a window, and the Media Browser (navigation, Favorites,
 //! Edit Columns…, import, drag to the Project panel, Open In Source Monitor).
 //!
-//! Set `FILMCRAFT_UI_SNAPSHOT_DIR=<dir>` to also render offscreen with wgpu and write
+//! Set `JILO_UI_SNAPSHOT_DIR=<dir>` to also render offscreen with wgpu and write
 //! `project-*.png` / `media-browser-*.png`.
 
 #![allow(dead_code)]
@@ -12,15 +12,15 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_engine::project_panel::{FREEFORM_POS, FREEFORM_STACK, ViewMode};
-use filmcraft_project::{BinEntry, ItemId};
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_engine::project_panel::{FREEFORM_POS, FREEFORM_STACK, ViewMode};
+use jilo_project::{BinEntry, ItemId};
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
     snapshots: Option<std::path::PathBuf>,
 }
@@ -28,8 +28,8 @@ struct Driver {
 impl Driver {
     fn with(session: Session) -> Self {
         let (tx, rx) = channel();
-        let app = FilmcraftApp::new(session).with_control(rx);
-        let snapshots = std::env::var_os("FILMCRAFT_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
+        let app = JiloApp::new(session).with_control(rx);
+        let snapshots = std::env::var_os("JILO_UI_SNAPSHOT_DIR").map(std::path::PathBuf::from);
         let mut b = Harness::builder().with_size(egui::vec2(1600.0, 980.0)).with_max_steps(10_000);
         if snapshots.is_some() {
             b = b.wgpu();
@@ -121,7 +121,7 @@ impl Driver {
         self.frames(2);
     }
 
-    fn app(&mut self) -> &mut FilmcraftApp {
+    fn app(&mut self) -> &mut JiloApp {
         self.harness.state_mut()
     }
 
@@ -302,7 +302,7 @@ fn freeform_view_places_and_stacks_cards() {
     d.ok("ui.drag", json!({"from": {"x": from.0, "y": from.1}, "to": {"x": to.0, "y": to.1}, "steps": 16}));
     d.frames(4);
     let pos = d.app().session.project.item(ItemId(items[0])).unwrap().metadata.get(FREEFORM_POS).cloned().expect("card placed");
-    let (x, y, _) = filmcraft_engine::project_panel::parse_pos(&pos).unwrap();
+    let (x, y, _) = jilo_engine::project_panel::parse_pos(&pos).unwrap();
     let (ex, ey) = (r[0] - canvas[0] + 140.0, r[1] - canvas[1] + 90.0);
     assert!((x - ex).abs() < 4.0 && (y - ey).abs() < 4.0, "placed at {x},{y}, expected {ex},{ey}");
     d.frames(2);
@@ -360,7 +360,7 @@ fn metadata_display_dialog_and_view_presets() {
     }
     d.click("project.menu.metadataDisplay");
     d.frames(4);
-    assert!(matches!(d.app().ui.project_panel.dialog, Some(filmcraft_ui_egui::panels::project::ProjectDialog::MetadataDisplay { .. })));
+    assert!(matches!(d.app().ui.project_panel.dialog, Some(jilo_ui_egui::panels::project::ProjectDialog::MetadataDisplay { .. })));
     d.click("projectDialog.field.Label");
     // fields further down: narrow the list with the search box
     d.click("projectDialog.filter");
@@ -443,7 +443,7 @@ fn bins_open_in_place_in_a_tab_or_in_a_window() {
     d.key("Cmd+A");
     d.ok("ui.type", json!({"text": "Camera A"}));
     d.key("Enter");
-    let name = d.app().session.project.root.find_bin(filmcraft_project::BinId(bin)).unwrap().name.clone();
+    let name = d.app().session.project.root.find_bin(jilo_project::BinId(bin)).unwrap().name.clone();
     assert_eq!(name, "Camera A");
 }
 
@@ -479,7 +479,7 @@ fn bins_made_in_the_panel_can_be_deleted() {
         d.frames(3);
         r["bin"].as_u64().unwrap()
     };
-    let exists = |d: &mut Driver, b: u64| d.app().session.project.root.find_bin(filmcraft_project::BinId(b)).is_some();
+    let exists = |d: &mut Driver, b: u64| d.app().session.project.root.find_bin(jilo_project::BinId(b)).is_some();
     // trash button
     let b = new_bin(&mut d);
     d.click(&format!("project.bin.{b}"));
@@ -547,7 +547,7 @@ fn media_dir(tag: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("fc-mb-ui-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("Selects")).unwrap();
-    let wav = filmcraft_media::wav::write_wav16(&[0.0; 9600], 2, 48_000);
+    let wav = jilo_media::wav::write_wav16(&[0.0; 9600], 2, 48_000);
     for n in ["a-interview.wav", "b-roll.wav"] {
         std::fs::write(dir.join(n), &wav).unwrap();
     }
@@ -560,7 +560,7 @@ fn media_dir(tag: &str) -> std::path::PathBuf {
 fn file_dialog_import_uses_shown_bin_unless_explicit() {
     let dir = media_dir("import-bin");
     let src = dir.join("a-interview.wav");
-    let mut app = FilmcraftApp::new(Session::default());
+    let mut app = JiloApp::new(Session::default());
     // A new file for every pick: importing the same file again adds nothing (#356).
     let (copies, mut n) = (dir.clone(), 0);
     app.hooks.pick_files = Some(Box::new(move |_| {
@@ -572,7 +572,7 @@ fn file_dialog_import_uses_shown_bin_unless_explicit() {
     let parent = app.session.execute("file.newBin", json!({"name": "Footage"})).unwrap()["bin"].as_u64().unwrap();
     let child = app.session.execute("file.newBin", json!({"name": "Selects", "parent": parent})).unwrap()["bin"].as_u64().unwrap();
     let root = app.session.project.root.id.0;
-    app.ui.project_panel.tabs.push(filmcraft_ui_egui::panels::project::BinTab { bin: parent, ..Default::default() });
+    app.ui.project_panel.tabs.push(jilo_ui_egui::panels::project::BinTab { bin: parent, ..Default::default() });
     for (shown, tab, params, expected) in [
         (None, None, json!({}), root),
         (Some(child), None, json!({}), child),
@@ -585,7 +585,7 @@ fn file_dialog_import_uses_shown_bin_unless_explicit() {
         let result = app.file_dialog("file.import", &params).unwrap();
         assert!(result["errors"].as_array().unwrap().is_empty(), "{result}");
         let item = ItemId(result["items"][0].as_u64().unwrap());
-        let bin = app.session.project.root.find_bin(filmcraft_project::BinId(expected)).unwrap();
+        let bin = app.session.project.root.find_bin(jilo_project::BinId(expected)).unwrap();
         assert!(bin.children.contains(&BinEntry::Item(item)), "shown={shown:?}, tab={tab:?}, params={params}: expected bin {expected}");
     }
     std::fs::remove_dir_all(&dir).unwrap();

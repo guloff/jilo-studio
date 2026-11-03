@@ -189,7 +189,7 @@ pub fn gemini_transcribe(ctx: &Ctx, key: &Secret, model: &str, req: &SpeechReque
 
 /// A `multipart/form-data` body: text fields, then one file.
 pub fn multipart(fields: &[(&str, &str)], file_field: &str, file_name: &str, mime: &str, data: &[u8]) -> (String, Vec<u8>) {
-    let boundary = "----filmcraft-ai-7d1f3c9a5b2e4f60";
+    let boundary = "----jilo-ai-7d1f3c9a5b2e4f60";
     let mut b = Vec::with_capacity(data.len() + 1024);
     for (k, v) in fields {
         b.extend_from_slice(format!("--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n").as_bytes());
@@ -260,7 +260,7 @@ pub fn transcribe(ctx: &Ctx, provider: Provider, key: &Secret, model: &str, req:
     }
 }
 
-/// The longest window a provider takes (Gemini: 2 minutes, see `filmcraft_speech::chunked`;
+/// The longest window a provider takes (Gemini: 2 minutes, see `jilo_speech::chunked`;
 /// OpenAI: 10 minutes, which as 16-bit mono 16 kHz WAV stays under its 25 MB upload limit).
 pub fn max_window_seconds(provider: Provider) -> f64 {
     match provider {

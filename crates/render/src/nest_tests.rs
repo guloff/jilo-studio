@@ -3,10 +3,10 @@
 //! Premiere's behaviour was observed in Premiere Pro 26.5.2.
 
 use super::*;
-use filmcraft_media::generators::GeneratorSource;
-use filmcraft_media::{DemoScene, Generator, MediaSource};
-use filmcraft_project::{Caption, CaptionFormat, CaptionTrack, ClipId, Label, MediaClip, MediaRef, ParamValue, SequenceSettings, TrackId, TrackKind};
-use filmcraft_time::{FrameRate, TICKS_PER_SECOND, TimeRange};
+use jilo_media::generators::GeneratorSource;
+use jilo_media::{DemoScene, Generator, MediaSource};
+use jilo_project::{Caption, CaptionFormat, CaptionTrack, ClipId, Label, MediaClip, MediaRef, ParamValue, SequenceSettings, TrackId, TrackKind};
+use jilo_time::{FrameRate, TICKS_PER_SECOND, TimeRange};
 
 const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
 
@@ -196,7 +196,7 @@ fn opacity_and_effects_on_a_nest_apply_to_its_whole_picture() {
     // a crop on the nest cuts its picture like any clip's
     let c = r.clip(outer, nest);
     c.effect_mut("opacity").unwrap().params.get_mut("opacity").unwrap().value = ParamValue::Float(100.0);
-    let mut crop = filmcraft_project::effect::find_effect("crop").unwrap().instance();
+    let mut crop = jilo_project::effect::find_effect("crop").unwrap().instance();
     crop.params.get_mut("left").unwrap().value = ParamValue::Float(50.0);
     c.effects.push(crop);
     let img = r.frame(outer, Tick(1000));
@@ -334,7 +334,7 @@ fn a_nest_that_is_not_plain_is_still_drawn_right() {
             r.clip(outer, nest).effect_mut("motion").unwrap().params.get_mut("scale").unwrap().value = ParamValue::Float(60.0);
         }),
         ("nest with an effect", |r, _, outer, nest| {
-            let mut crop = filmcraft_project::effect::find_effect("crop").unwrap().instance();
+            let mut crop = jilo_project::effect::find_effect("crop").unwrap().instance();
             crop.params.get_mut("left").unwrap().value = ParamValue::Float(30.0);
             r.clip(outer, nest).effects.push(crop);
         }),
@@ -377,12 +377,12 @@ fn the_gpu_pays_off_only_for_effects_masks_and_transitions() {
     r.clip(seq, clip).effect_mut("opacity").unwrap().params.get_mut("opacity").unwrap().value = ParamValue::Float(50.0);
     assert!(!pays(&r, seq), "plain layers");
     // an effect only the CPU draws: the CPU draws the clip either way
-    let mosaic = filmcraft_project::effect::find_effect("mosaic").unwrap().instance();
+    let mosaic = jilo_project::effect::find_effect("mosaic").unwrap().instance();
     r.clip(seq, clip).effects.push(mosaic);
     assert!(!pays(&r, seq), "CPU-only effect");
     r.clip(seq, clip).effects.retain(|e| e.effect != "mosaic");
     // a standard effect the GPU draws
-    r.clip(seq, clip).effects.push(filmcraft_project::effect::find_effect("gaussian_blur").unwrap().instance());
+    r.clip(seq, clip).effects.push(jilo_project::effect::find_effect("gaussian_blur").unwrap().instance());
     assert!(pays(&r, seq), "GPU effect");
     assert!(!plan::gpu_pays_off(&r.p, seq, t, RenderOptions { effects: false, ..Default::default() }), "effects off");
     r.clip(seq, clip).effects.last_mut().unwrap().enabled = false;

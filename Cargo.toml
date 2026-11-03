@@ -10,56 +10,56 @@ version = "0.12.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.95"
-repository = "https://github.com/storytold/filmcraft"
+repository = "https://github.com/guloff/jilo-studio"
 
 [workspace.dependencies]
 # internal
-filmcraft-time = { path = "crates/time" }
-filmcraft-geom = { path = "crates/geom" }
-filmcraft-color = { path = "crates/color" }
-filmcraft-bitstream = { path = "crates/bitstream" }
-filmcraft-isobmff = { path = "crates/isobmff" }
-filmcraft-matroska = { path = "crates/matroska" }
-filmcraft-mxf = { path = "crates/mxf" }
-filmcraft-cfb = { path = "crates/cfb" }
-filmcraft-mpegts = { path = "crates/mpegts" }
-filmcraft-mpeg2v = { path = "crates/mpeg2v" }
-filmcraft-ac3 = { path = "crates/ac3" }
-filmcraft-ogg = { path = "crates/ogg" }
-filmcraft-h264 = { path = "crates/h264" }
-filmcraft-hevc = { path = "crates/hevc" }
-filmcraft-vp9 = { path = "crates/vp9" }
-filmcraft-prores = { path = "crates/prores" }
-filmcraft-dnx = { path = "crates/dnx" }
-filmcraft-apv = { path = "crates/apv" }
-filmcraft-av1 = { path = "crates/av1" }
-filmcraft-aac = { path = "crates/aac" }
-filmcraft-flac = { path = "crates/flac" }
-filmcraft-opus = { path = "crates/opus" }
-filmcraft-h264enc = { path = "crates/h264enc" }
-filmcraft-audio-dsp = { path = "crates/audio-dsp" }
-filmcraft-frame = { path = "crates/frame" }
-filmcraft-media = { path = "crates/media" }
-filmcraft-codecs = { path = "crates/codecs" }
-filmcraft-project = { path = "crates/project" }
-filmcraft-edit = { path = "crates/edit" }
-filmcraft-interchange = { path = "crates/interchange" }
-filmcraft-text = { path = "crates/text" }
-filmcraft-captions = { path = "crates/captions" }
-filmcraft-speech = { path = "crates/speech" }
-filmcraft-tts = { path = "crates/tts" }
-filmcraft-tts-text = { path = "crates/tts-text" }
-filmcraft-ai = { path = "crates/ai" }
-filmcraft-render = { path = "crates/render" }
-filmcraft-gpu = { path = "crates/gpu" }
-filmcraft-scopes = { path = "crates/scopes" }
-filmcraft-export = { path = "crates/export" }
-filmcraft-format = { path = "crates/format" }
-filmcraft-engine = { path = "crates/engine" }
-filmcraft-ui-egui = { path = "crates/ui-egui" }
-filmcraft-automation = { path = "crates/automation" }
-filmcraft-platform = { path = "crates/platform" }
-filmcraft-testkit = { path = "crates/testkit" }
+jilo-time = { path = "crates/time" }
+jilo-geom = { path = "crates/geom" }
+jilo-color = { path = "crates/color" }
+jilo-bitstream = { path = "crates/bitstream" }
+jilo-isobmff = { path = "crates/isobmff" }
+jilo-matroska = { path = "crates/matroska" }
+jilo-mxf = { path = "crates/mxf" }
+jilo-cfb = { path = "crates/cfb" }
+jilo-mpegts = { path = "crates/mpegts" }
+jilo-mpeg2v = { path = "crates/mpeg2v" }
+jilo-ac3 = { path = "crates/ac3" }
+jilo-ogg = { path = "crates/ogg" }
+jilo-h264 = { path = "crates/h264" }
+jilo-hevc = { path = "crates/hevc" }
+jilo-vp9 = { path = "crates/vp9" }
+jilo-prores = { path = "crates/prores" }
+jilo-dnx = { path = "crates/dnx" }
+jilo-apv = { path = "crates/apv" }
+jilo-av1 = { path = "crates/av1" }
+jilo-aac = { path = "crates/aac" }
+jilo-flac = { path = "crates/flac" }
+jilo-opus = { path = "crates/opus" }
+jilo-h264enc = { path = "crates/h264enc" }
+jilo-audio-dsp = { path = "crates/audio-dsp" }
+jilo-frame = { path = "crates/frame" }
+jilo-media = { path = "crates/media" }
+jilo-codecs = { path = "crates/codecs" }
+jilo-project = { path = "crates/project" }
+jilo-edit = { path = "crates/edit" }
+jilo-interchange = { path = "crates/interchange" }
+jilo-text = { path = "crates/text" }
+jilo-captions = { path = "crates/captions" }
+jilo-speech = { path = "crates/speech" }
+jilo-tts = { path = "crates/tts" }
+jilo-tts-text = { path = "crates/tts-text" }
+jilo-ai = { path = "crates/ai" }
+jilo-render = { path = "crates/render" }
+jilo-gpu = { path = "crates/gpu" }
+jilo-scopes = { path = "crates/scopes" }
+jilo-export = { path = "crates/export" }
+jilo-format = { path = "crates/format" }
+jilo-engine = { path = "crates/engine" }
+jilo-ui-egui = { path = "crates/ui-egui" }
+jilo-automation = { path = "crates/automation" }
+jilo-platform = { path = "crates/platform" }
+jilo-testkit = { path = "crates/testkit" }
 
 # foundation
 thiserror = "2"
@@ -94,44 +94,44 @@ opt-level = 2
 opt-level = 1
 
 # Codec hot loops: debug-build tests (RFC/oracle vectors) are minutes slower below opt-level 3.
-[profile.dev.package.filmcraft-h264]
+[profile.dev.package.jilo-h264]
 opt-level = 3
 
-[profile.dev.package.filmcraft-h264enc]
+[profile.dev.package.jilo-h264enc]
 opt-level = 3
 
-[profile.dev.package.filmcraft-hevc]
+[profile.dev.package.jilo-hevc]
 opt-level = 3
 
-[profile.dev.package.filmcraft-prores]
+[profile.dev.package.jilo-prores]
 opt-level = 3
 
-[profile.dev.package.filmcraft-dnx]
+[profile.dev.package.jilo-dnx]
 opt-level = 3
 
-[profile.dev.package.filmcraft-apv]
+[profile.dev.package.jilo-apv]
 opt-level = 3
 
-[profile.dev.package.filmcraft-av1]
+[profile.dev.package.jilo-av1]
 opt-level = 3
 
-[profile.dev.package.filmcraft-aac]
+[profile.dev.package.jilo-aac]
 opt-level = 3
 
-[profile.dev.package.filmcraft-flac]
+[profile.dev.package.jilo-flac]
 opt-level = 3
 
 # Audio effects: realtime-factor tests and long convolution / spectral runs.
-[profile.dev.package.filmcraft-audio-dsp]
+[profile.dev.package.jilo-audio-dsp]
 opt-level = 3
 
-[profile.dev.package.filmcraft-mxf]
+[profile.dev.package.jilo-mxf]
 opt-level = 3
 
-[profile.dev.package.filmcraft-opus]
+[profile.dev.package.jilo-opus]
 opt-level = 3
 
-[profile.dev.package.filmcraft-vp9]
+[profile.dev.package.jilo-vp9]
 opt-level = 3
 
 [profile.release]
@@ -139,6 +139,6 @@ lto = "thin"
 codegen-units = 1
 
 # egui-wgpu 0.36.2 with a surface format / colour-space option (EDR HDR monitors on macOS) and
-# half-float screen capture; vendor/egui-wgpu/FILMCRAFT-PATCH.md lists the changes.
+# half-float screen capture; vendor/egui-wgpu/PATCH.md lists the changes.
 [patch.crates-io]
 egui-wgpu = { path = "vendor/egui-wgpu" }

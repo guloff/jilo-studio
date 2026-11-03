@@ -7,7 +7,7 @@ constant stopped 0.4.0 from launching on Monterey). This lists the binary's impo
 system frameworks (`nm -um`), looks each one up in the SDK headers, and reports every symbol whose
 `API_AVAILABLE(macos(X))` is newer than the minimum (default: the binary's own `minos`).
 
-Usage: packaging/macos/check_symbols.py target/release/filmcraft [--min 11.0]
+Usage: packaging/macos/check_symbols.py target/release/jilo-studio [--min 11.0]
 """
 
 import argparse

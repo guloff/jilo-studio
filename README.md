@@ -5,8 +5,8 @@
 <h1 align="center">Jilo Studio</h1>
 
 <p align="center">
-  <b>A non-linear video editor for the Mac, written in Rust.</b><br>
-  An open-source fork of <a href="https://github.com/storytold/filmcraft">FilmCraft</a> by the ArtCraft team: AI-first editing and short video for social media, made for macOS, at home in Russian, Tajik and English.
+  <b>An AI-first video editor for the Mac, written in Rust.</b><br>
+  Editing by text and by request, short video for social media and professional tools at hand: made for macOS, at home in Russian, Tajik and English.
 </p>
 
 <p align="center">
@@ -17,25 +17,24 @@
 
 <p align="center">
   <a href="https://rustamguloff.com/en/page/projects/jilo-studio"><b>Website</b></a> ·
-  <a href="https://github.com/guloff/jilo-studio/releases/latest"><b>Download 0.7.0</b></a> ·
+  <a href="https://github.com/guloff/jilo-studio/releases/latest"><b>Download</b></a> ·
   <a href="https://github.com/guloff/jilo-studio/issues">Issues</a> ·
   <a href="https://rustamguloff.com/ru/page/projects/jilo-studio">По-русски</a>
 </p>
 
 ## What it is
 
-Jilo Studio is FilmCraft — the clean-room, pure-Rust reimplementation of the Premiere Pro workflow —
-turned into a Mac editor where AI comes first and everyday edits take a click. Editing, trimming,
-multicam, colour, keyframes, effects, titles, the codecs and export come from FilmCraft; on top of
-them Jilo Studio adds the AI menu and panel, simple editing for short video, social-media captions,
-stickers, sound and export for the platforms. A detailed comparison (in Russian):
-[docs/differences-from-filmcraft.md](docs/differences-from-filmcraft.md).
+Jilo Studio is a Mac video editor where AI comes first and everyday edits take a click. You talk
+to it, cut by deleting words from the transcript, and get captions, shorts and a platform-ready mix
+in a few steps; underneath is a full non-linear editor in pure Rust, with trimming, multicam, colour,
+keyframes, effects, titles, its own codecs and export. Every edit is a command, so the same project
+can be driven by you, a script or an AI assistant (MCP).
 
 **Download**: the signed and notarized app from
 [Releases](https://github.com/guloff/jilo-studio/releases/latest) (Apple silicon, macOS 15 Sequoia
 or later). From 0.6.4 on it updates itself (Help ▸ Check for Updates).
 
-## What this fork adds
+## What it does
 
 - **AI first**: one AI menu and an AI panel. Speech recognition in Russian, Tajik and English with
   the time of every word (on the Mac or in the cloud); edit by text; remove pauses, filler words,
@@ -81,25 +80,24 @@ or later). From 0.6.4 on it updates itself (Help ▸ Check for Updates).
 ## Build from source
 
 ```sh
-cargo run --release -p filmcraft                      # the app (the crates keep FilmCraft's names)
-cargo run --release -p filmcraft -- --control 9876    # plus the JSON-lines control server
-cargo run --release -p filmcraft-cli -- mcp           # MCP server (headless)
-bash packaging/macos/package.sh                       # Jilo Studio.app and the DMG (ad-hoc signed)
+cargo run --release -p jilo-studio                      # the app
+cargo run --release -p jilo-studio -- --control 9876    # plus the JSON-lines control server
+cargo run --release -p jilo-cli -- mcp                  # MCP server (headless)
+bash packaging/macos/package.sh                         # Jilo Studio.app and the DMG (ad-hoc signed)
 ```
 
-The rules and quality gates are FilmCraft's: [docs/rules.md](docs/rules.md) and
+The rules and quality gates: [docs/rules.md](docs/rules.md) and
 [docs/contributing.md](docs/contributing.md); the architecture is in
 [docs/architecture.md](docs/architecture.md), automation (MCP, control channel, CLI) in
 [docs/automation.md](docs/automation.md).
 
-## Relationship with FilmCraft
+## Origins
 
-Jilo Studio started from [storytold/filmcraft](https://github.com/storytold/filmcraft) and, since
-October 2026, goes its own way: upstream fixes that matter on the Mac are still taken one at a
-time, with their tests, but the interface and the features follow their own plan. Version numbers
-are Jilo Studio's own (0.6.0 was the first release) and do not match FilmCraft's. The crates keep
-FilmCraft's names and the `.fcproj` format stays compatible in its core, so changes can flow
-between the projects.
+Jilo Studio began in October 2026 as a fork of [FilmCraft](https://github.com/storytold/filmcraft)
+by the ArtCraft team, a clean-room Rust reimplementation of the Premiere Pro workflow, and is
+developed as a project of its own: its own plan, version numbers (0.6.0 was the first release),
+crate names and project format (`.jsproj`; projects saved as `.fcproj` still open). How the two
+differ, in Russian: [docs/upstream.md](docs/upstream.md).
 Jilo Studio is not made, sponsored or endorsed by the ArtCraft team, and its builds do not carry
 the ArtCraft marks (their terms: [docs/brand/LICENSE-brand.txt](docs/brand/LICENSE-brand.txt)).
 
@@ -107,7 +105,7 @@ the ArtCraft marks (their terms: [docs/brand/LICENSE-brand.txt](docs/brand/LICEN
 
 - **Code**: MIT OR Apache-2.0, at your option ([LICENSE-MIT](LICENSE-MIT),
   [LICENSE-APACHE](LICENSE-APACHE)), © the FilmCraft authors and Rustam Gulov; see [NOTICE](NOTICE).
-- **FilmCraft** by the ArtCraft team and the FilmCraft contributors: the editor this fork is built on.
+- **FilmCraft** by the ArtCraft team and the FilmCraft contributors: the editor Jilo Studio grew from.
 - **Assets**: every bundled file with its author, source and licence is in
   [ATTRIBUTION.md](ATTRIBUTION.md); every third-party crate the app is built from, with its licence
   text, is listed in the app (Help ▸ Third-Party Licenses; `cargo xtask licenses`).

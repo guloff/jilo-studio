@@ -6,8 +6,8 @@
 
 use std::collections::HashMap;
 
-use filmcraft_project::{ClipId, ItemId, MulticamSel, Sequence, Track, TrackId, TrackItem};
-use filmcraft_time::{Tick, TimeRange};
+use jilo_project::{ClipId, ItemId, MulticamSel, Sequence, Track, TrackId, TrackItem};
+use jilo_time::{Tick, TimeRange};
 
 use crate::{EditCtx, EditError, Result, remove_orphan_transitions, split_track_at};
 

@@ -1,6 +1,6 @@
 # Graphics
 
-FilmCraft's graphics work like Premiere's Essential Graphics: a **graphic clip** on a video track
+Jilo Studio's graphics work like Premiere's Essential Graphics: a **graphic clip** on a video track
 holds **text** and **shape** layers. Text is set by the text engine in `crates/text`
 ([README](../crates/text/README.md)): bundled OFL fonts plus system fonts, OpenType shaping with
 kerning and ligatures, bidi, line breaking, all drawn as vectors in linear light.
@@ -15,7 +15,7 @@ kerning and ligatures, bidi, line breaking, all drawn as vectors in linear light
   instances they save with the project, take keyframes on every animatable property (Source Text
   keyframes hold), appear in Effect Controls and copy with the clip. Standard effects on a graphic
   clip apply to the composed graphic; Motion and Opacity apply last.
-- `filmcraft_project::graphic::eval_layer` evaluates a layer at a time into a `LayerSpec`.
+- `jilo_project::graphic::eval_layer` evaluates a layer at a time into a `LayerSpec`.
 - Projects with graphics need no schema migration: everything is additive (new item kind, new
   effect ids). Builds older than this one refuse such files with a parse error.
 
@@ -151,7 +151,7 @@ underline, tracking, baseline shift or caps in the Properties panel: the change 
 selection only (`graphics.setCharStyle`). Styles are stored on the layer as runs of characters
 (`EffectInstance::layer.runs`, character offsets, sorted and non-overlapping) and follow the text
 when it is edited (typed characters take the style of the character before them). The text engine
-lays the runs out together (`filmcraft_text::layout_rich`): a run can change the font and size,
+lays the runs out together (`jilo_text::layout_rich`): a run can change the font and size,
 lines grow to fit the largest run, and each run can have its own fill colour.
 
 | Command | Params |
@@ -185,14 +185,14 @@ the postroll, with linear acceleration over Ease In and deceleration over Ease O
 
 These settings are `TrackItem::graphic` (`GraphicMeta`, schema v12).
 
-## Graphics templates (`.fcgt`)
+## Graphics templates (`.jstpl`)
 
-FilmCraft's equivalent of motion graphics templates is its **own** format: a `.fcgt` file is
-documented, versioned JSON (`filmcraft_project::gtemplate`):
+Jilo Studio's equivalent of motion graphics templates is its **own** format: a `.jstpl` file is
+documented, versioned JSON (`jilo_project::gtemplate`):
 
 | Field | Meaning |
 |---|---|
-| `format`, `version` | `"filmcraft.graphicsTemplate"`, `1` (newer versions are refused) |
+| `format`, `version` | `"jilo.graphicsTemplate"`, `1` (newer versions are refused) |
 | `id`, `name`, `category`, `description`, `author`, `license`, `tags` | library information |
 | `canvas`, `duration` | frame size it was designed for, default clip length (ticks) |
 | `layers` | the graphic's layers, exactly as in a project file, each with a `uid` |
@@ -203,9 +203,9 @@ documented, versioned JSON (`filmcraft_project::gtemplate`):
 Placing a template on a sequence of another size scales and centres its layers (pin distances
 scale too).
 
-**FilmCraft never reads or imports Adobe `.mogrt` files** (or any other application's template
+**Jilo Studio never reads or imports Adobe `.mogrt` files** (or any other application's template
 packages): Install refuses `.mogrt` paths without opening them, and the reader rejects ZIP
-archives. Built-in templates are original designs made for FilmCraft in code (no image, font or
+archives. Built-in templates are original designs made for Jilo Studio in code (no image, font or
 template files): lower thirds (Slab, Rule, Ticker crawl), titles (Centered, Boxed), end credits
 (Roll) and callouts (Pointer, Tag), with the bundled Inter font. Thumbnails are rendered by the
 engine at runtime.
@@ -213,10 +213,10 @@ engine at runtime.
 | Command | Menu | Params |
 |---|---|---|
 | `graphics.template.list` | (query) | `query`, `category`, `source` (builtin / user) |
-| `graphics.template.apply` | Browse tab: drag or double-click | `template` (id, name or `.fcgt` path), `values` {control: value}, `time`, `track` |
+| `graphics.template.apply` | Browse tab: drag or double-click | `template` (id, name or `.jstpl` path), `values` {control: value}, `time`, `track` |
 | `graphics.template.export` | Graphics and Titles ▸ Export As Motion Graphics Template… | `clip`, `name`, `category`, `description`, `controls` [{`layer`, `param`, `name`, `kind`, `min`, `max`}], `path` (default: the user folder), `embedFonts` |
 | `file.exportGraphicsTemplate` | File ▸ Export ▸ Motion Graphics Template… | as above |
-| `graphics.template.install` | Graphics and Titles ▸ Install Motion Graphics Template… | `path` (a `.fcgt`) |
+| `graphics.template.install` | Graphics and Titles ▸ Install Motion Graphics Template… | `path` (a `.jstpl`) |
 | `graphics.template.remove` | Browse tab | `template` (user templates) |
 | `graphics.template.set` / `graphics.template.controls` | Essential Graphics ▸ Edit | `clip`, `control`, `value` / `values` |
 | `graphics.template.thumbnail` | (query) | `template`, `width`, `path` (PNG) |
@@ -226,7 +226,7 @@ User templates live in `<data dir>/Graphics Templates/`.
 **Essential Graphics panel.** *Browse* lists the built-in and user templates as cards with
 engine-rendered thumbnails, a search field and a category filter; click selects, double-click or
 Apply places the template at the playhead, dragging a card onto a video track places it there,
-Install… picks a `.fcgt`, Remove deletes a user template. *Edit* is the graphic editor; for a graphic
+Install… picks a `.jstpl`, Remove deletes a user template. *Edit* is the graphic editor; for a graphic
 made from a template it starts with **Template Properties** (one editor per control). With no layer
 selected it shows **Responsive Design – Time** (intro / outro, Roll with its options); with a layer
 selected, **Responsive Design – Position** (Pin To and the pinned edges). With characters selected

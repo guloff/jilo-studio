@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use filmcraft_ai::Response;
-use filmcraft_ai::transport::FakeTransport;
-use filmcraft_project::ItemId;
+use jilo_ai::Response;
+use jilo_ai::transport::FakeTransport;
+use jilo_project::ItemId;
 use serde_json::{Value, json};
 
 use super::*;
@@ -58,7 +58,7 @@ fn the_cloud_waits_for_consent() {
     // the agreement is remembered per provider
     fake.route(|r| r.url.contains(":generateContent"), |_| Ok(gemini_answer()));
     let r = s.execute("transcript.generate", json!({"items": [item.0], "engine": "gemini", "language": "ru", "confirm": true})).unwrap();
-    assert!(s.prefs.ai.confirmed(filmcraft_ai::Provider::Gemini));
+    assert!(s.prefs.ai.confirmed(jilo_ai::Provider::Gemini));
     assert_eq!(r["engine"], "gemini:gemini-flash-latest");
     assert_eq!(words(&s, item), ["Привет,", "мир."]);
     let t = s.project.transcripts.get(&item).unwrap();

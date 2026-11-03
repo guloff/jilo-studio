@@ -4,7 +4,7 @@
 //! - Sources are cached per item **and per reference** (the file path, the offline flag), so a
 //!   relink, Make Offline or their undo picks up the right file on the next frame.
 //! - Media that can't be opened (missing, unreadable) or was made offline renders the offline
-//!   slate ([`filmcraft_render::offline`]) instead of failing; the reason is kept for the UI.
+//!   slate ([`jilo_render::offline`]) instead of failing; the reason is kept for the UI.
 //! - With proxies enabled ([`MediaPool::set_use_proxies`]) items with an attached proxy are read
 //!   from it. Proxy frames are smaller; the source still reports the full-resolution size, and the
 //!   compositor derives its pixel scale from the frame it gets, so effects and Motion render the
@@ -14,11 +14,11 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
-use filmcraft_frame::{AudioBuffer, VideoFrame};
-use filmcraft_media::generators::GeneratorSource;
-use filmcraft_media::{FrameRequest, MediaError, MediaInfo, MediaSource, Opener, SharedSource};
-use filmcraft_project::{ItemId, MediaClip, MediaRef, Project};
-use filmcraft_render::offline::OfflineReason;
+use jilo_frame::{AudioBuffer, VideoFrame};
+use jilo_media::generators::GeneratorSource;
+use jilo_media::{FrameRequest, MediaError, MediaInfo, MediaSource, Opener, SharedSource};
+use jilo_project::{ItemId, MediaClip, MediaRef, Project};
+use jilo_render::offline::OfflineReason;
 
 use crate::Services;
 
@@ -48,7 +48,7 @@ impl Default for MediaPool {
             proxies: RwLock::new(HashMap::new()),
             offline: RwLock::new(HashMap::new()),
             use_proxies: AtomicBool::new(false),
-            openers: RwLock::new(filmcraft_codecs::openers()),
+            openers: RwLock::new(jilo_codecs::openers()),
         }
     }
 }
@@ -72,7 +72,7 @@ pub fn media_key(m: &MediaClip) -> String {
 /// the highest present one, played at `rate`. Frames are listed with [`Services::list_dir`], or
 /// found by probing consecutive numbers (stopping after 100 missing in a row) when the host cannot
 /// list directories.
-pub fn open_image_sequence(first: &str, services: &dyn Services, rate: filmcraft_time::FrameRate, name: &str) -> Result<SharedSource, MediaError> {
+pub fn open_image_sequence(first: &str, services: &dyn Services, rate: jilo_time::FrameRate, name: &str) -> Result<SharedSource, MediaError> {
     let frames = image_sequence_frames(first, services)?;
     let loader = match services.file_loader() {
         Some(l) => l,
@@ -87,12 +87,12 @@ pub fn open_image_sequence(first: &str, services: &dyn Services, rate: filmcraft
             Arc::new(move |p: &str| files.get(p).map(|b| b.to_vec()).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, p.to_string())))
         }
     };
-    Ok(Arc::new(filmcraft_media::sequence::ImageSequenceSource::new(name, frames, rate, loader)?))
+    Ok(Arc::new(jilo_media::sequence::ImageSequenceSource::new(name, frames, rate, loader)?))
 }
 
 /// The frames of the image sequence starting at `first` (see [`open_image_sequence`]).
 pub fn image_sequence_frames(first: &str, services: &dyn Services) -> Result<Vec<Option<String>>, MediaError> {
-    use filmcraft_media::sequence::{Numbered, sequence_frames};
+    use jilo_media::sequence::{Numbered, sequence_frames};
     let n = Numbered::parse(first).ok_or_else(|| MediaError::Unsupported(format!("{first}: not a numbered still image")))?;
     let io = |e: std::io::Error| {
         if e.kind() == std::io::ErrorKind::NotFound { MediaError::Offline(format!("{first}: {e}")) } else { MediaError::Io(format!("{first}: {e}")) }
@@ -181,7 +181,7 @@ impl MediaPool {
     /// Open a file through the registered openers.
     pub fn open_bytes(&self, name: &str, bytes: Arc<[u8]>) -> Result<SharedSource, MediaError> {
         let openers = self.openers.read().unwrap_or_else(|e| e.into_inner()).clone();
-        filmcraft_media::open_bytes(name, bytes, &openers)
+        jilo_media::open_bytes(name, bytes, &openers)
     }
 
     /// Read and open a file through `services` (through its random-access reader when the host
@@ -190,7 +190,7 @@ impl MediaPool {
         let io = |e: std::io::Error| if e.kind() == std::io::ErrorKind::NotFound { MediaError::Offline(e.to_string()) } else { MediaError::Io(e.to_string()) };
         if let Some(r) = services.reader(path) {
             let openers = self.openers.read().unwrap_or_else(|e| e.into_inner()).clone();
-            return filmcraft_media::reader::open_reader(&file_name(path), r.map_err(io)?, &filmcraft_codecs::reader_openers(), &openers);
+            return jilo_media::reader::open_reader(&file_name(path), r.map_err(io)?, &jilo_codecs::reader_openers(), &openers);
         }
         let bytes = services.read_file(path).map_err(io)?;
         self.open_bytes(&file_name(path), bytes.into())
@@ -203,7 +203,7 @@ impl MediaPool {
         let Some(r) = services.reader(path) else { return self.open_file(path, services) };
         let r = r.map_err(|e| if e.kind() == std::io::ErrorKind::NotFound { MediaError::Offline(e.to_string()) } else { MediaError::Io(e.to_string()) })?;
         let openers = self.openers.read().unwrap_or_else(|e| e.into_inner()).clone();
-        filmcraft_media::reader::open_reader_within(&file_name(path), r, &filmcraft_codecs::reader_openers(), &openers, PROBE_WHOLE_FILE_MAX)
+        jilo_media::reader::open_reader_within(&file_name(path), r, &jilo_codecs::reader_openers(), &openers, PROBE_WHOLE_FILE_MAX)
     }
 
     /// Resolve (and cache) the source for a project item, using proxies when they are enabled.
@@ -242,7 +242,7 @@ impl MediaPool {
                 self.set_offline(item, OfflineReason::MadeOffline, path, "made offline");
                 Arc::new(SlateSource::new(m.info.clone(), &file_name(path), OfflineReason::MadeOffline))
             }
-            MediaRef::File { path } => match if m.info.kind == filmcraft_media::MediaKind::ImageSequence {
+            MediaRef::File { path } => match if m.info.kind == jilo_media::MediaKind::ImageSequence {
                 open_image_sequence(path, services, m.info.frame_rate(), &it.name)
             } else {
                 self.open_file(path, services)
@@ -251,7 +251,7 @@ impl MediaPool {
                     self.offline.write().unwrap_or_else(|e| e.into_inner()).remove(&item);
                     s
                 }
-                Err(_) if filmcraft_media::pending::is_set() => {
+                Err(_) if jilo_media::pending::is_set() => {
                     // the host is still fetching the file's bytes: show the slate for now, retry later
                     return Some(Arc::new(SlateSource::new(m.info.clone(), &file_name(path), OfflineReason::Missing)));
                 }
@@ -315,7 +315,7 @@ impl MediaPool {
     }
 }
 
-/// Implements [`filmcraft_render::SourceProvider`] over the pool for one project snapshot.
+/// Implements [`jilo_render::SourceProvider`] over the pool for one project snapshot.
 pub struct PoolProvider {
     pub pool: Arc<MediaPool>,
     pub project: Arc<Project>,
@@ -324,7 +324,7 @@ pub struct PoolProvider {
     pub full_res: bool,
 }
 
-impl filmcraft_render::SourceProvider for PoolProvider {
+impl jilo_render::SourceProvider for PoolProvider {
     fn source(&self, item: ItemId) -> Option<SharedSource> {
         if self.full_res { self.pool.full_res_source(&self.project, item, &*self.services) } else { self.pool.source_for(&self.project, item, &*self.services) }
     }
@@ -352,7 +352,7 @@ impl MediaSource for SlateSource {
     fn info(&self) -> &MediaInfo {
         &self.info
     }
-    fn video_frame(&self, req: FrameRequest) -> filmcraft_media::Result<Arc<VideoFrame>> {
+    fn video_frame(&self, req: FrameRequest) -> jilo_media::Result<Arc<VideoFrame>> {
         let v = self.info.video.as_ref().ok_or(MediaError::NoStream("video"))?;
         let s = req.scale.clamp(1.0 / 64.0, 1.0);
         let (w, h) = (((v.width as f32 * s).round() as u32).max(2), ((v.height as f32 * s).round() as u32).max(2));
@@ -363,12 +363,12 @@ impl MediaSource for SlateSource {
         {
             return Ok(Arc::new((**f).clone().with_pts(req.time)));
         }
-        let px = filmcraft_render::offline::slate_rgba8(w as usize, h as usize, &self.name, self.reason);
+        let px = jilo_render::offline::slate_rgba8(w as usize, h as usize, &self.name, self.reason);
         let f = Arc::new(VideoFrame::rgba8(w, h, px));
         *last = Some(f.clone());
         Ok(Arc::new((*f).clone().with_pts(req.time)))
     }
-    fn audio(&self, _start: i64, frames: usize, sample_rate: u32) -> filmcraft_media::Result<AudioBuffer> {
+    fn audio(&self, _start: i64, frames: usize, sample_rate: u32) -> jilo_media::Result<AudioBuffer> {
         Ok(AudioBuffer::silence(sample_rate, self.info.audio().map_or(2, |a| a.channels as usize), frames))
     }
 }
@@ -387,7 +387,7 @@ impl MediaSource for ProxySource {
     fn info(&self) -> &MediaInfo {
         &self.info
     }
-    fn video_frame(&self, req: FrameRequest) -> filmcraft_media::Result<Arc<VideoFrame>> {
+    fn video_frame(&self, req: FrameRequest) -> jilo_media::Result<Arc<VideoFrame>> {
         let full = self.info.video.as_ref().ok_or(MediaError::NoStream("video"))?;
         let pv = self.proxy.info().video.as_ref().map(|v| (v.width, v.height)).unwrap_or((full.width, full.height));
         // ask the proxy for the scale relative to its own size
@@ -408,10 +408,10 @@ impl MediaSource for ProxySource {
         }
         Ok(Arc::new(VideoFrame::rgba8(w as u32, h as u32, out).with_pts(f.pts)))
     }
-    fn audio(&self, start: i64, frames: usize, sample_rate: u32) -> filmcraft_media::Result<AudioBuffer> {
+    fn audio(&self, start: i64, frames: usize, sample_rate: u32) -> jilo_media::Result<AudioBuffer> {
         self.audio_from.as_ref().unwrap_or(&self.proxy).audio(start, frames, sample_rate)
     }
-    fn audio_stream(&self, stream: usize, start: i64, frames: usize, sample_rate: u32) -> filmcraft_media::Result<AudioBuffer> {
+    fn audio_stream(&self, stream: usize, start: i64, frames: usize, sample_rate: u32) -> jilo_media::Result<AudioBuffer> {
         self.audio_from.as_ref().unwrap_or(&self.proxy).audio_stream(stream, start, frames, sample_rate)
     }
 }
@@ -419,7 +419,7 @@ impl MediaSource for ProxySource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filmcraft_project::ItemKind;
+    use jilo_project::ItemKind;
 
     /// A host whose whole-file read fails: opening must go through the reader.
     struct ReaderOnly(Arc<[u8]>);
@@ -430,8 +430,8 @@ mod tests {
         fn write_file(&self, _path: &str, _data: &[u8]) -> std::io::Result<()> {
             Ok(())
         }
-        fn reader(&self, _path: &str) -> Option<std::io::Result<filmcraft_media::SharedReader>> {
-            Some(Ok(Arc::new(filmcraft_media::reader::MemReader(self.0.clone()))))
+        fn reader(&self, _path: &str) -> Option<std::io::Result<jilo_media::SharedReader>> {
+            Some(Ok(Arc::new(jilo_media::reader::MemReader(self.0.clone()))))
         }
     }
 
@@ -440,22 +440,14 @@ mod tests {
         let mut project = Project::new("damaged references");
         let a = project.add_item(
             "A",
-            filmcraft_project::Label::Iris,
-            ItemKind::Subclip {
-                parent: ItemId(999),
-                range: filmcraft_time::TimeRange::new(filmcraft_time::Tick::ZERO, filmcraft_time::Tick(1000)),
-                restrict_trims: false,
-            },
+            jilo_project::Label::Iris,
+            ItemKind::Subclip { parent: ItemId(999), range: jilo_time::TimeRange::new(jilo_time::Tick::ZERO, jilo_time::Tick(1000)), restrict_trims: false },
             None,
         );
         let b = project.add_item(
             "B",
-            filmcraft_project::Label::Iris,
-            ItemKind::Subclip {
-                parent: a,
-                range: filmcraft_time::TimeRange::new(filmcraft_time::Tick::ZERO, filmcraft_time::Tick(1000)),
-                restrict_trims: false,
-            },
+            jilo_project::Label::Iris,
+            ItemKind::Subclip { parent: a, range: jilo_time::TimeRange::new(jilo_time::Tick::ZERO, jilo_time::Tick(1000)), restrict_trims: false },
             None,
         );
         let pool = MediaPool::default();
@@ -465,10 +457,10 @@ mod tests {
             assert!(pool.source_for(&project, a, &crate::FsServices).is_none());
             assert!(pool.full_res_source(&project, a, &crate::FsServices).is_none());
             assert!(crate::media_duration(&project, &pool, a).is_none());
-            assert!(filmcraft_render::source_size(&project, a).is_none());
+            assert!(jilo_render::source_size(&project, a).is_none());
             assert!(project.resolve_media(a).is_none());
-            assert!(filmcraft_render::colorman::override_of(&project, a).is_none());
-            assert!(filmcraft_render::colorman::source_peak_nits(&project, a).is_none());
+            assert!(jilo_render::colorman::override_of(&project, a).is_none());
+            assert!(jilo_render::colorman::source_peak_nits(&project, a).is_none());
             assert!(crate::sync::project_clip(&project, a).is_none());
             let mut session = crate::Session { project: Arc::new(project.clone()), ..Default::default() };
             session.state.project_selection = vec![a];
@@ -479,7 +471,7 @@ mod tests {
 
     #[test]
     fn open_file_prefers_the_hosts_reader() {
-        let wav = filmcraft_media::wav::write_wav16(&[0.0, 0.5, -0.5, 0.25], 2, 48_000);
+        let wav = jilo_media::wav::write_wav16(&[0.0, 0.5, -0.5, 0.25], 2, 48_000);
         let s = MediaPool::default().open_file("a.wav", &ReaderOnly(wav.into())).unwrap();
         assert!(s.info().has_audio());
     }
@@ -488,10 +480,10 @@ mod tests {
     #[cfg(any(unix, windows))]
     #[test]
     fn fs_services_open_media_through_a_file_reader() {
-        let dir = std::env::temp_dir().join(format!("filmcraft-pool-reader-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("jilo-pool-reader-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("a.wav");
-        let wav = filmcraft_media::wav::write_wav16(&[0.0, 0.5, -0.5, 0.25], 2, 48_000);
+        let wav = jilo_media::wav::write_wav16(&[0.0, 0.5, -0.5, 0.25], 2, 48_000);
         std::fs::write(&path, &wav).unwrap();
         let p = path.to_string_lossy().to_string();
         let r = crate::FsServices.reader(&p).expect("a reader").unwrap();

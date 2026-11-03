@@ -4,13 +4,13 @@
 use std::sync::mpsc::{Sender, channel};
 
 use egui_kittest::Harness;
-use filmcraft_engine::Session;
-use filmcraft_ui_egui::FilmcraftApp;
-use filmcraft_ui_egui::control::ControlRequest;
+use jilo_engine::Session;
+use jilo_ui_egui::JiloApp;
+use jilo_ui_egui::control::ControlRequest;
 use serde_json::{Value, json};
 
 struct Driver {
-    harness: Harness<'static, FilmcraftApp>,
+    harness: Harness<'static, JiloApp>,
     tx: Sender<ControlRequest>,
 }
 
@@ -56,7 +56,7 @@ fn a_short_properties_panel_scrolls_to_the_audio_settings() {
     let clip = q.video_tracks.iter().flat_map(|t| &t.items).find(|i| i.link.is_some()).map(|i| i.id).expect("a linked clip");
     s.execute("timeline.select", json!({"clips": [clip.0]})).unwrap();
     let (tx, rx) = channel();
-    let app = FilmcraftApp::new(s).with_control(rx);
+    let app = JiloApp::new(s).with_control(rx);
     // a short window: the top row (Source | Program | Properties) gets little height
     let harness = Harness::builder().with_size(egui::vec2(1500.0, 640.0)).with_max_steps(10_000).build_eframe(move |_cc| app);
     let mut d = Driver { harness, tx };
