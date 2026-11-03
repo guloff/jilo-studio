@@ -572,7 +572,8 @@ mod tests {
 
     #[test]
     fn hostile_outline_shadow_and_size_are_bounded() {
-        let st = CaptionStyle { outline: 1_000_000.0, shadow: true, shadow_blur: 1e9, shadow_offset: [1e9, -1e9], box_radius: 1e9, size: 1e9, ..Default::default() };
+        let st =
+            CaptionStyle { outline: 1_000_000.0, shadow: true, shadow_blur: 1e9, shadow_offset: [1e9, -1e9], box_radius: 1e9, size: 1e9, ..Default::default() };
         let o = render_caption(&cap("Safe"), &st, 640, 360).unwrap();
         assert!(o.w <= 640 && o.h <= 360, "{}x{}", o.w, o.h);
     }
