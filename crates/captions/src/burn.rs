@@ -13,6 +13,12 @@ use filmcraft_time::Tick;
 
 use filmcraft_text::{Caps, ParagraphStyle, TextStyle, layout, render};
 
+/// Caption overlays are transient render resources, not source images. Keep one cue from
+/// materialising an unbounded mask or RGBA buffer.
+const MAX_OVERLAY_PIXELS: usize = 16 << 20;
+const MAX_CAPTION_SIZE_1080: f32 = 256.0;
+const MAX_OUTLINE_RADIUS: f32 = 64.0;
+
 /// A rendered caption: premultiplied linear-light RGBA f32 pixels at `(x, y)` in the frame.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Overlay {
@@ -153,7 +159,7 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
         CaptionAnimation::None | CaptionAnimation::Typewriter => (1.0, 1.0, 0.0),
     };
     let word_mode = at.is_some() && (style.highlight != CaptionHighlight::None || style.chunk_words > 0 || style.animation == CaptionAnimation::Typewriter);
-    let px = (style.size * scale * grow_k).max(4.0);
+    let px = (style.size.clamp(4.0, MAX_CAPTION_SIZE_1080) * scale * grow_k).clamp(4.0, h as f32);
     let ts = caption_style(style, px);
     let max_w = w as f32 * 0.9;
     // lines of words (global word indices), wrapped to the frame
@@ -184,7 +190,7 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
     let texts: Vec<String> = lines.iter().map(|l| l.iter().map(|x| x.1.as_str()).collect::<Vec<_>>().join(" ")).collect();
     let vm = filmcraft_text::fonts::face(filmcraft_text::resolve(&ts.family, &ts.style).face).metrics(px);
     let (asc, desc) = (vm.ascent, vm.descent);
-    let lh = px * style.line_spacing.max(0.8);
+    let lh = px * style.line_spacing.clamp(0.8, 4.0);
     let pad_x = (px * 0.3).round();
     let block_h = lh * lines.len() as f32;
     let (line_override, align_override) = vtt_overrides(&c.settings);
@@ -242,10 +248,11 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
             (None, CaptionAlign::Center) => (w as f32 - lw) / 2.0,
         })
         .collect();
-    let outline = (style.outline * scale).max(0.0);
-    let radius = (style.box_radius * scale).max(0.0);
+    let outline = (style.outline * scale).clamp(0.0, MAX_OUTLINE_RADIUS);
+    let radius = (style.box_radius * scale).clamp(0.0, h as f32);
     let (sdx, sdy, blur) = if style.shadow && style.shadow_color[3] > 0 {
-        (style.shadow_offset[0] * scale, style.shadow_offset[1] * scale, (style.shadow_blur * scale).max(0.0))
+        let off = |v: f32| (v * scale).clamp(-(h as f32), h as f32);
+        (off(style.shadow_offset[0]), off(style.shadow_offset[1]), (style.shadow_blur * scale).clamp(0.0, MAX_OUTLINE_RADIUS))
     } else {
         (0.0, 0.0, 0.0)
     };
@@ -254,9 +261,18 @@ pub fn render_caption_at(c: &Caption, style: &CaptionStyle, w: usize, h: usize, 
     let bx1 = xs.iter().zip(&widths).map(|(x, lw)| x + lw + pad_x + grow).fold(f32::MIN, f32::max).ceil();
     let by0 = (top - grow).floor();
     let by1 = (top + block_h + grow).ceil();
-    let (ox, oy) = (bx0 as i32, by0 as i32);
-    let ow = (bx1 - bx0).max(1.0) as usize;
-    let oh = (by1 - by0).max(1.0) as usize;
+    // Text can be wider than the frame (an unbroken imported WebVTT word, for example). Raster
+    // only the visible intersection; `draw` receives the original coordinates and clips into it.
+    let (left, top_px) = (bx0.clamp(0.0, w as f32), by0.clamp(0.0, h as f32));
+    let (right, bottom) = (bx1.clamp(0.0, w as f32), by1.clamp(0.0, h as f32));
+    if right <= left || bottom <= top_px {
+        return None;
+    }
+    let (ox, oy) = (left as i32, top_px as i32);
+    let (ow, oh) = ((right - left) as usize, (bottom - top_px) as usize);
+    if ow.checked_mul(oh).is_none_or(|pixels| pixels > MAX_OVERLAY_PIXELS) {
+        return None;
+    }
     let mut cover = vec![0.0f32; ow * oh];
     let mut spoken = vec![0.0f32; if word_mode { ow * oh } else { 0 }];
     let mut word_box = vec![0.0f32; if word_mode && style.highlight == CaptionHighlight::Box { ow * oh } else { 0 }];
@@ -544,6 +560,21 @@ mod tests {
         let mut canvas = vec![0.0f32; 640 * 360 * 4];
         o.composite_onto(&mut canvas, 640, 360);
         assert!(canvas.chunks(4).any(|p| p[0] > 0.9));
+    }
+
+    #[test]
+    fn overlay_is_clipped_to_the_frame_for_an_unbroken_word() {
+        let o = render_caption(&cap(&"W".repeat(10_000)), &CaptionStyle::default(), 640, 360).unwrap();
+        assert!(o.x >= 0 && o.y >= 0);
+        assert!(o.w <= 640 && o.h <= 360, "{}x{}", o.w, o.h);
+        assert!(o.w.checked_mul(o.h).unwrap() <= MAX_OVERLAY_PIXELS);
+    }
+
+    #[test]
+    fn hostile_outline_shadow_and_size_are_bounded() {
+        let st = CaptionStyle { outline: 1_000_000.0, shadow: true, shadow_blur: 1e9, shadow_offset: [1e9, -1e9], box_radius: 1e9, size: 1e9, ..Default::default() };
+        let o = render_caption(&cap("Safe"), &st, 640, 360).unwrap();
+        assert!(o.w <= 640 && o.h <= 360, "{}x{}", o.w, o.h);
     }
 
     #[test]
