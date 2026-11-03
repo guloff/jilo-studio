@@ -1,11 +1,11 @@
-// FilmCraft GPU compositor.
+// Jilo Studio GPU compositor.
 // Layers are drawn as transformed quads; the fragment shader samples the source (YUV planes or
 // RGBA) with manual bilinear filtering (textureLoad, so any float format works) and N×N
 // supersampling over the pixel footprint when minifying, converts to linear light, premultiplies
 // and scales by opacity. Normal layers blend into the Rgba16Float accumulator with fixed-function
 // premultiplied "over"; Dissolve does too (each pixel is either dropped or drawn opaque). The other
 // blend modes (`fs_blend`) read the accumulator under the layer from a copy (`backdrop`) and write
-// the composited result, with the math of `filmcraft_render::blend::composite`.
+// the composited result, with the math of `jilo_render::blend::composite`.
 
 struct U {
     m0: vec4<f32>,   // a b c d
@@ -89,7 +89,7 @@ fn hlg_inv(e: vec3<f32>) -> vec3<f32> {
     return select(hi, lo, e <= vec3(0.5));
 }
 
-// `filmcraft_color::DecodeTable::lookup` of row `row` (`n` entries over lo..hi).
+// `jilo_color::DecodeTable::lookup` of row `row` (`n` entries over lo..hi).
 fn table_at(row: i32, lo: f32, hi: f32, n: f32, v: f32) -> f32 {
     let last = n - 1.0;
     let p = clamp((v - lo) / (hi - lo), 0.0, 1.0) * last;
@@ -106,7 +106,7 @@ fn pq_inverse_eotf(y: f32) -> f32 {
     return pow((c1 + c2 * p) / (1.0 + c3 * p), m2);
 }
 
-// `filmcraft_color::transform::gamut_compress`.
+// `jilo_color::transform::gamut_compress`.
 fn gamut_compress(c: vec3<f32>) -> vec3<f32> {
     let th = 0.8; let lim = 1.25; let pw = 1.2;
     let ach = max(max(c.r, c.g), c.b);
@@ -120,7 +120,7 @@ fn gamut_compress(c: vec3<f32>) -> vec3<f32> {
     return select(ach - dc * ach, c, d < vec3(th));
 }
 
-// `filmcraft_color::transform::desaturate_into_gamut`.
+// `jilo_color::transform::desaturate_into_gamut`.
 fn desaturate_into_gamut(c: vec3<f32>, l: vec3<f32>) -> vec3<f32> {
     let mn = min(min(c.r, c.g), c.b);
     if mn >= 0.0 {
@@ -135,7 +135,7 @@ fn desaturate_into_gamut(c: vec3<f32>, l: vec3<f32>) -> vec3<f32> {
 }
 
 // Signal → working linear through the layer's input transform: the decode table per channel,
-// then `filmcraft_color::InputTransform::apply` (HLG OOTF with γ = 1.2, gamut matrix, BT.2390 tone
+// then `jilo_color::InputTransform::apply` (HLG OOTF with γ = 1.2, gamut matrix, BT.2390 tone
 // map on max(R,G,B) as a ratio, gamut compression or desaturation).
 fn input_transform(e: vec3<f32>) -> vec3<f32> {
     var c = vec3(table_at(0, u.p9.x, u.p9.y, u.p9.z, e.r), table_at(0, u.p9.x, u.p9.y, u.p9.z, e.g), table_at(0, u.p9.x, u.p9.y, u.p9.z, e.b));
@@ -307,7 +307,7 @@ fn fs(in: VOut) -> @location(0) vec4<f32> {
 }
 
 // ---- the other blend modes: W3C Compositing and Blending formulas on straight, sRGB-encoded
-// colour, exactly as `filmcraft_render::blend` (no recursion in WGSL, so helpers are split out).
+// colour, exactly as `jilo_render::blend` (no recursion in WGSL, so helpers are split out).
 
 fn screen(b: f32, s: f32) -> f32 { return b + s - b * s; }
 

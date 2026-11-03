@@ -1,4 +1,4 @@
-// FilmCraft GPU effect stage: the standard effects of `filmcraft_render::gpufx::FxOp`, one
+// Jilo Studio GPU effect stage: the standard effects of `jilo_render::gpufx::FxOp`, one
 // compute pass each, reading the working image (`src`, linear premultiplied RGBA f32) and writing
 // the next one (`dst`). The math mirrors `FxOp::apply` (the CPU reference) operation by
 // operation; parameters arrive evaluated (keyframes, defaults and clamps applied on the CPU).
@@ -115,7 +115,7 @@ fn sample_clamped(x: f32, y: f32) -> vec4<f32> {
     return top + (bot - top) * ty;
 }
 
-// ---- colour helpers (`filmcraft_color`, `effects::enc` / `dec`)
+// ---- colour helpers (`jilo_color`, `effects::enc` / `dec`)
 
 fn linear_to_srgb1(v: f32) -> f32 {
     if v <= 0.0031308 {
@@ -535,7 +535,7 @@ fn lumetri_op(c: vec3<f32>, p: vec2<i32>) -> vec3<f32> {
 }
 
 // One output pixel of every op but the running-sum box blur.
-// ---- masks (`filmcraft_render::mask`, as `mask.wgsl`): `mdata` from `fx.rs` `mask_data`
+// ---- masks (`jilo_render::mask`, as `mask.wgsl`): `mdata` from `fx.rs` `mask_data`
 
 fn mk_falloff(s: f32, feather: f32) -> f32 {
     let w = max(feather, 1.0);
@@ -654,7 +654,7 @@ fn mask_coverage(q: vec2<f32>) -> f32 {
 
 // ---- Ultra Key (`gpufx::UltraKey`)
 
-// BT.709 Y'CbCr of an encoded RGB triple (`filmcraft_color::rgb_to_ycbcr`).
+// BT.709 Y'CbCr of an encoded RGB triple (`jilo_color::rgb_to_ycbcr`).
 fn ycbcr709(c: vec3<f32>) -> vec3<f32> {
     let y = 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
     return vec3(y, (c.z - y) / (2.0 * (1.0 - 0.0722)), (c.x - y) / (2.0 * (1.0 - 0.2126)));
