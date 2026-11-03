@@ -491,6 +491,46 @@ pub fn close_gap(seq: &mut Sequence, track: TrackId, t: Tick) -> Result<TimeRang
     Ok(gap)
 }
 
+/// What [`close_all_gaps`] did: the gaps closed, and the ones left because closing them would have
+/// put a sync-locked track out of sync (with that track's name).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct GapsClosed {
+    pub closed: Vec<TimeRange>,
+    pub skipped: Vec<(TrackId, TimeRange, String)>,
+}
+
+/// Close every gap on every unlocked video and audio track (Sequence ▸ Close All Gaps), each as
+/// [`close_gap`] closes one: from the last gap to the first, so the earlier ones stay where they
+/// were found. A gap a sync-locked track would lose sync over is left, and listed.
+pub fn close_all_gaps(seq: &mut Sequence) -> GapsClosed {
+    let mut out = GapsClosed::default();
+    let ids: Vec<TrackId> = seq.all_tracks().filter(|t| !t.locked).map(|t| t.id).collect();
+    for id in ids {
+        let gaps: Vec<TimeRange> = {
+            let Some(tr) = seq.track(id) else { continue };
+            let mut items: Vec<TimeRange> = tr.items.iter().map(|i| i.range()).collect();
+            items.sort_by_key(|r| r.start);
+            let mut v = Vec::new();
+            let mut cursor = Tick::ZERO;
+            for r in items {
+                if r.start > cursor {
+                    v.push(TimeRange::from_bounds(cursor, r.start));
+                }
+                cursor = cursor.max(r.end());
+            }
+            v
+        };
+        for g in gaps.into_iter().rev() {
+            match close_gap(seq, id, g.start) {
+                Ok(closed) => out.closed.push(closed),
+                Err(EditError::SyncLockConflict(name)) => out.skipped.push((id, g, name)),
+                Err(_) => {}
+            }
+        }
+    }
+    out
+}
+
 /// Move items by (track, time) offsets with overwrite (default drag) or insert (Cmd-drag) semantics.
 /// `moves`: (item, destination track, new start).
 pub fn move_items(seq: &mut Sequence, moves: &[(ClipId, TrackId, Tick)], insert_mode: bool, ctx: &mut EditCtx) -> Result<()> {

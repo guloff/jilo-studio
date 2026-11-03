@@ -69,3 +69,41 @@ fn only_a_gap_can_be_selected_and_a_clip_selection_replaces_it() {
     s.execute("sequence.closeGap", json!({"track": "V1", "time": len.0 * 3 / 2})).unwrap();
     assert!(s.selected_gap().is_none() && !s.is_enabled("edit.clear"));
 }
+
+/// Sequence ▸ Close All Gaps: every gap between clips on every track, one undo step; with music
+/// under the whole sequence on a sync-locked track nothing can close, and the track is named.
+#[test]
+fn close_all_gaps_closes_every_gap_and_respects_sync_lock() {
+    let (mut s, len, later) = two_clips_and_a_gap();
+    let item = s.project.items.values().find(|i| i.has_video() && i.has_audio() && i.as_media().is_some()).map(|i| i.id).unwrap();
+    // a third clip after a second gap, of twice the length
+    s.execute("timeline.place", json!({"item": item.0, "time": len.0 * 5})).unwrap();
+    let starts = |s: &Session| -> Vec<i64> {
+        let q = s.active_sequence().unwrap();
+        let mut v: Vec<i64> = q.video_tracks[0].items.iter().map(|i| i.start.0).collect();
+        v.sort();
+        v
+    };
+    assert_eq!(starts(&s), vec![0, (len + len).0, len.0 * 5]);
+    let r = s.execute("sequence.closeAllGaps", json!({})).unwrap();
+    assert_eq!(r["closed"].as_u64(), Some(2), "{r}");
+    assert_eq!(starts(&s), vec![0, len.0, (len + len).0], "back to back");
+    for c in &later {
+        assert_eq!(start(&s, *c), len, "the sound moved with its picture");
+    }
+    assert!(s.execute("sequence.closeAllGaps", json!({})).unwrap_err().to_string().contains("no gaps"));
+    s.execute("edit.undo", json!({})).unwrap();
+    assert_eq!(starts(&s), vec![0, (len + len).0, len.0 * 5], "one undo step");
+    // music under everything on a sync-locked A2: nothing can close, and the reason names the track
+    s.execute("sequence.addTracks", json!({"video": 0, "audio": 1})).unwrap();
+    let a2 = s.active_sequence().unwrap().audio_tracks[1].id;
+    let music = s.project.items.values().find(|i| !i.has_video() && i.has_audio()).map(|i| i.id).unwrap();
+    s.execute("timeline.place", json!({"item": music.0, "track": a2.0, "time": 0, "duration": len.0 * 7})).unwrap();
+    let e = s.execute("sequence.closeAllGaps", json!({})).unwrap_err().to_string();
+    assert!(e.contains("A2") || e.contains("Audio 2"), "{e}");
+    assert_eq!(starts(&s), vec![0, (len + len).0, len.0 * 5]);
+    // without its sync lock the music stays and the gaps close
+    s.execute("timeline.setTrack", json!({"track": a2.0, "syncLock": false})).unwrap();
+    s.execute("sequence.closeAllGaps", json!({})).unwrap();
+    assert_eq!(starts(&s), vec![0, len.0, (len + len).0]);
+}

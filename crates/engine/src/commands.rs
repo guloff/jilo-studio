@@ -1796,6 +1796,7 @@ fn build() -> Vec<CommandSpec> {
             let t = time_p(s, p, "").unwrap_or(s.playhead());
             close_gap_at(s, tr, t)
         }),
+        cmd!("sequence.closeAllGaps", "Close All Gaps", ["Sequence"], None, "{}", has_seq, |s, _| close_all_gaps(s)),
         cmd!("sequence.snap", "Snap in Timeline", ["Sequence"], Some("S"), r#"{"on":bool?}"#, always, |s, p| {
             s.state.snapping = bool_p(p, "on").unwrap_or(!s.state.snapping);
             Ok(json!({"snapping": s.state.snapping}))
@@ -3605,6 +3606,34 @@ fn close_gap_at(s: &mut Session, tr: TrackId, t: Tick) -> Result<Value> {
         Ok(())
     })?;
     Ok(Value::Null)
+}
+
+/// Sequence ▸ Close All Gaps: every gap on every unlocked track, one undo step; gaps a sync-locked
+/// track would lose sync over are left and named.
+fn close_all_gaps(s: &mut Session) -> Result<Value> {
+    let mut done = edit::GapsClosed::default();
+    s.edit_sequence("Close All Gaps", |q, _, st| {
+        done = edit::close_all_gaps(q);
+        if done.closed.is_empty() {
+            return Err(match done.skipped.first() {
+                Some((_, _, name)) => {
+                    EngineError::Other(format!("no gap could be closed: {name} has something in them (turn off its sync lock to close them anyway)"))
+                }
+                None => EngineError::Other("there are no gaps between clips".into()),
+            });
+        }
+        if st.ripple_sequence_markers {
+            for g in &done.closed {
+                crate::sequence_tools::ripple_markers(&mut q.markers, g.end(), -g.duration);
+            }
+        }
+        st.gap_selection = None;
+        Ok(())
+    })?;
+    let seconds: f64 = done.closed.iter().map(|g| g.duration.seconds()).sum();
+    let skipped: Vec<Value> =
+        done.skipped.iter().map(|(t, g, name)| json!({"track": t.0, "start": g.start.0, "duration": g.duration.0, "because": name})).collect();
+    Ok(json!({"closed": done.closed.len(), "seconds": seconds, "skipped": skipped}))
 }
 
 fn remove_transitions(s: &mut Session, ids: &[TransitionId], label: &str) -> Result<Value> {

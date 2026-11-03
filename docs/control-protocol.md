@@ -128,7 +128,10 @@ error on a clip and after the last one. While it is the only selection, `edit.cl
 sync-locked tracks, caption tracks included, moves up by its length, refused when a sync-locked
 track has something in the gap. In the Timeline a click in a gap selects it (outlined, element
 `timeline.gap`) and a right-click opens its menu (`timeline.gapMenu.edit.rippleDelete`); a marquee
-starts on any empty space, off the tracks too.
+starts on any empty space, off the tracks too. `sequence.closeAllGaps {}` (Sequence ▸ Close All Gaps) closes every
+gap on every unlocked track the same way, in one undo step, from the last to the first →
+`{closed, seconds, skipped: [{track, start, duration, because}]}`; a gap a sync-locked track has
+something in is left and named (an error when no gap could close).
 
 **Trim mode** (`crates/engine/src/trim.rs`): `trim.selectEditPoint` / `trim.selectNearest` enter trim
 mode (the Program monitor becomes the Trim Monitor, ids `trimMonitor.*`); `trim.monitor` returns what
