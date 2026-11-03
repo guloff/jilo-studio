@@ -74,9 +74,20 @@ fn sh_quote(s: &str) -> String {
     }
 }
 
+/// `s` as one word for the terminal a user pastes into: on Windows a path in double quotes when it
+/// needs any (Command Prompt, PowerShell and Git Bash all take that; a path cannot contain `"`),
+/// elsewhere [`sh_quote`].
+fn terminal_quote(s: &str) -> String {
+    if cfg!(windows) {
+        if !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || "/\\._-+=:@".contains(c)) { s.to_string() } else { format!("\"{s}\"") }
+    } else {
+        sh_quote(s)
+    }
+}
+
 /// The Terminal command that registers the server with Claude Code.
 pub fn claude_code_setup(command: &Path) -> String {
-    format!("claude mcp add --scope user {SERVER_NAME} -- {} {}", sh_quote(&command.to_string_lossy()), server_args(command).join(" "))
+    format!("claude mcp add --scope user {SERVER_NAME} -- {} {}", terminal_quote(&command.to_string_lossy()), server_args(command).join(" "))
 }
 
 /// The `mcpServers` entry a client's JSON configuration takes.
@@ -280,6 +291,15 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn windows_paths_are_quoted_for_the_terminal() {
+        let c = claude_code_setup(Path::new(r"C:\Users\a\AppData\Local\Programs\Jilo Studio\jilo-studio.exe"));
+        assert_eq!(c, r#"claude mcp add --scope user jilo-studio -- "C:\Users\a\AppData\Local\Programs\Jilo Studio\jilo-studio.exe" --mcp"#);
+        assert_eq!(claude_code_setup(Path::new(r"C:\tools\jilo-cli.exe")), r"claude mcp add --scope user jilo-studio -- C:\tools\jilo-cli.exe mcp --app");
+    }
+
+    #[cfg(not(windows))]
     #[test]
     fn paths_with_spaces_are_quoted_for_terminal() {
         let c = claude_code_setup(Path::new("/Applications/Jilo Studio.app/Contents/MacOS/Jilo Studio"));

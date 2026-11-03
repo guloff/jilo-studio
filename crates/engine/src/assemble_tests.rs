@@ -97,9 +97,10 @@ fn a_bad_plan_changes_nothing_and_says_where() {
     let mut s = demo();
     let ocean = item_named(&s, "Ocean_Sunset.mp4");
     let before = (s.history.undo.len(), s.project.items.len());
+    let missing = if cfg!(windows) { r"C:\no\such\file.mov" } else { "/no/such/file.mov" };
     let cases = [
         (json!({"video": [[{"item": ocean.0, "out": 2}]]}), "`name`"),
-        (json!({"name": "x", "video": [[{"media": "/no/such/file.mov", "out": 2}]]}), "V1 clip 1: no file"),
+        (json!({"name": "x", "video": [[{"media": missing, "out": 2}]]}), "V1 clip 1: no file"),
         (json!({"name": "x", "video": [[{"media": "relative.mov", "out": 2}]]}), "absolute path"),
         (json!({"name": "x", "video": [[{"item": ocean.0, "in": 3, "out": 2}]]}), "no length"),
         (json!({"name": "x", "video": [[{"item": ocean.0}]]}), "`out`"),
