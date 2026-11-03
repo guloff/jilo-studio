@@ -730,6 +730,8 @@ fn sticker_templates() -> Vec<GraphicsTemplate> {
         ("sticker-arrow-right", "Arrow", 0.0, "A bold arrow to point at something."),
         ("sticker-arrow-down", "Arrow Down", 90.0, "A bold arrow pointing down."),
         ("sticker-arrow-diagonal", "Arrow – Diagonal", 45.0, "A bold arrow pointing down and to the right."),
+        ("sticker-arrow-left", "Arrow Left", 180.0, "A bold arrow pointing left."),
+        ("sticker-arrow-up", "Arrow Up", -90.0, "A bold arrow pointing up."),
     ] {
         let mut a = path(1, "Arrow", (960.0, 540.0), &arrow, 0xef4444);
         outline(&mut a, 0xffffff, 8.0);
@@ -826,6 +828,225 @@ fn sticker_templates() -> Vec<GraphicsTemplate> {
             3,
             vec![line],
             vec![ctl("color", "Color", 1, "fill_color")],
+        ));
+    }
+    v.extend(more_stickers());
+    v
+}
+
+/// Points around a centre: `n` corners alternating between `outer` and `inner` radius, the first
+/// straight up (stars, sparkles).
+fn star_points(n: usize, outer: f32, inner: f32) -> Vec<(f32, f32)> {
+    (0..n * 2)
+        .map(|i| {
+            let r = if i % 2 == 0 { outer } else { inner };
+            let a = std::f32::consts::PI * i as f32 / n as f32 - std::f32::consts::FRAC_PI_2;
+            ((a.cos() * r).round(), (a.sin() * r).round())
+        })
+        .collect()
+}
+
+/// A one-colour shape sticker with an outline: (layer, controls).
+fn sign_shape(name: &str, pos: (f64, f64), points: &[(f32, f32)], fill: u32, rotation: f64) -> EffectInstance {
+    let mut e = path(1, name, pos, points, fill);
+    outline(&mut e, 0xffffff, 8.0);
+    if rotation != 0.0 {
+        set(&mut e, "rotation", ParamValue::Float(rotation));
+    }
+    e
+}
+
+/// A word or a sign on a filled shape (`kind`: 0 box, 1 ellipse, 2 polygon).
+fn labelled(kind: u32, size: (f64, f64), fill: u32, label: &str, text_size: f64, text_color: u32) -> Vec<EffectInstance> {
+    let mut back = shape(1, "Shape", kind, (960.0, 540.0), size, fill);
+    if kind == 0 {
+        set(&mut back, "corner_radius", ParamValue::Float(size.1 / 2.0));
+    }
+    let mut words = text(2, "Text", label, (960.0, 540.0 + text_size * 0.36), text_size, "Bold");
+    set(&mut words, "align", ParamValue::Choice(1));
+    set(&mut words, "fill_color", rgb(text_color));
+    vec![back, words]
+}
+
+fn label_controls() -> Vec<TemplateControl> {
+    vec![ctl("text", "Text", 2, "text"), ctl("shape_color", "Shape Color", 1, "fill_color"), ctl("text_color", "Text Color", 2, "fill_color")]
+}
+
+/// The second set of stickers: signs (check, cross, star, heart, pin, sparkle), a box to frame
+/// something, numbered and lettered circles, a warning sign, Like and Follow buttons, a price tag
+/// and a curved arrow.
+fn more_stickers() -> Vec<GraphicsTemplate> {
+    let mut v = Vec::new();
+    let color = || vec![ctl("color", "Color", 1, "fill_color"), ctl("outline", "Outline Color", 1, "stroke_color")];
+    let check = [(-150.0, -10.0), (-100.0, -60.0), (-40.0, 0.0), (100.0, -140.0), (150.0, -90.0), (-40.0, 100.0)];
+    v.push(builtin(
+        "sticker-check",
+        "Check Mark",
+        "Stickers",
+        "A green tick: done, right, yes.",
+        3,
+        vec![sign_shape("Check", (960.0, 560.0), &check, 0x22c55e, 0.0)],
+        color(),
+    ));
+    let (w, l) = (30.0f32, 150.0f32);
+    let plus = [(-w, -l), (w, -l), (w, -w), (l, -w), (l, w), (w, w), (w, l), (-w, l), (-w, w), (-l, w), (-l, -w), (-w, -w)];
+    v.push(builtin(
+        "sticker-cross",
+        "Cross",
+        "Stickers",
+        "A red cross: wrong, no, don't.",
+        3,
+        vec![sign_shape("Cross", (960.0, 540.0), &plus, 0xef4444, 45.0)],
+        color(),
+    ));
+    v.push(builtin(
+        "sticker-star",
+        "Star",
+        "Stickers",
+        "A five-pointed star.",
+        3,
+        vec![sign_shape("Star", (960.0, 550.0), &star_points(5, 160.0, 66.0), 0xfacc15, 0.0)],
+        color(),
+    ));
+    let heart: Vec<(f32, f32)> = (0..72)
+        .map(|i| {
+            let t = std::f32::consts::TAU * i as f32 / 72.0;
+            let x = 16.0 * t.sin().powi(3);
+            let y = -(13.0 * t.cos() - 5.0 * (2.0 * t).cos() - 2.0 * (3.0 * t).cos() - (4.0 * t).cos());
+            ((x * 10.0).round(), (y * 10.0).round())
+        })
+        .collect();
+    v.push(builtin(
+        "sticker-heart",
+        "Heart",
+        "Stickers",
+        "A heart: love it, like.",
+        3,
+        vec![sign_shape("Heart", (960.0, 540.0), &heart, 0xf43f5e, 0.0)],
+        color(),
+    ));
+    v.push(builtin(
+        "sticker-sparkle",
+        "Sparkle",
+        "Stickers",
+        "A four-pointed sparkle to make something shine.",
+        3,
+        vec![sign_shape("Sparkle", (960.0, 540.0), &star_points(4, 150.0, 36.0), 0xfde047, 0.0)],
+        color(),
+    ));
+    {
+        // a teardrop: the top of a circle, then the point
+        let mut drop: Vec<(f32, f32)> = (0..=48)
+            .map(|i| {
+                let a = (150.0 + 240.0 * i as f32 / 48.0).to_radians();
+                ((a.cos() * 90.0).round(), (-60.0 + a.sin() * 90.0).round())
+            })
+            .collect();
+        drop.push((0.0, 130.0));
+        let pin = sign_shape("Pin", (960.0, 520.0), &drop, 0xdc2626, 0.0);
+        let dot = shape(2, "Dot", 1, (960.0, 460.0), (70.0, 70.0), 0xffffff);
+        v.push(builtin(
+            "sticker-pin",
+            "Location Pin",
+            "Stickers",
+            "A map pin to show where.",
+            3,
+            vec![pin, dot],
+            vec![ctl("color", "Color", 1, "fill_color"), ctl("dot", "Dot Color", 2, "fill_color")],
+        ));
+    }
+    {
+        // one outline around and back inside: a frame 600 × 340, 16 px thick
+        let (ox, oy, t) = (300.0f32, 170.0f32, 16.0f32);
+        let frame = [
+            (-ox, -oy),
+            (ox, -oy),
+            (ox, oy),
+            (-ox, oy),
+            (-ox, -oy),
+            (-ox + t, -oy + t),
+            (-ox + t, oy - t),
+            (ox - t, oy - t),
+            (ox - t, -oy + t),
+            (-ox + t, -oy + t),
+        ];
+        let f = path(1, "Frame", (960.0, 540.0), &frame, 0xfacc15);
+        v.push(builtin("sticker-frame", "Frame It", "Stickers", "A box drawn around what matters.", 3, vec![f], vec![ctl("color", "Color", 1, "fill_color")]));
+    }
+    v.push(builtin(
+        "sticker-number",
+        "Number",
+        "Stickers",
+        "A numbered circle: steps 1, 2, 3…",
+        3,
+        labelled(1, (200.0, 200.0), 0x2563eb, "1", 130.0, 0xffffff),
+        label_controls(),
+    ));
+    v.push(builtin(
+        "sticker-question",
+        "Question",
+        "Stickers",
+        "A question mark in a circle.",
+        3,
+        labelled(1, (200.0, 200.0), 0x7c3aed, "?", 140.0, 0xffffff),
+        label_controls(),
+    ));
+    {
+        let mut sign = labelled(2, (300.0, 300.0), 0xfacc15, "!", 150.0, 0x111827);
+        set(&mut sign[0], "sides", ParamValue::Float(3.0));
+        v.push(builtin("sticker-warning", "Warning", "Stickers", "A warning sign: careful, important.", 3, sign, label_controls()));
+    }
+    v.push(builtin(
+        "sticker-like",
+        "Like Button",
+        "Stickers",
+        "A blue Like button; the word can be changed.",
+        3,
+        labelled(0, (380.0, 130.0), 0x2563eb, "LIKE", 72.0, 0xffffff),
+        label_controls(),
+    ));
+    v.push(builtin(
+        "sticker-follow",
+        "Follow Button",
+        "Stickers",
+        "A pink Follow button; the word can be changed.",
+        3,
+        labelled(0, (440.0, 130.0), 0xec4899, "FOLLOW", 72.0, 0xffffff),
+        label_controls(),
+    ));
+    {
+        let tag = path(1, "Tag", (960.0, 540.0), &[(-200.0, -80.0), (120.0, -80.0), (200.0, 0.0), (120.0, 80.0), (-200.0, 80.0)], 0x16a34a);
+        let mut price = text(2, "Text", "$99", (940.0, 568.0), 84.0, "Bold");
+        set(&mut price, "align", ParamValue::Choice(1));
+        set(&mut price, "fill_color", rgb(0xffffff));
+        v.push(builtin("sticker-price", "Price Tag", "Stickers", "A price tag: $99, -30%, FREE.", 3, vec![tag, price], label_controls()));
+    }
+    {
+        // an arc over the top, its head pointing down and to the right
+        let (r_out, r_in) = (220.0f32, 180.0f32);
+        let (a0, a1) = (200.0f32.to_radians(), 330.0f32.to_radians());
+        let n = 40;
+        // whole pixels: the template's JSON keeps them exactly
+        let at = |a: f32, r: f32| ((a.cos() * r).round(), (a.sin() * r).round());
+        let mut arc: Vec<(f32, f32)> = (0..=n).map(|i| at(a0 + (a1 - a0) * i as f32 / n as f32, r_out)).collect();
+        arc.extend((0..=n).rev().map(|i| at(a0 + (a1 - a0) * i as f32 / n as f32, r_in)));
+        let body = path(1, "Arrow", (960.0, 620.0), &arc, 0xef4444);
+        let mid = (r_out + r_in) / 2.0;
+        let (end, tangent, normal) = ((a1.cos() * mid, a1.sin() * mid), (-a1.sin(), a1.cos()), (a1.cos(), a1.sin()));
+        let head = [
+            ((end.0 + tangent.0 * 80.0).round(), (end.1 + tangent.1 * 80.0).round()),
+            ((end.0 + normal.0 * 60.0).round(), (end.1 + normal.1 * 60.0).round()),
+            ((end.0 - normal.0 * 60.0).round(), (end.1 - normal.1 * 60.0).round()),
+        ];
+        let head = path(2, "Head", (960.0, 620.0), &head, 0xef4444);
+        v.push(builtin(
+            "sticker-arrow-curved",
+            "Arrow – Curved",
+            "Stickers",
+            "A curved arrow, as drawn by hand.",
+            3,
+            vec![body, head],
+            vec![ctl("color", "Color", 1, "fill_color"), ctl("head", "Head Color", 2, "fill_color")],
         ));
     }
     v

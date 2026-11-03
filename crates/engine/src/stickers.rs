@@ -10,7 +10,7 @@
 //! | Command | |
 //! |---|---|
 //! | `stickers.list` | `{category?, query?}`: the catalogue (`emoji:<char>` and `builtin:sticker-…` ids), favourites and recent |
-//! | `stickers.add` | `{id, time?, seconds=3, animation: pop\|fade\|slide\|none, size=0.22, x?, y?}`: on a free track above, one undo step |
+//! | `stickers.add` | `{id, time?, seconds=3, animation: pop\|fade\|slide\|bounce\|spin\|wiggle\|zoom\|none, size=0.22, x?, y?}`: on a free track above, one undo step |
 //! | `stickers.favorite` | `{id, on?}` |
 //! | `stickers.fromClip` | `{item?, time?, name?, place=true}`: the subject of the selected clip cut out of its background (the host's [`Cutout`], Apple Vision), kept in `<data dir>/stickers/mine/` (category `mine`, ids `file:<path>`) and put on the picture |
 //! | `stickers.byWords` | `{maxCount?, minGap?}`: an emoji on the phrases that mention one (by words, ru/en) |
@@ -267,7 +267,7 @@ fn list(s: &mut Session, p: &Value) -> Result<Value> {
 fn entrance(s: &mut Session, clip: ClipId, how: &str, scale: f64, pos: (f64, f64)) -> Result<()> {
     let q = s.active_sequence().ok_or(EngineError::NoSequence)?;
     let (_, it) = q.find_item(clip).ok_or(EngineError::NoSequence)?;
-    let (t0, rate) = (it.start, q.settings.frame_rate);
+    let (t0, rate, it_duration) = (it.start, q.settings.frame_rate, it.duration);
     let at = |frames: i64| (t0 + rate.tick_of(frames)).0;
     let key = |s: &mut Session, effect: &str, param: &str, frames: i64, value: Value| {
         s.execute("effects.setParam", json!({"clip": clip.0, "effect": effect, "param": param, "value": value, "time": at(frames), "keyframe": true}))
@@ -286,6 +286,44 @@ fn entrance(s: &mut Session, clip: ClipId, how: &str, scale: f64, pos: (f64, f64
             let h = f64::from(q_height(s));
             key(s, "motion", "position", 0, json!([pos.0, pos.1 + h * 0.25]))?;
             key(s, "motion", "position", 8, json!([pos.0, pos.1]))?;
+            key(s, "opacity", "opacity", 0, json!(0.0))?;
+            key(s, "opacity", "opacity", 4, json!(100.0))?;
+        }
+        // drops in from above and bounces twice before it settles
+        "bounce" => {
+            let h = f64::from(q_height(s));
+            for (f, dy) in [(0, -0.3), (6, 0.04), (9, -0.015), (12, 0.0)] {
+                key(s, "motion", "position", f, json!([pos.0, pos.1 + h * dy]))?;
+            }
+            key(s, "opacity", "opacity", 0, json!(0.0))?;
+            key(s, "opacity", "opacity", 3, json!(100.0))?;
+        }
+        // turns half a circle as it grows
+        "spin" => {
+            key(s, "motion", "rotation", 0, json!(-180.0))?;
+            key(s, "motion", "rotation", 10, json!(0.0))?;
+            key(s, "motion", "scale", 0, json!(0.0))?;
+            key(s, "motion", "scale", 10, json!(scale))?;
+        }
+        // pops in, then rocks from side to side for as long as it is on screen
+        "wiggle" => {
+            key(s, "motion", "scale", 0, json!(0.0))?;
+            key(s, "motion", "scale", 5, json!(scale * 1.1))?;
+            key(s, "motion", "scale", 8, json!(scale))?;
+            let frames = rate.frame_at(it_duration).max(8);
+            let mut f = 8;
+            let mut k = 0;
+            while f + 6 < frames {
+                key(s, "motion", "rotation", f, json!(if k % 2 == 0 { 8.0 } else { -8.0 }))?;
+                f += 6;
+                k += 1;
+            }
+            key(s, "motion", "rotation", f.min(frames - 1), json!(0.0))?;
+        }
+        // flies in from close to the camera
+        "zoom" => {
+            key(s, "motion", "scale", 0, json!(scale * 2.4))?;
+            key(s, "motion", "scale", 8, json!(scale))?;
             key(s, "opacity", "opacity", 0, json!(0.0))?;
             key(s, "opacity", "opacity", 4, json!(100.0))?;
         }
@@ -343,6 +381,11 @@ fn add_one(s: &mut Session, id: &str, at: Tick, seconds: f64, how: &str, size: f
     }
     let r = s.execute("graphics.template.apply", json!({"template": id, "time": at.0}))?;
     let clip = r["clip"].as_u64().map(ClipId).ok_or_else(|| EngineError::Other("the sticker was not placed".into()))?;
+    // as long as asked (the template's own length otherwise; a neighbour may stop it sooner)
+    let now = s.active_sequence().and_then(|q| q.find_item(clip)).map_or(dur, |(_, it)| it.duration);
+    if now != dur {
+        s.execute("timeline.trim", json!({"clip": clip.0, "edge": "out", "delta": (dur - now).0}))?;
+    }
     // shapes are drawn for the frame's centre: move them where asked
     let centre = (w / 2.0, h / 2.0);
     if (pos.0 - centre.0).abs() > 0.5 || (pos.1 - centre.1).abs() > 0.5 {
@@ -364,8 +407,8 @@ fn add(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "stickers.add";
     let id = str_p(p, "id").ok_or_else(|| bad(cmd, "`id`: emoji:😀 or builtin:sticker-…"))?.to_string();
     let how = str_p(p, "animation").unwrap_or("pop");
-    if !matches!(how, "pop" | "fade" | "slide" | "none") {
-        return Err(bad(cmd, "`animation`: pop, fade, slide or none"));
+    if !matches!(how, "pop" | "fade" | "slide" | "bounce" | "spin" | "wiggle" | "zoom" | "none") {
+        return Err(bad(cmd, "`animation`: pop, fade, slide, bounce, spin, wiggle, zoom or none"));
     }
     let at = p.get("time").and_then(Value::as_i64).map(Tick).unwrap_or(s.playhead());
     let seconds = f64_p(p, "seconds").unwrap_or(3.0).clamp(0.2, 600.0);
@@ -629,7 +672,7 @@ pub fn commands() -> Vec<CommandSpec> {
             label: "Add Sticker",
             menu: &[],
             shortcut: None,
-            params: r#"{"id":"emoji:😀|builtin:sticker-…","time":ticks?,"seconds":f=3,"animation":"pop|fade|slide|none"="pop","size":0.02..1=0.22,"x":0..1=0.5,"y":0..1=0.35}"#,
+            params: r#"{"id":"emoji:😀|builtin:sticker-…","time":ticks?,"seconds":f=3,"animation":"pop|fade|slide|bounce|spin|wiggle|zoom|none"="pop","size":0.02..1=0.22,"x":0..1=0.5,"y":0..1=0.35}"#,
             enabled: has_seq,
             run: add,
             journal: true,
@@ -740,7 +783,37 @@ mod tests {
         s.execute("stickers.favorite", json!({"id": "emoji:🔥"})).unwrap();
         let favs = s.execute("stickers.list", json!({"category": "favorites"})).unwrap();
         assert_eq!(favs["stickers"].as_array().unwrap().len(), 1);
-        assert!(s.execute("stickers.add", json!({"id": "emoji:🔥", "animation": "spin"})).is_err());
+        assert!(s.execute("stickers.add", json!({"id": "emoji:🔥", "animation": "twirl"})).is_err());
+    }
+
+    /// Bounce, Spin, Wiggle and Zoom In animate what they say; Wiggle rocks for as long as the
+    /// sticker shows, and every built-in shape goes on the picture.
+    #[test]
+    fn the_new_entrances_animate_and_every_shape_sticker_goes_on() {
+        let mut s = Session::default();
+        s.execute("file.openDemoProject", json!({})).unwrap();
+        fake(&mut s);
+        let anim = |s: &mut Session, how: &str, seconds: f64| -> filmcraft_project::TrackItem {
+            let r = s.execute("stickers.add", json!({"id": "builtin:sticker-star", "animation": how, "seconds": seconds})).unwrap();
+            s.active_sequence().unwrap().find_item(ClipId(r["clip"].as_u64().unwrap())).unwrap().1.clone()
+        };
+        let keys = |it: &filmcraft_project::TrackItem, e: &str, p: &str| it.effect(e).and_then(|x| x.param(p)).map_or(0, |p| p.keyframes.len());
+        let it = anim(&mut s, "bounce", 2.0);
+        assert!(keys(&it, "motion", "position") >= 4 && keys(&it, "opacity", "opacity") == 2);
+        let it = anim(&mut s, "spin", 2.0);
+        assert!(keys(&it, "motion", "rotation") == 2 && keys(&it, "motion", "scale") == 2);
+        let short = keys(&anim(&mut s, "wiggle", 1.0), "motion", "rotation");
+        let long = keys(&anim(&mut s, "wiggle", 4.0), "motion", "rotation");
+        assert!(short >= 2 && long > short * 2, "rocks the whole time: {short} vs {long}");
+        // a shape lasts as long as asked
+        assert_eq!(anim(&mut s, "none", 4.0).duration, s.sequence_rate().snap_nearest(Tick::from_seconds_f64(4.0)));
+        let it = anim(&mut s, "zoom", 2.0);
+        assert!(keys(&it, "motion", "scale") == 2 && keys(&it, "opacity", "opacity") == 2);
+        let all: Vec<String> = filmcraft_project::gtemplate::builtin_templates().into_iter().filter(|t| t.category == "Stickers").map(|t| t.id).collect();
+        assert!(all.len() >= 24, "{all:?}");
+        for id in &all {
+            assert!(s.execute("stickers.add", json!({"id": id, "animation": "none"})).is_ok(), "{id}");
+        }
     }
 
     /// The emoji pictures are shared: one drawn by several sessions at once is never read half

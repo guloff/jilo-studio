@@ -39,7 +39,16 @@ pub struct LibraryUi {
 
 /// The sticker categories offered first, before the catalogue's own.
 const STICKER_FIRST: [(&str, &str); 2] = [("recent", "Recent"), ("favorites", "Favorites")];
-const ANIMATIONS: [(&str, &str); 4] = [("pop", "Pop"), ("fade", "Fade"), ("slide", "Slide Up"), ("none", "No Animation")];
+const ANIMATIONS: [(&str, &str); 8] = [
+    ("pop", "Pop"),
+    ("fade", "Fade"),
+    ("slide", "Slide Up"),
+    ("bounce", "Bounce"),
+    ("spin", "Spin"),
+    ("wiggle", "Wiggle"),
+    ("zoom", "Zoom In"),
+    ("none", "No Animation"),
+];
 
 /// A sticker's picture as a texture, made once: an emoji drawn by the system font, or a shape
 /// sticker's template thumbnail.
