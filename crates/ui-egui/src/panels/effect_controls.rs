@@ -758,6 +758,8 @@ pub fn properties_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let val = |eid: &str, p: &str| it.effect(eid).and_then(|e| e.param(p)).map(|p| p.value_at(mt));
     // everything under the header scrolls: a short panel (a tall Timeline under it) still reaches
     // the last settings
+    // a solid bar beside the rows: a floating one would sit over the keyframe arrows at the right
+    bui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
     egui::ScrollArea::vertical().id_salt("props-scroll").auto_shrink([false, false]).show(&mut bui, |bui| {
         if kind == TrackKind::Video {
             if section(bui, app, "Transform", eff_idx("motion").map(|i| (i, clip.0)), &mut actions) {
