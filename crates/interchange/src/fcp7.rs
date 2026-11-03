@@ -26,9 +26,9 @@ use filmcraft_time::{FrameRate, Tick, format_timecode_frames};
 use roxmltree::Node;
 
 use crate::common::{
-    Builder, MediaSpec, base_item, db_to_gain, empty_sequence, file_name, frames_round, gain_to_db, item_media, item_path, kind_from_ext, label_from, on_frame,
-    param, param_modified, path_to_file_url, rate_from_timebase, resolve_path, set_param, settings_for, standard_effects, timebase, transition_effect,
-    transition_name, unscaled,
+    Builder, MAX_IMPORTED_TRACKS, MediaSpec, base_item, db_to_gain, empty_sequence, file_name, frames_round, gain_to_db, item_media, item_path, kind_from_ext,
+    label_from, on_frame, param, param_modified, path_to_file_url, rate_from_timebase, resolve_path, set_param, settings_for, standard_effects, timebase,
+    transition_effect, transition_name, unscaled,
 };
 use crate::xml::{XmlWriter, bool_str, child, child_bool, child_f64, child_i64, child_text, children, elements, num, path_text};
 use crate::{Error, ExportOptions, Format, ImportOptions, Imported, Report, Result};
@@ -405,7 +405,10 @@ impl<'a, 'i> Imp<'a, 'i, '_> {
                 // Premiere writes a stereo track as one xmeml track per channel; the second is
                 // folded back into the first's clips (#371).
                 let partners = if kind == TrackKind::Audio { exploded_partners(&nodes, i) } else { Vec::new() };
-                self.b.ensure_tracks(&mut seq, kind, ti + 1);
+                if !self.b.ensure_tracks(&mut seq, kind, ti + 1) {
+                    self.report.warn(format!("FCP7 {kind:?} tracks beyond {MAX_IMPORTED_TRACKS} were skipped"));
+                    break;
+                }
                 self.track(&mut seq, id, kind, ti, tn, &partners, rate, (w, h));
                 i += 1 + partners.len();
                 ti += 1;
@@ -461,7 +464,9 @@ impl<'a, 'i> Imp<'a, 'i, '_> {
                         let t = &mut seq.tracks_mut(kind)[ti];
                         if t.items.iter().any(|o| o.start < ti_item.end() && ti_item.start < o.end()) {
                             self.report.warn("overlapping clip items on one track; the later one was moved to a new track");
-                            self.b.place(seq, kind, ti + 1, ti_item);
+                            if self.b.place(seq, kind, ti + 1, ti_item).is_none() {
+                                self.report.warn(format!("FCP7 {kind:?} track exceeds the {MAX_IMPORTED_TRACKS}-track import limit; clip was skipped"));
+                            }
                         } else {
                             t.items.push(ti_item);
                         }

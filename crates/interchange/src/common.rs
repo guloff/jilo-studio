@@ -13,6 +13,11 @@ use filmcraft_time::{FrameRate, Tick};
 
 use crate::{Imported, Report};
 
+/// A timeline import may not materialise an unbounded number of sparse track
+/// labels. This remains well above common editorial timelines while keeping
+/// hostile lane/channel numbers from allocating every intervening track.
+pub(crate) const MAX_IMPORTED_TRACKS: usize = 256;
+
 // ---------------------------------------------------------------------------------------------
 // Paths and URLs
 // ---------------------------------------------------------------------------------------------
@@ -404,12 +409,18 @@ impl Builder {
         Track::new(id, kind, name)
     }
 
-    pub fn ensure_tracks(&mut self, seq: &mut Sequence, kind: TrackKind, n: usize) {
+    /// Ensure `n` tracks of one kind exist. Returns false when an imported
+    /// label would exceed the supported per-kind track count.
+    pub fn ensure_tracks(&mut self, seq: &mut Sequence, kind: TrackKind, n: usize) -> bool {
+        if n > MAX_IMPORTED_TRACKS {
+            return false;
+        }
         while seq.tracks(kind).len() < n {
             let i = seq.tracks(kind).len();
             let t = self.track(kind, i);
             seq.tracks_mut(kind).push(t);
         }
+        true
     }
 
     pub fn link_id(&mut self) -> u64 {
@@ -459,15 +470,17 @@ impl Builder {
 
     /// Place `item` on the first track at or after `preferred` where it does not overlap anything,
     /// creating tracks as needed. Returns the track index.
-    pub fn place(&mut self, seq: &mut Sequence, kind: TrackKind, preferred: usize, item: TrackItem) -> usize {
+    pub fn place(&mut self, seq: &mut Sequence, kind: TrackKind, preferred: usize, item: TrackItem) -> Option<usize> {
         let mut i = preferred;
         loop {
-            self.ensure_tracks(seq, kind, i + 1);
+            if i >= MAX_IMPORTED_TRACKS || !self.ensure_tracks(seq, kind, i + 1) {
+                return None;
+            }
             let t = &mut seq.tracks_mut(kind)[i];
             if !t.items.iter().any(|o| o.start < item.end() && item.start < o.end()) {
                 t.items.push(item);
                 t.sort();
-                return i;
+                return Some(i);
             }
             i += 1;
         }
@@ -805,5 +818,15 @@ mod tests {
         assert_eq!(base_item(&p, missing_parent), ItemId(123456789));
         assert_eq!(item_media(&p, missing_parent), None);
         assert_eq!(item_path(&p, missing_parent), None);
+    }
+
+    #[test]
+    fn imported_tracks_are_bounded() {
+        let mut b = Builder::new("tracks");
+        let mut seq = empty_sequence(Default::default());
+        assert!(b.ensure_tracks(&mut seq, TrackKind::Video, MAX_IMPORTED_TRACKS));
+        assert_eq!(seq.video_tracks.len(), MAX_IMPORTED_TRACKS);
+        assert!(!b.ensure_tracks(&mut seq, TrackKind::Video, MAX_IMPORTED_TRACKS + 1));
+        assert_eq!(seq.video_tracks.len(), MAX_IMPORTED_TRACKS);
     }
 }
