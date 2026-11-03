@@ -472,6 +472,8 @@ pub struct AiPrefs {
     /// AI assistants (Claude and other MCP clients) may control the app: the desktop app keeps its
     /// control channel open on [`crate::assistants::ASSISTANT_PORT`] while this is on.
     pub allow_assistants: bool,
+    /// The user's presets of the AI features (AI Tools ▸ a feature ▸ Save as Preset).
+    pub presets: Vec<crate::ai_presets::AiPreset>,
 }
 
 impl Default for AiPrefs {
@@ -495,6 +497,7 @@ impl Default for AiPrefs {
             confirmed_providers: Vec::new(),
             local_only: false,
             allow_assistants: false,
+            presets: Vec::new(),
         }
     }
 }

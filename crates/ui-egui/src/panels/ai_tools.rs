@@ -3,7 +3,12 @@
 //! the usual settings where one click is enough, and "Customize…" for the feature's dialog. The
 //! commands are the same as the AI menu's.
 //!
-//! Automation ids: `aiTools.card.<command>`, `aiTools.do.<command>`, `aiTools.open.<command>`.
+//! Under a feature, its presets (`ai.presets.*`): the ones that come with the app and the user's,
+//! each run with one click; "Save as Preset…" keeps the settings the feature last ran with.
+//!
+//! Automation ids: `aiTools.card.<command>`, `aiTools.do.<command>`, `aiTools.open.<command>`,
+//! `aiTools.preset.<preset id>`, `aiTools.savePreset.<command>`, `aiTools.presetName`,
+//! `aiTools.presetSave`.
 
 use egui::{RichText, Sense, vec2};
 use serde_json::{Value, json};
@@ -76,6 +81,8 @@ const GROUPS: [(&str, &[Card]); 5] = [
             ),
             card("captions.translate", "Translate Captions", "A caption track in another language.", &[Captions, TextKey], None),
             card("ai.dub", "Dub", "The speech in another language: translated captions spoken by a voice.", &[Captions, TextKey], None),
+            card("transcript.removePauses", "Remove Pauses", "Cut the pauses between phrases, as long as you choose.", &[Transcript], None),
+            card("audio.removeSilences", "Remove Silences", "Cut the quiet stretches by the sound alone, no transcript needed.", &[Sequence], None),
             card("transcript.removeFillers", "Remove Filler Words", "Find the ums and ahs and cut the ones you pick.", &[Transcript], None),
             card("transcript.removeRetakes", "Remove Retakes and Stumbles", "Keep the last take of repeated phrases.", &[Transcript], None),
         ],
@@ -97,6 +104,7 @@ const GROUPS: [(&str, &[Card]); 5] = [
             card("clip.removeBackground", "Remove Background", "The person or subject cut out of the video, on this computer.", &[Selection], Some(no_params)),
             card("multicam.autoSwitch", "Auto Multi-Camera", "Switch to whoever is speaking.", &[Multicam], None),
             card("broll.auto", "Auto B-roll", "Footage that fits what is said, above the phrase.", &[Transcript], None),
+            card("stickers.byWords", "Emoji by Words", "An emoji on the phrases that mention one.", &[Transcript], None),
             card("export.allFormats", "Export in All Formats", "16:9, 9:16, 1:1 and 4:5 copies, exported together.", &[Sequence], None),
         ],
     ),
@@ -166,9 +174,20 @@ fn missing(app: &FilmcraftApp, need: Need) -> Option<String> {
     }
 }
 
+/// The preset being named: (command, name typed so far).
+fn naming_id() -> egui::Id {
+    egui::Id::new("aiTools.naming")
+}
+
 pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: egui::Rect) {
     let t = app.tokens;
     let mut run: Option<(&'static str, Option<Value>)> = None;
+    // read directly, not through a command: this runs every frame
+    let all = filmcraft_engine::ai_presets::all(&app.session);
+    let last: std::collections::HashSet<String> = app.session.ai_last_params.keys().cloned().collect();
+    let mut naming: Option<(String, String)> = ui.data(|d| d.get_temp(naming_id()));
+    let mut save: Option<(String, String)> = None;
+    let mut delete: Option<String> = None;
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink(8.0)));
     egui::ScrollArea::vertical().id_salt("ai-tools").auto_shrink([false, false]).show(&mut child, |ui| {
         ui.spacing_mut().item_spacing.y = 6.0;
@@ -209,6 +228,57 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: egui::Rect) {
                             run = Some((c.command, None));
                         }
                     });
+                    // presets: one click runs the feature with them; right-click deletes one of yours
+                    let mine: Vec<&filmcraft_engine::ai_presets::AiPreset> = all.iter().filter(|p| p.command == c.command).collect();
+                    let last = last.contains(c.command);
+                    if !mine.is_empty() || last {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
+                            ui.label(RichText::new(tl!("Presets:")).size(11.0).color(t.text_dim));
+                            for p in &mine {
+                                let id = p.id.clone();
+                                let builtin = id.starts_with("builtin:");
+                                let name = p.name.as_str();
+                                let text = if builtin { crate::i18n::t(name).to_string() } else { name.to_string() };
+                                let b = ui.add_enabled(ready, egui::Button::new(RichText::new(text).size(11.0)).small().corner_radius(10.0));
+                                app.auto.add(&format!("aiTools.preset.{id}"), b.rect, name);
+                                if b.clicked() {
+                                    run = Some((c.command, Some(p.params.clone())));
+                                }
+                                if !builtin {
+                                    b.context_menu(|ui| {
+                                        if ui.button(tl!("Delete Preset")).clicked() {
+                                            delete = Some(id.clone());
+                                            ui.close();
+                                        }
+                                    });
+                                }
+                            }
+                            if last {
+                                let b = ui.add(egui::Button::new(RichText::new(tl!("Save as Preset…")).size(11.0)).small());
+                                app.auto.add(&format!("aiTools.savePreset.{}", c.command), b.rect, "Save as Preset");
+                                b.clone().on_hover_text(tl!("Keep the settings this feature last ran with, under a name."));
+                                if b.clicked() {
+                                    naming = Some((c.command.to_string(), String::new()));
+                                }
+                            }
+                        });
+                    }
+                    if let Some((cmd, name)) = naming.as_mut().filter(|(cmd, _)| cmd == c.command) {
+                        ui.horizontal(|ui| {
+                            let r = ui.add(egui::TextEdit::singleline(name).hint_text(tl!("Preset name")).desired_width(170.0));
+                            app.auto.add("aiTools.presetName", r.rect, "Preset name");
+                            let ok = !name.trim().is_empty();
+                            let b = ui.add_enabled(ok, egui::Button::new(tl!("Save")).small());
+                            app.auto.add("aiTools.presetSave", b.rect, "Save");
+                            if b.clicked() || (ok && r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter))) {
+                                save = Some((cmd.clone(), name.trim().to_string()));
+                            }
+                            if ui.add(egui::Button::new(tl!("Cancel")).small()).clicked() {
+                                save = Some((String::new(), String::new()));
+                            }
+                        });
+                    }
                 });
                 app.auto.add(&format!("aiTools.card.{}", c.command), r.response.rect, c.title);
             }
@@ -220,6 +290,27 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: egui::Rect) {
             run = Some(("ai.settings", None));
         }
     });
+    if let Some((cmd, name)) = save {
+        naming = None;
+        if !cmd.is_empty() {
+            app.ui.status = match app.session.execute("ai.presets.save", json!({"command": cmd, "name": name})) {
+                Ok(_) => tlf!("Preset “{name}” saved.", name),
+                Err(e) => e.to_string(),
+            };
+        }
+    }
+    if let Some(id) = delete {
+        app.ui.status = match app.session.execute("ai.presets.delete", json!({"id": id})) {
+            Ok(_) => tl!("Preset deleted.").to_string(),
+            Err(e) => e.to_string(),
+        };
+    }
+    ui.data_mut(|d| match &naming {
+        Some(n) => {
+            d.insert_temp(naming_id(), n.clone());
+        }
+        None => d.remove::<(String, String)>(naming_id()),
+    });
     if let Some((cmd, params)) = run {
         let ctx = ui.ctx().clone();
         let r = crate::menus::invoke(app, &ctx, cmd, params.clone().unwrap_or_else(|| json!({})));
@@ -227,6 +318,11 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: egui::Rect) {
             // one click: say what happened
             (Ok(v), Some(_)) => app.ui.status = summary(cmd, &v),
             (Ok(_), None) => {}
+            // a cloud feature asks first, then runs in the background as from its dialog
+            (Err(e), Some(p)) if e.contains("CONFIRM_CLOUD") => {
+                let title = GROUPS.iter().flat_map(|(_, cards)| cards.iter()).find(|c| c.command == cmd).map_or(cmd, |c| c.title);
+                crate::panels::ai_tasks::start(app, cmd, p, crate::i18n::t(title), tl!("what this feature works on"));
+            }
             (Err(e), _) => app.ui.status = e,
         }
     }

@@ -117,3 +117,56 @@ fn the_ai_panel_runs_and_opens_features() {
     d.frames(2);
     assert!(d.app().ui.auto_mix.dialog);
 }
+
+/// A feature's presets: a built-in one runs it with one click; "Save as Preset…" keeps the
+/// settings it last ran with under a name, and that preset runs it again the same way.
+#[test]
+fn presets_run_a_feature_and_its_last_settings_become_one() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "ai.tools"}));
+    d.frames(4);
+    let scroll_to = |d: &mut Driver, id: &str| {
+        for _ in 0..40 {
+            let r = d.ok("ui.elements", json!({"prefix": id}));
+            let y = r.as_array().and_then(|v| v.iter().find(|e| e["id"] == id)).map_or(0.0, |e| e["rect"][1].as_f64().unwrap_or(0.0));
+            let rect = d.ok("ui.elements", json!({"prefix": "panel.AiTools"}));
+            let (top, h) = (rect[0]["rect"][1].as_f64().unwrap_or(0.0), rect[0]["rect"][3].as_f64().unwrap_or(0.0));
+            if y > top + 20.0 && y < top + h - 60.0 {
+                return;
+            }
+            let (x, y0) = (rect[0]["rect"][0].as_f64().unwrap_or(1200.0) + 100.0, rect[0]["rect"][1].as_f64().unwrap_or(100.0) + 200.0);
+            d.ok("ui.scroll", json!({"x": x, "y": y0, "dy": -120.0}));
+            d.frames(2);
+        }
+        panic!("{id} never came into view");
+    };
+    let social = "aiTools.preset.builtin:mix-social";
+    scroll_to(&mut d, social);
+    let undo = d.app().session.history.undo.len();
+    d.click(social);
+    d.frames(2);
+    assert_eq!(d.app().session.history.undo.len(), undo + 1, "the preset ran: {}", d.app().ui.status);
+    assert_eq!(d.app().session.journal.last().map(|j| j.1.clone()), Some(json!({"platform": "social"})));
+    // the settings it ran with become a preset of the user's
+    let save = "aiTools.savePreset.audio.autoMix";
+    assert!(d.has(save), "offered once the feature has run");
+    d.click(save);
+    d.frames(2);
+    scroll_to(&mut d, "aiTools.presetSave");
+    d.click("aiTools.presetName");
+    d.ok("ui.type", json!({"text": "My Reels mix"}));
+    d.click("aiTools.presetSave");
+    d.frames(2);
+    let mine = d.app().session.prefs.ai.presets.clone();
+    assert_eq!(mine.len(), 1, "{}", d.app().ui.status);
+    assert_eq!((mine[0].name.as_str(), mine[0].params.clone()), ("My Reels mix", json!({"platform": "social"})));
+    let chip = format!("aiTools.preset.{}", mine[0].id);
+    scroll_to(&mut d, &chip);
+    snapshot(&mut d, "ai-presets");
+    let undo = d.app().session.history.undo.len();
+    d.click(&chip);
+    d.frames(2);
+    assert_eq!(d.app().session.history.undo.len(), undo + 1, "{}", d.app().ui.status);
+}

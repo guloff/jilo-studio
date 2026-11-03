@@ -13,6 +13,7 @@
 pub mod aaf_omf;
 pub mod ai;
 pub mod ai_menu;
+pub mod ai_presets;
 pub mod ai_tasks;
 pub mod assemble;
 pub mod assistant;
@@ -501,6 +502,8 @@ pub struct Session {
     pub recognition_cache: recognition::RecognitionCache,
     /// Answers of cloud text features fetched in the background, waiting to be applied.
     pub ai_task_cache: ai_tasks::TaskCache,
+    /// The settings each AI feature last ran with (for AI Tools ▸ Save as Preset).
+    pub ai_last_params: std::collections::HashMap<String, Value>,
     /// The batch running or last run (`batch.*`), advanced by [`batch::pump`].
     pub batch: Option<batch::BatchRun>,
     /// The inbox folder being watched (`inbox.*`), looked at by [`inbox::pump`].
@@ -629,6 +632,7 @@ impl Session {
             ai_models: Default::default(),
             recognition_cache: Default::default(),
             ai_task_cache: Default::default(),
+            ai_last_params: Default::default(),
             batch: None,
             inbox: Default::default(),
             recipe: None,
@@ -840,6 +844,9 @@ impl Session {
         self.previews.live.publish_project(self.project.clone());
         if r.is_ok() && spec.journal && self.exec_depth == 0 && self.recording.is_some() {
             self.record_step(id, &params);
+        }
+        if r.is_ok() {
+            ai_presets::remember(self, id, &params);
         }
         if r.is_ok() && spec.journal {
             self.journal.push((id.to_string(), params));
