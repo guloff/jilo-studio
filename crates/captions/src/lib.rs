@@ -307,7 +307,8 @@ pub fn parse_clock(s: &str) -> Option<Tick> {
 
 /// Format ticks as `HH:MM:SS<sep>mmm` (rounded to the nearest millisecond).
 pub fn format_clock(t: Tick, sep: char) -> String {
-    let ms = (t.0.max(0) + TICKS_PER_MS / 2) / TICKS_PER_MS;
+    // The rounding addition must not overflow for an input-derived Tick near i64::MAX.
+    let ms = (i128::from(t.0.max(0)) + i128::from(TICKS_PER_MS) / 2) / i128::from(TICKS_PER_MS);
     let (h, m, s, f) = (ms / 3_600_000, (ms / 60_000) % 60, (ms / 1000) % 60, ms % 1000);
     format!("{h:02}:{m:02}:{s:02}{sep}{f:03}")
 }
