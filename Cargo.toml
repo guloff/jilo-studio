@@ -68,6 +68,7 @@ serde_json = "1"
 log = "0.4"
 rayon = "1"
 proptest = "1"
+chrono = { version = "0.4.45", default-features = false, features = ["std"] }
 roxmltree = "0.21"
 
 # ui

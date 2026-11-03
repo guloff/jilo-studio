@@ -2168,6 +2168,7 @@ dependencies = [
 name = "filmcraft-mxf"
 version = "0.11.0"
 dependencies = [
+ "chrono",
  "filmcraft-testkit",
 ]
 
@@ -2295,7 +2296,9 @@ dependencies = [
 name = "filmcraft-testkit"
 version = "0.11.0"
 dependencies = [
+ "chrono",
  "png",
+ "tempfile",
 ]
 
 [[package]]
@@ -2386,6 +2389,7 @@ name = "filmcraft-vp9"
 version = "0.11.0"
 dependencies = [
  "filmcraft-bitstream",
+ "filmcraft-testkit",
  "rayon",
  "thiserror 2.0.21",
 ]

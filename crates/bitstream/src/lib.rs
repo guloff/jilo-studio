@@ -15,6 +15,8 @@ pub enum BitError {
     Eof,
     /// An Exp-Golomb code longer than 32 leading zeros.
     InvalidExpGolomb,
+    /// An AVCC/HVCC NAL length prefix width outside 1 to 4 bytes.
+    InvalidNalLengthSize,
 }
 
 impl fmt::Display for BitError {
@@ -22,6 +24,7 @@ impl fmt::Display for BitError {
         match self {
             BitError::Eof => f.write_str("unexpected end of bitstream"),
             BitError::InvalidExpGolomb => f.write_str("invalid Exp-Golomb code"),
+            BitError::InvalidNalLengthSize => f.write_str("NAL length prefix must be 1 to 4 bytes"),
         }
     }
 }
@@ -35,11 +38,15 @@ pub struct BitReader<'a> {
     data: &'a [u8],
     /// Position in bits.
     pos: usize,
+    /// Bit position of the last set bit (the `rbsp_stop_one_bit`), found once so that
+    /// [`Self::more_rbsp_data`] does not rescan a long zero suffix on every call.
+    rbsp_stop: Option<usize>,
 }
 
 impl<'a> BitReader<'a> {
     pub fn new(data: &'a [u8]) -> Self {
-        Self { data, pos: 0 }
+        let rbsp_stop = data.iter().rposition(|&b| b != 0).map(|i| i.saturating_mul(8).saturating_add(7 - data[i].trailing_zeros() as usize));
+        Self { data, pos: 0, rbsp_stop }
     }
     pub fn data(&self) -> &'a [u8] {
         self.data
@@ -49,7 +56,7 @@ impl<'a> BitReader<'a> {
         self.pos
     }
     pub fn bits_left(&self) -> usize {
-        (self.data.len() * 8).saturating_sub(self.pos)
+        self.data.len().saturating_mul(8).saturating_sub(self.pos)
     }
     pub fn is_byte_aligned(&self) -> bool {
         self.pos.is_multiple_of(8)
@@ -65,10 +72,15 @@ impl<'a> BitReader<'a> {
         self.pos = pos;
     }
 
-    /// Peek up to 32 bits without consuming (zero-padded past the end).
+    /// Peek `n` bits without consuming, zero-padded past the end. For `n` above 32 this returns
+    /// what [`read_bits`](Self::read_bits) would: the low 32 bits of the `n`-bit field.
     #[inline]
     pub fn peek(&self, n: u32) -> u32 {
-        debug_assert!(n <= 32);
+        if n > 32 {
+            let mut r = self.clone();
+            r.pos = r.pos.saturating_add((n - 32) as usize);
+            return r.peek(32);
+        }
         if n == 0 {
             return 0;
         }
@@ -76,16 +88,21 @@ impl<'a> BitReader<'a> {
         let shift = self.pos % 8;
         let mut v: u64 = 0;
         for i in 0..5 {
-            v = (v << 8) | *self.data.get(byte + i).unwrap_or(&0) as u64;
+            v = (v << 8) | *self.data.get(byte.saturating_add(i)).unwrap_or(&0) as u64;
         }
         // v holds 40 bits starting at `byte`
         ((v << (24 + shift)) >> (64 - n)) as u32
     }
 
+    /// Read `n` bits. For `n` above 32 this consumes `n` bits and returns the low 32 of them.
     #[inline]
     pub fn read_bits(&mut self, n: u32) -> Result<u32> {
         if n as usize > self.bits_left() {
             return Err(BitError::Eof);
+        }
+        if n > 32 {
+            self.pos += (n - 32) as usize;
+            return self.read_bits(32);
         }
         let v = self.peek(n);
         self.pos += n as usize;
@@ -117,8 +134,8 @@ impl<'a> BitReader<'a> {
         Ok(())
     }
 
-    /// Unsigned Exp-Golomb `ue(v)`.
-    pub fn read_ue(&mut self) -> Result<u32> {
+    /// Raw Exp-Golomb codeNum, up to 32 leading zeros (so below 2^33).
+    fn read_code_num(&mut self) -> Result<u64> {
         let mut zeros = 0u32;
         while !self.read_bit()? {
             zeros += 1;
@@ -130,14 +147,26 @@ impl<'a> BitReader<'a> {
             return Ok(0);
         }
         let v = self.read_bits_u64(zeros)?;
-        let r = (1u64 << zeros) - 1 + v;
-        u32::try_from(r).map_err(|_| BitError::InvalidExpGolomb)
+        Ok((1u64 << zeros) - 1 + v)
+    }
+
+    /// Unsigned Exp-Golomb `ue(v)`.
+    pub fn read_ue(&mut self) -> Result<u32> {
+        u32::try_from(self.read_code_num()?).map_err(|_| BitError::InvalidExpGolomb)
+    }
+
+    /// `ue(v) + add` (the `..._minus1` / `..._minus8` fields), failing instead of overflowing on a
+    /// hostile value near `u32::MAX`.
+    pub fn read_ue_plus(&mut self, add: u32) -> Result<u32> {
+        self.read_ue()?.checked_add(add).ok_or(BitError::InvalidExpGolomb)
     }
 
     /// Signed Exp-Golomb `se(v)`.
     pub fn read_se(&mut self) -> Result<i32> {
-        let k = self.read_ue()? as i64;
-        Ok(if k & 1 == 1 { ((k + 1) / 2) as i32 } else { -((k / 2) as i32) })
+        // codeNum 2^32 is -2^31, so the mapping is done before narrowing to 32 bits.
+        let k = self.read_code_num()? as i64;
+        let v = if k & 1 == 1 { (k + 1) / 2 } else { -(k / 2) };
+        i32::try_from(v).map_err(|_| BitError::InvalidExpGolomb)
     }
 
     /// Truncated Exp-Golomb `te(v)` with range `max`.
@@ -147,22 +176,7 @@ impl<'a> BitReader<'a> {
 
     /// H.264/HEVC `more_rbsp_data()`: true if there is data before the rbsp trailing bits.
     pub fn more_rbsp_data(&self) -> bool {
-        let total = self.data.len() * 8;
-        if self.pos >= total {
-            return false;
-        }
-        // find last set bit (the rbsp_stop_one_bit)
-        let mut last = None;
-        for (i, &b) in self.data.iter().enumerate().rev() {
-            if b != 0 {
-                last = Some(i * 8 + 7 - b.trailing_zeros() as usize);
-                break;
-            }
-        }
-        match last {
-            Some(stop) => self.pos < stop,
-            None => false,
-        }
+        self.rbsp_stop.is_some_and(|stop| self.pos < stop)
     }
 }
 
@@ -178,8 +192,15 @@ impl BitWriter {
     pub fn new() -> Self {
         Self::default()
     }
+    /// Write the low `n` bits of `value`. For `n` above 32 the extra high bits are zeros;
+    /// `n` above 64 writes 64 bits.
     pub fn write_bits(&mut self, value: u32, n: u32) {
-        debug_assert!(n <= 32);
+        let mut n = n.min(64);
+        while n > 32 {
+            let pad = (n - 32).min(32);
+            self.write_bits(0, pad);
+            n -= pad;
+        }
         if n == 0 {
             return;
         }
@@ -196,7 +217,11 @@ impl BitWriter {
         self.write_bits(b as u32, 1);
     }
     pub fn write_ue(&mut self, v: u32) {
-        let x = v as u64 + 1;
+        self.write_code_num(u64::from(v));
+    }
+    /// Exp-Golomb codeNum up to 2^32 (the code of `se(v)` -2^31).
+    fn write_code_num(&mut self, v: u64) {
+        let x = v + 1;
         let len = 64 - x.leading_zeros();
         let zeros = len - 1;
         for _ in 0..zeros {
@@ -210,8 +235,8 @@ impl BitWriter {
         }
     }
     pub fn write_se(&mut self, v: i32) {
-        let k = if v > 0 { (v as u32) * 2 - 1 } else { (-(v as i64) as u32) * 2 };
-        self.write_ue(k);
+        let m = u64::from(v.unsigned_abs()) * 2;
+        self.write_code_num(if v > 0 { m - 1 } else { m });
     }
     pub fn bit_len(&self) -> usize {
         self.buf.len() * 8 + self.nbits as usize
@@ -304,12 +329,16 @@ pub fn annexb_nals(data: &[u8]) -> Vec<&[u8]> {
     out
 }
 
-/// Split a length-prefixed sample (AVCC/HVCC, `length_size` 1/2/4 bytes) into NAL units.
+/// Split a length-prefixed sample (AVCC/HVCC, `length_size` 1 to 4 bytes) into NAL units.
+/// Any other `length_size` returns [`BitError::InvalidNalLengthSize`], even for empty data.
 pub fn length_prefixed_nals(data: &[u8], length_size: usize) -> Result<Vec<&[u8]>> {
+    if !(1..=4).contains(&length_size) {
+        return Err(BitError::InvalidNalLengthSize);
+    }
     let mut out = Vec::new();
     let mut i = 0;
     while i < data.len() {
-        if i + length_size > data.len() {
+        if length_size > data.len() - i {
             return Err(BitError::Eof);
         }
         let mut len = 0usize;
@@ -317,7 +346,7 @@ pub fn length_prefixed_nals(data: &[u8], length_size: usize) -> Result<Vec<&[u8]
             len = (len << 8) | data[i + k] as usize;
         }
         i += length_size;
-        if i + len > data.len() {
+        if len > data.len() - i {
             return Err(BitError::Eof);
         }
         out.push(&data[i..i + len]);
@@ -378,6 +407,41 @@ mod tests {
     }
 
     #[test]
+    fn signed_exp_golomb_extremes_roundtrip() {
+        let vals = [0, 1, -1, i32::MAX, i32::MIN];
+        let mut w = BitWriter::new();
+        for v in vals {
+            w.write_se(v);
+        }
+        let b = w.finish();
+        let mut r = BitReader::new(&b);
+        for v in vals {
+            assert_eq!(r.read_se(), Ok(v));
+        }
+    }
+
+    #[test]
+    fn signed_exp_golomb_reads_minimum_from_spec_bits() {
+        // 32 zero bits, 1, then the 32-bit suffix 1: codeNum = 2^32 -> -2^31.
+        let bytes = [0, 0, 0, 0, 0x80, 0, 0, 0, 0x80];
+        assert_eq!(BitReader::new(&bytes).read_se(), Ok(i32::MIN));
+    }
+
+    #[test]
+    fn signed_exp_golomb_rejects_positive_overflow() {
+        // 32 zero bits, 1, then 32 zero bits: codeNum = 2^32 - 1 -> +2^31, not an i32.
+        let bytes = [0, 0, 0, 0, 0x80, 0, 0, 0, 0];
+        assert_eq!(BitReader::new(&bytes).read_se(), Err(BitError::InvalidExpGolomb));
+    }
+
+    #[test]
+    fn unsigned_exp_golomb_keeps_u32_range() {
+        // codeNum = 2^32 is a valid se(v) code but does not fit ue(v)'s u32.
+        let bytes = [0, 0, 0, 0, 0x80, 0, 0, 0, 0x80];
+        assert_eq!(BitReader::new(&bytes).read_ue(), Err(BitError::InvalidExpGolomb));
+    }
+
+    #[test]
     fn emulation_prevention() {
         let raw = [0, 0, 1, 0, 0, 0, 5, 0, 0, 3];
         let esc = escape_rbsp(&raw);
@@ -404,8 +468,69 @@ mod tests {
     }
 
     #[test]
+    fn more_rbsp_data_finds_the_stop_bit_before_a_zero_suffix() {
+        let mut d = vec![0b1010_0000];
+        d.resize(1 << 16, 0);
+        let mut r = BitReader::new(&d);
+        assert_eq!(r.rbsp_stop, Some(2));
+        assert!(r.more_rbsp_data());
+        r.skip(2).unwrap();
+        assert!(!r.more_rbsp_data());
+        assert_eq!(BitReader::new(&[0; 4]).rbsp_stop, None);
+        assert!(!BitReader::new(&[0; 4]).more_rbsp_data());
+    }
+
+    #[test]
     fn crc() {
         assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
+    }
+
+    #[test]
+    fn read_ue_plus_rejects_overflow() {
+        let mut w = BitWriter::new();
+        w.write_ue(7);
+        w.write_ue(u32::MAX - 1);
+        w.rbsp_trailing();
+        let b = w.finish();
+        let mut r = BitReader::new(&b);
+        assert_eq!(r.read_ue_plus(1).unwrap(), 8);
+        assert_eq!(r.read_ue_plus(2), Err(BitError::InvalidExpGolomb));
+    }
+
+    #[test]
+    fn length_prefixed_rejects_invalid_width_and_oversized_length() {
+        for size in [0, 5, 8, usize::MAX] {
+            assert_eq!(length_prefixed_nals(&[], size), Err(BitError::InvalidNalLengthSize), "size {size}");
+            assert_eq!(length_prefixed_nals(&[0; 16], size), Err(BitError::InvalidNalLengthSize), "size {size}");
+        }
+        // `(lengthSizeMinusOne & 3) + 1` can be 3; such samples still split.
+        assert_eq!(length_prefixed_nals(&[0, 0, 1, 7], 3).unwrap(), vec![&[7u8][..]]);
+        assert_eq!(length_prefixed_nals(&[0xFF, 0xFF, 0xFF, 0xFF, 1], 4), Err(BitError::Eof));
+        assert_eq!(length_prefixed_nals(&[0, 0, 0, 1, 9], 4).unwrap(), vec![&[9u8][..]]);
+    }
+
+    #[test]
+    fn widths_above_32_bits_do_not_panic() {
+        let mut w = BitWriter::new();
+        w.write_bits(0xABCD_EF01, 40);
+        w.write_bits(1, 60);
+        let b = w.finish();
+        assert_eq!(b.len(), 13);
+        assert_eq!(&b[..5], &[0x00, 0xAB, 0xCD, 0xEF, 0x01]);
+        let mut r = BitReader::new(&b);
+        assert_eq!(r.peek(40), 0xABCD_EF01);
+        assert_eq!(r.read_bits(40).unwrap(), 0xABCD_EF01);
+        assert_eq!(r.peek(60), 1);
+        assert_eq!(r.read_bits_u64(60).unwrap(), 1);
+        assert_eq!(r.bits_left(), 4);
+        assert_eq!(r.read_bits(40), Err(BitError::Eof));
+    }
+
+    #[test]
+    fn huge_write_width_is_capped_at_64_bits() {
+        let mut w = BitWriter::new();
+        w.write_bits(0xFFFF_FFFF, u32::MAX);
+        assert_eq!(w.finish(), [0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF]);
     }
 
     proptest! {

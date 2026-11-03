@@ -230,6 +230,27 @@ pub fn count_bits(cb: u8, vals: &[i32]) -> u32 {
     bits
 }
 
+/// Bits for codebooks `cb` and `cb + 1` in one pass. `cb` must be odd and below 11: each such pair
+/// shares dimension, modulus and signedness, so the index is computed once and only the length table
+/// differs.
+pub fn count_bits_pair(cb: u8, vals: &[i32]) -> (u32, u32) {
+    debug_assert!(cb % 2 == 1 && cb < ESC_HCB);
+    let (b, b2) = (book(cb), book(cb + 1));
+    let (mut x, mut y) = (0u32, 0u32);
+    for chunk in vals.chunks_exact(b.dim) {
+        let i = index_of(b, chunk);
+        x += b.codes[i].1 as u32;
+        y += b2.codes[i].1 as u32;
+        if !b.signed {
+            // sign bits (no escapes below codebook 11)
+            let nz = chunk.iter().filter(|&&v| v != 0).count() as u32;
+            x += nz;
+            y += nz;
+        }
+    }
+    (x, y)
+}
+
 /// Write `vals` with codebook `cb` (1..=11).
 pub fn write_spectral(bw: &mut BitWriter, cb: u8, vals: &[i32]) {
     let b = book(cb);
@@ -367,6 +388,25 @@ mod tests {
                 decode_spectral(&mut br, cb, c).unwrap();
             }
             assert_eq!(out, vals, "codebook {cb}");
+        }
+    }
+
+    #[test]
+    fn pair_count_matches_single_count() {
+        let mut seed = 99u32;
+        for cb in (1..11u8).step_by(2) {
+            let b = book(cb);
+            for round in 0..40 {
+                let mut vals = Vec::new();
+                for _ in 0..(8 * b.dim) {
+                    seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                    let m = ((seed >> 8) % (b.lav + 1)) as i32;
+                    let m = if round % 4 == 0 { 0 } else { m };
+                    let neg = if b.signed { seed & 0x8000_0000 != 0 } else { seed & 1 == 1 };
+                    vals.push(if neg { -m } else { m });
+                }
+                assert_eq!(count_bits_pair(cb, &vals), (count_bits(cb, &vals), count_bits(cb + 1, &vals)), "codebook {cb}");
+            }
         }
     }
 
