@@ -229,3 +229,52 @@ fn sounds_looks_and_the_whole_edit_from_the_library() {
     snapshot(&mut d, "library-filters");
     let _ = std::fs::remove_dir_all(std::path::Path::new(&path).parent().unwrap());
 }
+
+/// Window ▸ Stickers: a click puts a sticker at the playhead, a drag onto the Timeline puts it at
+/// the time under the pointer, a drag onto the picture puts it where it is dropped.
+#[test]
+fn the_stickers_panel_places_by_click_and_by_drag() {
+    let mut s = Session::default();
+    s.execute("file.openDemoProject", json!({})).unwrap();
+    s.emoji_renderer = Some(Arc::new(|_: &str, size: u32| Ok((size, size, [255u8, 140, 0, 255].repeat((size * size) as usize)))));
+    let mut d = Driver::new(s);
+    d.ok("ui.menu.invoke", json!({"id": "window.panel.Stickers"}));
+    d.frames(3);
+    assert!(d.has("panel.Stickers"), "the panel opens");
+    d.click("library.stickers.cat.shapes");
+    d.frames(2);
+    let tile = "library.sticker.builtin:sticker-star";
+    assert!(d.has(tile), "the star is in the shapes");
+    snapshot(&mut d, "stickers-panel");
+    let count = |d: &mut Driver| d.app().session.active_sequence().unwrap().video_tracks.iter().map(|t| t.items.len()).sum::<usize>();
+    let n0 = count(&mut d);
+    let at = d.app().session.playhead();
+    d.click(tile);
+    d.frames(3);
+    assert_eq!(count(&mut d), n0 + 1, "a click places one: {}", d.app().ui.status);
+    let clicked = d.app().session.state.selection[0];
+    let want = d.app().session.sequence_rate().snap_nearest(at);
+    assert_eq!(d.app().session.active_sequence().unwrap().find_item(clicked).unwrap().1.start, want);
+    // onto the Timeline, well after the playhead
+    let tl = d.ok("ui.elements", json!({"prefix": "panel.Timeline"}));
+    let r: Vec<f64> =
+        tl.as_array().unwrap().iter().find(|e| e["id"] == "panel.Timeline").unwrap()["rect"].as_array().unwrap().iter().map(|x| x.as_f64().unwrap()).collect();
+    let (x, y) = (r[0] + r[2] * 0.8, r[1] + r[3] * 0.35);
+    d.ok("ui.drag", json!({"from": {"id": tile}, "to": {"x": x, "y": y}}));
+    d.frames(4);
+    assert_eq!(count(&mut d), n0 + 2, "dropped on the Timeline: {}", d.app().ui.status);
+    let dropped = d.app().session.state.selection[0];
+    assert!(d.app().session.active_sequence().unwrap().find_item(dropped).unwrap().1.start > at, "at the time under the pointer");
+    // onto the picture, in its lower right
+    let pg = d.ok("ui.elements", json!({"prefix": "panel.Program"}));
+    let r: Vec<f64> =
+        pg.as_array().unwrap().iter().find(|e| e["id"] == "panel.Program").unwrap()["rect"].as_array().unwrap().iter().map(|x| x.as_f64().unwrap()).collect();
+    d.ok("ui.drag", json!({"from": {"id": tile}, "to": {"x": r[0] + r[2] * 0.7, "y": r[1] + r[3] * 0.6}}));
+    d.frames(4);
+    assert_eq!(count(&mut d), n0 + 3, "dropped on the picture: {}", d.app().ui.status);
+    let placed = d.app().session.state.selection[0];
+    let q = d.app().session.active_sequence().unwrap().clone();
+    let (_, it) = q.find_item(placed).unwrap();
+    let p = it.effect("motion").unwrap().vec2_at("position", it.effect_time_at(it.start));
+    assert!(p.x > f64::from(q.settings.width) * 0.55, "to the right of the centre: {p:?}");
+}

@@ -135,6 +135,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, p: PanelKind, rect: Rect)
         PanelKind::Assistant => assistant::show(app, ui, rect),
         PanelKind::AiTools => ai_tools::show(app, ui, rect),
         PanelKind::Libraries => library::show(app, ui, rect),
+        PanelKind::Stickers => library::stickers_panel(app, ui, rect),
     }
 }
 
@@ -149,6 +150,8 @@ enum DragPayload {
     Effect(String),
     /// A graphics template (id, name) from Essential Graphics ▸ Browse.
     Template(String, String),
+    /// A sticker (id, name) from the Stickers panel or Libraries ▸ Stickers.
+    Sticker(String, String),
 }
 
 fn payload_id() -> egui::Id {
@@ -173,6 +176,15 @@ pub fn start_drag_template(ui: &egui::Ui, id: &str, name: &str) {
 pub fn dragged_template(ui: &egui::Ui) -> Option<String> {
     match payload(ui) {
         Some(DragPayload::Template(id, _)) => Some(id),
+        _ => None,
+    }
+}
+pub fn start_drag_sticker(ui: &egui::Ui, id: &str, name: &str) {
+    ui.ctx().data_mut(|d| d.insert_temp(payload_id(), Some(DragPayloadBox(DragPayload::Sticker(id.to_string(), name.to_string())))));
+}
+pub fn dragged_sticker(ui: &egui::Ui) -> Option<String> {
+    match payload(ui) {
+        Some(DragPayload::Sticker(id, _)) => Some(id),
         _ => None,
     }
 }
@@ -242,6 +254,7 @@ pub fn drag_ghost(app: &FilmcraftApp, ui: &egui::Ui) {
                 format!("{name} · {mode} · {:.2} s", s.range.duration.seconds())
             }
             DragPayload::Template(_, name) => name.clone(),
+            DragPayload::Sticker(_, name) => crate::i18n::t(name).to_string(),
             DragPayload::Effect(e) => match e.strip_prefix("preset:") {
                 Some(name) => name.to_string(),
                 None => filmcraft_project::find_effect(e).map(|d| d.name.to_string()).unwrap_or_default(),

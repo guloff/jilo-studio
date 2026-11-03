@@ -40,10 +40,11 @@ pub enum PanelKind {
     Progress,
     ReferenceMonitor,
     Timecode,
+    Stickers,
 }
 
 impl PanelKind {
-    pub const ALL: [PanelKind; 30] = [
+    pub const ALL: [PanelKind; 31] = [
         PanelKind::Project,
         PanelKind::MediaBrowser,
         PanelKind::Libraries,
@@ -74,6 +75,7 @@ impl PanelKind {
         PanelKind::Progress,
         PanelKind::ReferenceMonitor,
         PanelKind::Timecode,
+        PanelKind::Stickers,
     ];
     pub fn title(self) -> &'static str {
         match self {
@@ -107,6 +109,7 @@ impl PanelKind {
             PanelKind::Progress => "Progress",
             PanelKind::ReferenceMonitor => "Reference Monitor",
             PanelKind::Timecode => "Timecode",
+            PanelKind::Stickers => "Stickers",
         }
     }
     pub fn id(self) -> String {
@@ -290,7 +293,7 @@ pub fn workspace(name: &str) -> DockNode {
                 hsplit(Ratio(0.4), tabs(&[Text, Source, EffectControls], 0), tabs(&[Program], 0)),
                 hsplit(Ratio(0.3), tabs(&[Project, MediaBrowser, Libraries], 0), bottom_editing()),
             ),
-            tabs(&[EssentialGraphics, Properties, CaptionStyle], 0),
+            tabs(&[EssentialGraphics, Properties, CaptionStyle, Stickers], 0),
         ),
         // AI first: the transcript to edit by text beside the picture, the assistant and the styles
         // on the right, the timeline under them.
@@ -299,7 +302,7 @@ pub fn workspace(name: &str) -> DockNode {
             hsplit(
                 FixedB(400.0),
                 hsplit(Ratio(0.38), tabs(&[Text, Project, Libraries], 0), tabs(&[Program], 0)),
-                tabs(&[AiTools, Assistant, CaptionStyle, Properties, EssentialGraphics], 0),
+                tabs(&[AiTools, Assistant, Stickers, CaptionStyle, Properties, EssentialGraphics], 0),
             ),
             hsplit(Ratio(0.2), tabs(&[Project, MediaBrowser, Effects, History], 0), bottom_editing()),
         ),
@@ -309,7 +312,7 @@ pub fn workspace(name: &str) -> DockNode {
             hsplit(
                 FixedB(380.0),
                 hsplit(FixedA(300.0), tabs(&[Project, Text, Libraries], 0), tabs(&[Program], 0)),
-                tabs(&[AiTools, Properties, CaptionStyle, Assistant], 0),
+                tabs(&[AiTools, Properties, Stickers, CaptionStyle, Assistant], 0),
             ),
             hsplit(FixedA(64.0), tabs(&[Tools], 0), tabs(&[Timeline], 0)),
         ),
@@ -333,7 +336,7 @@ pub fn workspace(name: &str) -> DockNode {
             hsplit(
                 FixedB(450.0),
                 hsplit(Ratio(0.5), tabs(&[Source, EffectControls, AudioClipMixer, Metadata], 0), tabs(&[Program], 0)),
-                tabs(&[Properties, EssentialGraphics, Text, CaptionStyle, Assistant], 0),
+                tabs(&[Properties, AiTools, Stickers, EssentialGraphics, Text, CaptionStyle, Assistant], 0),
             ),
             hsplit(
                 Ratio(0.29),

@@ -168,6 +168,23 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
         video_area
     };
     let saved_clip = ui.clip_rect();
+    // a sticker dropped on the picture goes there, at the playhead
+    if which == Which::Program
+        && show_picture
+        && let Some(sticker) = crate::panels::dragged_sticker(ui)
+        && let Some(p) = ctx.pointer_hover_pos()
+        && pic.contains(p)
+    {
+        ui.painter().rect_stroke(pic, 0.0, egui::Stroke::new(2.0, t.accent), egui::StrokeKind::Inside);
+        if ctx.input(|i| i.pointer.any_released()) {
+            let a = if app.ui.library.sticker_animation.is_empty() { "pop".to_string() } else { app.ui.library.sticker_animation.clone() };
+            let (x, y) = (((p.x - pic.min.x) / pic.width()).clamp(0.0, 1.0), ((p.y - pic.min.y) / pic.height()).clamp(0.0, 1.0));
+            if let Err(e) = app.session.execute("stickers.add", serde_json::json!({"id": sticker, "x": x, "y": y, "animation": a})) {
+                app.ui.status = e.to_string();
+            }
+            crate::panels::clear_drag(ui);
+        }
+    }
     ui.set_clip_rect(saved_clip.intersect(if mv.zoom.is_some() && !compare { video_area } else { picture_area.expand(12.0) }));
     if show_picture {
         ui.painter().rect_filled(pic, 0.0, t.monitor_bg);

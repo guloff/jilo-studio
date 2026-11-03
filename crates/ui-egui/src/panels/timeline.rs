@@ -2536,6 +2536,24 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             crate::panels::clear_drag(ui);
         }
     }
+    // a sticker from the Stickers panel: on a free track above, from the time under the pointer
+    if let Some(sticker) = crate::panels::dragged_sticker(ui)
+        && let Some(p) = ctx.pointer_hover_pos()
+        && layout.content.contains(p)
+    {
+        let t = snap(app, seq, layout, rate.snap_nearest(layout.tick_at(p.x).max(Tick::ZERO)), &[]);
+        let x = layout.x_of(t);
+        ui.painter()
+            .with_clip_rect(layout.content)
+            .line_segment([pos2(x, layout.content.min.y), pos2(x, layout.content.max.y)], Stroke::new(2.0, app.tokens.accent));
+        if ctx.input(|i| i.pointer.any_released()) {
+            let a = if app.ui.library.sticker_animation.is_empty() { "pop".to_string() } else { app.ui.library.sticker_animation.clone() };
+            if let Err(e) = app.session.execute("stickers.add", json!({"id": sticker, "time": t.0, "animation": a})) {
+                app.ui.status = e.to_string();
+            }
+            crate::panels::clear_drag(ui);
+        }
+    }
     if let Some(effect) = crate::panels::dragged_effect(ui)
         && let Some(p) = ctx.pointer_hover_pos()
         && layout.content.contains(p)

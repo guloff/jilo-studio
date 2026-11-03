@@ -32,6 +32,8 @@ pub struct LibraryUi {
     /// Stickers: the category shown ("" = recent, else favorites or a catalogue category) and the
     /// entrance animation new stickers get ("" = pop).
     pub sticker_category: String,
+    /// The Stickers panel's own search (the Library's is `search`).
+    pub sticker_search: String,
     pub sticker_animation: String,
     /// What a sticker drawn by the image engine shows.
     pub sticker_prompt: String,
@@ -69,17 +71,50 @@ fn sticker_texture(app: &FilmcraftApp, ctx: &egui::Context, id: &str) -> Option<
         })
     } else {
         filmcraft_engine::graphic_templates::find_template(&app.session, id).ok().map(|e| {
-            let (w, h, rgba) = filmcraft_engine::graphic_templates::thumbnail(&e.template, 192);
-            ctx.load_texture(format!("sticker-{id}"), egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &rgba), egui::TextureOptions::LINEAR)
+            // drawn on the whole frame: cropped to the shape, so it fills its tile
+            let (w, h, rgba) = filmcraft_engine::graphic_templates::thumbnail(&e.template, 640);
+            let img = image::RgbaImage::from_raw(w, h, rgba).map(|full| {
+                let (mut x0, mut y0, mut x1, mut y1) = (w, h, 0, 0);
+                for (x, y, p) in full.enumerate_pixels() {
+                    if p[3] > 8 {
+                        (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x), y1.max(y));
+                    }
+                }
+                if x1 < x0 {
+                    return full;
+                }
+                let pad = 6;
+                let (x0, y0) = (x0.saturating_sub(pad), y0.saturating_sub(pad));
+                let (x1, y1) = ((x1 + pad).min(w - 1), (y1 + pad).min(h - 1));
+                image::imageops::crop_imm(&full, x0, y0, x1 - x0 + 1, y1 - y0 + 1).to_image()
+            });
+            let img = img.map(|i| image::DynamicImage::ImageRgba8(i).thumbnail(192, 192).to_rgba8()).unwrap_or_default();
+            let size = [img.width() as usize, img.height() as usize];
+            ctx.load_texture(format!("sticker-{id}"), egui::ColorImage::from_rgba_unmultiplied(size, img.as_raw()), egui::TextureOptions::LINEAR)
         })
     };
     ctx.data_mut(|d| d.insert_temp(key, tex.clone()));
     tex
 }
 
-/// The Stickers tab: categories, the entrance animation, and the tiles; a click puts one at the
-/// playhead, a right-click makes it a favourite.
-fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) {
+/// The Stickers panel (Window ▸ Stickers): a search field over the same tiles as Libraries ▸
+/// Stickers.
+pub fn stickers_panel(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
+    let t = app.tokens;
+    let mut q = app.ui.library.sticker_search.clone();
+    let sr = Rect::from_min_size(pos2(rect.min.x + 8.0, rect.min.y + 6.0), vec2(rect.width() - 16.0, 22.0));
+    let mut sc = ui.new_child(egui::UiBuilder::new().max_rect(sr));
+    crate::widgets::search_field(&mut sc, &mut q, tl!("Search stickers and emoji"), sr.width(), &t);
+    app.auto.add("stickers.search", sr, "Search");
+    app.ui.library.sticker_search = q.clone();
+    let body = Rect::from_min_max(pos2(rect.min.x + 4.0, sr.max.y + 6.0), rect.max - vec2(4.0, 4.0));
+    stickers(app, ui, body, &q.to_lowercase(), true);
+}
+
+/// The Stickers tab: categories, the entrance animation, drawing one from a description, and the
+/// tiles; a click puts one at the playhead, a drag puts it where it is dropped (the Timeline or the
+/// picture), a right-click makes it a favourite.
+fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str, panel: bool) {
     let t = app.tokens;
     let cat = if app.ui.library.sticker_category.is_empty() { "recent".to_string() } else { app.ui.library.sticker_category.clone() };
     let mut p = json!({"query": query});
@@ -102,7 +137,11 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
             app.auto.add(&format!("library.stickers.cat.{id}"), r.rect, &name);
             if r.clicked() {
                 app.ui.library.sticker_category = id;
-                app.ui.library.search.clear();
+                if panel {
+                    app.ui.library.sticker_search.clear();
+                } else {
+                    app.ui.library.search.clear();
+                }
             }
         }
     });
@@ -119,8 +158,8 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
     });
     let mut cut = false;
     let mut draw = false;
+    let can = list["cutout"] == true;
     if cat == "mine" && query.is_empty() {
-        let can = list["cutout"] == true;
         child.horizontal(|ui| {
             let b = ui.add_enabled(can, egui::Button::new(tl!("Cut Out of the Selected Clip")).small());
             app.auto.add("library.stickers.cutOut", b.rect, "Cut Out of the Selected Clip");
@@ -129,6 +168,9 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
                 b.on_disabled_hover_text(tl!("Needs Apple Vision (macOS 14 or later)."));
             }
         });
+    }
+    // drawn by the image engine of AI Settings, from anywhere in the panel: it lands in My Stickers
+    {
         child.horizontal(|ui| {
             let r = ui.add(egui::TextEdit::singleline(&mut app.ui.library.sticker_prompt).hint_text(tl!("A sticker of… (a happy cat)")).desired_width(170.0));
             app.auto.add("library.stickers.prompt", r.rect, "Sticker description");
@@ -176,8 +218,11 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
                 for v in row {
                     let id = v["id"].as_str().unwrap_or_default().to_string();
                     let name = v["name"].as_str().unwrap_or_default().to_string();
-                    let (r, resp) = ui.allocate_exact_size(cell, Sense::click());
+                    let (r, resp) = ui.allocate_exact_size(cell, Sense::click_and_drag());
                     ui.painter().rect_filled(r, 6.0, if resp.hovered() { t.hover } else { t.field_bg });
+                    if resp.drag_started() {
+                        super::start_drag_sticker(ui, &id, &name);
+                    }
                     match sticker_texture(app, ui.ctx(), &id) {
                         Some(tex) => {
                             let s = tex.size_vec2();
@@ -210,7 +255,7 @@ fn stickers(app: &mut FilmcraftApp, ui: &mut egui::Ui, body: Rect, query: &str) 
                     if resp.secondary_clicked() {
                         fav = Some(id.clone());
                     }
-                    resp.on_hover_text(crate::i18n::t(&name));
+                    resp.on_hover_text(format!("{}\n{}", crate::i18n::t(&name), tl!("Click: at the playhead. Drag: onto the Timeline or the picture.")));
                 }
             });
             ui.add_space(6.0);
@@ -400,7 +445,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let body = Rect::from_min_max(pos2(rect.min.x + 4.0, sr.max.y + 6.0), rect.max - vec2(4.0, 4.0));
     let q = q.to_lowercase();
     if kind == "stickers" {
-        stickers(app, ui, body, &q);
+        stickers(app, ui, body, &q, false);
         return;
     }
     let list: Vec<Entry> =
