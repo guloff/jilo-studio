@@ -214,6 +214,49 @@ fn a_wobbly_click_on_an_edge_selects_the_edit_point() {
     assert!(!st.selection.contains(&ClipId(city)), "the clip is not selected");
 }
 
+/// Click a real rolling edge, then the Trim Monitor's +1 button: linked sound follows exactly once.
+fn linked_trim_monitor() -> Driver {
+    let mut d = Driver::demo();
+    let rate = d.app().session.sequence_rate();
+    let video = ClipId(d.v1_clip(CITY));
+    let q = d.app().session.active_sequence().unwrap();
+    let picture = q.find_item(video).unwrap().1;
+    let audio = q.audio_tracks[0].items.iter().find(|i| i.link.is_some() && i.link == picture.link).unwrap().id;
+    let cut = picture.end();
+    d.exec("tool.rolling", json!({}));
+    d.frames(4);
+    let (_, x, y) = d.edges(video.0);
+    d.drag(pos2(x - 2.0, y), pos2(x - 2.0, y), 1);
+    let points = &d.app().session.state.edit_points;
+    assert_eq!(points.len(), 2, "both linked edges selected: {points:?}");
+    assert!(points.iter().any(|e| e.clip == audio));
+    let before = d.app().session.project.clone();
+    d.ok("ui.click", json!({"id": "trimMonitor.forward"}));
+    d.frames(4);
+    for clip in [video, audio] {
+        assert_eq!(d.span(clip.0).1, (cut + rate.frame_duration()).0);
+    }
+    let after = d.app().session.project.clone();
+    d.exec("edit.undo", json!({}));
+    assert_eq!(*d.app().session.project, *before);
+    d.exec("edit.redo", json!({}));
+    assert_eq!(*d.app().session.project, *after);
+    d
+}
+
+/// #3085: the timeline gesture and Trim Monitor button keep picture and sound synchronized.
+#[test]
+fn trim_monitor_button_rolls_linked_audio_once() {
+    linked_trim_monitor();
+}
+
+/// Visual check of the linked edit brackets and Trim Monitor after one frame of rolling.
+#[test]
+#[ignore = "renders a screenshot; requires a GPU"]
+fn screenshot_linked_trim_monitor() {
+    linked_trim_monitor().screenshot("linked-trim-monitor");
+}
+
 /// A moved clip stays under the point it was grabbed by. It used to lag behind the pointer by the
 /// distance egui waits before it calls a press a drag.
 #[test]
@@ -297,6 +340,39 @@ fn dragging_a_caption_edge_inward_trims_it() {
     let (s1, e1) = span(&d);
     assert_eq!(s1, s0, "the caption's start stayed: trimmed, not moved");
     assert!(e1 < e0, "the caption's end moved in: {e0} → {e1}");
+}
+
+/// With the Rolling Edit tool, a cut dragged far past the end of the right clip stops while the
+/// drag is still in progress, at the same place the roll lands on release.
+#[test]
+fn a_cut_rolled_past_its_limit_stops_there() {
+    use filmcraft_ui_egui::panels::timeline::Drag;
+    let mut d = Driver::demo();
+    let (city, dunes) = (d.v1_clip(CITY), d.v1_clip(DUNES));
+    d.ok("ui.menu.invoke", json!({"id": "tool.rolling"}));
+    let (cut, x1, y) = d.edges(dunes);
+    let (_, e0) = d.span(city);
+    let far = filmcraft_time::Tick(3600 * filmcraft_time::TICKS_PER_SECOND);
+    let limit = filmcraft_engine::commands::roll_delta(&d.app().session, ClipId(city), ClipId(dunes), far).expect("limit");
+    assert!(filmcraft_time::Tick::ZERO < limit && limit < far, "the roll has a limit: {limit:?}");
+    let (from, to) = (pos2(cut + 3.0, y), pos2(x1 + 100.0, y));
+    let push = |d: &mut Driver, e: egui::Event| d.harness.input_mut().events.push(e);
+    push(&mut d, egui::Event::PointerMoved(from));
+    d.frames(1);
+    push(&mut d, egui::Event::PointerButton { pos: from, button: egui::PointerButton::Primary, pressed: true, modifiers: Default::default() });
+    d.frames(1);
+    for i in 1..=60 {
+        push(&mut d, egui::Event::PointerMoved(from + (to - from) * (i as f32 / 60.0)));
+        d.frames(1);
+    }
+    match &d.app().tl.drag {
+        Some(Drag::Roll { delta, .. }) => assert_eq!(*delta, limit, "the rolled cut stops at the roll's limit"),
+        other => panic!("not rolling: {other:?}"),
+    }
+    push(&mut d, egui::Event::PointerButton { pos: to, button: egui::PointerButton::Primary, pressed: false, modifiers: Default::default() });
+    d.frames(2);
+    assert_eq!(d.span(city).1, e0 + limit.0, "released where it was shown");
+    assert_eq!(d.span(dunes).0, e0 + limit.0);
 }
 
 /// Dragging a picture in the Trim Monitor must not deadlock: the shift bookkeeping used to call

@@ -1626,11 +1626,14 @@ fn preview_drag(app: &FilmcraftApp, seq: &Sequence, _layout: &Layout, out: &mut 
             }
         }
         Drag::Roll { left, right, delta, .. } => {
-            if let Some((_, l)) = seq.find_item(*left) {
-                out.insert(*left, (l.start, l.duration + *delta, None));
-            }
-            if let Some((_, r)) = seq.find_item(*right) {
-                out.insert(*right, (r.start + *delta, r.duration - *delta, None));
+            let pairs = filmcraft_engine::commands::linked_roll_pairs(seq, *left, *right, app.session.state.linked_selection);
+            for (pl, pr) in pairs {
+                if let Some((_, l)) = seq.find_item(pl) {
+                    out.insert(pl, (l.start, l.duration + *delta, None));
+                }
+                if let Some((_, r)) = seq.find_item(pr) {
+                    out.insert(pr, (r.start + *delta, r.duration - *delta, None));
+                }
             }
         }
         Drag::Slide { clip, delta } => {
@@ -2236,7 +2239,10 @@ fn interact(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, layout: &
             }),
             Drag::Roll { left, right, from, .. } => seq.find_item(left).map(|(_, l)| {
                 let target = snap_away(app, seq, layout, rate.snap_nearest(l.end() + (t_here - from)), &[left, right], &[l.end()]);
-                Drag::Roll { left, right, delta: target - l.end(), from }
+                // stop where the roll on release stops: the media, a frame left in each clip and linked
+                // cuts
+                let delta = filmcraft_engine::commands::roll_delta(&app.session, left, right, target - l.end()).unwrap_or(target - l.end());
+                Drag::Roll { left, right, delta, from }
             }),
             Drag::Slip { clip, .. } => {
                 let start = resp.interact_pointer_pos().map(|_| ()).and(ctx.input(|i| i.pointer.press_origin()));
