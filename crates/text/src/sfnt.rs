@@ -147,22 +147,43 @@ fn name_string(b: &[u8], id: u16) -> Option<String> {
         if nid != id {
             continue;
         }
-        let raw = b.get(storage + off..storage + off + len)?;
-        let (rank, s) = match plat {
+        let rank = match plat {
             3 if enc == 1 || enc == 10 => {
+                if best.as_ref().is_some_and(|(current, _)| *current <= if lang == 0x409 { 0 } else { 1 }) {
+                    continue;
+                }
+                if lang == 0x409 { 0 } else { 1 }
+            }
+            0 => {
+                if best.as_ref().is_some_and(|(current, _)| *current <= 2) {
+                    continue;
+                }
+                2
+            }
+            1 if enc == 0 => {
+                if best.as_ref().is_some_and(|(current, _)| *current <= 3) {
+                    continue;
+                }
+                3
+            }
+            _ => continue,
+        };
+        // Only decode a record that can improve the selected name. A hostile name table may
+        // point thousands of records at the same huge string.
+        let raw = b.get(storage + off..storage + off + len)?;
+        let s = match plat {
+            3 => {
                 let u: Vec<u16> = raw.as_chunks::<2>().0.iter().map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
-                (if lang == 0x409 { 0 } else { 1 }, String::from_utf16_lossy(&u))
+                String::from_utf16_lossy(&u)
             }
             0 => {
                 let u: Vec<u16> = raw.as_chunks::<2>().0.iter().map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
-                (2, String::from_utf16_lossy(&u))
+                String::from_utf16_lossy(&u)
             }
-            1 if enc == 0 => (3, raw.iter().map(|&c| if c < 128 { c as char } else { '?' }).collect()),
-            _ => continue,
+            1 => raw.iter().map(|&c| if c < 128 { c as char } else { '?' }).collect(),
+            _ => return None,
         };
-        if best.as_ref().is_none_or(|(r0, _)| rank < *r0) {
-            best = Some((rank, s));
-        }
+        best = Some((rank, s));
     }
     best.map(|(_, s)| s).filter(|s| !s.trim().is_empty())
 }
@@ -185,5 +206,28 @@ mod tests {
         assert_eq!(n[0].family, "Noto Serif");
         assert!(read_faces_bytes(b"not a font").is_empty());
         assert_eq!(f[0].instance, None, "a static face has no named instance");
+    }
+
+    #[test]
+    fn later_non_improving_name_records_are_not_decoded() {
+        // The first record is the preferred Windows-English value. The second names an invalid
+        // range: it must be ignored instead of making the whole name lookup fail.
+        let mut table = vec![0; 30];
+        table[2..4].copy_from_slice(&2u16.to_be_bytes());
+        table[4..6].copy_from_slice(&30u16.to_be_bytes());
+        let first = 6usize;
+        table[first..first + 2].copy_from_slice(&3u16.to_be_bytes());
+        table[first + 2..first + 4].copy_from_slice(&1u16.to_be_bytes());
+        table[first + 4..first + 6].copy_from_slice(&0x409u16.to_be_bytes());
+        table[first + 6..first + 8].copy_from_slice(&1u16.to_be_bytes());
+        table[first + 8..first + 10].copy_from_slice(&4u16.to_be_bytes());
+        let second = first + 12;
+        table[second..second + 2].copy_from_slice(&3u16.to_be_bytes());
+        table[second + 2..second + 4].copy_from_slice(&1u16.to_be_bytes());
+        table[second + 4..second + 6].copy_from_slice(&0x409u16.to_be_bytes());
+        table[second + 6..second + 8].copy_from_slice(&1u16.to_be_bytes());
+        table[second + 8..second + 10].copy_from_slice(&u16::MAX.to_be_bytes());
+        table.extend_from_slice(&[0, b'A', 0, b'B']);
+        assert_eq!(name_string(&table, 1).as_deref(), Some("AB"));
     }
 }
